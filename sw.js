@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v2';
+const CACHE_VERSION = 'checklist-cache-v3';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -9,7 +9,9 @@ const APP_SHELL = [
   './index.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+'./img/manufacturer_pcp.jpg',   // ← добавили
+  './img/manufacturer_nika.jpg'   // ← добавили
 ];
 
 // Библиотеки с внешних CDN, нужные для экспорта в Excel.
