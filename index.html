@@ -2586,6 +2586,578 @@ if ('serviceWorker' in navigator) {
   }, 2000);
 })();
 </script>
+<!-- ============================================================
+     PATCH: "Акт на подпись" для всех чек-листов (V5)
+     - Компактная вёрстка (меньше отступов, 2-колоночная таблица
+       общих данных, фото 3-в-ряд).
+     - В акт попадают ВСЕ несоответствия, включая "Устранено".
+     - Блок "Заключение" удалён.
+     - Акт скрывается СРАЗУ после закрытия окна печати.
+     - Кнопки прокрутки вверх/вниз скрываются на время печати.
+     ============================================================ -->
+<script id="__ACT_PRINT_V5__">
+(function(){
+  'use strict';
+  if (window.__ACT_PRINT_V5_PARENT__) return;
+  window.__ACT_PRINT_V5_PARENT__ = true;
 
+  function INJECTABLE(){
+    'use strict';
+    if (window.__ACT_PRINT_V5_INSIDE__) return;
+    window.__ACT_PRINT_V5_INSIDE__ = true;
+
+    var ACT_ID = 'actPrintRootV5';
+    var MODAL_ID = 'actPrintModalV5';
+    var BTN_ID = 'actPrintBtnV5';
+    var SIGN_KEY = 'checklist_act_signers_v5';
+
+    function esc(s){
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function fmtDateRu(v){
+      if (!v) return '';
+      v = String(v).trim();
+      if (v.indexOf('-') > 0){
+        var p = v.split('-');
+        if (p.length === 3 && p[0].length === 4) return p[2] + '.' + p[1] + '.' + p[0];
+      }
+      return v;
+    }
+    function isServiceValue(v){
+      return v === 'не требуется' || v === 'отсутствует ШУ';
+    }
+
+    function ensureStyles(){
+      var old3 = document.getElementById('__act_print_styles_v3__'); if (old3) old3.remove();
+      var old4 = document.getElementById('__act_print_styles_v4__'); if (old4) old4.remove();
+      if (document.getElementById('__act_print_styles_v5__')) return;
+
+      var st = document.createElement('style');
+      st.id = '__act_print_styles_v5__';
+      st.textContent = ''
+        + '@media print {'
+        + '  @page { size: A4; margin: 10mm 10mm; }'
+        + '  html, body {'
+        + '    background: #fff !important;'
+        + '    padding: 0 !important;'
+        + '    margin: 0 !important;'
+        + '    height: auto !important;'
+        + '    overflow: visible !important;'
+        + '    max-width: none !important;'
+        + '  }'
+        + '  body > *:not(#' + ACT_ID + ') { display: none !important; }'
+        + '  .scroll-top-btn, .scroll-bottom-btn { display: none !important; }'
+        + '  #' + ACT_ID + ' {'
+        + '    display: block !important;'
+        + '    position: static !important;'
+        + '    width: 100% !important;'
+        + '    padding: 0 !important;'
+        + '    margin: 0 !important;'
+        + '    background: #fff !important;'
+        + '    font-size: 9.5pt !important;'
+        + '    line-height: 1.25 !important;'
+        + '  }'
+        + '}';
+      (document.head || document.documentElement).appendChild(st);
+    }
+
+    function addButton(){
+      if (document.getElementById(BTN_ID)) return true;
+      var footbar = document.querySelector('.footbar');
+      if (!footbar) return false;
+      var btn = document.createElement('button');
+      btn.id = BTN_ID;
+      btn.className = 'btn';
+      btn.type = 'button';
+      btn.innerHTML = '📄 Акт на подпись';
+      btn.style.cssText = 'background:var(--ok,#1f9d55);color:#fff;border-color:var(--ok,#1f9d55);font-weight:600;';
+      btn.onclick = openModal;
+      footbar.appendChild(btn);
+      return true;
+    }
+
+    function loadSigners(){
+      try { var r = localStorage.getItem(SIGN_KEY); return r ? JSON.parse(r) : {}; } catch(e){ return {}; }
+    }
+    function saveSigners(o){
+      try { localStorage.setItem(SIGN_KEY, JSON.stringify(o)); } catch(e){}
+    }
+
+    function ensureModal(){
+      if (document.getElementById(MODAL_ID)) return;
+      var m = document.createElement('div');
+      m.id = MODAL_ID;
+      m.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:99999;justify-content:center;align-items:center;padding:16px;';
+      var inner = ''
+        + '<div style="background:var(--panel,#fff);border:2px solid var(--amber,#0a5eb0);border-radius:12px;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;padding:22px;color:var(--ink,#16324f);box-sizing:border-box;">'
+        + '<h2 style="margin:0 0 8px;color:var(--amber,#0a5eb0);font-size:19px;">📄 Акт на подпись</h2>'
+        + '<p style="color:var(--ink-dim,#6d84a0);font-size:12.5px;margin:0 0 16px;line-height:1.5;">'
+        + 'В акт попадут все выявленные несоответствия, включая уже устранённые. Сначала убедитесь, что все данные сохранены.'
+        + '</p>'
+        + '<div style="display:flex;flex-direction:column;gap:10px;">'
+        + '<label style="font-size:12px;font-weight:600;">Номер акта<input type="text" id="actNumV5" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--ink);box-sizing:border-box;"></label>'
+        + '<label style="font-size:12px;font-weight:600;">Дата составления<input type="date" id="actDateV5" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--ink);box-sizing:border-box;"></label>'
+        + '<div style="border-top:1px dashed var(--line);margin-top:6px;padding-top:10px;font-size:12px;font-weight:600;color:var(--ink-dim);">От СЛД:</div>'
+        + '<label style="font-size:12px;font-weight:600;">Должность<input type="text" id="actSldPosV5" placeholder="Мастер цеха" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--ink);box-sizing:border-box;"></label>'
+        + '<label style="font-size:12px;font-weight:600;">ФИО<input type="text" id="actSldFioV5" placeholder="Иванов И.И." style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--ink);box-sizing:border-box;"></label>'
+        + '<div style="border-top:1px dashed var(--line);margin-top:6px;padding-top:10px;font-size:12px;font-weight:600;color:var(--ink-dim);">От НЭВЗ:</div>'
+        + '<label style="font-size:12px;font-weight:600;">Должность<input type="text" id="actNevzPosV5" placeholder="Представитель НЭВЗ" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--ink);box-sizing:border-box;"></label>'
+        + '<label style="font-size:12px;font-weight:600;">ФИО<input type="text" id="actNevzFioV5" placeholder="Петров П.П." style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--ink);box-sizing:border-box;"></label>'
+        + '<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;"><input type="checkbox" id="actWithPhotosV5" style="width:16px;height:16px;">Включить фото несоответствий (если есть)</label>'
+        + '</div>'
+        + '<div style="display:flex;gap:10px;margin-top:18px;">'
+        + '<button type="button" id="actMakeBtnV5" style="flex:1;padding:10px;background:var(--amber,#0a5eb0);color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer;">📄 Сформировать и распечатать</button>'
+        + '<button type="button" id="actCloseBtnV5" style="padding:10px 18px;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;cursor:pointer;">Отмена</button>'
+        + '</div>'
+        + '</div>';
+      m.innerHTML = inner;
+      document.body.appendChild(m);
+
+      document.getElementById('actCloseBtnV5').onclick = function(){ m.style.display = 'none'; };
+      m.addEventListener('click', function(e){ if (e.target === m) m.style.display = 'none'; });
+      document.getElementById('actMakeBtnV5').onclick = function(){ makeAct(); m.style.display = 'none'; };
+      document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && m.style.display === 'flex') m.style.display = 'none'; });
+    }
+
+    function openModal(){
+      ensureModal();
+      var dt = new Date();
+      var dstr = dt.getFullYear() + '-' + String(dt.getMonth()+1).padStart(2,'0') + '-' + String(dt.getDate()).padStart(2,'0');
+      var di = document.getElementById('actDateV5');
+      if (!di.value) di.value = dstr;
+
+      var ni = document.getElementById('actNumV5');
+      if (!ni.value){
+        try {
+          var g = getGeneral();
+          var typeTag = (g.type || '').replace(/\s/g,'');
+          var numTag = (g.number || '');
+          ni.value = 'АКТ-' + (typeTag || 'ЛОК') + (numTag ? '-' + numTag : '') + '-' + dt.getFullYear();
+        } catch(e){}
+      }
+
+      var saved = loadSigners();
+      ['actSldPosV5','actSldFioV5','actNevzPosV5','actNevzFioV5'].forEach(function(id){
+        var el = document.getElementById(id);
+        if (!el.value && saved[id]) el.value = saved[id];
+      });
+
+      document.getElementById(MODAL_ID).style.display = 'flex';
+    }
+
+    function getGeneral(){
+      var g = {};
+      function pick(sel){
+        var el = document.querySelector(sel);
+        return el ? (el.value || '').trim() : '';
+      }
+      g.date    = pick('#generalGrid [data-general-field="date"] input') || '';
+      g.type    = pick('#generalGrid [data-general-field="type"] select') || '';
+      g.number  = pick('#generalGrid [data-general-field="number"] input') || '';
+      g.depot   = pick('#generalGrid [data-general-field="depot"] input') || '';
+      g.place   = pick('#generalGrid [data-general-field="place"] select') || '';
+      g.mileage = pick('#generalGrid [data-general-field="mileage"] input') || '';
+      try {
+        var s = (typeof STATE !== 'undefined' && STATE && STATE.general) ? STATE.general : null;
+        if (s){ for (var k in g){ if (!g[k] && s[k]) g[k] = s[k]; } }
+      } catch(e){}
+      return g;
+    }
+
+    function getChecklistName(){
+      var t = '';
+      try { t = document.title || ''; } catch(e){}
+      try {
+        if (window.parent && window.parent !== window && window.parent.document){
+          var pt = window.parent.document.title || '';
+          if (pt && pt.length > t.length) t = pt;
+          var ph1 = window.parent.document.getElementById('modeTitle');
+          if (ph1 && ph1.textContent) t = ph1.textContent.trim();
+        }
+      } catch(e){}
+      if (!t){
+        var h1 = document.getElementById('modeTitle');
+        if (h1 && h1.textContent) t = h1.textContent.trim();
+      }
+      t = t.replace(/^Чек-лист\s*[—-]\s*/i,'').trim();
+      return t || 'Осмотр локомотива';
+    }
+
+    function cleanLabelText(lblEl){
+      if (!lblEl) return '';
+      var txt = '';
+      for (var i = 0; i < lblEl.childNodes.length; i++){
+        var node = lblEl.childNodes[i];
+        if (node.nodeType === 3){ txt += node.textContent; }
+        else if (node.nodeType === 1 && node.tagName === 'SPAN' && !node.classList.contains('hint')){ txt += node.textContent; }
+        else if (node.nodeType === 1 && node.tagName === 'SPAN' && node.classList.contains('hint')){ break; }
+        else if (node.nodeType === 1 && node.tagName === 'BR'){ break; }
+      }
+      txt = txt.trim();
+      if (!txt) txt = (lblEl.textContent || '').trim();
+      if (txt.length > 200) txt = txt.slice(0,200) + '…';
+      return txt;
+    }
+
+    function findFieldDef(card, fieldKey){
+      try {
+        if (typeof EQUIPMENT === 'undefined' || !Array.isArray(EQUIPMENT)) return null;
+        var eqId = null;
+        if (card.dataset.iid) eqId = card.dataset.iid.split('|')[0];
+        else if (card.dataset.eqId) eqId = card.dataset.eqId;
+        if (!eqId) return null;
+        var eq = EQUIPMENT.find(function(e){ return e.id === eqId; });
+        if (!eq || !eq.fields) return null;
+        return eq.fields.find(function(f){ return f.key === fieldKey; }) || null;
+      } catch(e){ return null; }
+    }
+
+    function collectIssues(){
+      var issues = [];
+      var normCount = 0;
+      var activeCards = [];
+      var cards = document.querySelectorAll('.inst, .route-step');
+
+      cards.forEach(function(card){
+        if (card.closest('#' + ACT_ID)) return;
+
+        var isBad = false, isOk = false;
+        var pill = card.querySelector('.pill');
+        if (pill){
+          isBad = pill.classList.contains('bad');
+          isOk = pill.classList.contains('ok');
+        } else {
+          var av = card.querySelector('.auto-val, .val');
+          if (av){
+            isBad = av.classList.contains('bad');
+            isOk = av.classList.contains('ok');
+          }
+        }
+        if (!isBad && !isOk) return;
+
+        var title = '';
+        var lblEl = card.querySelector('.ih .lbl') || card.querySelector('.lbl');
+        if (lblEl) title = lblEl.textContent.trim();
+        if (!title){
+          var rowNum = card.querySelector('.route-step-num');
+          title = rowNum ? 'Поз. ' + rowNum.textContent.trim() : '—';
+        }
+
+        var section = '';
+        var secBody = card.closest('.sec-body');
+        if (secBody && secBody.dataset.sectionName) section = secBody.dataset.sectionName;
+        if (!section){
+          var wrapper = card.closest('.sec-wrapper');
+          if (wrapper){
+            var hdr = wrapper.querySelector('.sec-header span');
+            if (hdr) section = hdr.textContent.trim();
+          }
+        }
+        if (!section){
+          var rh = card.closest('.route-section-header, .route-zone-header, .route-eq-header');
+          if (rh) section = rh.textContent.trim();
+        }
+
+        if (isBad){
+          var badFields = [];
+          card.querySelectorAll('.frow').forEach(function(row){
+            var lblEl = row.querySelector('.flabel');
+            var ctrl = row.querySelector('select, input[type="text"]');
+            if (!ctrl) return;
+
+            var val = (ctrl.value || '').trim();
+            if (!val) return;
+            if (isServiceValue(val)) return;
+
+            var fieldKey = row.dataset.fieldKey;
+            var fieldDef = findFieldDef(card, fieldKey);
+
+            if (fieldDef && fieldDef.calc === false) return;
+
+            if (ctrl.tagName === 'INPUT'){
+              var hasBadInput = row.classList.contains('frow-bad')
+                             || ctrl.classList.contains('bad-select');
+              if (!hasBadInput) return;
+              badFields.push({ label: cleanLabelText(lblEl), value: val });
+              return;
+            }
+
+            if (fieldDef && fieldDef.ok && fieldDef.ok.length){
+              if (fieldDef.ok.indexOf(val) === -1){
+                badFields.push({ label: cleanLabelText(lblEl), value: val });
+              }
+            } else {
+              if (val !== 'Да' && val !== 'Норма' && val !== 'ОК' && val !== 'ок'){
+                badFields.push({ label: cleanLabelText(lblEl), value: val });
+              }
+            }
+          });
+
+          if (badFields.length === 0){
+            issues.push({
+              title: title,
+              section: section,
+              fields: [{ label: 'Позиция отмечена как несоответствие', value: 'см. фотофиксацию' }]
+            });
+            activeCards.push(card);
+            return;
+          }
+
+          issues.push({ title: title, section: section, fields: badFields });
+          activeCards.push(card);
+        } else if (isOk){
+          normCount++;
+        }
+      });
+
+      return { issues: issues, normCount: normCount, activeCards: activeCards };
+    }
+
+    function collectPhotos(activeCards){
+      var photos = [];
+      (activeCards || []).forEach(function(card){
+        var lblEl = card.querySelector('.ih .lbl') || card.querySelector('.lbl');
+        var title = lblEl ? lblEl.textContent.trim() : '';
+        card.querySelectorAll('.photo-preview').forEach(function(img){
+          if (img.src && img.style.display !== 'none' && img.src.indexOf('data:image') === 0){
+            photos.push({ src: img.src, caption: title });
+          }
+        });
+      });
+      return photos;
+    }
+
+    function makeAct(){
+      var num = (document.getElementById('actNumV5').value || '').trim();
+      var dtRaw = (document.getElementById('actDateV5').value || '').trim();
+      var sldPos = (document.getElementById('actSldPosV5').value || '').trim();
+      var sldFio = (document.getElementById('actSldFioV5').value || '').trim();
+      var nevzPos = (document.getElementById('actNevzPosV5').value || '').trim();
+      var nevzFio = (document.getElementById('actNevzFioV5').value || '').trim();
+      var withPhotos = document.getElementById('actWithPhotosV5').checked;
+
+      saveSigners({
+        actSldPosV5: sldPos, actSldFioV5: sldFio,
+        actNevzPosV5: nevzPos, actNevzFioV5: nevzFio
+      });
+
+      var general = getGeneral();
+      var collected = collectIssues();
+      var issues = collected.issues;
+      var normCount = collected.normCount;
+      var photos = withPhotos ? collectPhotos(collected.activeCards) : [];
+
+      var dtFmt = fmtDateRu(dtRaw);
+      var generalDateFmt = fmtDateRu(general.date) || dtFmt;
+
+      var S = {
+        th: 'border:0.5px solid #999;padding:2px 4px;text-align:left;background:#f0f6fc;font-weight:600;',
+        tdL: 'border:0.5px solid #ccc;padding:2px 5px;background:#f7fafc;width:22%;color:#333;',
+        tdV: 'border:0.5px solid #ccc;padding:2px 5px;width:28%;',
+        h2: 'font-size:9.5pt;margin:8px 0 3px;color:#0a5eb0;border-bottom:0.5px solid #ccc;padding-bottom:1px;font-weight:700;'
+      };
+
+      var h = [];
+      h.push('<div id="' + ACT_ID + '" style="font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff;font-size:9.5pt;line-height:1.25;">');
+
+      h.push('<div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1.2px solid #0a5eb0;padding-bottom:2px;margin-bottom:6px;">');
+      h.push('<div>');
+      h.push('<div style="font-weight:700;font-size:11pt;color:#0a5eb0;display:inline;">АКТ ОСМОТРА</div>');
+      h.push('<span style="color:#555;font-size:8.5pt;margin-left:6px;">ТМХ · НЭВЗ · Новочеркасский электровозостроительный завод</span>');
+      h.push('</div>');
+      h.push('<div style="font-size:8.5pt;color:#333;text-align:right;">');
+      h.push('№ <b>' + (esc(num) || '____') + '</b> от <b>' + (esc(dtFmt) || '__.__.____') + '</b>');
+      h.push('</div>');
+      h.push('</div>');
+
+      h.push('<div style="font-size:8.5pt;color:#555;margin-bottom:5px;">Чек-лист: <b>' + esc(getChecklistName()) + '</b></div>');
+
+      h.push('<h2 style="' + S.h2 + '">1. Общие сведения о локомотиве</h2>');
+      h.push('<table style="width:100%;border-collapse:collapse;font-size:9pt;table-layout:fixed;">');
+      h.push('<tr>');
+      h.push('<td style="' + S.tdL + '">Тип</td><td style="' + S.tdV + '">' + esc(general.type || '—') + '</td>');
+      h.push('<td style="' + S.tdL + '">Номер</td><td style="' + S.tdV + '">' + esc(general.number || '—') + '</td>');
+      h.push('</tr>');
+      h.push('<tr>');
+      h.push('<td style="' + S.tdL + '">Приписка</td><td style="' + S.tdV + '">' + esc(general.depot || '—') + '</td>');
+      h.push('<td style="' + S.tdL + '">Место осмотра</td><td style="' + S.tdV + '">' + esc(general.place || '—') + '</td>');
+      h.push('</tr>');
+      h.push('<tr>');
+      h.push('<td style="' + S.tdL + '">Пробег</td><td style="' + S.tdV + '">' + (esc(general.mileage) ? esc(general.mileage) + ' км' : '—') + '</td>');
+      h.push('<td style="' + S.tdL + '">Дата осмотра</td><td style="' + S.tdV + '">' + esc(generalDateFmt || '—') + '</td>');
+      h.push('</tr>');
+      h.push('</table>');
+
+      h.push('<h2 style="' + S.h2 + '">2. Результаты осмотра</h2>');
+
+      if (issues.length === 0){
+        h.push('<div style="padding:4px 6px;background:#e6f7ee;border-left:2px solid #1f9d55;font-size:9pt;">Несоответствий не выявлено.</div>');
+      } else {
+        h.push('<table style="width:100%;border-collapse:collapse;font-size:8.8pt;table-layout:fixed;">');
+        h.push('<colgroup><col style="width:18px;"><col style="width:26%;"><col></colgroup>');
+        h.push('<thead><tr>');
+        h.push('<th style="' + S.th + '">№</th>');
+        h.push('<th style="' + S.th + '">Секция / Позиция</th>');
+        h.push('<th style="' + S.th + '">Описание несоответствия</th>');
+        h.push('</tr></thead><tbody>');
+        issues.forEach(function(iss, i){
+          var pos = [];
+          if (iss.section) pos.push(iss.section);
+          if (iss.title && iss.title !== iss.section) pos.push(iss.title);
+          var posText = pos.join(' / ') || '—';
+          var badHtml = '';
+          if (iss.fields && iss.fields.length > 0){
+            badHtml = iss.fields.map(function(f){
+              return '<div style="margin-bottom:1px;">• <b>' + esc(f.label) + '</b>' +
+                     (f.value ? ' — <i>' + esc(f.value) + '</i>' : '') + '</div>';
+            }).join('');
+          } else {
+            badHtml = '<i>см. фотофиксацию</i>';
+          }
+          h.push('<tr>');
+          h.push('<td style="border:0.5px solid #999;padding:2px 4px;vertical-align:top;text-align:center;">' + (i+1) + '</td>');
+          h.push('<td style="border:0.5px solid #999;padding:2px 4px;vertical-align:top;">' + esc(posText) + '</td>');
+          h.push('<td style="border:0.5px solid #999;padding:2px 4px;">' + badHtml + '</td>');
+          h.push('</tr>');
+        });
+        h.push('</tbody></table>');
+        if (normCount > 0){
+          h.push('<div style="font-size:8pt;color:#555;font-style:italic;margin-top:2px;">Остальные ' + normCount + ' поз. — без замечаний.</div>');
+        }
+      }
+
+      var nextNum = 3;
+      if (photos.length > 0){
+        h.push('<h2 style="' + S.h2 + '">' + nextNum + '. Фотофиксация несоответствий</h2>');
+        h.push('<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">');
+        photos.forEach(function(p){
+          h.push('<div style="border:0.5px solid #ccc;padding:2px;page-break-inside:avoid;">');
+          h.push('<img src="' + p.src + '" style="width:100%;max-height:130px;object-fit:contain;display:block;">');
+          h.push('<div style="font-size:7.5pt;color:#555;margin-top:1px;">' + esc(p.caption) + '</div>');
+          h.push('</div>');
+        });
+        h.push('</div>');
+        nextNum++;
+      }
+
+      h.push('<h2 style="' + S.h2 + '">' + nextNum + '. Подписи сторон</h2>');
+      h.push('<table style="width:100%;border-collapse:collapse;font-size:9pt;table-layout:fixed;">');
+      h.push('<tr>');
+      h.push('<td style="width:50%;vertical-align:top;padding:4px 8px 4px 0;border-right:0.5px solid #ddd;">');
+      h.push('<div style="font-size:8.5pt;font-weight:700;margin-bottom:3px;">От СЛД:</div>');
+      h.push('<div style="margin-bottom:3px;">Должность: <b>' + (esc(sldPos) || '________________') + '</b></div>');
+      h.push('<div style="margin-bottom:3px;">ФИО: <b>' + (esc(sldFio) || '________________') + '</b></div>');
+      h.push('<div style="margin-top:14px;">Подпись: ___________________</div>');
+      h.push('</td>');
+      h.push('<td style="width:50%;vertical-align:top;padding:4px 0 4px 8px;">');
+      h.push('<div style="font-size:8.5pt;font-weight:700;margin-bottom:3px;">От НЭВЗ:</div>');
+      h.push('<div style="margin-bottom:3px;">Должность: <b>' + (esc(nevzPos) || '________________') + '</b></div>');
+      h.push('<div style="margin-bottom:3px;">ФИО: <b>' + (esc(nevzFio) || '________________') + '</b></div>');
+      h.push('<div style="margin-top:14px;">Подпись: ___________________</div>');
+      h.push('</td>');
+      h.push('</tr>');
+      h.push('</table>');
+
+      h.push('<div style="margin-top:8px;padding-top:3px;border-top:0.5px solid #ccc;font-size:7.5pt;color:#888;text-align:center;">Сформировано автоматически: ' + new Date().toLocaleString('ru-RU') + '</div>');
+      h.push('</div>');
+
+      // Удаляем предыдущий акт, если остался
+      var old = document.getElementById(ACT_ID);
+      if (old) old.remove();
+
+      var wrapper = document.createElement('div');
+      wrapper.innerHTML = h.join('');
+      document.body.appendChild(wrapper.firstChild);
+
+      // Скрываем кнопки прокрутки на время печати
+      var scrollTopBtn = document.getElementById('scrollTopBtn');
+      var scrollBottomBtn = document.getElementById('scrollBottomBtn');
+      var stPrev = scrollTopBtn ? scrollTopBtn.style.display : null;
+      var sbPrev = scrollBottomBtn ? scrollBottomBtn.style.display : null;
+      if (scrollTopBtn) scrollTopBtn.style.display = 'none';
+      if (scrollBottomBtn) scrollBottomBtn.style.display = 'none';
+
+      // Один кадр — дать браузеру отрисовать, затем открыть печать.
+      // window.print() блокирующий: код после него сработает
+      // СРАЗУ после закрытия окна печати.
+      requestAnimationFrame(function(){
+        try { window.print(); } catch(e){}
+
+        var a = document.getElementById(ACT_ID);
+        if (a) {
+          a.style.display = 'none';
+          a.remove();
+        }
+        if (scrollTopBtn) scrollTopBtn.style.display = stPrev || '';
+        if (scrollBottomBtn) scrollBottomBtn.style.display = sbPrev || '';
+      });
+    }
+
+    function install(){
+      if (!document.querySelector('.footbar')) return false;
+      ensureStyles();
+      addButton();
+      ensureModal();
+      return true;
+    }
+
+    if (!install()){
+      var tries = 0;
+      var iv = setInterval(function(){
+        tries++;
+        if (install() || tries > 60) clearInterval(iv);
+      }, 300);
+    }
+  }
+
+  try { INJECTABLE.call(window); } catch(e){}
+
+  function injectInto(win, doc){
+    try {
+      if (win.__ACT_PRINT_V5_INSIDE__) return;
+      var s = doc.createElement('script');
+      s.textContent = '(' + INJECTABLE.toString() + ').call(window);';
+      (doc.body || doc.head || doc.documentElement).appendChild(s);
+    } catch(e){}
+  }
+
+  function bindIframe(f){
+    if (!f || f.__ACT_V5_BOUND__) return;
+    f.__ACT_V5_BOUND__ = true;
+    function tryGo(){
+      try {
+        var doc = f.contentDocument, win = f.contentWindow;
+        if (!doc || !win) return;
+        injectInto(win, doc);
+      } catch(e){}
+    }
+    f.addEventListener('load', tryGo);
+    tryGo();
+    setTimeout(tryGo, 300);
+    setTimeout(tryGo, 1000);
+    setTimeout(tryGo, 2500);
+    setTimeout(tryGo, 5000);
+  }
+
+  var ef = document.getElementById('embeddedFrame');
+  if (ef) bindIframe(ef);
+  var all = document.querySelectorAll('iframe');
+  for (var i = 0; i < all.length; i++) bindIframe(all[i]);
+
+  if (window.MutationObserver){
+    var mo = new MutationObserver(function(){
+      var list = document.querySelectorAll('iframe');
+      for (var j = 0; j < list.length; j++) bindIframe(list[j]);
+    });
+    mo.observe(document.documentElement, {childList:true, subtree:true});
+  }
+  setInterval(function(){
+    var ef2 = document.getElementById('embeddedFrame');
+    if (ef2) bindIframe(ef2);
+  }, 2000);
+})();
+</script>
 </body>
 </html>
