@@ -564,8 +564,136 @@ if(MODE==='housings')LS_KEY=LS_KEY_HOUSINGS;
 let STATE={general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[]};
 if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){STATE=__EMBEDDED_STATE;try{localStorage.setItem(LS_KEY,JSON.stringify(STATE));}catch(e){}const el=document.getElementById('__embedded_state');if(el)el.parentNode.removeChild(el);}
 
-function loadState(){try{const raw=localStorage.getItem(LS_KEY);if(raw){const p=JSON.parse(raw);STATE=Object.assign({general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[]},p);if(!Array.isArray(STATE.selectedSections))STATE.selectedSections=[];if(!Array.isArray(STATE.selected))STATE.selected=[];}}catch(e){console.warn('Не удалось загрузить сохранённые данные',e);}}
-function fullClearState(){localStorage.removeItem(LS_KEY);STATE={general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[]};buildEquipment('');if(window._mk84Cache)window._mk84Cache={};}
+/* ===== Хранилище фото на базе IndexedDB (вместо localStorage) =====
+   Фото — самые "тяжёлые" данные чек-листа. localStorage ограничен
+   примерно 5 МБ у большинства браузеров, чего может не хватить, если
+   фото много. IndexedDB даёт лимит в сотни МБ / несколько ГБ, поэтому
+   фото хранятся отдельно там, а в localStorage остаётся только "лёгкая"
+   часть состояния (текстовые значения полей) — она никогда не переполнится. */
+const IDB_NAME='checklist_photos_db';
+const IDB_STORE='photos';
+let _idbPromise=null;
+function openPhotoDB(){
+    if(_idbPromise)return _idbPromise;
+    _idbPromise=new Promise(function(resolve,reject){
+        if(!window.indexedDB){reject(new Error('IndexedDB недоступен'));return;}
+        const req=indexedDB.open(IDB_NAME,1);
+        req.onupgradeneeded=function(e){
+            const db=e.target.result;
+            if(!db.objectStoreNames.contains(IDB_STORE))db.createObjectStore(IDB_STORE);
+        };
+        req.onsuccess=function(e){resolve(e.target.result);};
+        req.onerror=function(e){reject(e.target.error);};
+    });
+    return _idbPromise;
+}
+function photoDbKey(namespace,iid,photoKey){return namespace+'::'+iid+'::'+photoKey;}
+function idbPutPhoto(namespace,iid,photoKey,dataUrl){
+    return openPhotoDB().then(function(db){
+        return new Promise(function(resolve,reject){
+            const tx=db.transaction(IDB_STORE,'readwrite');
+            tx.objectStore(IDB_STORE).put(dataUrl,photoDbKey(namespace,iid,photoKey));
+            tx.oncomplete=function(){resolve(true);};
+            tx.onerror=function(){reject(tx.error);};
+        });
+    }).catch(function(e){console.warn('Не удалось сохранить фото в IndexedDB',e);return false;});
+}
+function idbDeletePhoto(namespace,iid,photoKey){
+    return openPhotoDB().then(function(db){
+        return new Promise(function(resolve,reject){
+            const tx=db.transaction(IDB_STORE,'readwrite');
+            tx.objectStore(IDB_STORE).delete(photoDbKey(namespace,iid,photoKey));
+            tx.oncomplete=function(){resolve(true);};
+            tx.onerror=function(){reject(tx.error);};
+        });
+    }).catch(function(e){console.warn('Не удалось удалить фото из IndexedDB',e);return false;});
+}
+function idbClearNamespace(namespace){
+    return openPhotoDB().then(function(db){
+        return new Promise(function(resolve,reject){
+            const tx=db.transaction(IDB_STORE,'readwrite');
+            const store=tx.objectStore(IDB_STORE);
+            const prefix=namespace+'::';
+            const range=IDBKeyRange.bound(prefix,prefix+'\uffff');
+            const req=store.openCursor(range);
+            req.onsuccess=function(e){const cur=e.target.result;if(cur){cur.delete();cur.continue();}else{resolve(true);}};
+            req.onerror=function(){reject(req.error);};
+        });
+    }).catch(function(e){console.warn('Не удалось очистить фото в IndexedDB',e);return false;});
+}
+function idbGetAllPhotosForNamespace(namespace){
+    const result={};
+    return openPhotoDB().then(function(db){
+        return new Promise(function(resolve,reject){
+            const tx=db.transaction(IDB_STORE,'readonly');
+            const store=tx.objectStore(IDB_STORE);
+            const prefix=namespace+'::';
+            const range=IDBKeyRange.bound(prefix,prefix+'\uffff');
+            const req=store.openCursor(range);
+            req.onsuccess=function(e){
+                const cursor=e.target.result;
+                if(cursor){
+                    const fullKey=cursor.key;
+                    const rest=fullKey.substring(prefix.length);
+                    const sep=rest.indexOf('::');
+                    if(sep!==-1){
+                        const iid=rest.substring(0,sep);
+                        const photoKey=rest.substring(sep+2);
+                        if(!result[iid])result[iid]={};
+                        result[iid][photoKey]=cursor.value;
+                    }
+                    cursor.continue();
+                }else{resolve();}
+            };
+            req.onerror=function(){reject(req.error);};
+        });
+    }).then(function(){return result;}).catch(function(e){console.warn('Не удалось прочитать фото из IndexedDB',e);return result;});
+}
+function refreshAllPhotoPreviews(){
+    document.querySelectorAll('.frow[data-field-key]').forEach(function(row){
+        const instEl=row.closest('.inst');
+        if(!instEl)return;
+        const iid=instEl.dataset.iid;
+        const fieldKey=row.dataset.fieldKey;
+        if(!iid||!fieldKey)return;
+        const photoData=getVal(iid,fieldKey+'_photo');
+        if(!photoData)return;
+        const preview=row.querySelector('.photo-preview');
+        const dBtn=row.querySelector('.photo-delete');
+        if(preview&&preview.style.display==='none'){
+            preview.src=photoData;
+            preview.style.display='block';
+            if(dBtn)dBtn.style.display='inline-block';
+        }
+    });
+}
+let _photoMigrationPromise=null;
+function migrateExistingPhotosToIndexedDB(){
+    const tasks=[];
+    for(const iid in STATE.values){
+        const obj=STATE.values[iid];
+        for(const k in obj){
+            if(k.endsWith('_photo')&&obj[k])tasks.push(idbPutPhoto(LS_KEY,iid,k,obj[k]));
+        }
+    }
+    return (tasks.length?Promise.all(tasks):Promise.resolve()).catch(function(e){console.warn('Миграция части фото в IndexedDB не удалась',e);}).then(function(){
+        return idbGetAllPhotosForNamespace(LS_KEY);
+    }).then(function(photos){
+        let any=false;
+        for(const iid in photos){
+            if(!STATE.values[iid])STATE.values[iid]={};
+            Object.assign(STATE.values[iid],photos[iid]);
+            any=true;
+        }
+        if(any)refreshAllPhotoPreviews();
+    });
+}
+/* ===== конец блока IndexedDB ===== */
+
+function loadState(){try{const raw=localStorage.getItem(LS_KEY);if(raw){const p=JSON.parse(raw);STATE=Object.assign({general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[]},p);if(!Array.isArray(STATE.selectedSections))STATE.selectedSections=[];if(!Array.isArray(STATE.selected))STATE.selected=[];}}catch(e){console.warn('Не удалось загрузить сохранённые данные',e);}
+    _photoMigrationPromise=migrateExistingPhotosToIndexedDB();
+}
+function fullClearState(){localStorage.removeItem(LS_KEY);idbClearNamespace(LS_KEY);STATE={general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[]};buildEquipment('');if(window._mk84Cache)window._mk84Cache={};}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),1600);}
 function f(key,label,type,options,ok,hint,extra){return Object.assign({key,label,type,options,ok,hint},extra||{});}
 function sel(key,label,options,ok,hint){return f(key,label,'select',options,ok,hint,{photo:true});}
@@ -688,7 +816,7 @@ function getGroupsForPart(part){return PART_TO_GROUPS[part]||[];}
 
 function instId(eqId,inst,idx){if(eqId==='housings')return[eqId,inst.section,inst.housingId||'',idx].join('|');return[eqId,inst.section,inst.group||'',inst.block||'',inst.sub||'',idx].join('|');}
 function getVal(iid,key){return(STATE.values[iid]&&STATE.values[iid][key])||'';}
-function setVal(iid,key,val){if(!STATE.values[iid])STATE.values[iid]={};STATE.values[iid][key]=val;saveState(true);updateStats();}
+function setVal(iid,key,val){if(!STATE.values[iid])STATE.values[iid]={};STATE.values[iid][key]=val;if(key.endsWith('_photo')){if(val){idbPutPhoto(LS_KEY,iid,key,val);}else{idbDeletePhoto(LS_KEY,iid,key);}}saveState(true);updateStats();}
 function addNotRequiredOption(select){if(select.querySelector('option[value="не требуется"]'))return;const notReq=document.createElement('option');notReq.value='не требуется';notReq.textContent='не требуется';if(select.options.length>0)select.insertBefore(notReq,select.options[1]);else select.appendChild(notReq);}
 function removeNotRequiredOption(select){const opt=select.querySelector('option[value="не требуется"]');if(opt)opt.remove();}
 function isMk84(iid){const zavVal=getVal(iid,'zav')||'';const n=zavVal.trim().toUpperCase();return(n==='МК-84'||n==='MK-84'||n==='МК84'||n==='MK84');}
@@ -1271,9 +1399,9 @@ showToast('✅ JSON экспортирован'+(includePhotos?' (с фото)':
 }
 
 function importJson(){document.getElementById('jsonFileInput').click();}
-function handleJsonFile(file){const reader=new FileReader();reader.onload=function(e){try{const json=JSON.parse(e.target.result);if(typeof json!=='object'||!json.general||typeof json.values!=='object')throw new Error('Неверный формат JSON');if(json._meta&&json._meta.mode&&json._meta.mode!==MODE){if(!confirm(`Файл создан для режима "${json._meta.mode==='housings'?'Кожуха':'Комплексный'}". Загрузить как есть?`))return;}STATE=json;delete STATE._meta;if(!Array.isArray(STATE.selectedSections))STATE.selectedSections=[];if(!Array.isArray(STATE.selected))STATE.selected=[];saveState(true);const type=STATE.general.type||'';buildEquipment(type);renderGeneral();renderEquip();updateStats();showToast('✅ JSON загружен, данные восстановлены');}catch(err){showToast('⚠️ Ошибка загрузки JSON: '+err.message);console.error(err);}};reader.onerror=function(){showToast('⚠️ Ошибка чтения файла');};reader.readAsText(file);}
+function handleJsonFile(file){const reader=new FileReader();reader.onload=function(e){try{const json=JSON.parse(e.target.result);if(typeof json!=='object'||!json.general||typeof json.values!=='object')throw new Error('Неверный формат JSON');if(json._meta&&json._meta.mode&&json._meta.mode!==MODE){if(!confirm(`Файл создан для режима "${json._meta.mode==='housings'?'Кожуха':'Комплексный'}". Загрузить как есть?`))return;}STATE=json;delete STATE._meta;if(!Array.isArray(STATE.selectedSections))STATE.selectedSections=[];if(!Array.isArray(STATE.selected))STATE.selected=[];_photoMigrationPromise=migrateExistingPhotosToIndexedDB();saveState(true);const type=STATE.general.type||'';buildEquipment(type);renderGeneral();renderEquip();updateStats();showToast('✅ JSON загружен, данные восстановлены');}catch(err){showToast('⚠️ Ошибка загрузки JSON: '+err.message);console.error(err);}};reader.onerror=function(){showToast('⚠️ Ошибка чтения файла');};reader.readAsText(file);}
 
-function saveAsHtmlFile(){loadState();const type=STATE.general.type||'';const number=STATE.general.number||'';const mileage=STATE.general.mileage||'';if(!isValidMileage(mileage,type,number)){const err=getMileageError(mileage,type,number);showToast('⚠️ Некорректный пробег: '+(err||''));return;}saveState(true);
+async function saveAsHtmlFile(){loadState();if(_photoMigrationPromise){try{await _photoMigrationPromise;}catch(e){}}const type=STATE.general.type||'';const number=STATE.general.number||'';const mileage=STATE.general.mileage||'';if(!isValidMileage(mileage,type,number)){const err=getMileageError(mileage,type,number);showToast('⚠️ Некорректный пробег: '+(err||''));return;}saveState(true);
 const htmlContent='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
 const stateJson=JSON.stringify(STATE).replace(/<\//g,'<\\/');
 const modeJson=JSON.stringify(MODE||'complex').replace(/<\//g,'<\\/');
@@ -1490,7 +1618,28 @@ function saveState(silent){
 
 function saveState(silent){
     if(!STATE || !STATE.general) return; // safety
-    try{localStorage.setItem(LS_KEY,JSON.stringify(STATE));}catch(e){console.warn('Save failed',e);}
+    const writeLight=function(){
+        try{
+            const light={general:STATE.general,values:{},selectedSections:STATE.selectedSections,selected:STATE.selected};
+            for(const iid in STATE.values){
+                const src=STATE.values[iid];
+                const dst={};
+                for(const k in src){if(!k.endsWith('_photo'))dst[k]=src[k];}
+                light.values[iid]=dst;
+            }
+            localStorage.setItem(LS_KEY,JSON.stringify(light));
+        }catch(e){console.warn('Save failed',e);}
+    };
+    /* Первое сохранение после загрузки страницы дожидается завершения
+       переноса старых фото в IndexedDB — чтобы не было момента, когда
+       фото уже не в localStorage, но ещё не подтверждены в IndexedDB. */
+    if(_photoMigrationPromise){
+        const p=_photoMigrationPromise;
+        _photoMigrationPromise=null;
+        p.then(writeLight).catch(writeLight);
+    }else{
+        writeLight();
+    }
     if(!silent)showToast('Сохранено в браузере');
 }
 function init(){
