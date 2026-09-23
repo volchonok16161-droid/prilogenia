@@ -2396,6 +2396,196 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
+<!-- ============================================================
+     PATCH V5: кнопки "ПЦП" / "Ника" — в стиле фото-кнопок,
+     с постоянной зелёной индикацией, рядом с "Сделать фото".
+     Фото подгружаются из папки img/ (относительные пути).
+     ============================================================ -->
+<script id="__MFG_REF_PHOTOS_V5__">
+(function(){
+  'use strict';
+  if (window.__MFG_REF_PHOTOS_V5_PARENT__) return;
+  window.__MFG_REF_PHOTOS_V5_PARENT__ = true;
+
+  // ==== Пути к эталонным шильдикам. Поменяй имена файлов при необходимости. ====
+  var REF_PHOTOS = {
+    'ПЦП':  'img/manufacturer_pcp.jpg',
+    'Ника': 'img/manufacturer_nika.jpg'
+  };
+  // =============================================================================
+
+  function INJECTABLE(){
+    'use strict';
+    if (window.__MFG_REF_PHOTOS_V5_INSIDE__) return;
+    window.__MFG_REF_PHOTOS_V5_INSIDE__ = true;
+
+    // Получаем фото из родителя (актуально, когда работаем внутри iframe)
+    var REF = {};
+    try {
+      if (window.parent && window.parent !== window && window.parent.__MFG_REF_PHOTOS_DATA__)
+        REF = window.parent.__MFG_REF_PHOTOS_DATA__;
+    } catch(e){}
+    if (window.__MFG_REF_PHOTOS_DATA__) REF = window.__MFG_REF_PHOTOS_DATA__;
+
+    // --- CSS один раз ---
+    function ensureStyle(){
+      if (document.getElementById('__ref_photo_btn_style__')) return;
+      var st = document.createElement('style');
+      st.id = '__ref_photo_btn_style__';
+      st.textContent = [
+        '.ref-photo-btn{',
+        '  border-color:var(--ok,#1f9d55)!important;',
+        '  background:rgba(31,157,85,0.12)!important;',
+        '  color:var(--ok,#1f9d55)!important;',
+        '  font-weight:600!important;',
+        '}',
+        '.ref-photo-btn:hover{',
+        '  background:rgba(31,157,85,0.22)!important;',
+        '  border-color:var(--ok,#1f9d55)!important;',
+        '}',
+        'html[data-theme="dark"] .ref-photo-btn{',
+        '  background:rgba(63,174,106,0.18)!important;',
+        '}',
+        '.ref-photo-btn .ref-check{',
+        '  color:var(--ok,#1f9d55);font-weight:700;',
+        '}'
+      ].join('');
+      (document.head || document.documentElement).appendChild(st);
+    }
+
+    function makeRefBtn(id){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'photo-btn ref-photo-btn';
+      b.dataset.refId = id;
+      b.innerHTML = '🖼️ ' + id + ' <span class="ref-check">✓</span>';
+      b.title = 'Показать эталонный шильдик ' + id;
+      b.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        var src = REF[id];
+        if (!src) return;
+        if (typeof window.openPhotoModal === 'function') window.openPhotoModal(src);
+        else window.open(src, '_blank');
+      });
+      return b;
+    }
+
+    function appendRefButtons(row){
+      if (!row || row.querySelector('.ref-photo-btn')) return;
+      var area = row.querySelector('.photo-area');
+      if (!area) return;
+      area.appendChild(makeRefBtn('ПЦП'));
+      area.appendChild(makeRefBtn('Ника'));
+    }
+
+    function install(){
+      ensureStyle();
+
+      // Хук №1: addPhotoSupport — создаёт .photo-area
+      if (typeof window.addPhotoSupport === 'function' && !window.addPhotoSupport.__refV5Wrapped) {
+        var orig = window.addPhotoSupport;
+        var wrapped = function(row, field, eq, iid){
+          var res = orig.apply(this, arguments);
+          try {
+            if (eq && eq.id === 'housings' && field && field.key === 'manufacturer') {
+              setTimeout(function(){ appendRefButtons(row); }, 0);
+            }
+          } catch(e){}
+          return res;
+        };
+        wrapped.__refV5Wrapped = true;
+        try { window.addPhotoSupport = wrapped; } catch(e){}
+      }
+
+      // Хук №2: fieldRow (на случай, если addPhotoSupport ещё не подгрузился)
+      if (typeof window.fieldRow === 'function' && !window.fieldRow.__refV5Wrapped) {
+        var origFR = window.fieldRow;
+        var wrappedFR = function(eq, inst, iid, field){
+          var r = origFR.apply(this, arguments);
+          try {
+            if (eq && eq.id === 'housings' && field && field.key === 'manufacturer') {
+              setTimeout(function(){ appendRefButtons(r); }, 60);
+            }
+          } catch(e){}
+          return r;
+        };
+        wrappedFR.__refV5Wrapped = true;
+        try { window.fieldRow = wrappedFR; } catch(e){}
+      }
+
+      return typeof window.addPhotoSupport === 'function' || typeof window.fieldRow === 'function';
+    }
+
+    if (!install()){
+      var tries = 0;
+      var iv = setInterval(function(){
+        tries++;
+        if (install() || tries > 60) clearInterval(iv);
+      }, 200);
+    }
+
+    // Догоняем уже отрисованные «Изготовитель» поля
+    function patchExisting(){
+      try {
+        document.querySelectorAll('.inst[data-iid]').forEach(function(card){
+          var iid = card.dataset.iid;
+          if (!iid || iid.split('|')[0] !== 'housings') return;
+          var row = card.querySelector('.frow[data-field-key="manufacturer"]');
+          if (row) appendRefButtons(row);
+        });
+      } catch(e){}
+    }
+    setTimeout(patchExisting, 300);
+    setTimeout(patchExisting, 1500);
+    setTimeout(patchExisting, 3000);
+  }
+
+  // Публикуем данные из родителя → iframe подхватит
+  window.__MFG_REF_PHOTOS_DATA__ = REF_PHOTOS;
+  try { INJECTABLE.call(window); } catch(e){}
+
+  function injectInto(win, doc){
+    try {
+      if (win.__MFG_REF_PHOTOS_V5_INSIDE__) return;
+      var s = doc.createElement('script');
+      s.textContent = '(' + INJECTABLE.toString() + ').call(window);';
+      (doc.body || doc.head || doc.documentElement).appendChild(s);
+    } catch(e){}
+  }
+
+  function bindIframe(f){
+    if (!f || f.__MFG_V5_BOUND__) return;
+    f.__MFG_V5_BOUND__ = true;
+    function tryGo(){
+      try {
+        var doc = f.contentDocument, win = f.contentWindow;
+        if (!doc || !win) return;
+        injectInto(win, doc);
+      } catch(e){}
+    }
+    f.addEventListener('load', tryGo);
+    tryGo(); setTimeout(tryGo,300); setTimeout(tryGo,1000); setTimeout(tryGo,2500);
+  }
+
+  var ef = document.getElementById('embeddedFrame');
+  if (ef) bindIframe(ef);
+  var all = document.querySelectorAll('iframe');
+  for (var i = 0; i < all.length; i++) bindIframe(all[i]);
+
+  if (window.MutationObserver) {
+    var mo = new MutationObserver(function(){
+      var list = document.querySelectorAll('iframe');
+      for (var j = 0; j < list.length; j++) bindIframe(list[j]);
+    });
+    mo.observe(document.documentElement, {childList:true, subtree:true});
+  }
+  setInterval(function(){
+    var ef2 = document.getElementById('embeddedFrame');
+    if (ef2) bindIframe(ef2);
+  }, 2000);
+})();
+</script>
 
 </body>
 </html>
