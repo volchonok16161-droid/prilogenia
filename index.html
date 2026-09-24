@@ -3515,16 +3515,20 @@ if ('serviceWorker' in navigator) {
 </script>
 
 <!-- ============================================================
-     PATCH: мультизагрузка JSON (V4).
-     Обновляет лексический STATE внутри iframe через
-     инъекцию <script> в документ iframe.
+     PATCH: мультизагрузка JSON (V5).
+     Единственный блок. Ловит change на capture-фазе, перезаписывает
+     лексический STATE через <script>-инъекцию в iframe.
      ============================================================ -->
-<script id="__MULTI_JSON_FIX_V4__">
+<script id="__MULTI_JSON_FIX_V5__">
 (function(){
   'use strict';
-  var TAG = '[multi-json-v4]';
+  if (window.__MULTI_JSON_V5_BOOT__) return;
+  window.__MULTI_JSON_V5_BOOT__ = true;
+
+  var TAG = '[multi-json-v5]';
   console.log(TAG, 'boot');
 
+  /* ---------- Чтение файла ---------- */
   function readJsonFile(file){
     return new Promise(function(resolve, reject){
       var r = new FileReader();
@@ -3537,6 +3541,7 @@ if ('serviceWorker' in navigator) {
     });
   }
 
+  /* ---------- Merge ---------- */
   function mergeStates(states){
     var merged = {
       general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},
@@ -3578,20 +3583,11 @@ if ('serviceWorker' in navigator) {
     return n;
   }
 
-  /* ПРИМЕНЕНИЕ СОСТОЯНИЯ — ключевая часть.
-     Пробуем три способа по убыванию надёжности:
-     1) Инъекция <script> в doc — единственный 100% способ
-        перезаписать лексический let STATE.
-     2) eval в win — если (1) не сработал.
-     3) Прямое window.STATE = — как fallback. */
+  /* ---------- Применение состояния в целевом окне ---------- */
   function applyState(win, doc, merged, validCount){
-    // Склеиваем JSON один раз
-    var json = JSON.stringify(merged);
-    // Экранируем </script> — иначе браузер закроет тег раньше времени
-    var jsonSafe = json.replace(/<\//g, '<\\/');
-
+    var json = JSON.stringify(merged).replace(/<\//g,'<\\/');
     var code = '(function(){try{' +
-      'var __m=' + jsonSafe + ';' +
+      'var __m=' + json + ';' +
       'STATE = __m;' +
       'if(typeof LS_KEY!=="undefined"){try{localStorage.setItem(LS_KEY,JSON.stringify(STATE));}catch(e){}}' +
       'if(typeof buildEquipment==="function")try{buildEquipment((STATE.general&&STATE.general.type)||"");}catch(e){console.warn("[merge-be]",e);}' +
@@ -3605,7 +3601,6 @@ if ('serviceWorker' in navigator) {
       'if(typeof showToast==="function")try{showToast("✅ Объединено файлов: ' + validCount + '");}catch(e){}' +
       '}catch(e){console.error("[merge-apply]",e);}})();';
 
-    // --- Способ 1: инъекция <script> ---
     try {
       var s = doc.createElement('script');
       s.textContent = code;
@@ -3615,25 +3610,16 @@ if ('serviceWorker' in navigator) {
       return;
     } catch(e){ console.warn(TAG, 'script-inject failed', e); }
 
-    // --- Способ 2: eval в контексте окна ---
-    try {
-      win.eval(code);
-      console.log(TAG, 'applied via win.eval');
-      return;
-    } catch(e){ console.warn(TAG, 'eval failed', e); }
-
-    // --- Способ 3: прямое присваивание (обычно НЕ работает с let) ---
-    try {
-      win.STATE = merged;
-      if(typeof win.renderEquip === 'function') win.renderEquip();
-      console.log(TAG, 'applied via window.STATE (fallback)');
-    } catch(e){ console.error(TAG, 'all apply methods failed', e); }
+    try { win.eval(code); console.log(TAG, 'applied via eval'); return; }
+    catch(e){ console.warn(TAG, 'eval failed', e); }
   }
 
+  /* ---------- Установка на конкретное окно ---------- */
   function install(win, doc, label){
-    if(!win || !doc || win.__MULTI_JSON_V4_INSTALLED__) return;
-    win.__MULTI_JSON_V4_INSTALLED__ = true;
-    console.log(TAG, 'installing on', label);
+    if(!win || !doc) return;
+    if(win.__MULTI_JSON_V5_INSTALLED__) return;
+    win.__MULTI_JSON_V5_INSTALLED__ = true;
+    console.log(TAG, 'install on', label);
 
     function doMerge(files){
       Promise.all(files.map(readJsonFile)).then(function(states){
@@ -3661,7 +3647,6 @@ if ('serviceWorker' in navigator) {
 
         applyState(win, doc, res.merged, valid.length);
 
-        // Фото в IndexedDB отдельным шагом — там нет лексических переменных
         try {
           if(typeof win.migrateExistingPhotosToIndexedDB === 'function'){
             win._photoMigrationPromise = win.migrateExistingPhotosToIndexedDB();
@@ -3676,55 +3661,89 @@ if ('serviceWorker' in navigator) {
       });
     }
 
-    // Перехват change на capture-фазе — раньше любых onchange
+    // --- capture-фаза: перехватываем change раньше любых onchange ---
     doc.addEventListener('change', function(e){
-      var t=e.target;
-      if(!t || t.id!=='jsonFileInput') return;
-      var files=Array.prototype.slice.call(t.files||[]);
-      console.log(TAG, label, 'files selected:', files.length);
+      var t = e.target;
+      if(!t || t.id !== 'jsonFileInput') return;
+      var files = Array.prototype.slice.call(t.files || []);
+      console.log(TAG, label, 'change, files:', files.length);
       if(!files.length) return;
       e.stopImmediatePropagation();
       e.preventDefault();
-      try { t.value=''; } catch(err){}
-
-      if(files.length===1){
-        // Одиночную загрузку отдаём штатному обработчику iframe
-        // (он тоже виден нам через win)
+      try { t.value = ''; } catch(err){}
+      if(files.length === 1){
         if(typeof win.handleJsonFile === 'function') win.handleJsonFile(files[0]);
         return;
       }
       doMerge(files);
     }, true);
 
-    // Обнуляем штатный onchange, выставляем multiple
+    // --- Устанавливаем multiple и обнуляем onchange ---
     function enforce(){
       var inp = doc.getElementById('jsonFileInput');
-      if(!inp) return;
-      if(!inp.multiple){ inp.multiple = true; inp.setAttribute('multiple','multiple'); }
-      if(inp.onchange) inp.onchange = null;
+      if(!inp) return false;
+      var changed = false;
+      if(!inp.multiple){
+        inp.multiple = true;
+        inp.setAttribute('multiple','multiple');
+        changed = true;
+      }
+      if(inp.onchange){
+        inp.onchange = null;
+        changed = true;
+      }
+      if(changed) console.log(TAG, label, 'enforced (multiple=true, onchange=null)');
+      return true;
     }
     enforce();
-    var n=0; var iv=setInterval(function(){ enforce(); if(++n>30) clearInterval(iv); }, 200);
-    setTimeout(enforce, 100); setTimeout(enforce, 1000); setTimeout(enforce, 3000);
+    var n = 0;
+    var iv = setInterval(function(){
+      n++;
+      enforce();
+      if(n > 60) clearInterval(iv);
+    }, 200);
+    // Долгие проверки на случай позднего рендера
+    setTimeout(enforce, 100);
+    setTimeout(enforce, 500);
+    setTimeout(enforce, 1000);
+    setTimeout(enforce, 2000);
+    setTimeout(enforce, 4000);
+    setTimeout(enforce, 8000);
   }
 
-  // Устанавливаем на текущий документ (родитель)
-  install(window, document, (window === window.parent ? 'parent' : 'self'));
+  /* ---------- Сканирование всех iframe ---------- */
+  function scanAll(){
+    install(window, document, (window === window.parent ? 'parent' : 'self'));
+    var list = document.querySelectorAll('iframe');
+    for (var i = 0; i < list.length; i++){
+      (function(f, idx){
+        try {
+          if(f.contentDocument && f.contentWindow)
+            install(f.contentWindow, f.contentDocument, 'iframe#' + (f.id || idx));
+        } catch(e){}
+      })(list[i], i);
+    }
+  }
+  scanAll();
 
-  // И на все iframe
-  function tryIframes(){
-    document.querySelectorAll('iframe').forEach(function(f, i){
-      try {
-        if(f.contentDocument && f.contentWindow)
-          install(f.contentWindow, f.contentDocument, 'iframe#' + (f.id || i));
-      } catch(e){}
+  // Ждём появления iframe, реагируем на load
+  document.addEventListener('load', function(e){
+    if(e.target && e.target.tagName === 'IFRAME'){
+      setTimeout(scanAll, 100);
+    }
+  }, true);
+
+  if (window.MutationObserver){
+    var mo = new MutationObserver(function(){
+      clearTimeout(window.__MJ_V5_SCAN_T__);
+      window.__MJ_V5_SCAN_T__ = setTimeout(scanAll, 150);
     });
+    mo.observe(document.documentElement, {childList:true, subtree:true});
   }
-  tryIframes();
-  var ef = document.getElementById('embeddedFrame');
-  if(ef) ef.addEventListener('load', function(){ setTimeout(tryIframes, 100); });
-  setInterval(tryIframes, 1000);
+
+  setInterval(scanAll, 1500);
 })();
 </script>
+    
 </body>
 </html>
