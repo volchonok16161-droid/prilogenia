@@ -3159,5 +3159,784 @@ if ('serviceWorker' in navigator) {
   }, 2000);
 })();
 </script>
+
+<!-- ============================================================
+     PATCH: блокировка "Экспорт Excel" пока не прикреплены фото.
+     Для АДМИНИСТРАТОРА все ограничения снимаются.
+     Заменяет __EXPORT_PHOTO_GUARD_V1__.
+     ============================================================ -->
+<script id="__EXPORT_PHOTO_GUARD_V2__">
+(function(){
+  'use strict';
+  if (window.__EXPORT_PHOTO_GUARD_V2__) return;
+  window.__EXPORT_PHOTO_GUARD_V2__ = true;
+
+  function isAdmin(){
+    try {
+      if (typeof currentUser !== 'undefined' && currentUser === 'admin') return true;
+    } catch(e){}
+    try {
+      var saved = localStorage.getItem('checklist_user');
+      if (saved){
+        var d = JSON.parse(saved);
+        return !!(d && d.login === 'admin' && d.password === 'bdfy');
+      }
+    } catch(e){}
+    return false;
+  }
+
+  function INJECTABLE(){
+    'use strict';
+    if (window.__EXPORT_PHOTO_GUARD_V2_INSIDE__) return;
+    window.__EXPORT_PHOTO_GUARD_V2_INSIDE__ = true;
+
+    function countMissingPhotoFields(){
+      try { return document.querySelectorAll('.frow.photo-required-field').length; }
+      catch(e){ return 0; }
+    }
+
+    function ensureBadge(btn){
+      var badge = document.getElementById('exportPhotoBadge');
+      if (badge) return badge;
+      badge = document.createElement('span');
+      badge.id = 'exportPhotoBadge';
+      badge.style.cssText =
+        'display:none;margin-left:6px;padding:1px 7px;border-radius:10px;' +
+        'background:#d1453b;color:#fff;font-size:11px;font-weight:700;' +
+        'vertical-align:middle;line-height:1.4;';
+      btn.appendChild(badge);
+      return badge;
+    }
+
+    function unlockAllForAdmin(){
+      var btn = document.getElementById('btnExport');
+      if (btn){
+        btn.disabled = false;
+        btn.title = 'Администратор: экспорт доступен всегда';
+        var badge = document.getElementById('exportPhotoBadge');
+        if (badge) badge.style.display = 'none';
+        delete btn.dataset.photoBlocked;
+      }
+      var ids = [
+        'btnSave','btnSaveHtml','btnExportJson','btnImportJson',
+        'btnFindUnfilled','btnReset',
+        'actPrintBtnV5','actPrintBtnV4','btnActPrintV5','btnActPrintV4'
+      ];
+      ids.forEach(function(id){
+        var b = document.getElementById(id);
+        if (b) b.disabled = false;
+      });
+    }
+
+    function updateExportGuard(){
+      var btn = document.getElementById('btnExport');
+      if (!btn) return 0;
+
+      // ==== АДМИН: всё разблокировано ====
+      if (isAdmin()){
+        unlockAllForAdmin();
+        return 0;
+      }
+
+      var n = countMissingPhotoFields();
+      var badge = ensureBadge(btn);
+
+      if (n > 0){
+        btn.disabled = true;
+        btn.dataset.photoBlocked = '1';
+        btn.title = 'Прикрепите фото к ' + n + ' позиц. — иначе экспорт невозможен';
+        badge.textContent = n;
+        badge.style.display = 'inline-block';
+        return n;
+      }
+
+      delete btn.dataset.photoBlocked;
+      badge.style.display = 'none';
+
+      if (typeof window.__origUpdateStatsV2 === 'function'){
+        try { window.__origUpdateStatsV2(); } catch(e){}
+      }
+      return 0;
+    }
+
+    // Хук на updateStats
+    if (typeof window.updateStats === 'function' && !window.updateStats.__photoGuardV2){
+      var orig = window.updateStats;
+      window.__origUpdateStatsV2 = orig;
+      var wrapped = function(){
+        var r = orig.apply(this, arguments);
+        try { updateExportGuard(); } catch(e){}
+        return r;
+      };
+      wrapped.__photoGuardV2 = true;
+      try { window.updateStats = wrapped; } catch(e){}
+      try { updateStats = wrapped; } catch(e){}
+    }
+
+    // Хук-клик на btnExport
+    var btn = document.getElementById('btnExport');
+    if (btn && !btn.__photoGuardClickV2){
+      btn.__photoGuardClickV2 = true;
+      btn.addEventListener('click', function(e){
+        // Админ — пропускаем без вопросов
+        if (isAdmin()) return;
+        var n = countMissingPhotoFields();
+        if (n > 0){
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (typeof showToast === 'function'){
+            showToast('⚠️ Прикрепите фото к ' + n + ' позиц. перед экспортом');
+          } else {
+            alert('Нельзя выгрузить Excel, пока не прикреплены фото к ' + n + ' позиц.');
+          }
+          return false;
+        }
+      }, true);
+    }
+
+    // MutationObserver на class/disabled
+    if (window.MutationObserver && !window.__photoGuardMOV2){
+      window.__photoGuardMOV2 = true;
+      var mo = new MutationObserver(function(){
+        clearTimeout(window.__photoGuardTV2);
+        window.__photoGuardTV2 = setTimeout(function(){
+          try { updateExportGuard(); } catch(e){}
+        }, 200);
+      });
+      try {
+        mo.observe(document.body || document.documentElement, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+          attributeFilter: ['class','disabled']
+        });
+      } catch(e){}
+    }
+
+    setTimeout(updateExportGuard, 500);
+    setTimeout(updateExportGuard, 1500);
+    setTimeout(updateExportGuard, 3000);
+    setInterval(updateExportGuard, 5000);
+  }
+
+  try { INJECTABLE.call(window); } catch(e){}
+
+  function injectInto(win, doc){
+    try {
+      if (win.__EXPORT_PHOTO_GUARD_V2_INSIDE__) return;
+      var s = doc.createElement('script');
+      s.textContent = '(' + INJECTABLE.toString() + ').call(window);';
+      (doc.body || doc.head || doc.documentElement).appendChild(s);
+    } catch(e){}
+  }
+
+  function bindIframe(f){
+    if (!f || f.__EPG2_BOUND__) return;
+    f.__EPG2_BOUND__ = true;
+    function tryGo(){
+      try {
+        var doc = f.contentDocument, win = f.contentWindow;
+        if (!doc || !win) return;
+        injectInto(win, doc);
+      } catch(e){}
+    }
+    f.addEventListener('load', tryGo);
+    tryGo();
+    setTimeout(tryGo, 300);
+    setTimeout(tryGo, 1000);
+    setTimeout(tryGo, 2500);
+  }
+
+  var ef = document.getElementById('embeddedFrame');
+  if (ef) bindIframe(ef);
+  var all = document.querySelectorAll('iframe');
+  for (var i = 0; i < all.length; i++) bindIframe(all[i]);
+
+  if (window.MutationObserver){
+    var mo = new MutationObserver(function(){
+      var list = document.querySelectorAll('iframe');
+      for (var j = 0; j < list.length; j++) bindIframe(list[j]);
+    });
+    mo.observe(document.documentElement, {childList:true, subtree:true});
+  }
+  setInterval(function(){
+    var ef2 = document.getElementById('embeddedFrame');
+    if (ef2) bindIframe(ef2);
+  }, 2000);
+})();
+</script>
+
+<!-- ============================================================
+     PATCH: для администратора снимаются ЛЮБЫЕ ограничения —
+     на всех кнопках в приложении и внутри iframe.
+     Работает как страховка: что бы ни заблокировал другой патч,
+     для админа кнопка будет активна.
+     ============================================================ -->
+<script id="__ADMIN_NO_LIMITS_V1__">
+(function(){
+  'use strict';
+  if (window.__ADMIN_NO_LIMITS_V1__) return;
+  window.__ADMIN_NO_LIMITS_V1__ = true;
+
+  function isAdmin(){
+    try {
+      if (typeof currentUser !== 'undefined' && currentUser === 'admin') return true;
+    } catch(e){}
+    try {
+      var saved = localStorage.getItem('checklist_user');
+      if (saved){
+        var d = JSON.parse(saved);
+        return !!(d && d.login === 'admin' && d.password === 'bdfy');
+      }
+    } catch(e){}
+    return false;
+  }
+
+  function INJECTABLE(){
+    'use strict';
+    if (window.__ADMIN_NO_LIMITS_INSIDE__) return;
+    window.__ADMIN_NO_LIMITS_INSIDE__ = true;
+
+    function unlockEverything(){
+      if (!isAdmin()) return;
+
+      // Все кнопки-действия в приложении
+      var selectors = [
+        '#btnSave','#btnSaveHtml','#btnExport','#btnExportJson',
+        '#btnImportJson','#btnFindUnfilled','#btnReset',
+        '#actPrintBtnV5','#actPrintBtnV4',
+        '#iframeBackBtn',
+        '.footbar button',
+        '.picker-wrap button',
+        '#modePickerBtn',
+        '.mode-card-btn'
+      ];
+      selectors.forEach(function(sel){
+        try {
+          document.querySelectorAll(sel).forEach(function(el){
+            if (el.disabled) el.disabled = false;
+            el.removeAttribute('disabled');
+            el.classList.remove('btn-disabled');
+          });
+        } catch(e){}
+      });
+
+      // Убираем бейдж с фото-счётчиком
+      var badge = document.getElementById('exportPhotoBadge');
+      if (badge) badge.style.display = 'none';
+
+      // Прячем бейдж «требуется фото» у кнопки найти незаполненное
+      // (админ не ограничен)
+      var findBadge = document.getElementById('findBadge');
+      if (findBadge) findBadge.style.display = 'none';
+    }
+
+    // MutationObserver — если кто-то выставит disabled, сразу снимаем
+    if (window.MutationObserver && !window.__ADMIN_UNLOCK_MO__){
+      window.__ADMIN_UNLOCK_MO__ = true;
+      var mo = new MutationObserver(function(muts){
+        if (!isAdmin()) return;
+        muts.forEach(function(m){
+          if (m.type === 'attributes' && m.attributeName === 'disabled'){
+            var el = m.target;
+            if (el && el.disabled) el.disabled = false;
+          }
+        });
+      });
+      try {
+        mo.observe(document.body || document.documentElement, {
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['disabled']
+        });
+      } catch(e){}
+    }
+
+    // Стартовые прогоны и периодическая страховка
+    unlockEverything();
+    setTimeout(unlockEverything, 500);
+    setTimeout(unlockEverything, 1500);
+    setTimeout(unlockEverything, 3000);
+    setInterval(unlockEverything, 5000);
+
+    // При изменении пользователя (например, залогинился админ) — сразу разблокировать
+    window.addEventListener('storage', function(e){
+      if (e.key === 'checklist_user') {
+        setTimeout(unlockEverything, 100);
+      }
+    });
+  }
+
+  try { INJECTABLE.call(window); } catch(e){}
+
+  function injectInto(win, doc){
+    try {
+      if (win.__ADMIN_NO_LIMITS_INSIDE__) return;
+      var s = doc.createElement('script');
+      s.textContent = '(' + INJECTABLE.toString() + ').call(window);';
+      (doc.body || doc.head || doc.documentElement).appendChild(s);
+    } catch(e){}
+  }
+
+  function bindIframe(f){
+    if (!f || f.__ANL_BOUND__) return;
+    f.__ANL_BOUND__ = true;
+    function tryGo(){
+      try {
+        var doc = f.contentDocument, win = f.contentWindow;
+        if (!doc || !win) return;
+        injectInto(win, doc);
+      } catch(e){}
+    }
+    f.addEventListener('load', tryGo);
+    tryGo();
+    setTimeout(tryGo, 300);
+    setTimeout(tryGo, 1000);
+    setTimeout(tryGo, 2500);
+  }
+
+  var ef = document.getElementById('embeddedFrame');
+  if (ef) bindIframe(ef);
+  var all = document.querySelectorAll('iframe');
+  for (var i = 0; i < all.length; i++) bindIframe(all[i]);
+
+  if (window.MutationObserver){
+    var mo = new MutationObserver(function(){
+      var list = document.querySelectorAll('iframe');
+      for (var j = 0; j < list.length; j++) bindIframe(list[j]);
+    });
+    mo.observe(document.documentElement, {childList:true, subtree:true});
+  }
+  setInterval(function(){
+    var ef2 = document.getElementById('embeddedFrame');
+    if (ef2) bindIframe(ef2);
+  }, 2000);
+})();
+</script>
+
+<!-- ============================================================
+     PATCH: мультизагрузка JSON.
+     Позволяет выбрать сразу несколько JSON-файлов — они
+     объединяются в один чек-лист (значения + фото + секции).
+     Файлы одного режима; при конфликте значений побеждает
+     значение из последнего выбранного файла.
+     ============================================================ -->
+<script id="__MULTI_JSON_MERGE_V1__">
+(function(){
+  'use strict';
+  if (window.__MULTI_JSON_MERGE_V1__) return;
+  window.__MULTI_JSON_MERGE_V1__ = true;
+
+  function INJECTABLE(){
+    'use strict';
+    if (window.__MULTI_JSON_MERGE_INSIDE__) return;
+    window.__MULTI_JSON_MERGE_INSIDE__ = true;
+
+    var input = document.getElementById('jsonFileInput');
+    if (!input) return;
+
+    // Разрешаем множественный выбор + отключаем старый одиночный обработчик
+    input.setAttribute('multiple', 'multiple');
+    input.onchange = null;
+
+    function readJsonFile(file){
+      return new Promise(function(resolve, reject){
+        var r = new FileReader();
+        r.onload = function(e){
+          try { resolve(JSON.parse(e.target.result)); }
+          catch(err){ reject(new Error(file.name + ': ' + err.message)); }
+        };
+        r.onerror = function(){ reject(new Error('Ошибка чтения ' + file.name)); };
+        r.readAsText(file);
+      });
+    }
+
+    function mergeStates(states){
+      var merged = {
+        general: { type:'', number:'', date:'', depot:'', place:'', mileage:'' },
+        values: {},
+        selectedSections: [],
+        selected: []
+      };
+      var conflicts = [];
+
+      function addUnique(arr, val){
+        if (val && arr.indexOf(val) === -1) arr.push(val);
+      }
+
+      states.forEach(function(st, idx){
+        if (!st || typeof st !== 'object') return;
+
+        // === general: первое непустое значение побеждает ===
+        if (st.general){
+          for (var k in st.general){
+            var v = st.general[k];
+            if (v === undefined || v === null || v === '') continue;
+            if (!merged.general[k]){
+              merged.general[k] = v;
+            } else if (merged.general[k] !== v){
+              conflicts.push({
+                path: 'general.' + k,
+                a: merged.general[k], b: v, file: idx + 1,
+                mode: 'first-wins'
+              });
+            }
+          }
+        }
+
+        // === values: слияние по iid и ключам ===
+        if (st.values){
+          for (var iid in st.values){
+            if (!merged.values[iid]) merged.values[iid] = {};
+            var src = st.values[iid] || {};
+            for (var key in src){
+              var nv = src[key];
+              var ev = merged.values[iid][key];
+
+              if (ev === undefined || ev === ''){
+                merged.values[iid][key] = nv;
+              } else if (ev !== nv && nv !== '' && nv !== undefined && nv !== null){
+                var isPhoto = key.indexOf('_photo') >= 0;
+                if (isPhoto){
+                  // для фото — берём непустое из позднего файла
+                  merged.values[iid][key] = nv;
+                } else {
+                  conflicts.push({
+                    path: iid + '.' + key,
+                    a: ev, b: nv, file: idx + 1,
+                    mode: 'last-wins'
+                  });
+                  merged.values[iid][key] = nv;
+                }
+              }
+            }
+          }
+        }
+
+        if (Array.isArray(st.selectedSections)){
+          st.selectedSections.forEach(function(s){ addUnique(merged.selectedSections, s); });
+        }
+        if (Array.isArray(st.selected)){
+          st.selected.forEach(function(s){ addUnique(merged.selected, s); });
+        }
+      });
+
+      return { merged: merged, conflicts: conflicts };
+    }
+
+    function countPhotos(state){
+      var n = 0;
+      for (var iid in state.values){
+        for (var k in state.values[iid]){
+          if (k.indexOf('_photo') >= 0 && state.values[iid][k]) n++;
+        }
+      }
+      return n;
+    }
+
+    function doMerge(files){
+      Promise.all(files.map(readJsonFile)).then(function(states){
+        var validStates = [];
+        var skipped = [];
+        var currentMode = (typeof MODE !== 'undefined') ? MODE : '';
+
+        states.forEach(function(st, i){
+          if (st && st._meta && st._meta.mode && st._meta.mode !== currentMode){
+            skipped.push(files[i].name + ' (' + st._meta.mode + ')');
+            return;
+          }
+          validStates.push(st);
+        });
+
+        if (validStates.length === 0){
+          alert('Ни один из выбранных файлов не подходит под текущий режим.');
+          return;
+        }
+
+        var result = mergeStates(validStates);
+        var sectionCount = result.merged.selectedSections.length;
+        var posCount = Object.keys(result.merged.values).length;
+        var photoCount = countPhotos(result.merged);
+
+        var msg = 'Объединить ' + validStates.length + ' файл(ов)?\n\n' +
+                  '• Секций: ' + (sectionCount || 'все') + '\n' +
+                  '• Заполненных позиций: ' + posCount + '\n' +
+                  '• Фото: ' + photoCount;
+
+        if (skipped.length > 0){
+          msg += '\n\nПропущено (другой режим):\n' + skipped.join('\n');
+        }
+        if (result.conflicts.length > 0){
+          msg += '\n\n⚠️ Конфликтов значений: ' + result.conflicts.length +
+                 '\nДля конфликтных полей взято значение из последнего файла.';
+        }
+        msg += '\n\nПродолжить?';
+
+        if (!confirm(msg)) return;
+
+        try {
+          // Записываем объединённое состояние
+          STATE = result.merged;
+
+          // Сохраняем (в браузере)
+          if (typeof saveState === 'function') saveState(true);
+
+          // Сливаем фото в IndexedDB и подтягиваем их в STATE
+          if (typeof migrateExistingPhotosToIndexedDB === 'function'){
+            window._photoMigrationPromise = migrateExistingPhotosToIndexedDB();
+            // После импорта фото — обновим превью
+            window._photoMigrationPromise.then(function(){
+              if (typeof refreshAllPhotoPreviews === 'function'){
+                try { refreshAllPhotoPreviews(); } catch(e){}
+              }
+              if (typeof updateStats === 'function') updateStats();
+            });
+          }
+
+          // Пересобираем и рендерим
+          var type = (STATE.general && STATE.general.type) || '';
+          if (typeof buildEquipment === 'function') buildEquipment(type);
+          if (typeof renderGeneral === 'function') renderGeneral();
+          if (typeof renderPicker === 'function') renderPicker();
+          if (typeof renderEquip === 'function') renderEquip();
+          if (typeof updateStats === 'function') updateStats();
+
+          if (typeof showToast === 'function'){
+            showToast('✅ Объединено файлов: ' + validStates.length +
+                      ', конфликтов: ' + result.conflicts.length);
+          } else {
+            alert('Объединение выполнено.');
+          }
+        } catch(e){
+          console.error('Merge error:', e);
+          alert('Ошибка объединения: ' + e.message);
+        }
+      }).catch(function(err){
+        alert('Ошибка загрузки: ' + err.message);
+      });
+    }
+
+    input.addEventListener('change', function(e){
+      var files = Array.prototype.slice.call(e.target.files || []);
+      if (files.length === 0) return;
+      e.target.value = '';
+
+      if (files.length === 1){
+        // Одиночная загрузка — как раньше
+        if (typeof handleJsonFile === 'function'){
+          handleJsonFile(files[0]);
+        } else {
+          doMerge(files);
+        }
+        return;
+      }
+
+      // Несколько файлов — объединяем
+      doMerge(files);
+    }, false);
+
+    // Подсказка на кнопке
+    var btn = document.getElementById('btnImportJson');
+    if (btn){
+      btn.title = 'Можно выбрать сразу несколько JSON-файлов — они будут объединены';
+    }
+  }
+
+  try { INJECTABLE.call(window); } catch(e){}
+
+  function injectInto(win, doc){
+    try {
+      if (win.__MULTI_JSON_MERGE_INSIDE__) return;
+      var s = doc.createElement('script');
+      s.textContent = '(' + INJECTABLE.toString() + ').call(window);';
+      (doc.body || doc.head || doc.documentElement).appendChild(s);
+    } catch(e){}
+  }
+
+  function bindIframe(f){
+    if (!f || f.__MERGE_BOUND__) return;
+    f.__MERGE_BOUND__ = true;
+    function tryGo(){
+      try {
+        var doc = f.contentDocument, win = f.contentWindow;
+        if (!doc || !win) return;
+        injectInto(win, doc);
+      } catch(e){}
+    }
+    f.addEventListener('load', tryGo);
+    tryGo();
+    setTimeout(tryGo, 300);
+    setTimeout(tryGo, 1000);
+    setTimeout(tryGo, 2500);
+  }
+
+  var ef = document.getElementById('embeddedFrame');
+  if (ef) bindIframe(ef);
+  var all = document.querySelectorAll('iframe');
+  for (var i = 0; i < all.length; i++) bindIframe(all[i]);
+
+  if (window.MutationObserver){
+    var mo = new MutationObserver(function(){
+      var list = document.querySelectorAll('iframe');
+      for (var j = 0; j < list.length; j++) bindIframe(list[j]);
+    });
+    mo.observe(document.documentElement, {childList:true, subtree:true});
+  }
+  setInterval(function(){
+    var ef2 = document.getElementById('embeddedFrame');
+    if (ef2) bindIframe(ef2);
+  }, 2000);
+})();
+</script>
+
+<!-- ============================================================
+     PATCH: рабочий «Сохранить как файл» (V2).
+     Берёт ИСХОДНЫЙ index.html через fetch, а не outerHTML.
+     ============================================================ -->
+<script id="__SAVE_HTML_FIX_V2__">
+(function(){
+  'use strict';
+  if (window.__SAVE_HTML_FIX_V2__) return;
+  window.__SAVE_HTML_FIX_V2__ = true;
+
+  function fetchPristine(){
+    return fetch(location.href, {cache: 'no-store'})
+      .then(function(r){
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(function(txt){
+        if (txt.indexOf('<html') === -1 || txt.indexOf('</head>') === -1){
+          throw new Error('Файл не похож на index.html');
+        }
+        return txt;
+      });
+  }
+
+  async function fixedSave(){
+    try {
+      if (typeof loadState === 'function') loadState();
+      if (window._photoMigrationPromise){
+        try { await window._photoMigrationPromise; } catch(e){}
+      }
+
+      var type    = (typeof STATE !== 'undefined' && STATE.general) ? (STATE.general.type    || '') : '';
+      var number  = (typeof STATE !== 'undefined' && STATE.general) ? (STATE.general.number  || '') : '';
+      var mileage = (typeof STATE !== 'undefined' && STATE.general) ? (STATE.general.mileage || '') : '';
+
+      if (typeof isValidMileage === 'function' && !isValidMileage(mileage, type, number)){
+        var err = (typeof getMileageError === 'function') ? getMileageError(mileage, type, number) : null;
+        if (typeof showToast === 'function') showToast('⚠️ Некорректный пробег: ' + (err || ''));
+        return;
+      }
+      if (typeof saveState === 'function') saveState(true);
+
+      // 1) Пробуем получить ИСХОДНЫЙ файл с сервера
+      var baseHtml = null;
+      var usedFallback = false;
+      try {
+        baseHtml = await fetchPristine();
+      } catch(e){
+        console.warn('[save html] fetch не удался:', e);
+      }
+
+      // 2) Фолбэк — текущий DOM (с предупреждением)
+      if (!baseHtml){
+        baseHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+        usedFallback = true;
+      }
+
+      // 3) Стираем все ранее встроенные скрипты
+      baseHtml = baseHtml.replace(/<script[^>]*id=["']__embedded_mode["'][^>]*>[\s\S]*?<\/script>\s*/gi, '');
+      baseHtml = baseHtml.replace(/<script[^>]*id=["']__embedded_state["'][^>]*>[\s\S]*?<\/script>\s*/gi, '');
+      baseHtml = baseHtml.replace(/<script[^>]*id=["']__embedded_source_url["'][^>]*>[\s\S]*?<\/script>\s*/gi, '');
+
+      // 4) Формируем новые встроенные данные
+      var stateJson = JSON.stringify(STATE).replace(/<\//g, '<\\/');
+      var modeJson  = JSON.stringify((typeof MODE !== 'undefined' && MODE) || 'complex').replace(/<\//g, '<\\/');
+      var srcJson   = JSON.stringify(location.href).replace(/<\//g, '<\\/');
+
+      var embedded =
+        '<script id="__embedded_source_url">\nwindow.__SOURCE_URL__ = ' + srcJson  + ';\n<\/script>\n' +
+        '<script id="__embedded_mode">\nwindow.__EMBEDDED_MODE = '       + modeJson + ';\n<\/script>\n' +
+        '<script id="__embedded_state">\nwindow.__EMBEDDED_STATE = '     + stateJson + ';\n<\/script>\n';
+
+      // 5) Вставляем в <head>
+      var headIdx = baseHtml.indexOf('</head>');
+      if (headIdx !== -1){
+        baseHtml = baseHtml.slice(0, headIdx) + embedded + baseHtml.slice(headIdx);
+      } else {
+        var bodyIdx = baseHtml.indexOf('</body>');
+        if (bodyIdx !== -1){
+          baseHtml = baseHtml.slice(0, bodyIdx) + embedded + baseHtml.slice(bodyIdx);
+        } else {
+          baseHtml = embedded + baseHtml;
+        }
+      }
+
+      // 6) Скачиваем
+      var blob = new Blob([baseHtml], {type: 'text/html; charset=utf-8'});
+      var url  = URL.createObjectURL(blob);
+      var a    = document.createElement('a');
+
+      var date = (STATE.general && STATE.general.date)   || 'без_даты';
+      var tv   = (STATE.general && STATE.general.type)   || 'без_серии';
+      var nv   = (STATE.general && STATE.general.number) || '';
+      var modeName = (MODE === 'housings') ? 'кожухи'
+                   : (MODE === 'complex')  ? 'комплексный'
+                   : (MODE || 'чек');
+      var baseName = date + '_' + tv + (nv ? '_' + nv : '') + '_' + modeName;
+      var safeBase = baseName.replace(/[\/\\:*?"<>|]/g, '_');
+
+      a.download = 'чек-лист_' + safeBase + '.html';
+      a.href = url;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      if (typeof showToast === 'function'){
+        if (usedFallback){
+          showToast('⚠️ Файл сохранён в режиме совместимости (fetch недоступен)');
+        } else {
+          showToast('✅ Полноценный рабочий файл сохранён');
+        }
+      }
+    } catch(err){
+      console.error(err);
+      if (typeof showToast === 'function') showToast('⚠️ Ошибка сохранения: ' + err.message);
+    }
+  }
+
+  // Подменяем глобальную функцию и кнопку
+  window.saveAsHtmlFile = fixedSave;
+
+  function bindButton(){
+    var btn = document.getElementById('btnSaveHtml');
+    if (!btn) return false;
+    if (btn.onclick !== fixedSave){
+      btn.onclick = fixedSave;
+    }
+    return true;
+  }
+
+  if (!bindButton()){
+    var tries = 0;
+    var iv = setInterval(function(){
+      tries++;
+      if (bindButton() || tries > 60) clearInterval(iv);
+    }, 300);
+  }
+
+  // Страховка от повторного назначения onclick из init()
+  setInterval(function(){
+    var b = document.getElementById('btnSaveHtml');
+    if (b && b.onclick !== fixedSave) b.onclick = fixedSave;
+  }, 1500);
+
+  window.saveAsHtmlFileFixed = fixedSave;
+})();
+</script>
+
 </body>
 </html>
