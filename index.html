@@ -3521,24 +3521,36 @@ if ('serviceWorker' in navigator) {
      Файлы одного режима; при конфликте значений побеждает
      значение из последнего выбранного файла.
      ============================================================ -->
-<script id="__MULTI_JSON_MERGE_V1__">
+<!-- ============================================================
+     PATCH: мультизагрузка JSON (V2).
+     Перехват на capture-фазе document — работает в родителе
+     и внутри iframe независимо от onchange.
+     ============================================================ -->
+<script id="__MULTI_JSON_FIX_V2__">
 (function(){
   'use strict';
-  if (window.__MULTI_JSON_MERGE_V1__) return;
-  window.__MULTI_JSON_MERGE_V1__ = true;
+  if (window.__MULTI_JSON_FIX_V2__) return;
+  window.__MULTI_JSON_FIX_V2__ = true;
 
   function INJECTABLE(){
     'use strict';
-    if (window.__MULTI_JSON_MERGE_INSIDE__) return;
-    window.__MULTI_JSON_MERGE_INSIDE__ = true;
+    if (window.__MULTI_JSON_FIX_V2_INSIDE__) return;
+    window.__MULTI_JSON_FIX_V2_INSIDE__ = true;
 
-    var input = document.getElementById('jsonFileInput');
-    if (!input) return;
+    // ---- 1. Держим multiple + обнуляем onchange ----
+    function enforceMultiple(){
+      var inp = document.getElementById('jsonFileInput');
+      if (!inp) return;
+      if (!inp.multiple) {
+        inp.multiple = true;
+        inp.setAttribute('multiple', 'multiple');
+      }
+      if (inp.onchange !== null && inp.onchange !== undefined) {
+        inp.onchange = null;
+      }
+    }
 
-    // Разрешаем множественный выбор + отключаем старый одиночный обработчик
-    input.setAttribute('multiple', 'multiple');
-    input.onchange = null;
-
+    // ---- 2. Merge-логика ----
     function readJsonFile(file){
       return new Promise(function(resolve, reject){
         var r = new FileReader();
@@ -3554,92 +3566,54 @@ if ('serviceWorker' in navigator) {
     function mergeStates(states){
       var merged = {
         general: { type:'', number:'', date:'', depot:'', place:'', mileage:'' },
-        values: {},
-        selectedSections: [],
-        selected: []
+        values: {}, selectedSections: [], selected: []
       };
       var conflicts = [];
-
-      function addUnique(arr, val){
-        if (val && arr.indexOf(val) === -1) arr.push(val);
-      }
+      function addUnique(arr, v){ if (v && arr.indexOf(v) === -1) arr.push(v); }
 
       states.forEach(function(st, idx){
         if (!st || typeof st !== 'object') return;
-
-        // === general: первое непустое значение побеждает ===
         if (st.general){
           for (var k in st.general){
             var v = st.general[k];
             if (v === undefined || v === null || v === '') continue;
-            if (!merged.general[k]){
-              merged.general[k] = v;
-            } else if (merged.general[k] !== v){
-              conflicts.push({
-                path: 'general.' + k,
-                a: merged.general[k], b: v, file: idx + 1,
-                mode: 'first-wins'
-              });
-            }
+            if (!merged.general[k]) merged.general[k] = v;
+            else if (merged.general[k] !== v)
+              conflicts.push({ path:'general.'+k, file: idx+1 });
           }
         }
-
-        // === values: слияние по iid и ключам ===
         if (st.values){
           for (var iid in st.values){
             if (!merged.values[iid]) merged.values[iid] = {};
             var src = st.values[iid] || {};
             for (var key in src){
-              var nv = src[key];
-              var ev = merged.values[iid][key];
-
-              if (ev === undefined || ev === ''){
+              var nv = src[key], ev = merged.values[iid][key];
+              if (ev === undefined || ev === '') merged.values[iid][key] = nv;
+              else if (ev !== nv && nv !== '' && nv !== undefined && nv !== null){
+                if (key.indexOf('_photo') < 0) conflicts.push({ path: iid+'.'+key, file: idx+1 });
                 merged.values[iid][key] = nv;
-              } else if (ev !== nv && nv !== '' && nv !== undefined && nv !== null){
-                var isPhoto = key.indexOf('_photo') >= 0;
-                if (isPhoto){
-                  // для фото — берём непустое из позднего файла
-                  merged.values[iid][key] = nv;
-                } else {
-                  conflicts.push({
-                    path: iid + '.' + key,
-                    a: ev, b: nv, file: idx + 1,
-                    mode: 'last-wins'
-                  });
-                  merged.values[iid][key] = nv;
-                }
               }
             }
           }
         }
-
-        if (Array.isArray(st.selectedSections)){
-          st.selectedSections.forEach(function(s){ addUnique(merged.selectedSections, s); });
-        }
-        if (Array.isArray(st.selected)){
-          st.selected.forEach(function(s){ addUnique(merged.selected, s); });
-        }
+        if (Array.isArray(st.selectedSections)) st.selectedSections.forEach(function(s){ addUnique(merged.selectedSections, s); });
+        if (Array.isArray(st.selected))         st.selected.forEach(function(s){ addUnique(merged.selected, s); });
       });
-
       return { merged: merged, conflicts: conflicts };
     }
 
     function countPhotos(state){
       var n = 0;
-      for (var iid in state.values){
-        for (var k in state.values[iid]){
+      for (var iid in state.values)
+        for (var k in state.values[iid])
           if (k.indexOf('_photo') >= 0 && state.values[iid][k]) n++;
-        }
-      }
       return n;
     }
 
     function doMerge(files){
       Promise.all(files.map(readJsonFile)).then(function(states){
-        var validStates = [];
-        var skipped = [];
         var currentMode = (typeof MODE !== 'undefined') ? MODE : '';
-
+        var validStates = [], skipped = [];
         states.forEach(function(st, i){
           if (st && st._meta && st._meta.mode && st._meta.mode !== currentMode){
             skipped.push(files[i].name + ' (' + st._meta.mode + ')');
@@ -3647,106 +3621,83 @@ if ('serviceWorker' in navigator) {
           }
           validStates.push(st);
         });
-
-        if (validStates.length === 0){
+        if (!validStates.length){
           alert('Ни один из выбранных файлов не подходит под текущий режим.');
           return;
         }
-
-        var result = mergeStates(validStates);
-        var sectionCount = result.merged.selectedSections.length;
-        var posCount = Object.keys(result.merged.values).length;
-        var photoCount = countPhotos(result.merged);
-
+        var res = mergeStates(validStates);
         var msg = 'Объединить ' + validStates.length + ' файл(ов)?\n\n' +
-                  '• Секций: ' + (sectionCount || 'все') + '\n' +
-                  '• Заполненных позиций: ' + posCount + '\n' +
-                  '• Фото: ' + photoCount;
-
-        if (skipped.length > 0){
-          msg += '\n\nПропущено (другой режим):\n' + skipped.join('\n');
-        }
-        if (result.conflicts.length > 0){
-          msg += '\n\n⚠️ Конфликтов значений: ' + result.conflicts.length +
-                 '\nДля конфликтных полей взято значение из последнего файла.';
-        }
+                  '• Секций: ' + (res.merged.selectedSections.length || 'все') + '\n' +
+                  '• Заполненных позиций: ' + Object.keys(res.merged.values).length + '\n' +
+                  '• Фото: ' + countPhotos(res.merged);
+        if (skipped.length) msg += '\n\nПропущено (другой режим):\n' + skipped.join('\n');
+        if (res.conflicts.length) msg += '\n\n⚠️ Конфликтов: ' + res.conflicts.length +
+          '\nДля конфликтных полей берётся значение из последнего файла.';
         msg += '\n\nПродолжить?';
-
         if (!confirm(msg)) return;
 
         try {
-          // Записываем объединённое состояние
-          STATE = result.merged;
-
-          // Сохраняем (в браузере)
+          window.STATE = res.merged;
           if (typeof saveState === 'function') saveState(true);
-
-          // Сливаем фото в IndexedDB и подтягиваем их в STATE
           if (typeof migrateExistingPhotosToIndexedDB === 'function'){
             window._photoMigrationPromise = migrateExistingPhotosToIndexedDB();
-            // После импорта фото — обновим превью
             window._photoMigrationPromise.then(function(){
-              if (typeof refreshAllPhotoPreviews === 'function'){
-                try { refreshAllPhotoPreviews(); } catch(e){}
-              }
+              if (typeof refreshAllPhotoPreviews === 'function') try{ refreshAllPhotoPreviews(); }catch(e){}
               if (typeof updateStats === 'function') updateStats();
             });
           }
-
-          // Пересобираем и рендерим
-          var type = (STATE.general && STATE.general.type) || '';
-          if (typeof buildEquipment === 'function') buildEquipment(type);
-          if (typeof renderGeneral === 'function') renderGeneral();
-          if (typeof renderPicker === 'function') renderPicker();
-          if (typeof renderEquip === 'function') renderEquip();
-          if (typeof updateStats === 'function') updateStats();
-
-          if (typeof showToast === 'function'){
-            showToast('✅ Объединено файлов: ' + validStates.length +
-                      ', конфликтов: ' + result.conflicts.length);
-          } else {
-            alert('Объединение выполнено.');
-          }
+          var type = (window.STATE.general && window.STATE.general.type) || '';
+          if (typeof buildEquipment  === 'function') buildEquipment(type);
+          if (typeof renderGeneral   === 'function') renderGeneral();
+          if (typeof renderPicker    === 'function') renderPicker();
+          if (typeof renderEquip     === 'function') renderEquip();
+          if (typeof updateStats     === 'function') updateStats();
+          if (typeof showToast       === 'function')
+            showToast('✅ Объединено файлов: ' + validStates.length + ', конфликтов: ' + res.conflicts.length);
         } catch(e){
           console.error('Merge error:', e);
           alert('Ошибка объединения: ' + e.message);
         }
-      }).catch(function(err){
-        alert('Ошибка загрузки: ' + err.message);
-      });
+      }).catch(function(err){ alert('Ошибка загрузки: ' + err.message); });
     }
 
-    input.addEventListener('change', function(e){
-      var files = Array.prototype.slice.call(e.target.files || []);
-      if (files.length === 0) return;
-      e.target.value = '';
+    // ---- 3. Перехват change на capture-фазе ДО самого input ----
+    if (!document.__multiJsonCaptureInstalled__){
+      document.__multiJsonCaptureInstalled__ = true;
+      document.addEventListener('change', function(e){
+        var t = e.target;
+        if (!t || t.id !== 'jsonFileInput') return;
 
-      if (files.length === 1){
-        // Одиночная загрузка — как раньше
-        if (typeof handleJsonFile === 'function'){
-          handleJsonFile(files[0]);
-        } else {
-          doMerge(files);
+        var files = Array.prototype.slice.call(t.files || []);
+        if (files.length === 0) return;
+
+        // Гасим ВСЕ остальные обработчики (в т.ч. onchange)
+        e.stopImmediatePropagation();
+        e.preventDefault();
+
+        try { t.value = ''; } catch(err){}
+
+        if (files.length === 1){
+          if (typeof window.handleJsonFile === 'function') window.handleJsonFile(files[0]);
+          return;
         }
-        return;
-      }
-
-      // Несколько файлов — объединяем
-      doMerge(files);
-    }, false);
-
-    // Подсказка на кнопке
-    var btn = document.getElementById('btnImportJson');
-    if (btn){
-      btn.title = 'Можно выбрать сразу несколько JSON-файлов — они будут объединены';
+        console.log('[multi-json] merging', files.length, 'files');
+        doMerge(files);
+      }, true);
     }
+
+    enforceMultiple();
+    setInterval(enforceMultiple, 500);
+    setTimeout(enforceMultiple, 100);
+    setTimeout(enforceMultiple, 1000);
+    setTimeout(enforceMultiple, 2500);
   }
 
-  try { INJECTABLE.call(window); } catch(e){}
+  try { INJECTABLE.call(window); } catch(e){ console.error('[multi-json parent]', e); }
 
   function injectInto(win, doc){
     try {
-      if (win.__MULTI_JSON_MERGE_INSIDE__) return;
+      if (win.__MULTI_JSON_FIX_V2_INSIDE__) return;
       var s = doc.createElement('script');
       s.textContent = '(' + INJECTABLE.toString() + ').call(window);';
       (doc.body || doc.head || doc.documentElement).appendChild(s);
@@ -3754,8 +3705,8 @@ if ('serviceWorker' in navigator) {
   }
 
   function bindIframe(f){
-    if (!f || f.__MERGE_BOUND__) return;
-    f.__MERGE_BOUND__ = true;
+    if (!f || f.__MERGE_V2_BOUND__) return;
+    f.__MERGE_V2_BOUND__ = true;
     function tryGo(){
       try {
         var doc = f.contentDocument, win = f.contentWindow;
@@ -3768,17 +3719,16 @@ if ('serviceWorker' in navigator) {
     setTimeout(tryGo, 300);
     setTimeout(tryGo, 1000);
     setTimeout(tryGo, 2500);
+    setTimeout(tryGo, 5000);
   }
 
   var ef = document.getElementById('embeddedFrame');
   if (ef) bindIframe(ef);
-  var all = document.querySelectorAll('iframe');
-  for (var i = 0; i < all.length; i++) bindIframe(all[i]);
+  document.querySelectorAll('iframe').forEach(bindIframe);
 
   if (window.MutationObserver){
     var mo = new MutationObserver(function(){
-      var list = document.querySelectorAll('iframe');
-      for (var j = 0; j < list.length; j++) bindIframe(list[j]);
+      document.querySelectorAll('iframe').forEach(bindIframe);
     });
     mo.observe(document.documentElement, {childList:true, subtree:true});
   }
