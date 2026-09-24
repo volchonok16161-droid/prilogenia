@@ -3515,14 +3515,15 @@ if ('serviceWorker' in navigator) {
 </script>
 
 <!-- ============================================================
-     PATCH: мультизагрузка JSON (V3).
-     Логирует каждый шаг в консоль, не зависит от INJECTABLE.toString().
+     PATCH: мультизагрузка JSON (V4).
+     Обновляет лексический STATE внутри iframe через
+     инъекцию <script> в документ iframe.
      ============================================================ -->
-<script id="__MULTI_JSON_FIX_V3__">
+<script id="__MULTI_JSON_FIX_V4__">
 (function(){
   'use strict';
-  var TAG = '[multi-json-v3]';
-  console.log(TAG, 'script tag executing');
+  var TAG = '[multi-json-v4]';
+  console.log(TAG, 'boot');
 
   function readJsonFile(file){
     return new Promise(function(resolve, reject){
@@ -3577,16 +3578,67 @@ if ('serviceWorker' in navigator) {
     return n;
   }
 
+  /* ПРИМЕНЕНИЕ СОСТОЯНИЯ — ключевая часть.
+     Пробуем три способа по убыванию надёжности:
+     1) Инъекция <script> в doc — единственный 100% способ
+        перезаписать лексический let STATE.
+     2) eval в win — если (1) не сработал.
+     3) Прямое window.STATE = — как fallback. */
+  function applyState(win, doc, merged, validCount){
+    // Склеиваем JSON один раз
+    var json = JSON.stringify(merged);
+    // Экранируем </script> — иначе браузер закроет тег раньше времени
+    var jsonSafe = json.replace(/<\//g, '<\\/');
+
+    var code = '(function(){try{' +
+      'var __m=' + jsonSafe + ';' +
+      'STATE = __m;' +
+      'if(typeof LS_KEY!=="undefined"){try{localStorage.setItem(LS_KEY,JSON.stringify(STATE));}catch(e){}}' +
+      'if(typeof buildEquipment==="function")try{buildEquipment((STATE.general&&STATE.general.type)||"");}catch(e){console.warn("[merge-be]",e);}' +
+      'if(typeof renderGeneral==="function")try{renderGeneral();}catch(e){console.warn("[merge-rg]",e);}' +
+      'if(typeof renderSectionsSelection==="function")try{renderSectionsSelection();}catch(e){}' +
+      'if(typeof renderPicker==="function")try{renderPicker();}catch(e){console.warn("[merge-rp]",e);}' +
+      'if(typeof renderEquip==="function")try{renderEquip();}catch(e){console.warn("[merge-re]",e);}' +
+      'if(typeof updateStats==="function")try{updateStats();}catch(e){console.warn("[merge-us]",e);}' +
+      'if(typeof updateNoticeList==="function")try{updateNoticeList();}catch(e){}' +
+      'if(typeof updateNoticeCount==="function")try{updateNoticeCount();}catch(e){}' +
+      'if(typeof showToast==="function")try{showToast("✅ Объединено файлов: ' + validCount + '");}catch(e){}' +
+      '}catch(e){console.error("[merge-apply]",e);}})();';
+
+    // --- Способ 1: инъекция <script> ---
+    try {
+      var s = doc.createElement('script');
+      s.textContent = code;
+      (doc.body || doc.head || doc.documentElement).appendChild(s);
+      s.parentNode.removeChild(s);
+      console.log(TAG, 'applied via <script> injection');
+      return;
+    } catch(e){ console.warn(TAG, 'script-inject failed', e); }
+
+    // --- Способ 2: eval в контексте окна ---
+    try {
+      win.eval(code);
+      console.log(TAG, 'applied via win.eval');
+      return;
+    } catch(e){ console.warn(TAG, 'eval failed', e); }
+
+    // --- Способ 3: прямое присваивание (обычно НЕ работает с let) ---
+    try {
+      win.STATE = merged;
+      if(typeof win.renderEquip === 'function') win.renderEquip();
+      console.log(TAG, 'applied via window.STATE (fallback)');
+    } catch(e){ console.error(TAG, 'all apply methods failed', e); }
+  }
+
   function install(win, doc, label){
-    if(!win || !doc) return;
-    if(win.__MULTI_JSON_V3_INSTALLED__) return;
-    win.__MULTI_JSON_V3_INSTALLED__ = true;
+    if(!win || !doc || win.__MULTI_JSON_V4_INSTALLED__) return;
+    win.__MULTI_JSON_V4_INSTALLED__ = true;
     console.log(TAG, 'installing on', label);
 
     function doMerge(files){
       Promise.all(files.map(readJsonFile)).then(function(states){
         var curMode='';
-        try { curMode = win.MODE || (typeof MODE!=='undefined' ? MODE : ''); } catch(e){}
+        try { curMode = (typeof MODE!=='undefined' && MODE) || ''; } catch(e){}
         var valid=[], skipped=[];
         states.forEach(function(st,i){
           if(st && st._meta && st._meta.mode && st._meta.mode!==curMode){
@@ -3606,86 +3658,70 @@ if ('serviceWorker' in navigator) {
           '\nДля конфликтных полей берётся значение из последнего файла.';
         msg+='\n\nПродолжить?';
         if(!confirm(msg)) return;
+
+        applyState(win, doc, res.merged, valid.length);
+
+        // Фото в IndexedDB отдельным шагом — там нет лексических переменных
         try {
-          win.STATE=res.merged;
-          if(typeof win.saveState==='function') win.saveState(true);
-          if(typeof win.migrateExistingPhotosToIndexedDB==='function'){
-            win._photoMigrationPromise=win.migrateExistingPhotosToIndexedDB();
+          if(typeof win.migrateExistingPhotosToIndexedDB === 'function'){
+            win._photoMigrationPromise = win.migrateExistingPhotosToIndexedDB();
             win._photoMigrationPromise.then(function(){
-              if(typeof win.refreshAllPhotoPreviews==='function') try{win.refreshAllPhotoPreviews();}catch(e){}
-              if(typeof win.updateStats==='function') win.updateStats();
+              if(typeof win.refreshAllPhotoPreviews === 'function') try{win.refreshAllPhotoPreviews();}catch(e){}
+              if(typeof win.updateStats === 'function') try{win.updateStats();}catch(e){}
             });
           }
-          var type=(win.STATE.general && win.STATE.general.type)||'';
-          if(typeof win.buildEquipment==='function') win.buildEquipment(type);
-          if(typeof win.renderGeneral ==='function') win.renderGeneral();
-          if(typeof win.renderPicker  ==='function') win.renderPicker();
-          if(typeof win.renderEquip   ==='function') win.renderEquip();
-          if(typeof win.updateStats   ==='function') win.updateStats();
-          if(typeof win.showToast     ==='function')
-            win.showToast('✅ Объединено файлов: '+valid.length+', конфликтов: '+res.conflicts.length);
-        } catch(e){
-          console.error(TAG,'merge error',e);
-          alert('Ошибка объединения: '+e.message);
-        }
-      }).catch(function(err){ alert('Ошибка загрузки: '+err.message); });
+        } catch(e){ console.warn(TAG, 'photo migration', e); }
+      }).catch(function(err){
+        alert('Ошибка загрузки: '+err.message);
+      });
     }
 
-    function patchInput(){
-      var inp=doc.getElementById('jsonFileInput');
-      if(!inp) return false;
-      var changed=false;
-      if(!inp.multiple){ inp.multiple=true; inp.setAttribute('multiple','multiple'); changed=true; }
-      if(inp.onchange){ inp.onchange=null; changed=true; }
-      if(changed) console.log(TAG, label, 'input patched (multiple=true, onchange=null)');
-      return true;
-    }
-
+    // Перехват change на capture-фазе — раньше любых onchange
     doc.addEventListener('change', function(e){
       var t=e.target;
       if(!t || t.id!=='jsonFileInput') return;
       var files=Array.prototype.slice.call(t.files||[]);
-      console.log(TAG, label, 'change caught, files:', files.length);
+      console.log(TAG, label, 'files selected:', files.length);
       if(!files.length) return;
       e.stopImmediatePropagation();
       e.preventDefault();
       try { t.value=''; } catch(err){}
+
       if(files.length===1){
-        if(typeof win.handleJsonFile==='function') win.handleJsonFile(files[0]);
+        // Одиночную загрузку отдаём штатному обработчику iframe
+        // (он тоже виден нам через win)
+        if(typeof win.handleJsonFile === 'function') win.handleJsonFile(files[0]);
         return;
       }
       doMerge(files);
     }, true);
 
-    patchInput();
-    var n=0;
-    var iv=setInterval(function(){
-      n++;
-      patchInput();
-      if(n>30) clearInterval(iv);
-    }, 200);
-    setTimeout(patchInput, 100);
-    setTimeout(patchInput, 1000);
-    setTimeout(patchInput, 3000);
-    console.log(TAG, label, 'installed');
+    // Обнуляем штатный onchange, выставляем multiple
+    function enforce(){
+      var inp = doc.getElementById('jsonFileInput');
+      if(!inp) return;
+      if(!inp.multiple){ inp.multiple = true; inp.setAttribute('multiple','multiple'); }
+      if(inp.onchange) inp.onchange = null;
+    }
+    enforce();
+    var n=0; var iv=setInterval(function(){ enforce(); if(++n>30) clearInterval(iv); }, 200);
+    setTimeout(enforce, 100); setTimeout(enforce, 1000); setTimeout(enforce, 3000);
   }
 
+  // Устанавливаем на текущий документ (родитель)
   install(window, document, (window === window.parent ? 'parent' : 'self'));
 
+  // И на все iframe
   function tryIframes(){
-    var list=document.querySelectorAll('iframe');
-    for(var i=0;i<list.length;i++){
-      (function(f){
-        try {
-          if(f.contentDocument && f.contentWindow){
-            install(f.contentWindow, f.contentDocument, 'iframe#'+(f.id || i));
-          }
-        } catch(e){ /* cross-origin — ок */ }
-      })(list[i]);
-    }
+    document.querySelectorAll('iframe').forEach(function(f, i){
+      try {
+        if(f.contentDocument && f.contentWindow)
+          install(f.contentWindow, f.contentDocument, 'iframe#' + (f.id || i));
+      } catch(e){}
+    });
   }
   tryIframes();
-  var ef=document.getElementById('embeddedFrame');
+  var ef = document.getElementById('embeddedFrame');
   if(ef) ef.addEventListener('load', function(){ setTimeout(tryIframes, 100); });
   setInterval(tryIframes, 1000);
 })();
