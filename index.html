@@ -430,6 +430,7 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     <div id="iframeBar">
         <button class="btn primary" id="iframeBackBtn">🔄 Сменить чек-лист</button>
         <b id="iframeModeLabel"></b>
+        <button class="btn" id="helpBtnBar" type="button" style="margin-left:auto;">📖 Инструкция</button>
     </div>
     <iframe id="embeddedFrame" title="Встроенный чек-лист"></iframe>
 </div>
@@ -466,6 +467,9 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
                 <span class="mode-card-head">🛢️ <b>Чек-лист проверки Гидродемпферов</b></span>
                 <small>Чек-лист проверки гидродемпферов при выполнении ТР-50</small>
             </button>
+        </div>
+        <div style="margin-top:12px;text-align:center;">
+            <button class="btn" id="helpBtnModal" type="button">📖 Инструкция</button>
         </div>
         <div style="margin-top:16px;text-align:center;">
             <button class="btn" id="modeModalCancel" type="button" style="display:none;">Отмена</button>
@@ -17002,5 +17006,26 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
     
+<style>
+#helpOverlay{position:fixed;inset:0;z-index:3000;display:none;flex-direction:column;background:#fff}
+#helpOverlay.open{display:flex}
+#helpBar{display:flex;align-items:center;gap:12px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));background:#0a5eb0;color:#fff}
+#helpBar b{flex:1}
+#helpFrame{flex:1;border:0;width:100%;background:#fff}
+</style>
+<div id="helpOverlay" role="dialog" aria-label="Инструкция">
+    <div id="helpBar"><b>📖 Инструкция</b><button class="btn" id="helpClose" type="button">✕ Закрыть</button></div>
+    <iframe id="helpFrame" title="Инструкция"></iframe>
+</div>
+<script>
+(function(){
+    var ov=document.getElementById('helpOverlay'),fr=document.getElementById('helpFrame');
+    function openHelp(){if(!fr.getAttribute('src'))fr.setAttribute('src','instruction.html');ov.classList.add('open');}
+    function closeHelp(){ov.classList.remove('open');}
+    ['helpBtnBar','helpBtnModal'].forEach(function(id){var b=document.getElementById(id);if(b)b.addEventListener('click',openHelp);});
+    document.getElementById('helpClose').addEventListener('click',closeHelp);
+    document.addEventListener('keydown',function(ev){if(ev.key==='Escape')closeHelp();});
+})();
+</script>
 </body>
 </html>
