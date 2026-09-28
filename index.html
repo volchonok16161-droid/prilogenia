@@ -3223,6 +3223,15 @@ const EMBED_TT_B64=`<!DOCTYPE html>
                     }
                 }
 
+                // --- Проверка обязательных фото перед экспортом ---
+                if (currentUser !== 'admin') {
+                    const _missingPhoto = document.querySelectorAll('.frow.photo-required-field').length;
+                    if (_missingPhoto > 0) {
+                        showToast('⚠️ Прикрепите фото к ' + _missingPhoto + ' позиц. перед экспортом');
+                        return;
+                    }
+                }
+
                 if (typeof ExcelJS === 'undefined') {
                     showToast('⚠️ Библиотека ExcelJS не загружена. Проверьте подключение к интернету.');
                     return;
@@ -6655,6 +6664,15 @@ const EMBED_BI_B64=`<!DOCTYPE html>
                     const stats = computeStats();
                     if (stats.percent < 100) {
                         showToast('⚠️ Экспорт доступен только при 100% заполнении чек-листа');
+                        return;
+                    }
+                }
+
+                // --- Проверка обязательных фото перед экспортом ---
+                if (currentUser !== 'admin') {
+                    const _missingPhoto = document.querySelectorAll('.frow.photo-required-field').length;
+                    if (_missingPhoto > 0) {
+                        showToast('⚠️ Прикрепите фото к ' + _missingPhoto + ' позиц. перед экспортом');
                         return;
                     }
                 }
