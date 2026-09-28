@@ -15884,6 +15884,390 @@ if ('serviceWorker' in navigator) {
   }, 2000);
 })();
 </script>
+
+<!-- ============================================================
+     PATCH: OK/NOK фото-кнопки для всех полей чек-листа (V3)
+     - Для большинства полей: ✓ OK (зелёная) + ✕ NOK (красная)
+     - Для "Вид ВБ-8" (vb8/f0): зелёные кнопки "Старый" и "Новый" (как ПЦП)
+     - Для "Изготовитель" (housings/manufacturer): кнопки НЕ добавляются
+     - Кнопки не меняют значения полей — только открывают фото
+     - Стиль: .photo-btn (как ПЦП/Ника), кнопки справа
+     ============================================================ -->
+<script id="__OK_NOK_PHOTOS_V3__">
+(function(){
+  'use strict';
+  if (window.__OK_NOK_PHOTOS_V3_PARENT__) return;
+  window.__OK_NOK_PHOTOS_V3_PARENT__ = true;
+
+  // ==== Пути к фото. Поменяйте имена файлов при необходимости. ====
+  var PHOTOS = {
+    // --- ВБ-8 ---
+    'vb8|zav':  { ok: 'img/ok_vb8_zav.jpg',   nok: 'img/nok_vb8_zav.jpg' },
+    'vb8|f0':   { special: 'oldnew', old: 'img/vb8_old.jpg', 'new': 'img/vb8_new.jpg' },
+    'vb8|f1':   { ok: 'img/ok_vb8_f1.jpg',   nok: 'img/nok_vb8_f1.jpg' },
+    'vb8|f2':   { ok: 'img/ok_vb8_f2.jpg',   nok: 'img/nok_vb8_f2.jpg' },
+    'vb8|f3':   { ok: 'img/ok_vb8_f3.jpg',   nok: 'img/nok_vb8_f3.jpg' },
+    'vb8|f4':   { ok: 'img/ok_vb8_f4.jpg',   nok: 'img/nok_vb8_f4.jpg' },
+    'vb8|f5':   { ok: 'img/ok_vb8_f5.jpg',   nok: 'img/nok_vb8_f5.jpg' },
+    'vb8|f6':   { ok: 'img/ok_vb8_f6.jpg',   nok: 'img/nok_vb8_f6.jpg' },
+    'vb8|f7':   { ok: 'img/ok_vb8_f7.jpg',   nok: 'img/nok_vb8_f7.jpg' },
+    // --- МК-9 ---
+    'mk9|zav':  { ok: 'img/ok_mk9_zav.jpg',   nok: 'img/nok_mk9_zav.jpg' },
+    'mk9|f1':   { ok: 'img/ok_mk9_f1.jpg',   nok: 'img/nok_mk9_f1.jpg' },
+    'mk9|f2':   { ok: 'img/ok_mk9_f2.jpg',   nok: 'img/nok_mk9_f2.jpg' },
+    'mk9|f3':   { ok: 'img/ok_mk9_f3.jpg',   nok: 'img/nok_mk9_f3.jpg' },
+    'mk9|f4':   { ok: 'img/ok_mk9_f4.jpg',   nok: 'img/nok_mk9_f4.jpg' },
+    // --- МСУД ---
+    'msud|zav': { ok: 'img/ok_msud_zav.jpg',  nok: 'img/nok_msud_zav.jpg' },
+    'msud|f1':  { ok: 'img/ok_msud_f1.jpg',   nok: 'img/nok_msud_f1.jpg' },
+    'msud|f2':  { ok: 'img/ok_msud_f2.jpg',   nok: 'img/nok_msud_f2.jpg' },
+    'msud|f3':  { ok: 'img/ok_msud_f3.jpg',   nok: 'img/nok_msud_f3.jpg' },
+    'msud|f4':  { ok: 'img/ok_msud_f4.jpg',   nok: 'img/nok_msud_f4.jpg' },
+    'msud|f5':  { ok: 'img/ok_msud_f5.jpg',   nok: 'img/nok_msud_f5.jpg' },
+    'msud|f6':  { ok: 'img/ok_msud_f6.jpg',   nok: 'img/nok_msud_f6.jpg' },
+    'msud|f7':  { ok: 'img/ok_msud_f7.jpg',   nok: 'img/nok_msud_f7.jpg' },
+    // --- БВВ-057 ---
+    'bvv|f1':   { ok: 'img/ok_bvv_f1.jpg',   nok: 'img/nok_bvv_f1.jpg' },
+    'bvv|f2':   { ok: 'img/ok_bvv_f2.jpg',   nok: 'img/nok_bvv_f2.jpg' },
+    // --- РЭ16Т ---
+    're16t|f1': { ok: 'img/ok_re16t_f1.jpg',  nok: 'img/nok_re16t_f1.jpg' },
+    're16t|f2': { ok: 'img/ok_re16t_f2.jpg',  nok: 'img/nok_re16t_f2.jpg' },
+    're16t|f3': { ok: 'img/ok_re16t_f3.jpg',  nok: 'img/nok_re16t_f3.jpg' },
+    're16t|f4': { ok: 'img/ok_re16t_f4.jpg',  nok: 'img/nok_re16t_f4.jpg' },
+    // --- Шинный монтаж ---
+    'shina|f1': { ok: 'img/ok_shina_f1.jpg',  nok: 'img/nok_shina_f1.jpg' },
+    'shina|f2': { ok: 'img/ok_shina_f2.jpg',  nok: 'img/nok_shina_f2.jpg' },
+    'shina|f3': { ok: 'img/ok_shina_f3.jpg',  nok: 'img/nok_shina_f3.jpg' },
+    // --- ЛАС-023 ---
+    'las023|f1':{ ok: 'img/ok_las023_f1.jpg', nok: 'img/nok_las023_f1.jpg' },
+    'las023|f2':{ ok: 'img/ok_las023_f2.jpg', nok: 'img/nok_las023_f2.jpg' },
+    'las023|f3':{ ok: 'img/ok_las023_f3.jpg', nok: 'img/nok_las023_f3.jpg' },
+    // --- НБ-514Е ---
+    'nb514|zav':{ ok: 'img/ok_nb514_zav.jpg', nok: 'img/nok_nb514_zav.jpg' },
+    'nb514|f1': { ok: 'img/ok_nb514_f1.jpg',  nok: 'img/nok_nb514_f1.jpg' },
+    'nb514|f2': { ok: 'img/ok_nb514_f2.jpg',  nok: 'img/nok_nb514_f2.jpg' },
+    'nb514|f4': { ok: 'img/ok_nb514_f4.jpg',  nok: 'img/nok_nb514_f4.jpg' },
+    'nb514|f5': { ok: 'img/ok_nb514_f5.jpg',  nok: 'img/nok_nb514_f5.jpg' },
+    'nb514|f6': { ok: 'img/ok_nb514_f6.jpg',  nok: 'img/nok_nb514_f6.jpg' },
+    'nb514|f7': { ok: 'img/ok_nb514_f7.jpg',  nok: 'img/nok_nb514_f7.jpg' },
+    // --- Низковольтный монтаж ---
+    'nvmontazh|f1': { ok: 'img/ok_nvmontazh_f1.jpg', nok: 'img/nok_nvmontazh_f1.jpg' },
+    'nvmontazh|f2': { ok: 'img/ok_nvmontazh_f2.jpg', nok: 'img/nok_nvmontazh_f2.jpg' },
+    'nvmontazh|f3': { ok: 'img/ok_nvmontazh_f3.jpg', nok: 'img/nok_nvmontazh_f3.jpg' },
+    // --- Главный резервуар ---
+    'gres|f1':  { ok: 'img/ok_gres_f1.jpg',   nok: 'img/nok_gres_f1.jpg' },
+    'gres|f2':  { ok: 'img/ok_gres_f2.jpg',   nok: 'img/nok_gres_f2.jpg' },
+    'gres|f3':  { ok: 'img/ok_gres_f3.jpg',   nok: 'img/nok_gres_f3.jpg' },
+    'gres|f4':  { ok: 'img/ok_gres_f4.jpg',   nok: 'img/nok_gres_f4.jpg' },
+    'gres|f5':  { ok: 'img/ok_gres_f5.jpg',   nok: 'img/nok_gres_f5.jpg' },
+    'gres|f6':  { ok: 'img/ok_gres_f6.jpg',   nok: 'img/nok_gres_f6.jpg' },
+    'gres|f7':  { ok: 'img/ok_gres_f7.jpg',   nok: 'img/nok_gres_f7.jpg' },
+    'gres|f8':  { ok: 'img/ok_gres_f8.jpg',   nok: 'img/nok_gres_f8.jpg' },
+    // --- Кожуха (manufacturer — пропускаем) ---
+    'housings|oil':       { ok: 'img/ok_housings_oil.jpg',    nok: 'img/nok_housings_oil.jpg' },
+    'housings|leak':      { ok: 'img/ok_housings_leak.jpg',   nok: 'img/nok_housings_leak.jpg' },
+    'housings|formation': { ok: 'img/ok_housings_formation.jpg', nok: 'img/nok_housings_formation.jpg' },
+    'housings|zav':       { ok: 'img/ok_housings_zav.jpg',    nok: 'img/nok_housings_zav.jpg' },
+    // --- Рассекатель ---
+    'rassekatel|presence': { ok: 'img/ok_rassekatel_presence.jpg', nok: 'img/nok_rassekatel_presence.jpg' },
+    'rassekatel|install':  { ok: 'img/ok_rassekatel_install.jpg',  nok: 'img/nok_rassekatel_install.jpg' },
+    // --- ТТ (Тяговый трансформатор) ---
+    'tt|proizvoditel':         { ok: 'img/ok_tt_proizvoditel.jpg',     nok: 'img/nok_tt_proizvoditel.jpg' },
+    'tt|zavodskoy_nomer':      { ok: 'img/ok_tt_zavodskoy_nomer.jpg',  nok: 'img/nok_tt_zavodskoy_nomer.jpg' },
+    'tt|techi_steklo':         { ok: 'img/ok_tt_techi_steklo.jpg',    nok: 'img/nok_tt_techi_steklo.jpg' },
+    'tt|techi_manometr':       { ok: 'img/ok_tt_techi_manometr.jpg',  nok: 'img/nok_tt_techi_manometr.jpg' },
+    'tt|techi_dem':            { ok: 'img/ok_tt_techi_dem.jpg',       nok: 'img/nok_tt_techi_dem.jpg' },
+    'tt|techi_radiator':      { ok: 'img/ok_tt_techi_radiator.jpg',   nok: 'img/nok_tt_techi_radiator.jpg' },
+    'tt|techi_uplotneniya':    { ok: 'img/ok_tt_techi_uplotneniya.jpg', nok: 'img/nok_tt_techi_uplotneniya.jpg' },
+    'tt|techi_kryshka':        { ok: 'img/ok_tt_techi_kryshka.jpg',    nok: 'img/nok_tt_techi_kryshka.jpg' },
+    'tt|techi_vyvody':         { ok: 'img/ok_tt_techi_vyvody.jpg',     nok: 'img/nok_tt_techi_vyvody.jpg' },
+    'tt|techi_maslonasos':     { ok: 'img/ok_tt_techi_maslonasos.jpg', nok: 'img/nok_tt_techi_maslonasos.jpg' },
+    'tt|uroven_masla':         { ok: 'img/ok_tt_uroven_masla.jpg',     nok: 'img/nok_tt_uroven_masla.jpg' },
+    'tt|soprotivlenie_izolyacii': { ok: 'img/ok_tt_soprotivlenie.jpg', nok: 'img/nok_tt_soprotivlenie.jpg' },
+    'tt|zavod_nomer_dem':      { ok: 'img/ok_tt_zavod_nomer_dem.jpg', nok: 'img/nok_tt_zavod_nomer_dem.jpg' },
+    'tt|ispolnenie_dem':       { ok: 'img/ok_tt_ispolnenie_dem.jpg',  nok: 'img/nok_tt_ispolnenie_dem.jpg' },
+    'tt|ispravnoe_dem':        { ok: 'img/ok_tt_ispravnoe_dem.jpg',   nok: 'img/nok_tt_ispravnoe_dem.jpg' },
+    // --- БИ (МСУД-015 standalone) ---
+    'msud|zashchita_disks':    { ok: 'img/ok_msud_zashchita_disks.jpg', nok: 'img/nok_msud_zashchita_disks.jpg' },
+    // --- Гидродемпферы ---
+    'gidro|zav':  { ok: 'img/ok_gidro_zav.jpg',   nok: 'img/nok_gidro_zav.jpg' },
+    'gidro|f1':   { ok: 'img/ok_gidro_f1.jpg',    nok: 'img/nok_gidro_f1.jpg' },
+    'gidro|state':{ ok: 'img/ok_gidro_state.jpg', nok: 'img/nok_gidro_state.jpg' },
+    'gidro|f2':   { ok: 'img/ok_gidro_f2.jpg',    nok: 'img/nok_gidro_f2.jpg' },
+    'gidro|f3':   { ok: 'img/ok_gidro_f3.jpg',    nok: 'img/nok_gidro_f3.jpg' },
+    'gidro|f4':   { ok: 'img/ok_gidro_f4.jpg',    nok: 'img/nok_gidro_f4.jpg' },
+    'gidro|f5':   { ok: 'img/ok_gidro_f5.jpg',    nok: 'img/nok_gidro_f5.jpg' }
+  };
+
+  // Поля, для которых НЕ добавляются OK/NOK
+  var SKIP_FIELDS = {
+    'housings|manufacturer': true  // Изготовитель — уже есть ПЦП/Ника
+  };
+  // =================================================================
+
+  function INJECTABLE(){
+    'use strict';
+    if (window.__OK_NOK_PHOTOS_V3_INSIDE__) return;
+    window.__OK_NOK_PHOTOS_V3_INSIDE__ = true;
+
+    var DATA = {};
+    try {
+      if (window.parent && window.parent !== window && window.parent.__OK_NOK_PHOTOS_DATA__)
+        DATA = window.parent.__OK_NOK_PHOTOS_DATA__;
+    } catch(e){}
+    if (window.__OK_NOK_PHOTOS_DATA__) DATA = window.__OK_NOK_PHOTOS_DATA__;
+    var SKIP = {};
+    try {
+      if (window.parent && window.parent !== window && window.parent.__OK_NOK_SKIP__)
+        SKIP = window.parent.__OK_NOK_SKIP__;
+    } catch(e){}
+    if (window.__OK_NOK_SKIP__) SKIP = window.__OK_NOK_SKIP__;
+
+    // --- SVG-заглушка ---
+    var SVG_OK = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#e8f5e9"/><text x="200" y="150" font-size="20" text-anchor="middle" fill="#1f9d55">Соответствие — фото не задано</text></svg>'
+    );
+    var SVG_NOK = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#ffebee"/><text x="200" y="150" font-size="20" text-anchor="middle" fill="#d1453b">Несоответствие — фото не задано</text></svg>'
+    );
+    var SVG_OLD = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#e8f5e9"/><text x="200" y="150" font-size="20" text-anchor="middle" fill="#1f9d55">Старый ВБ-8 — фото не задано</text></svg>'
+    );
+    var SVG_NEW = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#e8f5e9"/><text x="200" y="150" font-size="20" text-anchor="middle" fill="#1f9d55">Новый ВБ-8 — фото не задано</text></svg>'
+    );
+
+    function showPhoto(src){
+      if (typeof window.openPhotoModal === 'function') window.openPhotoModal(src);
+      else window.open(src, '_blank');
+    }
+
+    // --- CSS ---
+    function ensureStyle(){
+      if (document.getElementById('__ok_nok_btn_style__')) return;
+      var st = document.createElement('style');
+      st.id = '__ok_nok_btn_style__';
+      st.textContent = [
+        '.ok-nok-area{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;justify-content:flex-end;}',
+        // OK button — green (same style as ПЦП)
+        '.ok-photo-btn{',
+        '  border-color:var(--ok,#1f9d55)!important;',
+        '  background:rgba(31,157,85,0.12)!important;',
+        '  color:var(--ok,#1f9d55)!important;',
+        '  font-weight:600!important;',
+        '}',
+        '.ok-photo-btn:hover{',
+        '  background:rgba(31,157,85,0.22)!important;',
+        '  border-color:var(--ok,#1f9d55)!important;',
+        '}',
+        'html[data-theme="dark"] .ok-photo-btn{',
+        '  background:rgba(63,174,106,0.18)!important;',
+        '}',
+        // NOK button — red
+        '.nok-photo-btn{',
+        '  border-color:var(--bad,#d1453b)!important;',
+        '  background:rgba(209,69,59,0.12)!important;',
+        '  color:var(--bad,#d1453b)!important;',
+        '  font-weight:600!important;',
+        '}',
+        '.nok-photo-btn:hover{',
+        '  background:rgba(209,69,59,0.22)!important;',
+        '  border-color:var(--bad,#d1453b)!important;',
+        '}',
+        'html[data-theme="dark"] .nok-photo-btn{',
+        '  background:rgba(229,90,80,0.18)!important;',
+        '}'
+      ].join('');
+      (document.head || document.documentElement).appendChild(st);
+    }
+
+    function makeOkBtn(key){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'photo-btn ok-photo-btn';
+      b.innerHTML = '✓ OK';
+      b.title = 'Показать фото: Соответствие';
+      b.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        var rec = DATA[key];
+        var src = (rec && rec.ok) ? rec.ok : SVG_OK;
+        showPhoto(src);
+      });
+      return b;
+    }
+
+    function makeNokBtn(key){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'photo-btn nok-photo-btn';
+      b.innerHTML = '✕ NOK';
+      b.title = 'Показать фото: Несоответствие';
+      b.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        var rec = DATA[key];
+        var src = (rec && rec.nok) ? rec.nok : SVG_NOK;
+        showPhoto(src);
+      });
+      return b;
+    }
+
+    function makeOldNewBtn(label, src, svgFallback){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'photo-btn ok-photo-btn';
+      b.innerHTML = label;
+      b.title = 'Показать фото: ' + label;
+      b.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        showPhoto(src || svgFallback);
+      });
+      return b;
+    }
+
+    function appendButtons(row, eqId, fieldKey){
+      if (!row || !eqId || !fieldKey) return;
+      var key = eqId + '|' + fieldKey;
+      if (SKIP[key]) return;             // пропуск (Изготовитель)
+      if (row.querySelector('.ok-nok-area')) return; // уже добавлены
+
+      var rec = DATA[key];
+      if (!rec) return;                  // нет фото — не добавляем
+
+      var area = row.querySelector('.photo-area');
+      var container = document.createElement('div');
+      container.className = 'ok-nok-area';
+
+      if (rec.special === 'oldnew'){
+        // Вид ВБ-8: зелёные кнопки "Старый" и "Новый"
+        container.appendChild(makeOldNewBtn('Старый', rec.old, SVG_OLD));
+        container.appendChild(makeOldNewBtn('Новый', rec['new'], SVG_NEW));
+      } else {
+        // Обычные OK / NOK
+        container.appendChild(makeOkBtn(key));
+        container.appendChild(makeNokBtn(key));
+      }
+
+      if (area){
+        area.appendChild(container);
+      } else {
+        row.appendChild(container);
+      }
+    }
+
+    function install(){
+      ensureStyle();
+
+      // Хук №1: addPhotoSupport
+      if (typeof window.addPhotoSupport === 'function' && !window.addPhotoSupport.__okNokV3Wrapped) {
+        var orig = window.addPhotoSupport;
+        var wrapped = function(row, field, eq, iid){
+          var res = orig.apply(this, arguments);
+          try {
+            if (eq && field) {
+              setTimeout(function(){ appendButtons(row, eq.id, field.key); }, 0);
+            }
+          } catch(e){}
+          return res;
+        };
+        wrapped.__okNokV3Wrapped = true;
+        try { window.addPhotoSupport = wrapped; } catch(e){}
+      }
+
+      // Хук №2: fieldRow
+      if (typeof window.fieldRow === 'function' && !window.fieldRow.__okNokV3Wrapped) {
+        var origFR = window.fieldRow;
+        var wrappedFR = function(eq, inst, iid, field){
+          var r = origFR.apply(this, arguments);
+          try {
+            if (eq && field) {
+              setTimeout(function(){ appendButtons(r, eq.id, field.key); }, 60);
+            }
+          } catch(e){}
+          return r;
+        };
+        wrappedFR.__okNokV3Wrapped = true;
+        try { window.fieldRow = wrappedFR; } catch(e){}
+      }
+
+      return typeof window.addPhotoSupport === 'function' || typeof window.fieldRow === 'function';
+    }
+
+    if (!install()){
+      var tries = 0;
+      var iv = setInterval(function(){
+        tries++;
+        if (install() || tries > 60) clearInterval(iv);
+      }, 200);
+    }
+
+    // Догоняем уже отрисованные поля
+    function patchExisting(){
+      try {
+        document.querySelectorAll('.inst[data-iid]').forEach(function(card){
+          var iid = card.dataset.iid;
+          if (!iid) return;
+          var eqId = iid.split('|')[0];
+          card.querySelectorAll('.frow').forEach(function(row){
+            var fk = row.dataset.fieldKey;
+            if (fk) appendButtons(row, eqId, fk);
+          });
+        });
+      } catch(e){}
+    }
+    setTimeout(patchExisting, 300);
+    setTimeout(patchExisting, 1500);
+    setTimeout(patchExisting, 3000);
+  }
+
+  // Публикуем данные
+  window.__OK_NOK_PHOTOS_DATA__ = PHOTOS;
+  window.__OK_NOK_SKIP__ = SKIP_FIELDS;
+  try { INJECTABLE.call(window); } catch(e){}
+
+  function injectInto(win, doc){
+    try {
+      if (win.__OK_NOK_PHOTOS_V3_INSIDE__) return;
+      var s = doc.createElement('script');
+      s.textContent = '(' + INJECTABLE.toString() + ').call(window);';
+      (doc.body || doc.head || doc.documentElement).appendChild(s);
+    } catch(e){}
+  }
+
+  function bindIframe(f){
+    if (!f || f.__OK_NOK_V3_BOUND__) return;
+    f.__OK_NOK_V3_BOUND__ = true;
+    function tryGo(){
+      try {
+        var doc = f.contentDocument, win = f.contentWindow;
+        if (!doc || !win) return;
+        injectInto(win, doc);
+      } catch(e){}
+    }
+    f.addEventListener('load', tryGo);
+    tryGo(); setTimeout(tryGo,300); setTimeout(tryGo,1000); setTimeout(tryGo,2500);
+  }
+
+  var ef = document.getElementById('embeddedFrame');
+  if (ef) bindIframe(ef);
+  var all = document.querySelectorAll('iframe');
+  for (var i = 0; i < all.length; i++) bindIframe(all[i]);
+
+  if (window.MutationObserver) {
+    var mo = new MutationObserver(function(){
+      var list = document.querySelectorAll('iframe');
+      for (var j = 0; j < list.length; j++) bindIframe(list[j]);
+    });
+    mo.observe(document.documentElement, {childList:true, subtree:true});
+  }
+  setInterval(function(){
+    var ef2 = document.getElementById('embeddedFrame');
+    if (ef2) bindIframe(ef2);
+  }, 2000);
+})();
+</script>
 <!-- ============================================================
      PATCH: "Акт на подпись" для всех чек-листов (V5)
      - Компактная вёрстка (меньше отступов, 2-колоночная таблица
