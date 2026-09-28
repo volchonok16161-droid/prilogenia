@@ -17028,143 +17028,248 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 
-<!-- ====== ПАТЧ: Блокировка экспорта (100% + фото) для не-админа ====== -->
+<!-- ПАТЧ: Блокировка кнопок экспорта для не-админа -->
+<!-- Условие: 100% заполнения + все обязательные фото прикреплены -->
+<!-- Админ экспортирует без ограничений -->
+<!-- Вставить перед </body> -->
 <script>
 (function() {
   'use strict';
 
-  if (window.__EXPORT_GUARD_PATCH_V3__) return;
-  window.__EXPORT_GUARD_PATCH_V3__ = true;
+  // ─── ФЛАГ: отключать ли также кнопку JSON-экспорта ───
+  var BLOCK_JSON_TOO = true;
 
-  // ─── ПРОВЕРКА РОЛИ ───
+  // ─── ПОИСК КНОПОК ЭКСПОРТА ПО ТЕКСТУ ───
+  function findExportButtons() {
+    var buttons = document.querySelectorAll('button, a, [role="button"]');
+    var result = { excel: [], json: [] };
+    buttons.forEach(function(btn) {
+      var text = (btn.textContent || '').trim();
+      // Кнопка экспорта Excel
+      if (text.indexOf('Экспорт Excel') !== -1 ||
+          text.indexOf('📷') !== -1 && text.indexOf('Excel') !== -1) {
+        result.excel.push(btn);
+      }
+      // Кнопка экспорта JSON
+      if (text.indexOf('Экспорт JSON') !== -1 ||
+          text.indexOf('📤') !== -1 && text.indexOf('JSON') !== -1) {
+        result.json.push(btn);
+      }
+    });
+    return result;
+  }
+
+  // ─── ПРОВЕРКА: АДМИН? ───
   function isAdmin() {
-    try {
-      if (typeof currentUser !== 'undefined' && currentUser === 'admin') return true;
-    } catch(e) {}
+    // Вариант 1: глобальная переменная currentUser
+    if (typeof currentUser !== 'undefined' && currentUser === 'admin') {
+      return true;
+    }
+    // Вариант 2: localStorage
     try {
       var saved = localStorage.getItem('checklist_user');
       if (saved) {
-        var d = JSON.parse(saved);
-        return !!(d && d.role === 'admin');
+        var data = JSON.parse(saved);
+        if (data.login === 'admin' && data.password === 'bdfy') {
+          return true;
+        }
       }
     } catch(e) {}
     return false;
   }
 
-  // ─── ПРОГРЕСС ───
+  // ─── ПОЛУЧЕНИЕ ПРОЦЕНТА ЗАПОЛНЕНИЯ ───
   function getProgress() {
+    // Вариант 1: функция computeStats
     if (typeof computeStats === 'function') {
-      var s = computeStats();
-      return s.percent || 0;
+      try {
+        var stats = computeStats();
+        if (stats && typeof stats.percent !== 'undefined') {
+          return stats.percent;
+        }
+        if (stats && typeof stats.pct !== 'undefined') {
+          return stats.pct;
+        }
+      } catch(e) {}
     }
+
+    // Вариант 2: ищем % в DOM
+    // Ищем элемент с текстом вроде "100% Заполнено" или просто "100%"
+    var allElements = document.querySelectorAll('*');
+    for (var i = 0; i < allElements.length; i++) {
+      var el = allElements[i];
+      var text = (el.textContent || '').trim();
+      // Ищем паттерн "N% Заполнено" или "N%" в небольшом элементе
+      if (text.length < 30 && text.indexOf('%') !== -1) {
+        var match = text.match(/(\d+(?:\.\d+)?)\s*%/);
+        if (match) {
+          var val = parseFloat(match[1]);
+          if (!isNaN(val)) return val;
+        }
+      }
+    }
+
+    // Вариант 3: ищем progress-bar
+    var bar = document.querySelector('[data-progress], .progress-bar, .progress');
+    if (bar) {
+      var val = bar.getAttribute('data-progress') ||
+                bar.getAttribute('aria-valuenow') ||
+                bar.textContent;
+      var num = parseFloat(val);
+      if (!isNaN(num)) return num;
+    }
+
     return 0;
   }
 
-  // ─── КОЛИЧЕСТВО НЕДОСТАЮЩИХ ФОТО ───
-  function getMissingPhotoCount() {
-    // Используем существующую функцию, если есть
-    if (typeof countMissingPhotoFields === 'function') {
-      return countMissingPhotoFields();
+  // ─── ПОДСЧЁТ НЕДОСТАЮЩИХ ФОТО ───
+  function countMissingPhotos() {
+    // Вариант 1: считаем элементы с классом photo-required-field
+    var missing = document.querySelectorAll('.photo-required-field');
+    if (missing.length > 0) {
+      return missing.length;
     }
-    // Фолбэк: считаем по DOM
-    try {
-      return document.querySelectorAll('.frow.photo-required-field').length;
-    } catch(e) {
-      return 0;
-    }
+
+    // Вариант 2: ищем поля, где фото нужно, но не прикреплено
+    // Если в коде используются другие классы или атрибуты,
+    // можно добавить их сюда
+    var altMissing = document.querySelectorAll(
+      '[data-photo-required="true"]:not([data-photo-loaded]), ' +
+      '.need-photo:not(.has-photo), ' +
+      '.photo-missing'
+    );
+    return altMissing.length;
   }
 
-  // ─── ГЛАВНАЯ ПРОВЕРКА ───
-  function validateExport() {
-    if (isAdmin()) return { ok: true };
+  // ─── ГЛАВНАЯ ФУНКЦИЯ ПРОВЕРКИ ───
+  function checkExportAllowed() {
+    if (isAdmin()) {
+      return { allowed: true, reason: 'admin' };
+    }
 
     var progress = getProgress();
-    var missingPhotos = getMissingPhotoCount();
-    var problems = [];
+    var missingPhotos = countMissingPhotos();
 
-    if (progress < 100) {
-      problems.push('Чек-лист заполнен на ' + progress + '%, нужно 100%');
-    }
-    if (missingPhotos > 0) {
-      problems.push('Не прикреплены обязательные фото к ' + missingPhotos + ' позициям');
-    }
+    var allowed = (progress >= 100) && (missingPhotos === 0);
 
-    return { ok: problems.length === 0, progress: progress, missingPhotos: missingPhotos, problems: problems };
-  }
-
-  // ─── СООБЩЕНИЕ ───
-  function blockExport(check) {
-    var msg = '⚠️ Экспорт недоступен:\n' + check.problems.map(function(p) { return '• ' + p; }).join('\n');
-    if (typeof showToast === 'function') {
-      showToast(msg);
-    } else {
-      alert(msg);
-    }
-  }
-
-  // ─── ПЕРЕХВАТ exportWithPhotos ───
-  if (typeof exportWithPhotos === 'function' && !exportWithPhotos.__patchedV3) {
-    var origExportWithPhotos = exportWithPhotos;
-    exportWithPhotos = async function() {
-      var check = validateExport();
-      if (!check.ok) {
-        blockExport(check);
-        return;
-      }
-      return origExportWithPhotos.apply(this, arguments);
+    return {
+      allowed: allowed,
+      progress: progress,
+      missingPhotos: missingPhotos
     };
-    exportWithPhotos.__patchedV3 = true;
-    try { window.exportWithPhotos = exportWithPhotos; } catch(e) {}
   }
 
-  // ─── ПЕРЕХВАТ exportJson ───
-  if (typeof exportJson === 'function' && !exportJson.__patchedV3) {
-    var origExportJson = exportJson;
-    exportJson = function() {
-      var check = validateExport();
-      if (!check.ok) {
-        blockExport(check);
-        return;
+  // ─── ПРИМЕНЕНИЕ СОСТОЯНИЯ К КНОПКАМ ───
+  function updateButtonState() {
+    var btns = findExportButtons();
+    var check = checkExportAllowed();
+
+    var allButtons = btns.excel.slice();
+    if (BLOCK_JSON_TOO) {
+      allButtons = allButtons.concat(btns.json);
+    }
+
+    allButtons.forEach(function(btn) {
+      if (check.allowed) {
+        // Включаем кнопку
+        btn.removeAttribute('disabled');
+        btn.classList.remove('btn-disabled', 'export-blocked');
+        btn.style.opacity = '';
+        btn.style.cursor = '';
+        btn.style.pointerEvents = '';
+        btn.setAttribute('data-export-allowed', 'true');
+      } else {
+        // Отключаем кнопку
+        btn.setAttribute('disabled', 'disabled');
+        btn.classList.add('export-blocked');
+        btn.style.opacity = '0.45';
+        btn.style.cursor = 'not-allowed';
+        btn.style.pointerEvents = 'auto'; // оставляем, чтобы перехватить клик
+        btn.setAttribute('data-export-allowed', 'false');
       }
-      return origExportJson.apply(this, arguments);
-    };
-    exportJson.__patchedV3 = true;
-    try { window.exportJson = exportJson; } catch(e) {}
-  }
-
-  // ─── ПЕРЕХВАТ КНОПОК ЧЕРЕЗ DOM ───
-  function hookButtons() {
-    var selectors = '#btnExport, #btnExportWithPhotos, [data-action="export"], .btn-export';
-    document.querySelectorAll(selectors).forEach(function(btn) {
-      if (btn.__patchedV3) return;
-      btn.__patchedV3 = true;
-      btn.addEventListener('click', function(e) {
-        var check = validateExport();
-        if (!check.ok) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          blockExport(check);
-          return false;
-        }
-      }, true);
     });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', hookButtons);
-  } else {
-    hookButtons();
-  }
-  setTimeout(hookButtons, 1000);
-  setTimeout(hookButtons, 3000);
+  // ─── ПЕРЕХВАТ КЛИКОВ ───
+  document.addEventListener('click', function(e) {
+    if (isAdmin()) return;
 
-  // ─── ОТЛАДКА ───
-  window.__validateExport = validateExport;
-  console.log('[Патч V3] Защита экспорта: 100% + фото для пользователей, админ без ограничений');
+    var target = e.target;
+    // Поднимаемся по DOM, чтобы найти кнопку
+    var btn = target.closest ? target.closest('button, a, [role="button"]') : null;
+    if (!btn) {
+      // Фолбэк для старых браузеров
+      btn = target;
+      while (btn && btn.tagName !== 'BUTTON' && btn.tagName !== 'A') {
+        btn = btn.parentElement;
+      }
+    }
+    if (!btn) return;
+
+    var text = (btn.textContent || '').trim();
+    var isExportExcel = text.indexOf('Экспорт Excel') !== -1 ||
+                       (text.indexOf('📷') !== -1 && text.indexOf('Excel') !== -1);
+    var isExportJSON = text.indexOf('Экспорт JSON') !== -1 ||
+                       (text.indexOf('📤') !== -1 && text.indexOf('JSON') !== -1);
+
+    if (!isExportExcel && !(BLOCK_JSON_TOO && isExportJSON)) return;
+
+    var check = checkExportAllowed();
+    if (!check.allowed) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
+      // Показываем сообщение
+      var lines = ['Экспорт недоступен:'];
+      if (check.progress < 100) {
+        lines.push('• Заполнено ' + check.progress + '%, нужно 100%');
+      }
+      if (check.missingPhotos > 0) {
+        lines.push('• Не прикреплены обязательные фото: ' + check.missingPhotos + ' шт.');
+      }
+
+      var msg = lines.join('\n');
+
+      // Пробуем showToast, если есть
+      if (typeof showToast === 'function') {
+        showToast(msg, 'error');
+      } else if (typeof alert === 'function') {
+        alert(msg);
+      }
+      return false;
+    }
+  }, true); // capture = true — срабатываем раньше остальных обработчиков
+
+  // ─── ОТЛОЖЕННАЯ АКТИВАЦИЯ ───
+  function activate() {
+    updateButtonState();
+
+    // MutationObserver: следим за изменениями в DOM
+    var observer = new MutationObserver(function() {
+      updateButtonState();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'data-photo', 'data-photo-loaded', 'style']
+    });
+
+    // Дополнительно: проверяем каждые 2 секунды
+    setInterval(updateButtonState, 2000);
+
+    console.log('[Патч] Блокировка кнопок экспорта активна. Админ без ограничений.');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', activate);
+  } else {
+    activate();
+  }
 })();
-</script>
-<!-- ====== КОНЕЦ ПАТЧА ====== -->
-    
-</script>  
+</script>    
+ 
 </body>
 </html>
