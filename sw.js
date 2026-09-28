@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v5';
+const CACHE_VERSION = 'checklist-cache-v8';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -18,7 +18,6 @@ const APP_SHELL = [
 // Кэшируются здесь же при установке — если в момент установки есть интернет,
 // то Excel-экспорт будет работать и офлайн.
 const CDN_LIBS = [
-  'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
   'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'
 ];
 
