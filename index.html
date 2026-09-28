@@ -17028,208 +17028,142 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 
+<!-- ====== ПАТЧ: Блокировка экспорта (100% + фото) для не-админа ====== -->
 <script>
-/**
- * ПАТЧ: Блокировка экспорта для обычных пользователей.
- * Условие: 100% заполнения + все обязательные фото прикреплены.
- * Админ экспортирует без ограничений.
- * Вставить перед </body>
- */
 (function() {
   'use strict';
 
-  // ─── НАСТРОЙКА (поменяй имена/ключи, если в коде они другие) ───
-  const PROGRESS_KEY = 'checklist_progress';   // ключ в localStorage, где хранится %
-  const ROLE_KEY     = 'user_role';            // ключ в localStorage с ролью пользователя
-  const ADMIN_VALUES = ['admin', 'administrator']; // допустимые значения роли админа
+  if (window.__EXPORT_GUARD_PATCH_V3__) return;
+  window.__EXPORT_GUARD_PATCH_V3__ = true;
 
   // ─── ПРОВЕРКА РОЛИ ───
   function isAdmin() {
-    // Вариант 1: роль в localStorage
-    const role = (localStorage.getItem(ROLE_KEY) || '').toLowerCase();
-    if (ADMIN_VALUES.indexOf(role) !== -1) return true;
-
-    // Вариант 2: роль в глобальной переменной
-    if (window.currentUser && window.currentUser.role) {
-      return ADMIN_VALUES.indexOf(window.currentUser.role.toLowerCase()) !== -1;
-    }
-
-    // Вариант 3: маркер в DOM
-    if (document.body.classList.contains('admin') ||
-        document.querySelector('[data-role="admin"]')) {
-      return true;
-    }
-
+    try {
+      if (typeof currentUser !== 'undefined' && currentUser === 'admin') return true;
+    } catch(e) {}
+    try {
+      var saved = localStorage.getItem('checklist_user');
+      if (saved) {
+        var d = JSON.parse(saved);
+        return !!(d && d.role === 'admin');
+      }
+    } catch(e) {}
     return false;
   }
 
-  // ─── ПОЛУЧЕНИЕ ПРОГРЕССА ───
+  // ─── ПРОГРЕСС ───
   function getProgress() {
-    // Если есть функция подсчёта — используем её
-    if (typeof window.calcProgress === 'function') {
-      return window.calcProgress();
+    if (typeof computeStats === 'function') {
+      var s = computeStats();
+      return s.percent || 0;
     }
-
-    // Пробуем localStorage
-    const saved = localStorage.getItem(PROGRESS_KEY);
-    if (saved !== null) {
-      const p = parseFloat(saved);
-      if (!isNaN(p)) return p;
-    }
-
-    // Фолбэк: ищем прогресс-бар в DOM
-    const bar = document.querySelector('[data-progress]') ||
-                document.querySelector('.progress-bar') ||
-                document.querySelector('.progress');
-    if (bar) {
-      const val = bar.getAttribute('data-progress') ||
-                  bar.getAttribute('aria-valuenow') ||
-                  bar.textContent;
-      return parseFloat(val) || 0;
-    }
-
     return 0;
   }
 
-  // ─── ПРОВЕРКА ОБЯЗАТЕЛЬНЫХ ФОТО ───
-  function checkRequiredPhotos() {
-    const missing = [];
-
-    // Вариант 1: обходим глобальный массив EQUIPMENT
-    if (typeof window.EQUIPMENT !== 'undefined' && Array.isArray(window.EQUIPMENT)) {
-      window.EQUIPMENT.forEach(function(eq) {
-        if (!eq.fields) return;
-        eq.fields.forEach(function(field, fIdx) {
-          if (!field.photoRequired) return;
-
-          const instances = eq.instances || [{}];
-          instances.forEach(function(inst, iIdx) {
-            const photoKey = 'photo_' + eq.id + '_' + fIdx + '_' + iIdx;
-            const photoData = inst[photoKey] ||
-                              (inst.photos && inst.photos[photoKey]) ||
-                              localStorage.getItem(photoKey);
-
-            if (!photoData) {
-              missing.push({
-                equipment: eq.id,
-                fieldLabel: field.label || ('Поле ' + fIdx),
-                instance: iIdx
-              });
-            }
-          });
-        });
-      });
+  // ─── КОЛИЧЕСТВО НЕДОСТАЮЩИХ ФОТО ───
+  function getMissingPhotoCount() {
+    // Используем существующую функцию, если есть
+    if (typeof countMissingPhotoFields === 'function') {
+      return countMissingPhotoFields();
     }
-
-    // Вариант 2: обходим DOM — поля с data-photo-required
-    document.querySelectorAll('[data-photo-required="true"], .photo-required').forEach(function(el) {
-      const container = el.closest('[data-equipment-id], .equipment-item, .field-row') || el;
-      const photoPreview = container.querySelector('img.photo-preview, .photo-thumb img, [data-photo-preview]');
-      const hiddenInput  = container.querySelector('input[type="hidden"][data-photo], input[data-photo-data]');
-
-      if (!photoPreview && !hiddenInput) {
-        const eqId  = container.getAttribute('data-equipment-id') || '?';
-        const label = el.getAttribute('data-field-label') ||
-                      (el.closest('[data-field-label]') &&
-                       el.closest('[data-field-label]').getAttribute('data-field-label')) ||
-                      el.textContent.trim() || 'Поле';
-        missing.push({ equipment: eqId, fieldLabel: label, instance: 0 });
-      }
-    });
-
-    return missing;
+    // Фолбэк: считаем по DOM
+    try {
+      return document.querySelectorAll('.frow.photo-required-field').length;
+    } catch(e) {
+      return 0;
+    }
   }
 
-  // ─── ГЛАВНАЯ ПРОВЕРКА ПЕРЕД ЭКСПОРТОМ ───
-  function validateBeforeExport() {
-    // Админ экспортирует всегда
-    if (isAdmin()) {
-      return { ok: true, progress: 100, missingPhotos: [], isAdmin: true };
-    }
+  // ─── ГЛАВНАЯ ПРОВЕРКА ───
+  function validateExport() {
+    if (isAdmin()) return { ok: true };
 
-    const progress = getProgress();
-    const missingPhotos = checkRequiredPhotos();
-    const ok = (progress >= 100) && (missingPhotos.length === 0);
-    return { ok: ok, progress: progress, missingPhotos: missingPhotos, isAdmin: false };
-  }
-
-  // ─── СООБЩЕНИЕ О БЛОКИРОВКЕ ───
-  function showExportBlockMessage(progress, missingPhotos) {
-    const lines = ['Экспорт невозможен:'];
+    var progress = getProgress();
+    var missingPhotos = getMissingPhotoCount();
+    var problems = [];
 
     if (progress < 100) {
-      lines.push('• Чек-лист заполнен на ' + progress + '%, нужно 100%');
+      problems.push('Чек-лист заполнен на ' + progress + '%, нужно 100%');
+    }
+    if (missingPhotos > 0) {
+      problems.push('Не прикреплены обязательные фото к ' + missingPhotos + ' позициям');
     }
 
-    if (missingPhotos.length > 0) {
-      lines.push('• Не прикреплены обязательные фото (' + missingPhotos.length + ' шт.):');
-      missingPhotos.slice(0, 10).forEach(function(m) {
-        lines.push('   — ' + m.equipment + ' / ' + m.fieldLabel);
-      });
-      if (missingPhotos.length > 10) {
-        lines.push('   — и ещё ' + (missingPhotos.length - 10) + '...');
-      }
-    }
+    return { ok: problems.length === 0, progress: progress, missingPhotos: missingPhotos, problems: problems };
+  }
 
-    const msg = lines.join('\n');
-
-    // Если есть свой toast/modal — используем
-    if (typeof window.showToast === 'function') {
-      window.showToast(msg, 'error');
-    } else if (typeof window.showAlert === 'function') {
-      window.showAlert(msg);
+  // ─── СООБЩЕНИЕ ───
+  function blockExport(check) {
+    var msg = '⚠️ Экспорт недоступен:\n' + check.problems.map(function(p) { return '• ' + p; }).join('\n');
+    if (typeof showToast === 'function') {
+      showToast(msg);
     } else {
       alert(msg);
     }
   }
 
-  // ─── ПЕРЕХВАТ ФУНКЦИИ ЭКСПОРТА ───
-  const exportFnNames = [
-    'exportExcel', 'doExport', 'exportToExcel',
-    'exportData', 'exportChecklist'
-  ];
+  // ─── ПЕРЕХВАТ exportWithPhotos ───
+  if (typeof exportWithPhotos === 'function' && !exportWithPhotos.__patchedV3) {
+    var origExportWithPhotos = exportWithPhotos;
+    exportWithPhotos = async function() {
+      var check = validateExport();
+      if (!check.ok) {
+        blockExport(check);
+        return;
+      }
+      return origExportWithPhotos.apply(this, arguments);
+    };
+    exportWithPhotos.__patchedV3 = true;
+    try { window.exportWithPhotos = exportWithPhotos; } catch(e) {}
+  }
 
-  exportFnNames.forEach(function(name) {
-    if (typeof window[name] === 'function') {
-      const originalExport = window[name];
-      window[name] = function() {
-        const check = validateBeforeExport();
-        if (!check.ok) {
-          showExportBlockMessage(check.progress, check.missingPhotos);
-          return false;
-        }
-        return originalExport.apply(this, arguments);
-      };
-      console.log('[Патч] Перехвачена функция экспорта: ' + name);
-    }
-  });
+  // ─── ПЕРЕХВАТ exportJson ───
+  if (typeof exportJson === 'function' && !exportJson.__patchedV3) {
+    var origExportJson = exportJson;
+    exportJson = function() {
+      var check = validateExport();
+      if (!check.ok) {
+        blockExport(check);
+        return;
+      }
+      return origExportJson.apply(this, arguments);
+    };
+    exportJson.__patchedV3 = true;
+    try { window.exportJson = exportJson; } catch(e) {}
+  }
 
-  // ─── ПЕРЕХВАТ КНОПКИ ЭКСПОРТА ЧЕРЕЗ DOM ───
-  document.addEventListener('DOMContentLoaded', function() {
-    const exportButtons = document.querySelectorAll(
-      '[data-action="export"], .btn-export, #exportBtn, #btnExport'
-    );
-    exportButtons.forEach(function(btn) {
+  // ─── ПЕРЕХВАТ КНОПОК ЧЕРЕЗ DOM ───
+  function hookButtons() {
+    var selectors = '#btnExport, #btnExportWithPhotos, [data-action="export"], .btn-export';
+    document.querySelectorAll(selectors).forEach(function(btn) {
+      if (btn.__patchedV3) return;
+      btn.__patchedV3 = true;
       btn.addEventListener('click', function(e) {
-        const check = validateBeforeExport();
+        var check = validateExport();
         if (!check.ok) {
           e.preventDefault();
           e.stopImmediatePropagation();
-          showExportBlockMessage(check.progress, check.missingPhotos);
+          blockExport(check);
           return false;
         }
       }, true);
     });
-    console.log('[Патч] Перехвачено кнопок экспорта: ' + exportButtons.length);
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', hookButtons);
+  } else {
+    hookButtons();
+  }
+  setTimeout(hookButtons, 1000);
+  setTimeout(hookButtons, 3000);
 
   // ─── ОТЛАДКА ───
-  window.validateBeforeExport = validateBeforeExport;
-  window.checkRequiredPhotos  = checkRequiredPhotos;
-  window.isAdmin              = isAdmin;
-
-  console.log('[Патч] Блокировка экспорта для пользователей активна. Админ без ограничений.');
+  window.__validateExport = validateExport;
+  console.log('[Патч V3] Защита экспорта: 100% + фото для пользователей, админ без ограничений');
 })();
+</script>
+<!-- ====== КОНЕЦ ПАТЧА ====== -->
     
 </script>  
 </body>
