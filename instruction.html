@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Чек-лист ТМХ/НЭВЗ — инструкция</title>
+<style>
+:root{--bg:#f3f7fc;--card:#fff;--text:#14202e;--muted:#4c5f74;--accent:#0a5eb0;--line:#d5e0ee;--note:#fff4d1;--noteline:#e6c85c;--mark:#ffe28a;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1620;--card:#17212e;--text:#e6edf5;--muted:#9fb1c5;--accent:#6db3f2;--line:#2a394b;--note:#3a3115;--noteline:#8a7328;--mark:#6b5a12}}
+:root[data-theme="dark"]{--bg:#0f1620;--card:#17212e;--text:#e6edf5;--muted:#9fb1c5;--accent:#6db3f2;--line:#2a394b;--note:#3a3115;--noteline:#8a7328;--mark:#6b5a12}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 64px);scroll-behavior:smooth}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+header{padding:28px 20px 8px;max-width:760px;margin:0 auto}
+h1{font-size:1.9rem;line-height:1.2;margin:0 0 8px}
+header p{margin:0;color:var(--muted)}
+nav{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);border-bottom:1px solid var(--line);z-index:5}
+nav div{max-width:760px;margin:0 auto;padding:10px 20px;display:flex;gap:8px;overflow-x:auto}
+nav a{white-space:nowrap;padding:6px 14px;border:1px solid var(--line);border-radius:999px;color:var(--accent);text-decoration:none;font-size:.95rem;background:var(--card)}
+main{max-width:760px;margin:0 auto;padding:8px 20px 56px}
+section{margin-top:36px}
+h2{font-size:1.4rem;margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid var(--accent)}
+h3{font-size:1.1rem;margin:22px 0 8px}
+ol,ul{padding-left:1.4em;margin:8px 0}
+li{margin:6px 0}
+.note{overflow-wrap:anywhere;background:var(--note);border-left:4px solid var(--noteline);padding:10px 14px;border-radius:6px;margin:14px 0}
+mark{background:var(--mark);color:inherit;padding:0 4px;border-radius:3px}
+.btn{display:inline-block;padding:1px 8px;border:1px solid var(--line);border-radius:6px;background:var(--card);font-size:.92em;white-space:nowrap}
+dl{margin:0}dt{font-weight:650;margin-top:14px}dd{margin:2px 0 0;color:var(--muted)}dd b{color:var(--text)}
+details{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin:8px 0}
+summary{cursor:pointer;font-weight:600}
+details p{margin:8px 0 2px;color:var(--muted)}
+a:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media print{nav{display:none}body{font-size:12pt}}
+</style>
+</head>
+<body>
+<header>
+<h1>Чек-лист ТМХ/НЭВЗ: установка и работа</h1>
+<p>Приложение для проверки локомотивов при ТР-50, ТР-250, ТР-500. Работает на телефоне, планшете и компьютере. Приложение и эта инструкция отправляются вам в мессенджере eXpress.</p>
+<div class="note">Ссылка на приложение: <a href="https://volchonok16161-droid.github.io/prilogenia/">https://volchonok16161-droid.github.io/prilogenia/</a></div>
+</header>
+<nav><div><a href="#iphone">iPhone (Safari)</a><a href="#android">Android</a><a href="#use">Как пользоваться</a><a href="#faq">Вопросы</a></div></nav>
+<main>
+
+<section id="iphone">
+<h2>Установка на iPhone и iPad (Safari)</h2>
+<ol>
+<li>Откройте ссылку на приложение в <b>Safari</b>. Если ссылка пришла в eXpress, откройте её не внутри мессенджера, а в Safari: нажмите на ссылку и выберите открытие в браузере либо скопируйте ссылку и вставьте её в адресную строку Safari.</li>
+<li>Нажмите кнопку <span class="btn">Поделиться</span> (квадрат со стрелкой вверх). На iPhone она внизу экрана, на iPad — вверху.</li>
+<li>Прокрутите список действий и выберите <span class="btn">На экран «Домой»</span>.</li>
+<li>Оставьте название «Чек-лист» и нажмите <span class="btn">Добавить</span>.</li>
+<li>Иконка появится на главном экране. Дальше запускайте приложение с неё, а не из Safari.</li>
+</ol>
+<div class="note"><b>Первый запуск — только с интернетом.</b> Приложение загружает всё необходимое и запоминает это, после чего может работать без сети.</div>
+<p>На iPhone и iPad приложение устанавливается только по ссылке. Файл для установки, как APK на Android, на iPhone не подходит.</p>
+</section>
+
+<section id="android">
+<h2>Установка на Android</h2>
+<h3>Вариант 1. Файл APK (если вам прислали файл)</h3>
+<ol>
+<li>Скачайте файл с расширением <b>.apk</b> из чата eXpress: нажмите на файл и выберите «Скачать» или «Сохранить».</li>
+<li>Откройте скачанный файл: из уведомления о загрузке или в приложении «Файлы» → «Загрузки».</li>
+<li>Если Android пишет, что установка из этого источника запрещена, нажмите «Настройки» и разрешите установку приложений для программы, из которой открываете файл (eXpress или «Файлы»). Затем вернитесь назад.</li>
+<li>Нажмите <span class="btn">Установить</span>. Если система защиты (Play Protect) покажет предупреждение, выберите «Всё равно установить».</li>
+<li>Нажмите <span class="btn">Открыть</span> или найдите иконку «Чек-лист» на главном экране.</li>
+</ol>
+<div class="note">Названия пунктов зависят от модели телефона и версии Android. После установки файл APK можно удалить. Чтобы обновить приложение, установите новый APK поверх старого, а перед этим сделайте «Экспорт JSON».</div>
+<h3>Вариант 2. По ссылке</h3>
+<ol>
+<li>Откройте ссылку на приложение в <b>Chrome</b>. Если ссылка пришла в eXpress, скопируйте её и вставьте в адресную строку Chrome.</li>
+<li>Нажмите меню <span class="btn">⋮</span> справа вверху и выберите <span class="btn">Установить приложение</span> (в некоторых версиях — «Добавить на главный экран»).</li>
+<li>Подтвердите установку. Иконка «Чек-лист» появится на главном экране.</li>
+</ol>
+<p>При первом запуске подключитесь к интернету: приложение загрузит всё необходимое, после чего сможет работать без сети.</p>
+</section>
+
+<section id="use">
+<h2>Как пользоваться</h2>
+
+<h3>Вход и выбор чек-листа</h3>
+<ol>
+<li>На экране «Авторизация» введите любой логин и пароль (например, свою фамилию и любой пароль) и нажмите <span class="btn">Войти</span>.</li>
+<li>Выберите чек-лист из списка:
+<ul>
+<li>Комплексный чек-лист (ТР-50, ТР-250, ТР-500)</li>
+<li>Чек-лист проверки КМБ, колёсно-моторный блок (ТО-2)</li>
+<li>Чек-лист проверки ТТ, тяговый трансформатор (ТР-50)</li>
+<li>Чек-лист проверки БИ, МСУД-015 (ТО-2)</li>
+<li>Чек-лист проверки гидродемпферов (ТР-50)</li>
+</ul></li>
+<li>Другой чек-лист можно открыть в любой момент кнопкой <span class="btn">🔄 Сменить чек-лист</span>. Данные каждого чек-листа сохраняются отдельно, при переключении ничего не теряется.</li>
+</ol>
+<p>Если вы уже начинали заполнение, приложение спросит: <span class="btn">Продолжить заполнять</span> или <span class="btn">Начать новый (очистить всё)</span>. Второй вариант стирает введённые данные.</p>
+
+<h3>Заполнение</h3>
+<ol>
+<li>Сначала выберите <b>тип электровоза</b>, иначе приложение не даст продолжить. Затем укажите номер, дату осмотра, место осмотра и пробег.</li>
+<li>Пройдите по разделам и отметьте результат каждой проверки. Если приложение показывает «Требуется прикрепить фото», добавьте фото. В сообщении указано, сколько ещё осталось.</li>
+<li>Приложение не позволит отметить «Да» сразу для всех подпунктов в группе — проверьте, всё ли верно выбрано.</li>
+<li>Чтобы быстро найти пропущенное, нажмите <span class="btn">🔍 Найти незаполненное</span>. Число рядом — сколько полей осталось.</li>
+</ol>
+
+<h3>Кнопки внизу экрана</h3>
+<dl>
+<dt>🔍 Показать позиции, требующие уведомления</dt>
+<dd>Показывает позиции с замечаниями, по которым нужно уведомить поставщика. Число рядом — их количество.</dd>
+<dt>💾 Сохранить в браузере</dt>
+<dd>Данные сохраняются автоматически при каждом изменении. Кнопка подтверждает сохранение.</dd>
+<dt>💾 Сохранить как файл</dt>
+<dd>Сохраняет копию чек-листа с введёнными данными в отдельный файл.</dd>
+<dt>📷 Экспорт Excel</dt>
+<dd>Формирует итоговый файл Excel. Работает, <b>только когда чек-лист заполнен на 100%</b>. Внутри четыре листа: «Данные», «Фотографии», «Сводная» и «История изменений».</dd>
+<dt>📤 Экспорт JSON и 📥 Загрузить JSON</dt>
+<dd>Резервная копия данных. Экспортируйте JSON, если хотите продолжить на другом устройстве или защититься от потери данных. Загрузка возвращает всё, что было в файле.</dd>
+<dt>✕ Очистить всё</dt>
+<dd><b>Удаляет все данные без возможности восстановления.</b> Перед этим сделайте Экспорт JSON.</dd>
+</dl>
+<p>Вверху экрана переключается тема «Светлая» / «Тёмная», а кнопка «Выход» завершает сеанс.</p>
+
+<h3>Как выгрузить готовый результат</h3>
+<ol>
+<li>Заполните все поля, пока счётчик у кнопки «Найти незаполненное» не станет 0.</li>
+<li>Нажмите <span class="btn">📷 Экспорт Excel</span>. Появится сообщение «Экспорт выполнен успешно».</li>
+<li>Найдите файл: на iPhone — в приложении «Файлы» в папке «Загрузки», на Android — в «Файлы» → «Загрузки». Оттуда его можно отправить кнопкой «Поделиться».</li>
+</ol>
+</section>
+
+<section id="faq">
+<h2>Частые вопросы</h2>
+<details><summary>Кнопка «Экспорт Excel» выдаёт «только при 100% заполнении»</summary><p>Нажмите «Найти незаполненное» и заполните оставшиеся поля и обязательные фото. Когда всё заполнено, появится сообщение «Все данные и операции заполнены».</p></details>
+<details><summary>Пропали введённые данные</summary><p>Данные хранятся в памяти браузера на этом устройстве. Они могут исчезнуть, если очистить историю и данные сайтов, удалить приложение или открыть приложение в другом браузере. На iPhone установите приложение на экран «Домой»: в обычной вкладке Safari данные сайтов, которыми давно не пользовались, могут быть удалены. Чтобы не потерять работу, делайте Экспорт JSON.</p></details>
+<details><summary>Как перенести данные на другой телефон</summary><p>На старом устройстве нажмите «Экспорт JSON», отправьте файл себе, а на новом откройте приложение и нажмите «Загрузить JSON».</p></details>
+<details><summary>Работает ли приложение без интернета</summary><p>Да, после первого запуска с интернетом. Первый раз откройте приложение при включённой сети, чтобы оно загрузило всё необходимое, в том числе для выгрузки в Excel.</p></details>
+<details><summary>После обновления приложение выглядит по-старому</summary><p>Закройте приложение полностью и откройте снова при включённом интернете. Если не помогло, закройте и откройте ещё раз.</p></details>
+<details><summary>Excel-файл не открывается или не находится</summary><p>Проверьте папку «Загрузки». Для открытия нужно приложение для таблиц: Excel, Numbers, Google Таблицы.</p></details>
+</section>
+
+</main>
+</body>
+</html>
