@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v10';
+const CACHE_VERSION = 'checklist-cache-v12';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -11,8 +11,10 @@ const APP_SHELL = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-'./img/manufacturer_pcp.jpg',   // ← добавили
-  './img/manufacturer_nika.jpg'   // ← добавили
+  './icon-maskable-192.png',
+  './icon-maskable-512.png',
+  './img/manufacturer_pcp.jpg',
+  './img/manufacturer_nika.jpg'
 ];
 
 // Библиотеки с внешних CDN, нужные для экспорта в Excel.
@@ -68,6 +70,26 @@ self.addEventListener('fetch', (event) => {
 
   if (!isSameOrigin && !isCdnLib) {
     // Прочие сторонние запросы (если появятся) не трогаем.
+    return;
+  }
+
+  // Файл «Зона риска» редактируется вручную и должен обновляться сразу:
+  // сначала сеть (в обход HTTP-кэша), при отсутствии сети — последняя сохранённая копия.
+  if (isSameOrigin && /\/zona_riska\.xlsx$/.test(url.pathname)) {
+    const key = new Request(url.origin + url.pathname);
+    event.respondWith(
+      fetch(req, { cache: 'no-store' })
+        .then((resp) => {
+          if (resp && resp.ok) {
+            const copy = resp.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(key, copy));
+          }
+          return resp;
+        })
+        .catch(() =>
+          caches.match(key).then((cached) => cached || new Response('', { status: 504, statusText: 'Offline' }))
+        )
+    );
     return;
   }
 
