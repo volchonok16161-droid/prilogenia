@@ -2725,6 +2725,29 @@ loadState=function(){var prev=STATE;var r=__psOrigLoad.apply(this,arguments);
   try{if(prev&&prev!==STATE&&prev.values&&STATE&&STATE.values){for(var iid in prev.values){var o=prev.values[iid];if(!o)continue;for(var k in o){if(k.slice(-6)==='_photo'&&o[k]){if(!STATE.values[iid])STATE.values[iid]={};if(!STATE.values[iid][k])STATE.values[iid][k]=o[k];}}}}}catch(e){}
   __psRestore();return r;};
 
+/* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
+const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
+function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
+var __devOrigLogin=doLogin;
+doLogin=function(login,password){
+  if(login===DEV_CREDENTIALS.login){
+    if(!__devPassOk(password))return false;
+    currentUser='admin';
+    localStorage.setItem('checklist_user',JSON.stringify({login:login,role:'admin',dev:true}));
+    updateUserUI();document.getElementById('loginModal').style.display='none';
+    showToast('✅ Вход выполнен как Разработчик (кнопка 🛠 слева внизу)');
+    try{if(window.parent&&window.parent!==window&&window.parent.__devRefresh)window.parent.__devRefresh();}catch(e){}
+    return true;
+  }
+  return __devOrigLogin.apply(this,arguments);
+};
+var __devOrigUI=updateUserUI;
+updateUserUI=function(){
+  __devOrigUI.apply(this,arguments);
+  try{var u=JSON.parse(localStorage.getItem('checklist_user')||'null');
+    if(currentUser==='admin'&&u&&u.dev){var n=document.getElementById('userName'),r=document.getElementById('userRole');if(n)n.textContent='Разработчик';if(r)r.textContent='(developer)';}}catch(e){}
+};
+
 /* ===== Узлы осмотра по правилам из zona_riska.xlsx (лист «Узлы») ===== */
 var __NR={key:null,only:{},deny:{},matched:[],catalog:[],types:[]};
 function __nrN(s){return String(s==null?'':s).toLowerCase().split('ё').join('е').split(' ').join('').split(String.fromCharCode(160)).join('');}
@@ -6508,6 +6531,29 @@ var __psOrigLoad=loadState;
 loadState=function(){var prev=STATE;var r=__psOrigLoad.apply(this,arguments);
   try{if(prev&&prev!==STATE&&prev.values&&STATE&&STATE.values){for(var iid in prev.values){var o=prev.values[iid];if(!o)continue;for(var k in o){if(k.slice(-6)==='_photo'&&o[k]){if(!STATE.values[iid])STATE.values[iid]={};if(!STATE.values[iid][k])STATE.values[iid][k]=o[k];}}}}}catch(e){}
   __psRestore();return r;};
+
+/* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
+const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
+function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
+var __devOrigLogin=doLogin;
+doLogin=function(login,password){
+  if(login===DEV_CREDENTIALS.login){
+    if(!__devPassOk(password))return false;
+    currentUser='admin';
+    localStorage.setItem('checklist_user',JSON.stringify({login:login,role:'admin',dev:true}));
+    updateUserUI();document.getElementById('loginModal').style.display='none';
+    showToast('✅ Вход выполнен как Разработчик (кнопка 🛠 слева внизу)');
+    try{if(window.parent&&window.parent!==window&&window.parent.__devRefresh)window.parent.__devRefresh();}catch(e){}
+    return true;
+  }
+  return __devOrigLogin.apply(this,arguments);
+};
+var __devOrigUI=updateUserUI;
+updateUserUI=function(){
+  __devOrigUI.apply(this,arguments);
+  try{var u=JSON.parse(localStorage.getItem('checklist_user')||'null');
+    if(currentUser==='admin'&&u&&u.dev){var n=document.getElementById('userName'),r=document.getElementById('userRole');if(n)n.textContent='Разработчик';if(r)r.textContent='(developer)';}}catch(e){}
+};
 
 /* ===== Узлы осмотра по правилам из zona_riska.xlsx (лист «Узлы») ===== */
 var __NR={key:null,only:{},deny:{},matched:[],catalog:[],types:[]};
@@ -10794,6 +10840,29 @@ loadState=function(){var prev=STATE;var r=__psOrigLoad.apply(this,arguments);
   try{if(prev&&prev!==STATE&&prev.values&&STATE&&STATE.values){for(var iid in prev.values){var o=prev.values[iid];if(!o)continue;for(var k in o){if(k.slice(-6)==='_photo'&&o[k]){if(!STATE.values[iid])STATE.values[iid]={};if(!STATE.values[iid][k])STATE.values[iid][k]=o[k];}}}}}catch(e){}
   __psRestore();return r;};
 
+/* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
+const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
+function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
+var __devOrigLogin=doLogin;
+doLogin=function(login,password){
+  if(login===DEV_CREDENTIALS.login){
+    if(!__devPassOk(password))return false;
+    currentUser='admin';
+    localStorage.setItem('checklist_user',JSON.stringify({login:login,role:'admin',dev:true}));
+    updateUserUI();document.getElementById('loginModal').style.display='none';
+    showToast('✅ Вход выполнен как Разработчик (кнопка 🛠 слева внизу)');
+    try{if(window.parent&&window.parent!==window&&window.parent.__devRefresh)window.parent.__devRefresh();}catch(e){}
+    return true;
+  }
+  return __devOrigLogin.apply(this,arguments);
+};
+var __devOrigUI=updateUserUI;
+updateUserUI=function(){
+  __devOrigUI.apply(this,arguments);
+  try{var u=JSON.parse(localStorage.getItem('checklist_user')||'null');
+    if(currentUser==='admin'&&u&&u.dev){var n=document.getElementById('userName'),r=document.getElementById('userRole');if(n)n.textContent='Разработчик';if(r)r.textContent='(developer)';}}catch(e){}
+};
+
 /* ===== Узлы осмотра по правилам из zona_riska.xlsx (лист «Узлы») ===== */
 var __NR={key:null,only:{},deny:{},matched:[],catalog:[],types:[]};
 function __nrN(s){return String(s==null?'':s).toLowerCase().split('ё').join('е').split(' ').join('').split(String.fromCharCode(160)).join('');}
@@ -13418,6 +13487,29 @@ buildEquipment=function(type){
     });
   }catch(e){console.warn('[конструктор]',e);}
   return r;
+};
+
+/* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
+const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
+function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
+var __devOrigLogin=doLogin;
+doLogin=function(login,password){
+  if(login===DEV_CREDENTIALS.login){
+    if(!__devPassOk(password))return false;
+    currentUser='admin';
+    localStorage.setItem('checklist_user',JSON.stringify({login:login,role:'admin',dev:true}));
+    updateUserUI();document.getElementById('loginModal').style.display='none';
+    showToast('✅ Вход выполнен как Разработчик (кнопка 🛠 слева внизу)');
+    try{if(window.parent&&window.parent!==window&&window.parent.__devRefresh)window.parent.__devRefresh();}catch(e){}
+    return true;
+  }
+  return __devOrigLogin.apply(this,arguments);
+};
+var __devOrigUI=updateUserUI;
+updateUserUI=function(){
+  __devOrigUI.apply(this,arguments);
+  try{var u=JSON.parse(localStorage.getItem('checklist_user')||'null');
+    if(currentUser==='admin'&&u&&u.dev){var n=document.getElementById('userName'),r=document.getElementById('userRole');if(n)n.textContent='Разработчик';if(r)r.textContent='(developer)';}}catch(e){}
 };
 
 /* ===== Узлы осмотра по правилам из zona_riska.xlsx (лист «Узлы») ===== */
@@ -18695,7 +18787,8 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
 </script>
 <!-- ===== ПАНЕЛЬ РАЗРАБОТЧИКА: конструктор оборудования комплексного чек-листа ===== -->
 <style>
-#devFab{position:fixed;left:10px;bottom:10px;z-index:3050;display:none;opacity:.92}
+#devFab{position:fixed;left:10px;bottom:70px;z-index:3050;display:none;opacity:.92;font-weight:700}
+@media(max-width:560px){#devFab{left:6px;bottom:72px;padding:8px 11px;font-size:18px;line-height:1}#devFab .dvt{display:none}}
 #devOverlay,#devPreview,#devGh{position:fixed;inset:0;display:none;flex-direction:column;background:var(--bg,#eef4fb);color:var(--ink,#16324f);font-family:var(--sans,system-ui,sans-serif)}
 #devOverlay{z-index:3200}#devPreview{z-index:3300}#devGh{z-index:3400;background:rgba(0,0,0,.55);align-items:center;justify-content:center}
 #devOverlay.open,#devPreview.open,#devGh.open{display:flex}
@@ -18729,7 +18822,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
 .dv-modal h3{margin:0 0 10px}
 .dv-modal .dv-row{grid-template-columns:1fr 1fr}
 </style>
-<button class="btn" id="devFab" type="button">🛠 Разработчик</button>
+<button class="btn" id="devFab" type="button" title="Конструктор оборудования">🛠<span class="dvt"> Разработчик</span></button>
 <div id="devOverlay" role="dialog" aria-label="Конструктор оборудования">
   <div class="dv-bar">
     <b>🛠 Конструктор оборудования (комплексный чек-лист)</b>
