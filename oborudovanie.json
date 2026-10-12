@@ -1,5 +1,37 @@
 {
   "version": 1,
-  "updated": "",
-  "equipment": []
+  "updated": "2026-10-12T19:00:10.499Z",
+  "equipment": [
+    {
+      "id": "c_mv5lm7n7",
+      "title": "ТЭД",
+      "checklists": [
+        "complex"
+      ],
+      "layout": {
+        "scope": "all",
+        "blocks": [],
+        "count": 2
+      },
+      "fields": [
+        {
+          "key": "f1",
+          "label": "Заводской номер",
+          "type": "select",
+          "options": [
+            "Да",
+            "Нет",
+            "Устранено"
+          ],
+          "ok": [
+            "Да"
+          ],
+          "photo": "deviation",
+          "calc": true,
+          "hint": "Необходимо написать заводской номер",
+          "explain": "Написать номер с таблички"
+        }
+      ]
+    }
+  ]
 }
