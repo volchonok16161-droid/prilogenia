@@ -18,8 +18,8 @@
   var FILE='zona_riska.xlsx';
   var SHEET_BY_MODE={complex:'Комплексный',housings:'КМБ',tt:'ТТ',bi:'БИ',hydro:'Гидродемпферы'};
   var TITLE_BY_MODE={complex:'Комплексный чек-лист',housings:'КМБ',tt:'ТТ (тяговый трансформатор)',bi:'БИ (МСУД-015)',hydro:'Гидродемпферы'};
-  var INSTR_SHEET='Инструкция',PLACES_SHEET='Места осмотра',NODES_SHEET='Узлы';
-  var store={data:null,error:null,loading:null,stamp:'',lastTry:0,cache:{},places:null,issues:{},used:{},nodeIssues:{},rules:{},custom:[],customStamp:'',customError:null,customLoaded:false};
+  var INSTR_SHEET='Инструкция',PLACES_SHEET='Места осмотра',NODES_SHEET='Узлы',MILEAGE_SHEET='Пробег';
+  var store={data:null,error:null,loading:null,stamp:'',lastTry:0,cache:{},places:null,milCache:null,issues:{},used:{},nodeIssues:{},rules:{},custom:[],customStamp:'',customError:null,customLoaded:false};
 
   /* ---------- чтение xlsx (zip + xml), без внешних библиотек ---------- */
   function u8str(u8){return new TextDecoder('utf-8').decode(u8);}
@@ -190,7 +190,7 @@
       store.stamp=fmtStamp(resp.headers.get('last-modified'));
       return resp.arrayBuffer();
     }).then(parseXlsx).then(function(sheets){
-      store.data=sheets;store.cache={};store.places=null;store.error=null;return sheets;
+      store.data=sheets;store.cache={};store.places=null;store.milCache=null;store.error=null;return sheets;
     }).catch(function(e){
       store.error=(e&&e.message)||String(e);
       if(location.protocol==='file:')store.error='Файл нельзя прочитать при открытии с диска (file://). Откройте приложение с сайта или установите его на телефон.';
@@ -352,6 +352,48 @@
       store.issues.custom=c.issues;return c.list;
     }).catch(function(e){store.customError=(e&&e.message)||String(e);return store.custom;});
   }
+  /* ---------- пробег (лист «Пробег»): минимальный пробег от постройки, км ---------- */
+  function hdrMileage(row){
+    var h={series:-1,number:-1,km:-1};
+    (row||[]).forEach(function(t,i){
+      var s=sheetKey(t);
+      if(h.series<0&&/сери/.test(s))h.series=i;
+      else if(h.number<0&&/(номер|№)/.test(s))h.number=i;
+      else if(h.km<0&&/(пробег|км)/.test(s))h.km=i;
+    });
+    return h;
+  }
+  function buildMileage(){
+    if(store.milCache)return store.milCache;
+    var out={found:false,table:{},issues:[],count:0};
+    var nm=store.data?findSheet(store.data,MILEAGE_SHEET):null;
+    if(!nm){return(store.milCache=out);}
+    var rows=store.data[nm],hi=0,m;
+    for(var i=0;i<Math.min(rows.length,10);i++){if(rows[i]&&hdrMileage(rows[i]).km>=0){hi=i;break;}}
+    m=hdrMileage(rows[hi]||[]);if(m.km<0)m={series:0,number:1,km:2};
+    var allowed=builtinSeries();
+    out.found=true;
+    for(var r=hi+1;r<rows.length;r++){
+      var row=rows[r];if(!row)continue;
+      var ser=normSeries(row[m.series]),num=norm(row[m.number]).replace(/\s+/g,''),raw=norm(row[m.km]);
+      if(!ser&&!num&&!raw)continue;
+      var rowN='строка '+(r+1)+' (лист «'+MILEAGE_SHEET+'»)';
+      if(!ser||!num){out.issues.push(rowN+': не указана серия или номер — строка пропущена');continue;}
+      if(allowed.indexOf(ser)<0){out.issues.push(rowN+': серия «'+row[m.series]+'» не поддерживается — строка пропущена');continue;}
+      if(!raw)continue;                                   // пустой пробег = минимума нет
+      var km=raw.replace(/[\s\u00a0]/g,'').replace(',','.');
+      if(!/^\d+(\.\d+)?$/.test(km)){out.issues.push(rowN+': пробег «'+raw+'» не является числом — строка пропущена');continue;}
+      var key=ser+'_'+num;
+      if(Object.prototype.hasOwnProperty.call(out.table,key)){out.issues.push(rowN+': '+ser+' № '+num+' уже есть выше — повтор пропущен');continue;}
+      out.table[key]=Math.floor(parseFloat(km));out.count++;
+    }
+    return(store.milCache=out);
+  }
+  function mileageFor(series,number){
+    var t=buildMileage();if(!t.found)return null;
+    var v=t.table[normSeries(series)+'_'+norm(number).replace(/\s+/g,'')];
+    return(v==null)?null:v;
+  }
   function safeJson(o){return JSON.stringify(o).replace(/</g,'\\u003c');}
   function replaceConst(html,name,json,extra){
     var m=new RegExp('const\\s+'+name+'\\s*=\\s*\\{').exec(html);if(!m)return null;
@@ -362,18 +404,26 @@
   }
   function applyRegistry(html,mode){
     try{
-      var reg=buildRegistry(mode);
-      var rl=buildRules(mode);store.rules[mode]=rl.rules;
-      store.issues[mode]=(reg?reg.issues:[]).concat(rl.issues);store.used[mode]=false;
-      var rulesJs='\nconst NODE_RULES='+safeJson(rl.rules)+';';
-      if(mode==='complex'){var cu=(window.__RISK_CORE__&&window.__RISK_CORE__.devOverride)||store.custom||[];rulesJs+='\nconst CUSTOM_EQUIPMENT='+safeJson(cu)+';';}
-      if(!reg)return html.replace(/<script[^>]*>/,function(t){return t+rulesJs;});
-      var a=replaceConst(html,'LOCOMOTIVE_DATA',safeJson(reg.loco),'');
-      var b=a&&replaceConst(a,'DEPOT_PLACES',safeJson(reg.places),'\nconst LOCOMOTIVE_PLACES='+safeJson(reg.lp)+';'+rulesJs);
-      if(!b)return html;
-      store.used[mode]=true;return b;
+      var reg=buildRegistry(mode),rl=buildRules(mode),ml=buildMileage();
+      store.rules[mode]=rl.rules;
+      store.issues[mode]=(reg?reg.issues:[]).concat(rl.issues,ml.issues);store.used[mode]=false;
+      // сведения для самого чек-листа: откуда взят список (чтобы он мог объяснить, почему номер не найден)
+      var sheet=SHEET_BY_MODE[mode]||'',info={source:'builtin',reason:'file',sheet:sheet,count:0,mileage:!!ml.found};
+      if(store.data){if(!findSheet(store.data,sheet))info.reason='sheet';else if(!reg)info.reason='empty';else{info.source='excel';info.reason='ok';info.count=reg.count;}}
+      var extra='\nconst NODE_RULES='+safeJson(rl.rules)+';\nconst REGISTRY_INFO='+safeJson(info)+';';
+      if(mode==='complex'){var cu=(window.__RISK_CORE__&&window.__RISK_CORE__.devOverride)||store.custom||[];extra+='\nconst CUSTOM_EQUIPMENT='+safeJson(cu)+';';}
+      var out=html;
+      if(reg){
+        var a=replaceConst(out,'LOCOMOTIVE_DATA',safeJson(reg.loco),'');
+        var b=a&&replaceConst(a,'DEPOT_PLACES',safeJson(reg.places),'\nconst LOCOMOTIVE_PLACES='+safeJson(reg.lp)+';'+extra);
+        if(b){out=b;extra=null;store.used[mode]=true;}
+      }
+      if(extra!==null)out=out.replace(/<script(?![^>]*\bsrc=)[^>]*>/,function(t){return t+extra;});   // список не подменяли — передаём только правила и сведения
+      if(ml.found){var mm=replaceConst(out,'MILEAGE_DATA',safeJson(ml.table),'');if(mm)out=mm;}   // таблица пробега — из Excel
+      return out;
     }catch(e){console.warn('[zona_riska] не удалось применить справочник',e);return html;}
   }
+
   // перечитать файл перед запуском чек-листа (не дольше ms миллисекунд — иначе используем то, что есть)
   function ready(ms){
     var p=Promise.all([load(true).catch(function(){}),loadCustom().catch(function(){})]);
@@ -381,7 +431,7 @@
   }
   window.__RISK_CORE__={store:store,load:load,ready:ready,applyRegistry:applyRegistry,entriesFor:entriesFor,findSheet:findSheet,
     norm:norm,sheetKey:sheetKey,numberMatches:numberMatches,searchMatches:searchMatches,placesMap:placesMap,parseXlsx:parseXlsx,
-    FILE:FILE,SHEET_BY_MODE:SHEET_BY_MODE,TITLE_BY_MODE:TITLE_BY_MODE,INSTR_SHEET:INSTR_SHEET,nodeRulesText:nodeRulesText,reportNodeIssues:reportNodeIssues,NODES_SHEET:NODES_SHEET,loadCustom:loadCustom,cleanCustom:cleanCustom,CUSTOM_FILE:CUSTOM_FILE,devOverride:null};
+    FILE:FILE,SHEET_BY_MODE:SHEET_BY_MODE,TITLE_BY_MODE:TITLE_BY_MODE,INSTR_SHEET:INSTR_SHEET,nodeRulesText:nodeRulesText,reportNodeIssues:reportNodeIssues,NODES_SHEET:NODES_SHEET,loadCustom:loadCustom,mileageFor:mileageFor,MILEAGE_SHEET:MILEAGE_SHEET,cleanCustom:cleanCustom,CUSTOM_FILE:CUSTOM_FILE,devOverride:null};
 })();
 </script>
 <script>
@@ -2725,6 +2775,18 @@ loadState=function(){var prev=STATE;var r=__psOrigLoad.apply(this,arguments);
   try{if(prev&&prev!==STATE&&prev.values&&STATE&&STATE.values){for(var iid in prev.values){var o=prev.values[iid];if(!o)continue;for(var k in o){if(k.slice(-6)==='_photo'&&o[k]){if(!STATE.values[iid])STATE.values[iid]={};if(!STATE.values[iid][k])STATE.values[iid][k]=o[k];}}}}}catch(e){}
   __psRestore();return r;};
 
+/* ===== Подсказка «номер не найден»: объясняет, откуда взят список локомотивов ===== */
+function __regHint(){
+  var base='Такого номера нет в базе для данного типа электровоза.';
+  try{
+    if(typeof REGISTRY_INFO==='undefined')return base;
+    var i=REGISTRY_INFO;
+    if(i.source==='excel')return base+' Список взят из файла zona_riska.xlsx (лист «'+i.sheet+'», локомотивов: '+i.count+'). Проверьте серию и номер в этом листе и что обновлённый файл загружен на сайт (после загрузки подождите 1–3 минуты и откройте чек-лист заново).';
+    var why={file:'файл zona_riska.xlsx не удалось прочитать (нет связи или файла нет на сайте)',sheet:'в файле нет листа «'+i.sheet+'»',empty:'в листе «'+i.sheet+'» нет ни одного корректного локомотива'}[i.reason]||'файл не использован';
+    return base+' Используется встроенный список, потому что '+why+'.';
+  }catch(e){return base;}
+}
+
 /* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
 const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
 function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
@@ -3105,7 +3167,7 @@ function saveState(silent){
             numInput.classList.add('number-input');
             const errorHint = document.createElement('div');
             errorHint.className = 'error-hint';
-            errorHint.textContent = 'Такого номера нет в базе для данного типа электровоза.';
+            errorHint.textContent = __regHint();
             numWrap.appendChild(numInput);
             numWrap.appendChild(errorHint);
 
@@ -6532,6 +6594,18 @@ loadState=function(){var prev=STATE;var r=__psOrigLoad.apply(this,arguments);
   try{if(prev&&prev!==STATE&&prev.values&&STATE&&STATE.values){for(var iid in prev.values){var o=prev.values[iid];if(!o)continue;for(var k in o){if(k.slice(-6)==='_photo'&&o[k]){if(!STATE.values[iid])STATE.values[iid]={};if(!STATE.values[iid][k])STATE.values[iid][k]=o[k];}}}}}catch(e){}
   __psRestore();return r;};
 
+/* ===== Подсказка «номер не найден»: объясняет, откуда взят список локомотивов ===== */
+function __regHint(){
+  var base='Такого номера нет в базе для данного типа электровоза.';
+  try{
+    if(typeof REGISTRY_INFO==='undefined')return base;
+    var i=REGISTRY_INFO;
+    if(i.source==='excel')return base+' Список взят из файла zona_riska.xlsx (лист «'+i.sheet+'», локомотивов: '+i.count+'). Проверьте серию и номер в этом листе и что обновлённый файл загружен на сайт (после загрузки подождите 1–3 минуты и откройте чек-лист заново).';
+    var why={file:'файл zona_riska.xlsx не удалось прочитать (нет связи или файла нет на сайте)',sheet:'в файле нет листа «'+i.sheet+'»',empty:'в листе «'+i.sheet+'» нет ни одного корректного локомотива'}[i.reason]||'файл не использован';
+    return base+' Используется встроенный список, потому что '+why+'.';
+  }catch(e){return base;}
+}
+
 /* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
 const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
 function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
@@ -6914,7 +6988,7 @@ function saveState(silent){
             numInput.classList.add('number-input');
             const errorHint = document.createElement('div');
             errorHint.className = 'error-hint';
-            errorHint.textContent = 'Такого номера нет в базе для данного типа электровоза.';
+            errorHint.textContent = __regHint();
             numWrap.appendChild(numInput);
             numWrap.appendChild(errorHint);
 
@@ -10840,6 +10914,18 @@ loadState=function(){var prev=STATE;var r=__psOrigLoad.apply(this,arguments);
   try{if(prev&&prev!==STATE&&prev.values&&STATE&&STATE.values){for(var iid in prev.values){var o=prev.values[iid];if(!o)continue;for(var k in o){if(k.slice(-6)==='_photo'&&o[k]){if(!STATE.values[iid])STATE.values[iid]={};if(!STATE.values[iid][k])STATE.values[iid][k]=o[k];}}}}}catch(e){}
   __psRestore();return r;};
 
+/* ===== Подсказка «номер не найден»: объясняет, откуда взят список локомотивов ===== */
+function __regHint(){
+  var base='Такого номера нет в базе для данного типа электровоза.';
+  try{
+    if(typeof REGISTRY_INFO==='undefined')return base;
+    var i=REGISTRY_INFO;
+    if(i.source==='excel')return base+' Список взят из файла zona_riska.xlsx (лист «'+i.sheet+'», локомотивов: '+i.count+'). Проверьте серию и номер в этом листе и что обновлённый файл загружен на сайт (после загрузки подождите 1–3 минуты и откройте чек-лист заново).';
+    var why={file:'файл zona_riska.xlsx не удалось прочитать (нет связи или файла нет на сайте)',sheet:'в файле нет листа «'+i.sheet+'»',empty:'в листе «'+i.sheet+'» нет ни одного корректного локомотива'}[i.reason]||'файл не использован';
+    return base+' Используется встроенный список, потому что '+why+'.';
+  }catch(e){return base;}
+}
+
 /* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
 const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
 function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
@@ -11419,7 +11505,7 @@ function renderGeneral() {
   numInput.classList.add('number-input');
   const errorHint = document.createElement('div');
   errorHint.className = 'error-hint';
-  errorHint.textContent = 'Такого номера нет в базе для данного типа электровоза.';
+  errorHint.textContent = __regHint();
   numWrap.appendChild(numInput);
   numWrap.appendChild(errorHint);
 
@@ -13489,6 +13575,18 @@ buildEquipment=function(type){
   return r;
 };
 
+/* ===== Подсказка «номер не найден»: объясняет, откуда взят список локомотивов ===== */
+function __regHint(){
+  var base='Такого номера нет в базе для данного типа электровоза.';
+  try{
+    if(typeof REGISTRY_INFO==='undefined')return base;
+    var i=REGISTRY_INFO;
+    if(i.source==='excel')return base+' Список взят из файла zona_riska.xlsx (лист «'+i.sheet+'», локомотивов: '+i.count+'). Проверьте серию и номер в этом листе и что обновлённый файл загружен на сайт (после загрузки подождите 1–3 минуты и откройте чек-лист заново).';
+    var why={file:'файл zona_riska.xlsx не удалось прочитать (нет связи или файла нет на сайте)',sheet:'в файле нет листа «'+i.sheet+'»',empty:'в листе «'+i.sheet+'» нет ни одного корректного локомотива'}[i.reason]||'файл не использован';
+    return base+' Используется встроенный список, потому что '+why+'.';
+  }catch(e){return base;}
+}
+
 /* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
 const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
 function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
@@ -13963,7 +14061,7 @@ const dateWrap=document.createElement('div');dateWrap.className='field';dateWrap
 
 const typeWrap=document.createElement('div');typeWrap.className='field';typeWrap.dataset.generalField='type';const tl=document.createElement('label');tl.textContent='Тип электровоза';typeWrap.appendChild(tl);const ts=document.createElement('select');fillSelectOptions(ts,LOCOMOTIVE_TYPES,type,'— выберите тип —');ts.addEventListener('change',function(){const val=this.value;STATE.general.type=val;refreshChain('type');document.getElementById('locomotiveTypeTag').textContent=val||'—';buildEquipment(val);saveState(true);renderGeneral();renderPicker();renderEquip();updateStats();if(val)showToast('Тип электровоза изменён на '+val);else showToast('Выберите тип электровоза');});typeWrap.appendChild(ts);grid.appendChild(typeWrap);
 
-const numWrap=document.createElement('div');numWrap.className='field';numWrap.dataset.generalField='number';const nl=document.createElement('label');nl.textContent='Номер электровоза';numWrap.appendChild(nl);const ni=document.createElement('input');ni.type='text';ni.placeholder='Введите номер электровоза (с 2024 г.)';ni.value=number;ni.disabled=!type;ni.classList.add('number-input');const eh=document.createElement('div');eh.className='error-hint';eh.textContent='Такого номера нет в базе для данного типа электровоза.';numWrap.appendChild(ni);numWrap.appendChild(eh);
+const numWrap=document.createElement('div');numWrap.className='field';numWrap.dataset.generalField='number';const nl=document.createElement('label');nl.textContent='Номер электровоза';numWrap.appendChild(nl);const ni=document.createElement('input');ni.type='text';ni.placeholder='Введите номер электровоза (с 2024 г.)';ni.value=number;ni.disabled=!type;ni.classList.add('number-input');const eh=document.createElement('div');eh.className='error-hint';eh.textContent=__regHint();numWrap.appendChild(ni);numWrap.appendChild(eh);
 function validateNumber(){const val=ni.value.trim();if(val===''){STATE.general.number='';refreshChain('number');saveState(true);renderGeneral();updateStats();ni.classList.remove('error');eh.classList.remove('show');return true;}const valid=kzcNumbersForType(type);if(!valid.includes(val)){ni.classList.add('error');eh.classList.add('show');return false;}STATE.general.number=val;refreshChain('number');saveState(true);renderGeneral();updateStats();ni.classList.remove('error');eh.classList.remove('show');return true;}
 ni.addEventListener('blur',function(){const v=validateNumber();if(!v)setTimeout(()=>this.focus(),0);});ni.addEventListener('input',function(){this.classList.remove('error');eh.classList.remove('show');});ni.addEventListener('keypress',function(e){if(e.key==='Enter'){e.preventDefault();this.blur();}});
 if(!type){const h=document.createElement('div');h.className='hint-lock';h.textContent='Сначала выберите тип электровоза';numWrap.appendChild(h);}grid.appendChild(numWrap);
@@ -18731,6 +18829,8 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
         if(!e.explicitPlace&&e.places.length>1)p.appendChild(el('small',null,'  (по приписке)'));
         c.appendChild(p);
       }
+      var km=C.mileageFor(e.series,e.number);
+      if(km!=null)c.appendChild(el('div','rz-place','🛣 Пробег по данным завода: '+km+' км (ниже вводить нельзя)'));
       var nt=C.nodeRulesText(mode,e);
       if(nt)c.appendChild(el('div','rz-place','🔧 Узлы: '+nt));
       if(e.comment)c.appendChild(el('div','rz-comm',e.comment));
