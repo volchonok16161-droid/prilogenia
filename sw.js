@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v15';
+const CACHE_VERSION = 'checklist-cache-v17';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -98,11 +98,25 @@ self.addEventListener('fetch', (event) => {
       if (cached) {
         // Кэш-прежде-всего: моментальный отклик офлайн.
         // Параллельно тихо обновляем кэш из сети, если она есть.
+        // cache:'no-cache' — всегда проверять на сервере, а не брать копию из HTTP-кэша
+        // (GitHub Pages разрешает кэшировать файлы на 10 минут).
         event.waitUntil(
-          fetch(req)
-            .then((resp) => {
-              if (resp && resp.ok) {
-                caches.open(CACHE_VERSION).then((cache) => cache.put(req, resp));
+          fetch(req, { cache: 'no-cache' })
+            .then(async (resp) => {
+              if (!(resp && resp.ok)) return;
+              const cache = await caches.open(CACHE_VERSION);
+              let changed = false;
+              try {
+                // Для главной страницы сравниваем свежую копию с сохранённой: если отличается — сообщаем странице.
+                if (/(^|\/)(index\.html)?$/.test(url.pathname)) {
+                  const old = await cache.match(req);
+                  if (old) changed = (await old.clone().text()) !== (await resp.clone().text());
+                }
+              } catch (e) {}
+              await cache.put(req, resp);
+              if (changed) {
+                const cs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+                cs.forEach((c) => c.postMessage({ type: 'update-available' }));
               }
             })
             .catch(() => {})

@@ -91,6 +91,115 @@
     }).then(function(){return sheets;});
   }
 
+  /* ---------- запись xlsx: заменяются только строки данных выбранных листов, всё остальное остаётся как было ---------- */
+  var CRC_T=null;
+  function crc32(u8){
+    if(!CRC_T){CRC_T=new Uint32Array(256);for(var n=0;n<256;n++){var c0=n;for(var k=0;k<8;k++)c0=(c0&1)?(0xEDB88320^(c0>>>1)):(c0>>>1);CRC_T[n]=c0>>>0;}}
+    var c=0xFFFFFFFF;for(var i=0;i<u8.length;i++)c=CRC_T[(c^u8[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0;
+  }
+  function deflateRawBytes(u8){
+    if(typeof CompressionStream==='undefined')return Promise.resolve(null);
+    try{
+      var s=new Blob([u8]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+      return new Response(s).arrayBuffer().then(function(b){return new Uint8Array(b);}).catch(function(){return null;});
+    }catch(e){return Promise.resolve(null);}
+  }
+  function entryBytes(buf,f){
+    var dv=new DataView(buf),nlen=dv.getUint16(f.lho+26,true),xlen=dv.getUint16(f.lho+28,true),st=f.lho+30+nlen+xlen;
+    var raw=new Uint8Array(buf,st,f.csize);
+    if(f.method===0)return Promise.resolve(new Uint8Array(raw));
+    if(f.method===8)return inflateRaw(raw);
+    return Promise.reject(new Error('Неподдерживаемое сжатие в xlsx.'));
+  }
+  function xlsxIndex(buf){
+    var files=readZip(buf);
+    return Promise.all([entryText(buf,files['xl/workbook.xml']),entryText(buf,files['xl/_rels/workbook.xml.rels'])]).then(function(r){
+      var wb=xml(r[0]),rels=xml(r[1]),relMap={},rl=tags(rels,'Relationship'),paths={};
+      for(var k=0;k<rl.length;k++){var tg=rl[k].getAttribute('Target')||'';relMap[rl[k].getAttribute('Id')]=tg.charAt(0)==='/'?tg.slice(1):'xl/'+tg;}
+      var sh=tags(wb,'sheet');
+      for(var j=0;j<sh.length;j++){
+        var rid=sh[j].getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id')||sh[j].getAttribute('r:id');
+        paths[sh[j].getAttribute('name')]=relMap[rid];
+      }
+      return {files:files,paths:paths};
+    });
+  }
+  function u16(n){return [n&255,(n>>>8)&255];}
+  function u32(n){return [n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255];}
+  function buildZip(entries){
+    var enc=new TextEncoder(),chunks=[],central=[],offset=0;
+    return Promise.all(entries.map(function(e){return deflateRawBytes(e.data);})).then(function(comps){
+      var now=new Date(),dt=((now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1))&0xFFFF,dd=(((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate())&0xFFFF;
+      entries.forEach(function(e,i){
+        var name=enc.encode(e.name),data=e.data,comp=comps[i],method=comp?8:0,payload=comp||data,crc=crc32(data);
+        var lh=[0x50,0x4b,3,4].concat(u16(20),u16(0x0800),u16(method),u16(dt),u16(dd),u32(crc),u32(payload.length),u32(data.length),u16(name.length),u16(0));
+        chunks.push(new Uint8Array(lh),name,payload);
+        central.push({name:name,method:method,crc:crc,csize:payload.length,usize:data.length,off:offset,dt:dt,dd:dd});
+        offset+=lh.length+name.length+payload.length;
+      });
+      var cdStart=offset,cdParts=[];
+      central.forEach(function(c){
+        var ch=[0x50,0x4b,1,2].concat(u16(20),u16(20),u16(0x0800),u16(c.method),u16(c.dt),u16(c.dd),u32(c.crc),u32(c.csize),u32(c.usize),u16(c.name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(c.off));
+        cdParts.push(new Uint8Array(ch),c.name);offset+=ch.length+c.name.length;
+      });
+      var eocd=[0x50,0x4b,5,6].concat(u16(0),u16(0),u16(central.length),u16(central.length),u32(offset-cdStart),u32(cdStart),u16(0));
+      var all=chunks.concat(cdParts,[new Uint8Array(eocd)]),total=0;all.forEach(function(a){total+=a.length;});
+      var out=new Uint8Array(total),p=0;all.forEach(function(a){out.set(a,p);p+=a.length;});
+      return out;
+    });
+  }
+  function xe(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'');}
+  function colLetter(i){var s='';i++;while(i>0){var m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;}
+  // edit: {hdrRow (1-based), cols, rows:[[...]], numCols:[индексы колонок с числами], pad: число пустых подготовленных строк}
+  function patchSheet(xmlText,edit){
+    var m=/<sheetData\s*\/>|<sheetData>([\s\S]*?)<\/sheetData>/.exec(xmlText);
+    if(!m)throw new Error('В листе нет данных (sheetData).');
+    var inner=m[1]||'',keep=[],styles={},gotStyles=false,re=/<row\b[^>]*?\br="(\d+)"[^>]*?(?:\/>|>[\s\S]*?<\/row>)/g,r;
+    while((r=re.exec(inner))){
+      if(+r[1]<=edit.hdrRow){keep.push(r[0]);}
+      else if(!gotStyles){
+        var cre=/<c\b[^>]*?\br="([A-Z]+)\d+"[^>]*?\bs="(\d+)"/g,c;
+        while((c=cre.exec(r[0])))styles[c[1]]=c[2];
+        gotStyles=Object.keys(styles).length>0;
+      }
+    }
+    var out=[],rn=edit.hdrRow,num=edit.numCols||[];
+    function cellXml(L,rowN,v,isNum){
+      var st=styles[L]?' s="'+styles[L]+'"':'';
+      if(v===undefined||v===null||v==='')return st?'<c r="'+L+rowN+'"'+st+'/>':'';
+      v=String(v);
+      if(isNum&&/^\d+(\.\d+)?$/.test(v))return '<c r="'+L+rowN+'"'+st+'><v>'+v+'</v></c>';
+      return '<c r="'+L+rowN+'"'+st+' t="inlineStr"><is><t xml:space="preserve">'+xe(v)+'</t></is></c>';
+    }
+    edit.rows.forEach(function(vals){
+      rn++;var cells=[];
+      for(var ci=0;ci<edit.cols;ci++)cells.push(cellXml(colLetter(ci),rn,vals[ci],num.indexOf(ci)>=0));
+      out.push('<row r="'+rn+'">'+cells.join('')+'</row>');
+    });
+    var lastData=rn;
+    if(gotStyles){for(var k=0;k<(edit.pad||0);k++){rn++;var pc=[];for(var cj=0;cj<edit.cols;cj++)pc.push(cellXml(colLetter(cj),rn,'',false));out.push('<row r="'+rn+'">'+pc.join('')+'</row>');}}
+    var lastCol=colLetter(Math.max(0,edit.cols-1));
+    var res=xmlText.slice(0,m.index)+'<sheetData>'+keep.join('')+out.join('')+'</sheetData>'+xmlText.slice(m.index+m[0].length);
+    res=res.replace(/<dimension\s+ref="[^"]*"\s*\/>/,'<dimension ref="A1:'+lastCol+Math.max(lastData,edit.hdrRow)+'"/>');
+    res=res.replace(/<autoFilter\s+ref="[^"]*"/,'<autoFilter ref="A'+edit.hdrRow+':'+lastCol+Math.max(lastData,edit.hdrRow)+'"');
+    return res;
+  }
+  function buildXlsx(buf,edits){
+    return xlsxIndex(buf).then(function(ix){
+      var names=Object.keys(ix.files);
+      return Promise.all(names.map(function(n){return entryBytes(buf,ix.files[n]);})).then(function(datas){
+        var entries=names.map(function(n,i){return {name:n,data:datas[i]};}),dec=new TextDecoder('utf-8'),enc=new TextEncoder();
+        Object.keys(edits).forEach(function(sn){
+          var path=ix.paths[sn];if(!path)throw new Error('В файле нет листа «'+sn+'».');
+          var e=entries.filter(function(x){return x.name===path;})[0];
+          if(!e)throw new Error('Не найден файл листа «'+sn+'» ('+path+').');
+          e.data=enc.encode(patchSheet(dec.decode(e.data),edits[sn]));
+        });
+        return buildZip(entries);
+      });
+    });
+  }
+
   /* ---------- разбор листов ---------- */
   function norm(s){return String(s==null?'':s).replace(/ё/g,'е').replace(/Ё/g,'Е').trim();}
   function sheetKey(s){return norm(s).toLowerCase();}
@@ -181,16 +290,17 @@
 
   /* ---------- загрузка файла ---------- */
   function fmtStamp(h){if(!h)return '';var d=new Date(h);return isNaN(d)?'':d.toLocaleString('ru-RU');}
+  function sigOf(buf){var u=new Uint8Array(buf),h=u.length;for(var i=0;i<u.length;i+=61)h=(h*31+u[i])|0;return u.length+':'+h;}
   function load(force){
     if(store.loading)return store.loading;
     if(store.data&&!force)return Promise.resolve(store.data);
     store.lastTry=Date.now();
-    store.loading=fetch(FILE,{cache:'no-store'}).then(function(resp){
+    store.loading=fetch(FILE+'?v='+Date.now(),{cache:'no-store'}).then(function(resp){
       if(!resp.ok)throw new Error('Файл '+FILE+' не найден на сервере (код '+resp.status+'). Положите его рядом с index.html.');
       store.stamp=fmtStamp(resp.headers.get('last-modified'));
       return resp.arrayBuffer();
-    }).then(parseXlsx).then(function(sheets){
-      store.data=sheets;store.cache={};store.places=null;store.milCache=null;store.error=null;return sheets;
+    }).then(function(buf){store.newSig=sigOf(buf);return parseXlsx(buf);}).then(function(sheets){
+      store.sig=store.newSig;store.data=sheets;store.cache={};store.places=null;store.milCache=null;store.error=null;return sheets;
     }).catch(function(e){
       store.error=(e&&e.message)||String(e);
       if(location.protocol==='file:')store.error='Файл нельзя прочитать при открытии с диска (file://). Откройте приложение с сайта или установите его на телефон.';
@@ -341,7 +451,7 @@
     return {list:out,issues:issues};
   }
   function loadCustom(){
-    return fetch(CUSTOM_FILE,{cache:'no-store'}).then(function(resp){
+    return fetch(CUSTOM_FILE+'?v='+Date.now(),{cache:'no-store'}).then(function(resp){
       if(resp.status===404){store.custom=[];store.customError=null;store.customLoaded=true;return [];}
       if(!resp.ok)throw new Error('Файл '+CUSTOM_FILE+': код '+resp.status);
       store.customStamp=fmtStamp(resp.headers.get('last-modified'));
@@ -429,9 +539,17 @@
     var p=Promise.all([load(true).catch(function(){}),loadCustom().catch(function(){})]);
     return Promise.race([p,new Promise(function(r){setTimeout(r,ms||2500);})]);
   }
+  // долго открытая вкладка (компьютер): при возврате на неё проверяем, не изменился ли файл
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden||store.loading||Date.now()-store.lastTry<60000||!store.data)return;
+    var before=store.sig;
+    load(true).then(function(){
+      if(before&&store.sig&&store.sig!==before&&typeof showToast==='function')showToast('📄 Файл zona_riska.xlsx обновлён. Изменения применятся при следующем открытии чек-листа.');
+    },function(){});
+  });
   window.__RISK_CORE__={store:store,load:load,ready:ready,applyRegistry:applyRegistry,entriesFor:entriesFor,findSheet:findSheet,
     norm:norm,sheetKey:sheetKey,numberMatches:numberMatches,searchMatches:searchMatches,placesMap:placesMap,parseXlsx:parseXlsx,
-    FILE:FILE,SHEET_BY_MODE:SHEET_BY_MODE,TITLE_BY_MODE:TITLE_BY_MODE,INSTR_SHEET:INSTR_SHEET,nodeRulesText:nodeRulesText,reportNodeIssues:reportNodeIssues,NODES_SHEET:NODES_SHEET,loadCustom:loadCustom,mileageFor:mileageFor,MILEAGE_SHEET:MILEAGE_SHEET,cleanCustom:cleanCustom,CUSTOM_FILE:CUSTOM_FILE,devOverride:null};
+    FILE:FILE,SHEET_BY_MODE:SHEET_BY_MODE,TITLE_BY_MODE:TITLE_BY_MODE,INSTR_SHEET:INSTR_SHEET,nodeRulesText:nodeRulesText,reportNodeIssues:reportNodeIssues,NODES_SHEET:NODES_SHEET,loadCustom:loadCustom,mileageFor:mileageFor,xlsx:{index:xlsxIndex,build:buildXlsx,sigOf:sigOf,entryBytes:entryBytes},normSeries:normSeries,builtinSeries:builtinSeries,flat:flat,MILEAGE_SHEET:MILEAGE_SHEET,cleanCustom:cleanCustom,CUSTOM_FILE:CUSTOM_FILE,devOverride:null};
 })();
 </script>
 <script>
@@ -17321,11 +17439,36 @@ init();
 <script>
 // Регистрация Service Worker — включает офлайн-режим и установку приложения.
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js').catch(function (err) {
-            console.warn('Не удалось зарегистрировать Service Worker', err);
-        });
+  // Сообщение «вышла новая версия»: service worker сравнивает свежую копию страницы с сохранённой.
+  var __updShow = function () {
+    if (document.getElementById('updBanner')) return;
+    var d = document.createElement('div'); d.id = 'updBanner';
+    d.setAttribute('style', 'position:fixed;left:8px;right:8px;bottom:8px;z-index:3600;background:#0a5eb0;color:#fff;padding:12px 14px;border-radius:10px;font:600 14px/1.35 sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.35);display:flex;gap:10px;align-items:center;flex-wrap:wrap');
+    var t = document.createElement('span'); t.style.flex = '1 1 200px';
+    t.textContent = '🔄 Вышла новая версия приложения. Обновите страницу, когда закончите текущий чек-лист (введённые данные сохраняются).';
+    var b = document.createElement('button'); b.textContent = 'Обновить'; b.setAttribute('style', 'border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer');
+    b.onclick = function () { location.reload(); };
+    var c = document.createElement('button'); c.textContent = 'Позже'; c.setAttribute('style', 'border:0;border-radius:8px;padding:8px 12px;cursor:pointer');
+    c.onclick = function () { d.remove(); };
+    d.appendChild(t); d.appendChild(b); d.appendChild(c); document.body.appendChild(d);
+  };
+  navigator.serviceWorker.addEventListener('message', function (e) {
+    if (e.data && e.data.type === 'update-available') __updShow();
+  });
+  var __updLast = 0;
+  var __updCheck = function () {
+    var n = Date.now(); if (n - __updLast < 120000) return; __updLast = n;
+    navigator.serviceWorker.getRegistration().then(function (r) { if (r) r.update(); });
+    fetch('index.html', { cache: 'no-cache' }).catch(function () {});   // идёт через service worker — он сравнит копии
+  };
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function (err) {
+      console.warn('Не удалось зарегистрировать Service Worker', err);
     });
+    setTimeout(__updCheck, 4000);
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) __updCheck(); });
+  setInterval(__updCheck, 30 * 60 * 1000);
 }
 </script>
 <!-- ============================================================
@@ -18862,18 +19005,18 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
     ui.depot.onchange=render;ui.q.oninput=render;
     var loco=curLoco();if(loco&&loco.n)ui.q.value=loco.n;   // сразу показываем текущий локомотив
   }
-  function refresh(force){
+  function refresh(force,silent){
     if(!ui)return;
-    ui.list.innerHTML='';ui.list.appendChild(el('div','rz-banner warn','Загрузка…'));
+    if(!silent){ui.list.innerHTML='';ui.list.appendChild(el('div','rz-banner warn','Загрузка…'));}
     load(force).then(function(){
       if(!ui)return;ui.stamp.textContent=store.stamp?('Файл от '+store.stamp):'';render();
     }).catch(function(){
-      if(!ui)return;ui.list.innerHTML='';ui.list.appendChild(el('div','rz-banner bad','Не удалось загрузить данные: '+(store.error||'ошибка')));
+      if(!ui||(silent&&store.data))return;ui.list.innerHTML='';ui.list.appendChild(el('div','rz-banner bad','Не удалось загрузить данные: '+(store.error||'ошибка')));
     });
   }
   function open(){
     if(!curMode()){return;}
-    build();ov.classList.add('open');refresh(!store.data);
+    build();ov.classList.add('open');if(store.data)render();refresh(true,!!store.data);   // всегда перечитываем файл; старые данные показываем сразу
     setTimeout(function(){try{ui.q.focus();}catch(e){}},50);
   }
   function close(){ov.classList.remove('open');ui=null;}
@@ -18941,7 +19084,8 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
 <div id="devGh"><div class="dv-modal">
   <h3>⚙ Публикация в GitHub</h3>
   <div class="dv-row"><div><label>Владелец</label><input id="ghOwner"></div><div><label>Репозиторий</label><input id="ghRepo"></div></div>
-  <div class="dv-row"><div><label>Ветка</label><input id="ghBranch"></div><div><label>Файл в репозитории</label><input id="ghPath"></div></div>
+  <div class="dv-row"><div><label>Ветка</label><input id="ghBranch"></div><div><label>Файл оборудования</label><input id="ghPath"></div></div>
+  <div class="dv-row" style="grid-template-columns:1fr"><div><label>Файл справочника (Excel)</label><input id="ghPathXlsx"></div></div>
   <div class="dv-row" style="grid-template-columns:1fr"><div><label>Токен GitHub (fine-grained, права Contents: Read and write на этот репозиторий)</label><input id="ghToken" type="password" autocomplete="off" placeholder="github_pat_…"></div></div>
   <label style="display:flex;gap:6px;align-items:center;font-size:14px;margin:6px 0"><input type="checkbox" id="ghRemember" style="width:auto"> запомнить токен на этом устройстве (иначе — только до закрытия вкладки)</label>
   <div id="ghMsg"></div>
@@ -19104,7 +19248,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
 
   /* ---------- GitHub ---------- */
   function ghCfg(){
-    var d={owner:'volchonok16161-droid',repo:'prilogenia',branch:'main',path:'oborudovanie.json'};
+    var d={owner:'volchonok16161-droid',repo:'prilogenia',branch:'main',path:'oborudovanie.json',pathXlsx:'zona_riska.xlsx'};
     try{var s=JSON.parse(localStorage.getItem(LS_GH)||'{}');for(var k in s)if(s[k])d[k]=s[k];}catch(e){}
     return d;
   }
@@ -19146,12 +19290,12 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
     }).catch(function(e){say('bad','❌ '+e.message);}).then(function(){$('devPub').disabled=false;});
   }
   function openGh(){
-    var cfg=ghCfg();$('ghOwner').value=cfg.owner;$('ghRepo').value=cfg.repo;$('ghBranch').value=cfg.branch;$('ghPath').value=cfg.path;
+    var cfg=ghCfg();$('ghOwner').value=cfg.owner;$('ghRepo').value=cfg.repo;$('ghBranch').value=cfg.branch;$('ghPath').value=cfg.path;$('ghPathXlsx').value=cfg.pathXlsx||'zona_riska.xlsx';
     $('ghToken').value='';$('ghToken').placeholder=ghToken()?'токен сохранён (введите новый, чтобы заменить)':'github_pat_…';
     $('ghRemember').checked=!!localStorage.getItem(LS_TOKEN);$('ghMsg').innerHTML='';$('devGh').classList.add('open');
   }
   function ghSave(){
-    var cfg={owner:$('ghOwner').value.trim(),repo:$('ghRepo').value.trim(),branch:$('ghBranch').value.trim(),path:$('ghPath').value.trim()};
+    var cfg={owner:$('ghOwner').value.trim(),repo:$('ghRepo').value.trim(),branch:$('ghBranch').value.trim(),path:$('ghPath').value.trim(),pathXlsx:$('ghPathXlsx').value.trim()};
     try{localStorage.setItem(LS_GH,JSON.stringify(cfg));}catch(e){}
     var tok=$('ghToken').value.trim();
     if(tok){try{sessionStorage.setItem(SS_TOKEN,tok);if($('ghRemember').checked)localStorage.setItem(LS_TOKEN,tok);else localStorage.removeItem(LS_TOKEN);}catch(e){}}
@@ -19184,7 +19328,12 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
     if(norm(cleaned().list)!==st.published&&!confirm('Есть неопубликованные изменения. Они сохранены как черновик на этом устройстве. Закрыть панель?'))return;
     $('devOverlay').classList.remove('open');
   }
-  $('devFab').addEventListener('click',open);
+  var menu=h('div',{id:'devMenu',style:'position:fixed;left:10px;bottom:120px;z-index:3060;display:none;background:var(--panel,#fff);color:var(--ink,#16324f);border:1px solid var(--line,#cfe0f0);border-radius:12px;padding:8px;box-shadow:0 6px 24px rgba(0,0,0,.3);min-width:230px'},[
+    h('button',{class:'btn',type:'button',style:'display:block;width:100%;margin-bottom:6px;text-align:left',text:'🔧 Конструктор оборудования',onclick:function(){menu.style.display='none';open();}}),
+    h('button',{class:'btn',type:'button',style:'display:block;width:100%;text-align:left',text:'📊 Справочник (Excel)',onclick:function(){menu.style.display='none';if(window.__XL_PANEL_V1__)window.__XL_PANEL_V1__.open();}})]);
+  document.body.appendChild(menu);
+  $('devFab').addEventListener('click',function(ev){ev.stopPropagation();menu.style.display=(menu.style.display==='block')?'none':'block';});
+  document.addEventListener('click',function(ev){if(menu.style.display==='block'&&!menu.contains(ev.target))menu.style.display='none';});
   $('devClose').addEventListener('click',close);
   $('devPrev').addEventListener('click',openPreview);
   $('devPrevClose').addEventListener('click',function(){$('devPreview').classList.remove('open');$('devPrevFrame').srcdoc='';});
@@ -19198,7 +19347,398 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   $('ghCancel').addEventListener('click',function(){$('devGh').classList.remove('open');});
   function refreshFab(){$('devFab').style.display=isDev()?'block':'none';}
   setInterval(refreshFab,1000);refreshFab();window.__devRefresh=refreshFab;
-  window.__DEV_PANEL_V1__={open:open,publish:publish,cleaned:cleaned,state:st};
+  window.__DEV_PANEL_V1__={open:open,publish:publish,cleaned:cleaned,state:st,h:h,gh:{cfg:ghCfg,token:ghToken,api:ghApi,err:ghErr,enc:enc,open:openGh}};
+})();
+</script>
+<!-- ===== ПАНЕЛЬ РАЗРАБОТЧИКА: редактор справочника (zona_riska.xlsx) ===== -->
+<style>
+#xlOverlay,#xlPaste{position:fixed;inset:0;display:none;flex-direction:column;background:var(--bg,#eef4fb);color:var(--ink,#16324f);font-family:var(--sans,system-ui,sans-serif)}
+#xlOverlay{z-index:3210}#xlPaste{z-index:3350;background:rgba(0,0,0,.55);align-items:center;justify-content:center}
+#xlOverlay.open,#xlPaste.open{display:flex}
+#xlTabs{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;background:var(--panel2,#f2f7fc);border-bottom:1px solid var(--line,#cfe0f0)}
+#xlTabs button{font-size:13px}
+#xlTabs button.on{background:#0a5eb0;color:#fff}
+#xlTabs .bd{background:#d1453b;color:#fff;border-radius:9px;padding:0 6px;margin-left:5px;font-size:11px}
+#xlTool{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px}
+#xlTool input,#xlTool select{padding:7px 10px;font-size:14px;border:1px solid var(--line,#cfe0f0);border-radius:8px;background:var(--panel2,#f2f7fc);color:var(--ink,#16324f)}
+#xlInfo{padding:0 12px 6px;font-size:13px;color:var(--ink-dim,#6d84a0)}
+#xlMsgBox{padding:0 12px}
+#xlWrap{flex:1;overflow:auto;padding:0 12px 24px}
+#xlTable{border-collapse:collapse;width:100%;min-width:640px;background:var(--panel,#fff)}
+#xlTable th{position:sticky;top:0;background:#0a5eb0;color:#fff;font-size:12px;text-align:left;padding:6px 8px;z-index:1}
+#xlTable td{border-bottom:1px solid var(--line,#cfe0f0);padding:2px}
+#xlTable td.n{width:44px;text-align:right;color:var(--ink-dim,#6d84a0);font-size:12px;padding-right:6px}
+#xlTable input{width:100%;box-sizing:border-box;border:1px solid transparent;border-radius:6px;padding:6px 8px;font-size:14px;background:transparent;color:var(--ink,#16324f)}
+#xlTable input:focus{border-color:#0a5eb0;background:var(--panel2,#f2f7fc);outline:0}
+#xlTable tr.err td{background:#fce8e6}
+#xlTable tr.warn td{background:#fff4e0}
+html[data-theme="dark"] #xlTable tr.err td{background:#3a1d1a}html[data-theme="dark"] #xlTable tr.warn td{background:#3a2f12}
+#xlTable td.i{width:34px;text-align:center;font-size:15px;cursor:help}
+#xlPager{display:flex;gap:8px;align-items:center;justify-content:center;padding:10px;font-size:13px}
+.xl-modal{background:var(--panel,#fff);color:var(--ink,#16324f);border-radius:14px;padding:16px;width:min(640px,94vw);max-height:90vh;overflow:auto}
+.xl-modal textarea{width:100%;min-height:200px;box-sizing:border-box;font-family:monospace;font-size:13px;padding:8px;border:1px solid var(--line,#cfe0f0);border-radius:8px;background:var(--panel2,#f2f7fc);color:var(--ink,#16324f)}
+</style>
+<div id="xlOverlay" role="dialog" aria-label="Справочник Excel">
+  <div class="dv-bar">
+    <b>📊 Справочник (zona_riska.xlsx): локомотивы, места осмотра, пробег</b>
+    <span class="dv-status" id="xlStatus"></span>
+    <button class="btn" id="xlReload" type="button">🔄 С сайта</button>
+    <button class="btn" id="xlDown" type="button">⬇ Скачать</button>
+    <button class="btn" id="xlUp" type="button">⬆ Загрузить</button>
+    <button class="btn" id="xlGh" type="button">⚙ GitHub</button>
+    <button class="btn primary" id="xlPub" type="button">🚀 Опубликовать</button>
+    <button class="btn" id="xlClose" type="button">✕ Закрыть</button>
+    <input type="file" id="xlFile" accept=".xlsx" style="display:none">
+  </div>
+  <div id="xlTabs"></div>
+  <div id="xlMsgBox"></div>
+  <div id="xlTool"></div>
+  <div id="xlInfo"></div>
+  <div id="xlWrap"><table id="xlTable"><thead></thead><tbody></tbody></table><div id="xlPager"></div></div>
+</div>
+<div id="xlPaste"><div class="xl-modal">
+  <h3 style="margin:0 0 8px">📋 Вставить строки из Excel</h3>
+  <p style="margin:0 0 8px;font-size:14px;line-height:1.4" id="xlPasteHint"></p>
+  <textarea id="xlPasteText" placeholder="Скопируйте ячейки в Excel (Ctrl+C) и вставьте сюда (Ctrl+V)"></textarea>
+  <div id="xlPasteInfo" style="margin:8px 0;font-size:14px"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn primary" id="xlPasteOk" type="button">Добавить строки</button><button class="btn" id="xlPasteCancel" type="button">Отмена</button></div>
+</div></div>
+<script>
+(function(){
+  'use strict';
+  var C=window.__RISK_CORE__,D=window.__DEV_PANEL_V1__;if(!C||!D)return;
+  var $=function(id){return document.getElementById(id);},h=D.h;
+  var LS_XL='xl_draft_v1',PAGE=100;
+  var CFG=[
+    {name:'ТТ',kind:'loco'},{name:'БИ',kind:'loco'},{name:'Гидродемпферы',kind:'loco'},{name:'Комплексный',kind:'loco'},{name:'КМБ',kind:'loco'},
+    {name:'Места осмотра',kind:'places'},{name:'Пробег',kind:'mileage'}];
+  var st={buf:null,sig:'',models:{},cur:0,page:0,q:'',fS:'',fD:'',issues:{},timer:null,saveTimer:null};
+  function skey(t){return C.sheetKey(t);}
+  function clone(o){return JSON.parse(JSON.stringify(o));}
+
+  /* ---------- модель листа ---------- */
+  function colMap(kind,header){
+    var m={};
+    header.forEach(function(t,i){
+      var s=skey(t);
+      if(kind!=='places'&&m.series==null&&/сери/.test(s))m.series=i;
+      else if(kind!=='places'&&m.number==null&&/(номер|№)/.test(s))m.number=i;
+      else if(kind!=='mileage'&&m.depot==null&&/(приписк|депо)/.test(s))m.depot=i;
+      else if(kind!=='mileage'&&m.place==null&&/(мест|осмотр)/.test(s))m.place=i;
+      else if(kind==='mileage'&&m.km==null&&/(пробег|км)/.test(s))m.km=i;
+      else if(kind!=='places'&&m.comment==null&&/(коммент|примеч)/.test(s))m.comment=i;
+    });
+    return m;
+  }
+  function buildModel(cfg,rows){
+    rows=rows||[];var hi=0;
+    for(var i=0;i<Math.min(rows.length,10);i++){
+      var r=rows[i];if(!r)continue;
+      var j=r.map(skey).join('|');
+      if(cfg.kind==='places'?/приписк|депо/.test(j):/номер/.test(j)){hi=i;break;}
+    }
+    var header=(rows[hi]||[]).map(function(x){return String(x==null?'':x);}),cols=header.length;
+    while(cols>0&&!header[cols-1])cols--;
+    var body=[];
+    for(var k=hi+1;k<rows.length;k++){
+      var rr=rows[k];if(!rr)continue;
+      var cells=[];for(var c=0;c<Math.max(cols,rr.length);c++)cells.push(rr[c]==null?'':String(rr[c]));
+      if(cells.every(function(x){return x==='';}))continue;
+      cols=Math.max(cols,cells.length);body.push(cells);
+    }
+    cols=Math.max(cols,header.length?cols:2);
+    while(header.length<cols)header.push('');
+    body=body.map(function(c){while(c.length<cols)c.push('');return c;});
+    var map=colMap(cfg.kind,header);
+    return {hdrRow:hi+1,header:header.slice(0,cols),cols:cols,rows:body,map:map,dirty:false};
+  }
+
+  /* ---------- проверки ---------- */
+  function flat(s){return C.flat(s);}
+  function validate(){
+    var allowed=C.builtinSeries(),pm=st.models['Места осмотра'],places={};
+    if(pm&&pm.map.depot!=null){pm.rows.forEach(function(r){var d=flat(r[pm.map.depot]);if(d&&r[pm.map.place]!=null&&String(r[pm.map.place]).trim())places[d]=1;});}
+    var res={};
+    CFG.forEach(function(cfg){
+      var m=st.models[cfg.name];if(!m)return;var iss={},seen={},cnt={err:0,warn:0};
+      function add(i,lvl,text){(iss[i]=iss[i]||[]).push({lvl:lvl,text:text});cnt[lvl]++;}
+      m.rows.forEach(function(r,i){
+        var g=function(k){return m.map[k]!=null?String(r[m.map[k]]==null?'':r[m.map[k]]).trim():'';};
+        if(cfg.kind==='places'){
+          var d=g('depot'),p=g('place');
+          if(!d||!p)add(i,'err','нужны и приписка, и место осмотра');
+          else{var k0=flat(d)+'|'+flat(p);if(seen[k0])add(i,'warn','повтор пары «приписка — место» (строка '+(seen[k0]+1)+')');else seen[k0]=i;}
+          return;
+        }
+        var ser=C.normSeries(g('series')),num=g('number').replace(/\s+/g,'');
+        if(!ser||!num){add(i,'err','не указана серия или номер');return;}
+        if(allowed.indexOf(ser)<0){add(i,'err','серия «'+g('series')+'» не поддерживается (допустимы: '+allowed.join(', ')+')');return;}
+        var key=ser+'|'+num;
+        if(seen[key]!=null)add(i,'err','повтор: такой локомотив уже есть в строке '+(seen[key]+1));else seen[key]=i;
+        if(cfg.kind==='loco'){
+          var dep=g('depot');
+          if(!dep)add(i,'err','не указана приписка');
+          else if(!places[flat(dep)])add(i,'warn','для приписки «'+dep+'» нет мест осмотра на листе «Места осмотра»');
+        }else{
+          var km=g('km').replace(/[\s\u00a0]/g,'').replace(',','.');
+          if(km&&!/^\d+(\.\d+)?$/.test(km))add(i,'err','пробег «'+g('km')+'» не является числом');
+        }
+      });
+      res[cfg.name]={rows:iss,err:cnt.err,warn:cnt.warn};
+    });
+    st.issues=res;
+  }
+  function totals(){var e=0,w=0;for(var n in st.issues){e+=st.issues[n].err;w+=st.issues[n].warn;}return {err:e,warn:w};}
+
+  /* ---------- сообщения ---------- */
+  function say(kind,text){var b=$('xlMsgBox');b.innerHTML='';if(text)b.appendChild(h('div',{class:'dv-msg '+kind,text:text}));}
+  function anyDirty(){return CFG.some(function(c){return st.models[c.name]&&st.models[c.name].dirty;});}
+  function updateStatus(){
+    var t=totals(),d=anyDirty();
+    $('xlStatus').textContent=(d?'есть неопубликованные правки':'без изменений')+' · ошибок: '+t.err+' · предупреждений: '+t.warn;
+  }
+  function scheduleSave(){
+    clearTimeout(st.saveTimer);
+    st.saveTimer=setTimeout(function(){
+      try{
+        if(!anyDirty()){localStorage.removeItem(LS_XL);return;}
+        var data={sig:st.sig,models:{}};
+        CFG.forEach(function(c){var m=st.models[c.name];if(m&&m.dirty)data.models[c.name]={rows:m.rows};});
+        localStorage.setItem(LS_XL,JSON.stringify(data));
+      }catch(e){}
+    },600);
+  }
+  function revalidateSoon(){
+    clearTimeout(st.timer);
+    st.timer=setTimeout(function(){validate();renderTabs();markRows();updateStatus();},250);
+  }
+
+  /* ---------- отрисовка ---------- */
+  function curCfg(){return CFG[st.cur];}
+  function curModel(){return st.models[curCfg().name];}
+  function renderTabs(){
+    var t=$('xlTabs');t.innerHTML='';
+    CFG.forEach(function(cfg,i){
+      var m=st.models[cfg.name],is=st.issues[cfg.name],n=m?m.rows.length:0;
+      var b=h('button',{class:'btn'+(i===st.cur?' on':''),type:'button',onclick:function(){st.cur=i;st.page=0;st.q='';st.fS='';st.fD='';render();}},[cfg.name+' ('+n+')']);
+      if(is&&is.err)b.appendChild(h('span',{class:'bd',text:String(is.err)}));
+      t.appendChild(b);
+    });
+  }
+  function filtered(){
+    var m=curModel(),cfg=curCfg(),out=[],q=flat(st.q),qn=/^\d+$/.test(st.q.trim());
+    if(!m)return out;
+    m.rows.forEach(function(r,i){
+      if(st.fS&&m.map.series!=null&&C.normSeries(r[m.map.series])!==st.fS)return;
+      if(st.fD&&m.map.depot!=null&&flat(r[m.map.depot])!==flat(st.fD))return;
+      if(q){
+        if(qn&&cfg.kind!=='places'&&m.map.number!=null){if(String(r[m.map.number]).trim().indexOf(st.q.trim())<0)return;}
+        else if(flat(r.join(' | ')).indexOf(q)<0)return;
+      }
+      out.push(i);
+    });
+    return out;
+  }
+  function renderTool(){
+    var m=curModel(),cfg=curCfg(),T=$('xlTool');T.innerHTML='';if(!m)return;
+    T.appendChild(h('input',{type:'search',placeholder:'Поиск (номер, приписка, слово)',value:st.q,oninput:function(){st.q=this.value;st.page=0;renderTable();}}));
+    if(m.map.series!=null){
+      var ss={};m.rows.forEach(function(r){var s=C.normSeries(r[m.map.series]);if(s)ss[s]=1;});
+      var sel=h('select',{onchange:function(){st.fS=this.value;st.page=0;renderTable();}},[h('option',{value:'',text:'Все серии'})].concat(Object.keys(ss).sort().map(function(s){return h('option',{value:s,text:s,selected:st.fS===s});})));
+      T.appendChild(sel);
+    }
+    if(m.map.depot!=null){
+      var dd={};m.rows.forEach(function(r){var d=String(r[m.map.depot]).trim();if(d)dd[d]=1;});
+      T.appendChild(h('select',{onchange:function(){st.fD=this.value;st.page=0;renderTable();}},[h('option',{value:'',text:'Все приписки'})].concat(Object.keys(dd).sort(function(a,b){return a.localeCompare(b,'ru');}).map(function(d){return h('option',{value:d,text:d,selected:st.fD===d});}))));
+    }
+    T.appendChild(h('button',{class:'btn',type:'button',text:'➕ Строка',onclick:addRow}));
+    T.appendChild(h('button',{class:'btn',type:'button',text:'📋 Вставить из Excel',onclick:openPaste}));
+  }
+  function renderTable(){
+    var m=curModel(),thead=$('xlTable').tHead,tb=$('xlTable').tBodies[0],pg=$('xlPager');
+    thead.innerHTML='';tb.innerHTML='';pg.innerHTML='';if(!m)return;
+    var tr=h('tr',null,[h('th',{text:'№'}),h('th',{text:''})]);
+    m.header.forEach(function(t){tr.appendChild(h('th',{text:t||'(без названия)'}));});
+    tr.appendChild(h('th',{text:''}));thead.appendChild(tr);
+    var idx=filtered(),pages=Math.max(1,Math.ceil(idx.length/PAGE));
+    if(st.page>=pages)st.page=pages-1;
+    $('xlInfo').textContent='Показано: '+idx.length+' из '+m.rows.length+' · страница '+(st.page+1)+' из '+pages;
+    idx.slice(st.page*PAGE,(st.page+1)*PAGE).forEach(function(ri){
+      var row=m.rows[ri],tr2=h('tr',{'data-r':String(ri)});
+      tr2.appendChild(h('td',{class:'n',text:String(ri+1)}));
+      tr2.appendChild(h('td',{class:'i'}));
+      for(var c=0;c<m.cols;c++)(function(c){
+        var inp=h('input',{value:row[c]==null?'':row[c],'data-c':String(c),oninput:function(){row[c]=this.value;m.dirty=true;scheduleSave();revalidateSoon();updateStatus();}});
+        tr2.appendChild(h('td',null,[inp]));
+      })(c);
+      tr2.appendChild(h('td',null,[h('button',{class:'btn',type:'button',title:'Удалить строку',text:'🗑',onclick:function(){m.rows.splice(ri,1);m.dirty=true;scheduleSave();validate();render();}})]));
+      tb.appendChild(tr2);
+    });
+    if(pages>1){
+      pg.appendChild(h('button',{class:'btn',type:'button',text:'← Назад',disabled:st.page===0,onclick:function(){st.page--;renderTable();}}));
+      pg.appendChild(h('span',{text:(st.page+1)+' / '+pages}));
+      pg.appendChild(h('button',{class:'btn',type:'button',text:'Вперёд →',disabled:st.page>=pages-1,onclick:function(){st.page++;renderTable();}}));
+    }
+    markRows();
+  }
+  function markRows(){
+    var is=st.issues[curCfg().name];
+    [].forEach.call($('xlTable').tBodies[0].rows,function(tr){
+      var ri=+tr.getAttribute('data-r'),list=is&&is.rows[ri];
+      tr.className=list?(list.some(function(x){return x.lvl==='err';})?'err':'warn'):'';
+      var cell=tr.cells[1];cell.textContent=list?(tr.className==='err'?'❌':'⚠️'):'';cell.title=list?list.map(function(x){return x.text;}).join('\n'):'';
+    });
+  }
+  function render(){renderTabs();renderTool();renderTable();updateStatus();}
+  function addRow(){
+    var m=curModel();if(!m)return;
+    m.rows.push(new Array(m.cols).fill(''));m.dirty=true;st.q='';st.fS='';st.fD='';
+    st.page=Math.max(0,Math.ceil(m.rows.length/PAGE)-1);validate();scheduleSave();render();
+    var inputs=$('xlTable').tBodies[0].querySelectorAll('tr:last-child input');if(inputs[0])inputs[0].focus();
+  }
+
+  /* ---------- вставка из Excel ---------- */
+  var pasteRows=[];
+  function parsePaste(text,m){
+    var out=[];
+    text.split(/\r?\n/).forEach(function(line,i){
+      if(!line.trim())return;
+      var cells=line.indexOf('\t')>=0?line.split('\t'):(line.indexOf(';')>=0?line.split(';'):[line]);
+      cells=cells.map(function(x){return x.trim();});
+      if(out.length===0&&cells.some(function(x){return /^(серия|номер|№|приписка|пробег)/i.test(x);}))return;   // строка заголовков
+      var row=new Array(m.cols).fill('');for(var c=0;c<Math.min(cells.length,m.cols);c++)row[c]=cells[c];
+      out.push(row);
+    });
+    return out;
+  }
+  function openPaste(){
+    var m=curModel();if(!m)return;
+    $('xlPasteHint').textContent='Столбцы вставляются по порядку: '+m.header.filter(Boolean).join(' → ')+'. Строка заголовков (если есть) пропускается.';
+    $('xlPasteText').value='';$('xlPasteInfo').textContent='';pasteRows=[];$('xlPaste').classList.add('open');$('xlPasteText').focus();
+  }
+  $('xlPasteText').addEventListener('input',function(){pasteRows=parsePaste(this.value,curModel());$('xlPasteInfo').textContent=pasteRows.length?('Будет добавлено строк: '+pasteRows.length):'';});
+  $('xlPasteOk').addEventListener('click',function(){
+    var m=curModel();if(!m||!pasteRows.length){$('xlPaste').classList.remove('open');return;}
+    pasteRows.forEach(function(r){m.rows.push(r);});m.dirty=true;
+    st.page=Math.max(0,Math.ceil(m.rows.length/PAGE)-1);$('xlPaste').classList.remove('open');
+    validate();scheduleSave();render();say('ok','Добавлено строк: '+pasteRows.length+'. Проверьте отмеченные ❌/⚠️ и нажмите «Опубликовать».');
+  });
+  $('xlPasteCancel').addEventListener('click',function(){$('xlPaste').classList.remove('open');});
+
+  /* ---------- загрузка файла ---------- */
+  function toBytes(ab){return new Uint8Array(ab);}
+  function loadFromBuffer(ab,keepDirty){
+    return C.parseXlsx(ab).then(function(sheets){
+      var miss=[];
+      CFG.forEach(function(cfg){
+        var nm=C.findSheet(sheets,cfg.name);
+        if(!nm){miss.push(cfg.name);st.models[cfg.name]=null;return;}
+        st.models[cfg.name]=buildModel(cfg,sheets[nm]);st.models[cfg.name].sheetName=nm;
+      });
+      return miss;
+    });
+  }
+  function openPanel(){
+    $('xlOverlay').classList.add('open');say('warn','Загрузка файла…');
+    reloadFromSite(true);
+  }
+  function reloadFromSite(askDraft){
+    if(!askDraft&&anyDirty()&&!confirm('Несохранённые правки будут отброшены (черновик на этом устройстве тоже). Загрузить файл с сайта заново?'))return;
+    fetch(C.FILE+'?v='+Date.now(),{cache:'no-store'}).then(function(r){
+      if(!r.ok)throw new Error('Файл '+C.FILE+' не найден на сайте (код '+r.status+').');
+      return r.arrayBuffer();
+    }).then(function(ab){
+      st.buf=ab;st.sig=C.xlsx.sigOf(ab);
+      return loadFromBuffer(ab).then(function(miss){
+        var draft=null;try{draft=JSON.parse(localStorage.getItem(LS_XL)||'null');}catch(e){}
+        if(askDraft&&draft&&draft.sig===st.sig&&Object.keys(draft.models).length&&confirm('Найден несохранённый черновик правок с этого устройства. Восстановить?')){
+          Object.keys(draft.models).forEach(function(n){var m=st.models[n];if(m){m.rows=draft.models[n].rows;m.dirty=true;}});
+        }else if(!askDraft||(draft&&draft.sig!==st.sig)){try{localStorage.removeItem(LS_XL);}catch(e){}}
+        validate();st.cur=0;st.page=0;st.q='';st.fS='';st.fD='';render();
+        say(miss.length?'warn':'ok',miss.length?('В файле не найдены листы: '+miss.join(', ')+'. Они недоступны для правки.'):'Файл загружен с сайта. Правьте таблицы и нажмите «Опубликовать».');
+      });
+    }).catch(function(e){say('bad','Не удалось загрузить файл: '+e.message);});
+  }
+
+  /* ---------- сборка, скачивание, загрузка своего файла ---------- */
+  function collectEdits(onlyDirty){
+    var edits={};
+    CFG.forEach(function(cfg){
+      var m=st.models[cfg.name];if(!m||(onlyDirty&&!m.dirty))return;
+      var nums=cfg.kind==='mileage'&&m.map.km!=null?[m.map.km]:[];
+      edits[m.sheetName||cfg.name]={hdrRow:m.hdrRow,cols:m.cols,rows:m.rows.map(function(r){return r.slice(0,m.cols);}),numCols:nums,pad:cfg.kind==='places'?100:300};
+    });
+    return edits;
+  }
+  function download(){
+    if(!st.buf){say('warn','Файл ещё не загружен.');return;}
+    var ed=collectEdits(true);
+    C.xlsx.build(st.buf,ed).then(function(bytes){
+      var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download=C.FILE;document.body.appendChild(a);a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);
+      say('ok','Файл '+C.FILE+' скачан (с вашими правками).');
+    }).catch(function(e){say('bad','Не удалось собрать файл: '+e.message);});
+  }
+  $('xlFile').addEventListener('change',function(){
+    var f=this.files&&this.files[0];this.value='';if(!f)return;
+    if(anyDirty()&&!confirm('Данные листов будут заменены содержимым выбранного файла. Продолжить?'))return;
+    f.arrayBuffer().then(function(ab){return C.parseXlsx(ab);}).then(function(sheets){
+      var n=0;
+      CFG.forEach(function(cfg){var nm=C.findSheet(sheets,cfg.name);if(!nm||!st.models[cfg.name])return;var m=buildModel(cfg,sheets[nm]);m.sheetName=st.models[cfg.name].sheetName;m.dirty=true;st.models[cfg.name]=m;n++;});
+      validate();scheduleSave();render();say(n?'ok':'warn',n?('Загружено листов из файла: '+n+'. Проверьте таблицы и нажмите «Опубликовать».'):'В выбранном файле нет нужных листов.');
+    }).catch(function(e){say('bad','Не удалось прочитать файл: '+e.message);});
+  });
+
+  /* ---------- публикация ---------- */
+  function b64bytes(bytes){var s='';for(var i=0;i<bytes.length;i+=0x8000)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));return btoa(s);}
+  function unb64(str){var bin=atob(str.replace(/\s+/g,'')),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;}
+  function publish(){
+    validate();updateStatus();renderTabs();markRows();
+    if(!anyDirty()){say('warn','Нет изменений для публикации.');return;}
+    var t=totals();
+    if(t.err){
+      var list=[];CFG.forEach(function(c){var is=st.issues[c.name];if(!is)return;Object.keys(is.rows).forEach(function(ri){is.rows[ri].forEach(function(x){if(x.lvl==='err'&&list.length<12)list.push('лист «'+c.name+'», строка '+(+ri+1)+': '+x.text);});});});
+      say('bad','Публикация остановлена: ошибок '+t.err+'. Исправьте строки с ❌.\n• '+list.join('\n• '));return;
+    }
+    if(t.warn&&!confirm('Есть предупреждения ('+t.warn+'): например, приписка без мест осмотра. Опубликовать всё равно?'))return;
+    var gh=D.gh,cfg=gh.cfg(),path=cfg.pathXlsx||'zona_riska.xlsx';
+    if(!gh.token()){say('warn','Сначала укажите токен GitHub (кнопка «⚙ GitHub»).');gh.open();return;}
+    if(!confirm('Опубликовать изменения в '+cfg.owner+'/'+cfg.repo+' ('+cfg.branch+', '+path+')?\nСайт обновится через 1–3 минуты.'))return;
+    var url='/repos/'+encodeURIComponent(cfg.owner)+'/'+encodeURIComponent(cfg.repo)+'/contents/'+gh.enc(path);
+    say('warn','Публикация…');$('xlPub').disabled=true;var fresh=null,sha=null;
+    gh.api('GET',url+'?ref='+encodeURIComponent(cfg.branch)).then(function(g){
+      if(g.status===404)throw new Error('Файла '+path+' нет в репозитории — сначала загрузите его туда вручную один раз.');
+      if(g.status!==200)throw new Error(gh.err(g,'Чтение файла'));
+      sha=g.json.sha;fresh=unb64(g.json.content||'');
+      var sig2=C.xlsx.sigOf(fresh.buffer.slice(fresh.byteOffset,fresh.byteOffset+fresh.byteLength));
+      if(sig2!==st.sig)throw new Error('Файл на GitHub изменён после того, как вы его открыли (кем-то или в другом окне). Ничего не записано. Ваши правки сохранены в черновике: нажмите «⬇ Скачать», чтобы сохранить их в файл, затем «🔄 С сайта» и внесите правки заново.');
+      return C.xlsx.build(fresh.buffer.slice(fresh.byteOffset,fresh.byteOffset+fresh.byteLength),collectEdits(true));
+    }).then(function(bytes){
+      var body={message:'Справочник: правки таблиц ('+CFG.filter(function(c){return st.models[c.name]&&st.models[c.name].dirty;}).map(function(c){return c.name;}).join(', ')+')',content:b64bytes(bytes),branch:cfg.branch,sha:sha};
+      return gh.api('PUT',url,body).then(function(p){
+        if(p.status!==200&&p.status!==201)throw new Error(gh.err(p,'Запись файла'));
+        var ab=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);
+        st.buf=ab;st.sig=C.xlsx.sigOf(ab);
+        CFG.forEach(function(c){if(st.models[c.name])st.models[c.name].dirty=false;});
+        try{localStorage.removeItem(LS_XL);}catch(e){}
+        updateStatus();
+        var link=(p.json&&p.json.commit&&p.json.commit.html_url)||'';
+        say('ok','✅ Опубликовано. GitHub Pages обновится через 1–3 минуты.'+(link?'\nКоммит: '+link:''));
+      });
+    }).catch(function(e){say('bad','❌ '+e.message);}).then(function(){$('xlPub').disabled=false;});
+  }
+
+  /* ---------- привязки ---------- */
+  $('xlReload').addEventListener('click',function(){reloadFromSite(false);});
+  $('xlDown').addEventListener('click',download);
+  $('xlUp').addEventListener('click',function(){$('xlFile').click();});
+  $('xlGh').addEventListener('click',function(){D.gh.open();});
+  $('xlPub').addEventListener('click',publish);
+  $('xlClose').addEventListener('click',function(){
+    if(anyDirty()&&!confirm('Есть неопубликованные правки. Они сохранены как черновик на этом устройстве. Закрыть?'))return;
+    $('xlOverlay').classList.remove('open');
+  });
+  window.__XL_PANEL_V1__={open:openPanel,state:st,validate:validate,publish:publish,build:collectEdits};
 })();
 </script>
 </body>
