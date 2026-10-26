@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Тесты прототипа синхронизации</title>
+<style>body{font:16px system-ui;max-width:850px;margin:24px auto;padding:0 16px}li{margin:8px 0}.pass{color:#087443}.fail{color:#b42318}pre{white-space:pre-wrap;background:#f4f6f8;padding:12px}</style></head>
+<body><h1>Проверки прототипа (браузер)</h1><p>Тесты используют только базу IndexedDB прототипа. Они не проверяют настоящий сервер и не затрагивают существующие чек-листы.</p><button id="run">Запустить тесты</button><ol id="results"></ol><pre id="summary">Ожидание запуска.</pre>
+<script src="./sync-core.js"></script><script>
+const results=document.getElementById('results'), summary=document.getElementById('summary');
+const testId='test-worker-'+Date.now();
+function assert(condition,message){if(!condition)throw new Error(message);}
+async function run(){
+ results.textContent='';let passed=0,failed=0;const lines=[];
+ async function test(name,fn){
+  const li=document.createElement('li');
+  try{await fn();li.className='pass';li.textContent='PASS — '+name;passed++;}
+  catch(e){li.className='fail';li.textContent='FAIL — '+name+': '+e.message;failed++;}
+  results.appendChild(li);
+ }
+ await ChecklistSyncPrototype.clearPrototypeData();
+ await test('не разрешает запись без ID сотрудника',async()=>{
+  let thrown=false;try{await ChecklistSyncPrototype.saveRecord('',{id:'x',data:{}})}catch(e){thrown=true}
+  assert(thrown,'пустой ownerId принят');
+ });
+ await test('сохраняет запись офлайн и создаёт элемент очереди',async()=>{
+  await ChecklistSyncPrototype.saveRecord(testId,{id:'record-a',data:{v:1}});
+  assert((await ChecklistSyncPrototype.listRecords(testId)).length===1,'запись не найдена');
+  assert((await ChecklistSyncPrototype.listPending(testId)).length===1,'очередь не создана');
+ });
+ await test('изолирует записи разных сотрудников',async()=>{
+  await ChecklistSyncPrototype.saveRecord(testId+'-other',{id:'record-a',data:{secret:'other'}});
+  const own=await ChecklistSyncPrototype.listRecords(testId);
+  assert(own.length===1 && own[0].data.v===1,'данные другого ownerId попали в выборку');
+ });
+ await test('успешная имитация удаляет отправленную операцию из очереди',async()=>{
+  const result=await ChecklistSyncPrototype.syncOwner(testId,{push:async()=>({status:'ok'})});
+  assert(result.sent===1,'ожидалась одна успешная операция');
+  assert((await ChecklistSyncPrototype.listPending(testId)).length===0,'очередь не очистилась');
+ });
+ await test('конфликт не удаляет операцию из очереди',async()=>{
+  await ChecklistSyncPrototype.saveRecord(testId,{id:'record-conflict',data:{v:2}});
+  const result=await ChecklistSyncPrototype.syncOwner(testId,{push:async()=>({status:'conflict'})});
+  assert(result.conflicts===1,'конфликт не распознан');
+  assert((await ChecklistSyncPrototype.listPending(testId)).length===1,'конфликтная операция потеряна');
+ });
+ await test('без транспорта синхронизация запрещена',async()=>{
+  let thrown=false;try{await ChecklistSyncPrototype.syncOwner(testId,null)}catch(e){thrown=true}
+  assert(thrown,'синхронизация прошла без транспорта');
+ });
+ lines.push('Пройдено: '+passed,'Ошибок: '+failed,'Итог: '+(failed?'ТРЕБУЕТСЯ ИСПРАВЛЕНИЕ':'PASS'));
+ summary.textContent=lines.join('\n');
+}
+document.getElementById('run').addEventListener('click',run);
+</script></body></html>
