@@ -1,46 +1,6 @@
 {
   "version": 2,
-  "updated": "2026-10-26T18:21:50.590Z",
-  "equipment": [
-    {
-      "id": "c_mvpkzy9v",
-      "title": "Тест",
-      "checklists": [],
-      "layout": {
-        "scope": "all",
-        "blocks": [],
-        "count": 1
-      },
-      "fields": [
-        {
-          "key": "f1",
-          "label": "Тест",
-          "type": "select",
-          "options": [
-            "Да",
-            "Нет"
-          ],
-          "ok": [
-            "Да"
-          ],
-          "photo": "deviation",
-          "calc": true,
-          "hint": "",
-          "explain": ""
-        }
-      ]
-    }
-  ],
-  "checklists": [
-    {
-      "id": "k_mvpkyqis",
-      "title": "Тест",
-      "subtitle": "Тест",
-      "icon": "🔧",
-      "sheet": "Тест",
-      "equipment": [
-        "c_mvpkzy9v"
-      ]
-    }
-  ]
+  "updated": "2026-10-26T18:25:32.903Z",
+  "equipment": [],
+  "checklists": []
 }
