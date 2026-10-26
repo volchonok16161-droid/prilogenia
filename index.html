@@ -18,8 +18,8 @@
   var FILE='zona_riska.xlsx';
   var SHEET_BY_MODE={complex:'Комплексный',housings:'КМБ',tt:'ТТ',bi:'БИ',hydro:'Гидродемпферы'};
   var TITLE_BY_MODE={complex:'Комплексный чек-лист',housings:'КМБ',tt:'ТТ (тяговый трансформатор)',bi:'БИ (МСУД-015)',hydro:'Гидродемпферы'};
-  var INSTR_SHEET='Инструкция',PLACES_SHEET='Места осмотра',NODES_SHEET='Узлы';
-  var store={data:null,error:null,loading:null,stamp:'',lastTry:0,cache:{},places:null,issues:{},used:{},nodeIssues:{},rules:{},custom:[],customStamp:'',customError:null,customLoaded:false};
+  var INSTR_SHEET='Инструкция',PLACES_SHEET='Места осмотра',NODES_SHEET='Узлы',MILEAGE_SHEET='Пробег';
+  var store={data:null,error:null,loading:null,stamp:'',lastTry:0,cache:{},places:null,milCache:null,issues:{},used:{},nodeIssues:{},rules:{},custom:[],customStamp:'',customError:null,customLoaded:false,checklists:[]};
 
   /* ---------- чтение xlsx (zip + xml), без внешних библиотек ---------- */
   function u8str(u8){return new TextDecoder('utf-8').decode(u8);}
@@ -89,6 +89,174 @@
       }
       return Promise.all(jobs);
     }).then(function(){return sheets;});
+  }
+
+  /* ---------- запись xlsx: заменяются только строки данных выбранных листов, всё остальное остаётся как было ---------- */
+  var CRC_T=null;
+  function crc32(u8){
+    if(!CRC_T){CRC_T=new Uint32Array(256);for(var n=0;n<256;n++){var c0=n;for(var k=0;k<8;k++)c0=(c0&1)?(0xEDB88320^(c0>>>1)):(c0>>>1);CRC_T[n]=c0>>>0;}}
+    var c=0xFFFFFFFF;for(var i=0;i<u8.length;i++)c=CRC_T[(c^u8[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0;
+  }
+  function deflateRawBytes(u8){
+    if(typeof CompressionStream==='undefined')return Promise.resolve(null);
+    try{
+      var s=new Blob([u8]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+      return new Response(s).arrayBuffer().then(function(b){return new Uint8Array(b);}).catch(function(){return null;});
+    }catch(e){return Promise.resolve(null);}
+  }
+  function entryBytes(buf,f){
+    var dv=new DataView(buf),nlen=dv.getUint16(f.lho+26,true),xlen=dv.getUint16(f.lho+28,true),st=f.lho+30+nlen+xlen;
+    var raw=new Uint8Array(buf,st,f.csize);
+    if(f.method===0)return Promise.resolve(new Uint8Array(raw));
+    if(f.method===8)return inflateRaw(raw);
+    return Promise.reject(new Error('Неподдерживаемое сжатие в xlsx.'));
+  }
+  function xlsxIndex(buf){
+    var files=readZip(buf);
+    return Promise.all([entryText(buf,files['xl/workbook.xml']),entryText(buf,files['xl/_rels/workbook.xml.rels'])]).then(function(r){
+      var wb=xml(r[0]),rels=xml(r[1]),relMap={},rl=tags(rels,'Relationship'),paths={};
+      for(var k=0;k<rl.length;k++){var tg=rl[k].getAttribute('Target')||'';relMap[rl[k].getAttribute('Id')]=tg.charAt(0)==='/'?tg.slice(1):'xl/'+tg;}
+      var sh=tags(wb,'sheet');
+      for(var j=0;j<sh.length;j++){
+        var rid=sh[j].getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id')||sh[j].getAttribute('r:id');
+        paths[sh[j].getAttribute('name')]=relMap[rid];
+      }
+      return {files:files,paths:paths};
+    });
+  }
+  function u16(n){return [n&255,(n>>>8)&255];}
+  function u32(n){return [n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255];}
+  function buildZip(entries){
+    var enc=new TextEncoder(),chunks=[],central=[],offset=0;
+    return Promise.all(entries.map(function(e){return deflateRawBytes(e.data);})).then(function(comps){
+      var now=new Date(),dt=((now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1))&0xFFFF,dd=(((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate())&0xFFFF;
+      entries.forEach(function(e,i){
+        var name=enc.encode(e.name),data=e.data,comp=comps[i],method=comp?8:0,payload=comp||data,crc=crc32(data);
+        var lh=[0x50,0x4b,3,4].concat(u16(20),u16(0x0800),u16(method),u16(dt),u16(dd),u32(crc),u32(payload.length),u32(data.length),u16(name.length),u16(0));
+        chunks.push(new Uint8Array(lh),name,payload);
+        central.push({name:name,method:method,crc:crc,csize:payload.length,usize:data.length,off:offset,dt:dt,dd:dd});
+        offset+=lh.length+name.length+payload.length;
+      });
+      var cdStart=offset,cdParts=[];
+      central.forEach(function(c){
+        var ch=[0x50,0x4b,1,2].concat(u16(20),u16(20),u16(0x0800),u16(c.method),u16(c.dt),u16(c.dd),u32(c.crc),u32(c.csize),u32(c.usize),u16(c.name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(c.off));
+        cdParts.push(new Uint8Array(ch),c.name);offset+=ch.length+c.name.length;
+      });
+      var eocd=[0x50,0x4b,5,6].concat(u16(0),u16(0),u16(central.length),u16(central.length),u32(offset-cdStart),u32(cdStart),u16(0));
+      var all=chunks.concat(cdParts,[new Uint8Array(eocd)]),total=0;all.forEach(function(a){total+=a.length;});
+      var out=new Uint8Array(total),p=0;all.forEach(function(a){out.set(a,p);p+=a.length;});
+      return out;
+    });
+  }
+  function xe(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'');}
+  function colLetter(i){var s='';i++;while(i>0){var m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;}
+  // edit: {hdrRow (1-based), cols, rows:[[...]], numCols:[индексы колонок с числами], pad: число пустых подготовленных строк}
+  function patchSheet(xmlText,edit){
+    var m=/<sheetData\s*\/>|<sheetData>([\s\S]*?)<\/sheetData>/.exec(xmlText);
+    if(!m)throw new Error('В листе нет данных (sheetData).');
+    var inner=m[1]||'',keep=[],styles={},gotStyles=false,re=/<row\b[^>]*?\br="(\d+)"[^>]*?(?:\/>|>[\s\S]*?<\/row>)/g,r;
+    while((r=re.exec(inner))){
+      if(+r[1]<=edit.hdrRow){keep.push(r[0]);}
+      else if(!gotStyles){
+        var cre=/<c\b[^>]*?\br="([A-Z]+)\d+"[^>]*?\bs="(\d+)"/g,c;
+        while((c=cre.exec(r[0])))styles[c[1]]=c[2];
+        gotStyles=Object.keys(styles).length>0;
+      }
+    }
+    var out=[],rn=edit.hdrRow,num=edit.numCols||[];
+    function cellXml(L,rowN,v,isNum){
+      var st=styles[L]?' s="'+styles[L]+'"':'';
+      if(v===undefined||v===null||v==='')return st?'<c r="'+L+rowN+'"'+st+'/>':'';
+      v=String(v);
+      if(isNum&&/^\d+(\.\d+)?$/.test(v))return '<c r="'+L+rowN+'"'+st+'><v>'+v+'</v></c>';
+      return '<c r="'+L+rowN+'"'+st+' t="inlineStr"><is><t xml:space="preserve">'+xe(v)+'</t></is></c>';
+    }
+    edit.rows.forEach(function(vals){
+      rn++;var cells=[];
+      for(var ci=0;ci<edit.cols;ci++)cells.push(cellXml(colLetter(ci),rn,vals[ci],num.indexOf(ci)>=0));
+      out.push('<row r="'+rn+'">'+cells.join('')+'</row>');
+    });
+    var lastData=rn;
+    if(gotStyles){for(var k=0;k<(edit.pad||0);k++){rn++;var pc=[];for(var cj=0;cj<edit.cols;cj++)pc.push(cellXml(colLetter(cj),rn,'',false));out.push('<row r="'+rn+'">'+pc.join('')+'</row>');}}
+    var lastCol=colLetter(Math.max(0,edit.cols-1));
+    var res=xmlText.slice(0,m.index)+'<sheetData>'+keep.join('')+out.join('')+'</sheetData>'+xmlText.slice(m.index+m[0].length);
+    res=res.replace(/<dimension\s+ref="[^"]*"\s*\/>/,'<dimension ref="A1:'+lastCol+Math.max(lastData,edit.hdrRow)+'"/>');
+    res=res.replace(/<autoFilter\s+ref="[^"]*"/,'<autoFilter ref="A'+edit.hdrRow+':'+lastCol+Math.max(lastData,edit.hdrRow)+'"');
+    return res;
+  }
+  function buildXlsx(buf,edits){
+    return xlsxIndex(buf).then(function(ix){
+      var names=Object.keys(ix.files);
+      return Promise.all(names.map(function(n){return entryBytes(buf,ix.files[n]);})).then(function(datas){
+        var entries=names.map(function(n,i){return {name:n,data:datas[i]};}),dec=new TextDecoder('utf-8'),enc=new TextEncoder();
+        Object.keys(edits).forEach(function(sn){
+          var path=ix.paths[sn];if(!path)throw new Error('В файле нет листа «'+sn+'».');
+          var e=entries.filter(function(x){return x.name===path;})[0];
+          if(!e)throw new Error('Не найден файл листа «'+sn+'» ('+path+').');
+          e.data=enc.encode(patchSheet(dec.decode(e.data),edits[sn]));
+        });
+        return buildZip(entries);
+      });
+    });
+  }
+
+  // новый лист: spec={name, header:[...], rows:[[...]], widths:[...], styleFrom:'ТТ', seriesCol:0, seriesList:[...]}
+  function sheetXmlNew(sp,st){
+    var cols=sp.header.length,ws=sp.widths||[],out=[];
+    function sty(map,L){return map[L]?' s="'+map[L]+'"':'';}
+    function cell(L,rn,v,map){
+      if(v===undefined||v===null||v==='')return map[L]?'<c r="'+L+rn+'"'+sty(map,L)+'/>':'';
+      return '<c r="'+L+rn+'"'+sty(map,L)+' t="inlineStr"><is><t xml:space="preserve">'+xe(String(v))+'</t></is></c>';
+    }
+    var hdr='';for(var i=0;i<cols;i++)hdr+=cell(colLetter(i),1,sp.header[i],st.hdr);
+    out.push('<row r="1">'+hdr+'</row>');
+    var rn=1;
+    (sp.rows||[]).forEach(function(r){rn++;var c='';for(var j=0;j<cols;j++)c+=cell(colLetter(j),rn,r[j],st.col);out.push('<row r="'+rn+'">'+c+'</row>');});
+    var last=rn;
+    if(Object.keys(st.col).length){for(var k=0;k<300;k++){rn++;var pc='';for(var q=0;q<cols;q++)pc+=cell(colLetter(q),rn,'',st.col);out.push('<row r="'+rn+'">'+pc+'</row>');}}
+    var lastCol=colLetter(cols-1),colsXml='<cols>';
+    for(var w=0;w<cols;w++)colsXml+='<col min="'+(w+1)+'" max="'+(w+1)+'" width="'+(ws[w]||18)+'" customWidth="1"/>';
+    colsXml+='</cols>';
+    var dv='';
+    if(sp.seriesCol!=null&&sp.seriesCol>=0&&sp.seriesList&&sp.seriesList.length){
+      var L0=colLetter(sp.seriesCol);
+      dv='<dataValidations count="1"><dataValidation type="list" allowBlank="1" sqref="'+L0+'2:'+L0+(Math.max(last,1)+400)+'"><formula1>"'+xe(sp.seriesList.join(','))+'"</formula1></dataValidation></dataValidations>';
+    }
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:'+lastCol+Math.max(last,1)+'"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>'+colsXml+'<sheetData>'+out.join('')+'</sheetData><autoFilter ref="A1:'+lastCol+Math.max(last,1)+'"/>'+dv+'</worksheet>';
+  }
+  function addSheets(buf,specs){
+    return xlsxIndex(buf).then(function(ix){
+      var names=Object.keys(ix.files);
+      return Promise.all(names.map(function(n){return entryBytes(buf,ix.files[n]);})).then(function(datas){
+        var entries=names.map(function(n,i){return {name:n,data:datas[i]};}),dec=new TextDecoder('utf-8'),enc=new TextEncoder();
+        function get(n){return entries.filter(function(e){return e.name===n;})[0];}
+        var ct=get('[Content_Types].xml'),wb=get('xl/workbook.xml'),rl=get('xl/_rels/workbook.xml.rels');
+        if(!ct||!wb||!rl)throw new Error('В файле нет служебных частей xlsx.');
+        var ctx=dec.decode(ct.data),wbx=dec.decode(wb.data),rx=dec.decode(rl.data);
+        var maxFile=0,maxSid=0,maxRid=0;
+        names.forEach(function(n){var m=/^xl\/worksheets\/sheet(\d+)\.xml$/.exec(n);if(m)maxFile=Math.max(maxFile,+m[1]);});
+        wbx.replace(/sheetId="(\d+)"/g,function(a,d){maxSid=Math.max(maxSid,+d);return a;});
+        rx.replace(/Id="rId(\d+)"/g,function(a,d){maxRid=Math.max(maxRid,+d);return a;});
+        var added=[];
+        specs.forEach(function(sp){
+          if(ix.paths[sp.name])return;                 // такой лист уже есть — не трогаем
+          maxFile++;maxSid++;maxRid++;
+          var path='xl/worksheets/sheet'+maxFile+'.xml',st={hdr:{},col:{}},src=ix.paths[sp.styleFrom];
+          if(src&&get(src)){
+            var sx=dec.decode(get(src).data),r1=/<row\b[^>]*?\br="1"[^>]*>([\s\S]*?)<\/row>/.exec(sx),r2=/<row\b[^>]*?\br="2"[^>]*>([\s\S]*?)<\/row>/.exec(sx),c;
+            if(r1){var a1=/<c\b[^>]*?\br="([A-Z]+)1"[^>]*?\bs="(\d+)"/g;while((c=a1.exec(r1[1])))st.hdr[c[1]]=c[2];}
+            if(r2){var a2=/<c\b[^>]*?\br="([A-Z]+)2"[^>]*?\bs="(\d+)"/g;while((c=a2.exec(r2[1])))st.col[c[1]]=c[2];}
+          }
+          entries.push({name:path,data:enc.encode(sheetXmlNew(sp,st))});
+          ctx=ctx.replace('</Types>','<Override PartName="/'+path+'" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+          wbx=wbx.replace('</sheets>','<sheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" name="'+xe(sp.name)+'" sheetId="'+maxSid+'" r:id="rId'+maxRid+'"/></sheets>');
+          rx=rx.replace('</Relationships>','<Relationship Id="rId'+maxRid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+maxFile+'.xml"/></Relationships>');
+          added.push(sp.name);
+        });
+        ct.data=enc.encode(ctx);wb.data=enc.encode(wbx);rl.data=enc.encode(rx);
+        return buildZip(entries).then(function(bytes){return {bytes:bytes,added:added};});
+      });
+    });
   }
 
   /* ---------- разбор листов ---------- */
@@ -181,16 +349,17 @@
 
   /* ---------- загрузка файла ---------- */
   function fmtStamp(h){if(!h)return '';var d=new Date(h);return isNaN(d)?'':d.toLocaleString('ru-RU');}
+  function sigOf(buf){var u=new Uint8Array(buf),h=u.length;for(var i=0;i<u.length;i+=61)h=(h*31+u[i])|0;return u.length+':'+h;}
   function load(force){
     if(store.loading)return store.loading;
     if(store.data&&!force)return Promise.resolve(store.data);
     store.lastTry=Date.now();
-    store.loading=fetch(FILE,{cache:'no-store'}).then(function(resp){
+    store.loading=fetch(FILE+'?v='+Date.now(),{cache:'no-store'}).then(function(resp){
       if(!resp.ok)throw new Error('Файл '+FILE+' не найден на сервере (код '+resp.status+'). Положите его рядом с index.html.');
       store.stamp=fmtStamp(resp.headers.get('last-modified'));
       return resp.arrayBuffer();
-    }).then(parseXlsx).then(function(sheets){
-      store.data=sheets;store.cache={};store.places=null;store.error=null;return sheets;
+    }).then(function(buf){store.newSig=sigOf(buf);return parseXlsx(buf);}).then(function(sheets){
+      store.sig=store.newSig;store.data=sheets;store.cache={};store.places=null;store.milCache=null;store.error=null;return sheets;
     }).catch(function(e){
       store.error=(e&&e.message)||String(e);
       if(location.protocol==='file:')store.error='Файл нельзя прочитать при открытии с диска (file://). Откройте приложение с сайта или установите его на телефон.';
@@ -336,21 +505,131 @@
       });
       if(!fields.length){issues.push('Оборудование «'+title+'»: нет ни одного поля — пропущено');return;}
       if(fields.length>30)issues.push('Оборудование «'+title+'»: полей '+fields.length+', а в выгрузку Excel попадают только первые 30 операций — разделите узел на два');
-      out.push({id:id,title:title,checklists:['complex'],layout:{scope:scope,blocks:blocks,count:count},fields:fields});
+      var inComplex=Array.isArray(e.checklists)?(e.checklists.indexOf('complex')>=0):true;
+      out.push({id:id,title:title,checklists:inComplex?['complex']:[],layout:{scope:scope,blocks:blocks,count:count},fields:fields});
+    });
+    var ck=cleanChecklists((raw&&raw.checklists)||[],out.map(function(e){return e.id;}));
+    return {list:out,checklists:ck.list,issues:issues.concat(ck.issues)};
+  }
+  var BUILTIN_EQ=[
+    {id:'vb8',title:'Выключатель быстродействующий ВБ-8'},{id:'bvv',title:'БВВ-057'},{id:'mk9',title:'Контактор МК-9'},{id:'re16t',title:'РЭ16Т'},
+    {id:'nvmontazh',title:'Низковольтный электрический монтаж'},{id:'rassekatel',title:'Рассекатель'},{id:'shina',title:'Силовой электрический монтаж — шинный монтаж'},
+    {id:'gres',title:'Главный резервуар'},{id:'kps',title:'КПС-0,5-38'},{id:'nb514',title:'НБ-514Е — щёткодержатель'},{id:'housings',title:'Кожуха'},
+    {id:'msud',title:'Система МСУД-015'},{id:'las023',title:'Токоприёмник ЛАС-023 — рукав пневмопривода'}];
+  var RESERVED_SHEETS=['инструкция','тт','би','гидродемпферы','комплексный','кмб','узлы','список узлов','пробег','места осмотра'];
+  function cleanSheetName(v){return String(v==null?'':v).replace(/[\[\]:*?\/\\<>]/g,'').replace(/\s+/g,' ').trim().slice(0,31);}
+  // описания чек-листов, созданных в конструкторе
+  function cleanChecklists(arr,equipIds){
+    var out=[],issues=[],seenId={},seenSheet={},known={};
+    BUILTIN_EQ.forEach(function(b){known[b.id]=1;});equipIds.forEach(function(i){known[i]=1;});
+    (Array.isArray(arr)?arr:[]).forEach(function(c,i){
+      var title=cleanStr(c&&c.title),id=slug(c&&c.id);
+      if(id&&id.indexOf('k_')!==0)id='k_'+id;
+      if(!id||!title){issues.push('Чек-лист №'+(i+1)+': нет названия или идентификатора — пропущен');return;}
+      if(seenId[id]){issues.push('Чек-лист «'+title+'»: повторяется идентификатор '+id+' — пропущен');return;}
+      var sheet=cleanSheetName(c.sheet||title);
+      if(!sheet){issues.push('Чек-лист «'+title+'»: не задано название листа Excel — пропущен');return;}
+      if(RESERVED_SHEETS.indexOf(sheet.toLowerCase())>=0){issues.push('Чек-лист «'+title+'»: название листа «'+sheet+'» занято служебным листом — выберите другое');return;}
+      if(seenSheet[sheet.toLowerCase()]){issues.push('Чек-лист «'+title+'»: лист «'+sheet+'» уже используется другим чек-листом — пропущен');return;}
+      var eq=[];
+      (Array.isArray(c.equipment)?c.equipment:[]).forEach(function(x){var k=slug(x);if(!known[k]){issues.push('Чек-лист «'+title+'»: неизвестное оборудование «'+x+'» — убрано');return;}if(eq.indexOf(k)<0)eq.push(k);});
+      if(!eq.length){issues.push('Чек-лист «'+title+'»: не выбрано ни одного оборудования — пропущен');return;}
+      seenId[id]=1;seenSheet[sheet.toLowerCase()]=1;
+      var icon=cleanStr(c.icon).slice(0,4)||'🔧';
+      out.push({id:id,title:title,subtitle:cleanStr(c.subtitle),icon:icon,sheet:sheet,equipment:eq});
     });
     return {list:out,issues:issues};
   }
+  /* ---------- режимы (чек-листы из конструктора) на стартовом экране ---------- */
+  function applyModes(list){
+    list=list||[];
+    window.__CUSTOM_MODES__=list;
+    list.forEach(function(m){SHEET_BY_MODE[m.id]=m.sheet;TITLE_BY_MODE[m.id]=m.title;});
+  }
+  function registerOuter(){
+    var list=window.__CUSTOM_MODES__||[];
+    list.forEach(function(m){
+      try{if(typeof ALL_MODES!=='undefined'&&ALL_MODES.indexOf(m.id)<0)ALL_MODES.push(m.id);}catch(e){}
+      try{if(typeof EMBEDDED_MODES!=='undefined'&&EMBEDDED_MODES.indexOf(m.id)<0)EMBEDDED_MODES.push(m.id);}catch(e){}
+      try{if(typeof MODE_NAMES!=='undefined')MODE_NAMES[m.id]='Чек-лист '+m.title;}catch(e){}
+    });
+  }
+  function renderModeButtons(){
+    registerOuter();
+    var modal=document.getElementById('modeSelectModal');if(!modal)return;
+    var box=modal.querySelector('.modal > div[style*="flex-direction:column"]');if(!box)return;
+    [].slice.call(box.querySelectorAll('.mode-custom')).forEach(function(b){b.remove();});
+    (window.__CUSTOM_MODES__||[]).forEach(function(m){
+      var b=document.createElement('button');b.className='btn primary mode-card-btn mode-custom';b.id='mode_'+m.id;b.type='button';
+      var head=document.createElement('span');head.className='mode-card-head';head.appendChild(document.createTextNode(m.icon+' '));
+      var bold=document.createElement('b');bold.textContent=m.title;head.appendChild(bold);b.appendChild(head);
+      if(m.subtitle){var sm=document.createElement('small');sm.textContent=m.subtitle;b.appendChild(sm);}
+      b.onclick=function(){if(typeof selectModeAndStart==='function')selectModeAndStart(m.id);};
+      box.appendChild(b);
+    });
+  }
+  function modeInfo(mode){
+    var arr=(window.__RISK_CORE__&&window.__RISK_CORE__.devChecklists)||store.checklists||[];
+    for(var i=0;i<arr.length;i++){if(arr[i].id===mode)return arr[i];}
+    return null;
+  }
   function loadCustom(){
-    return fetch(CUSTOM_FILE,{cache:'no-store'}).then(function(resp){
-      if(resp.status===404){store.custom=[];store.customError=null;store.customLoaded=true;return [];}
+    return fetch(CUSTOM_FILE+'?v='+Date.now(),{cache:'no-store'}).then(function(resp){
+      if(resp.status===404){store.custom=[];store.checklists=[];applyModes([]);try{localStorage.removeItem('custom_modes_v1');}catch(e){}renderModeButtons();store.customError=null;store.customLoaded=true;return [];}
       if(!resp.ok)throw new Error('Файл '+CUSTOM_FILE+': код '+resp.status);
       store.customStamp=fmtStamp(resp.headers.get('last-modified'));
       return resp.json();
     }).then(function(j){
       if(!j)return [];
-      var c=cleanCustom(j);store.custom=c.list;store.customError=null;store.customLoaded=true;
-      store.issues.custom=c.issues;return c.list;
+      var c=cleanCustom(j);store.custom=c.list;store.checklists=c.checklists;store.customError=null;store.customLoaded=true;
+      store.issues.custom=c.issues;
+      var modes=c.checklists.map(function(k){return {id:k.id,title:k.title,subtitle:k.subtitle,icon:k.icon,sheet:k.sheet};});
+      applyModes(modes);try{localStorage.setItem('custom_modes_v1',JSON.stringify(modes));}catch(e){}
+      renderModeButtons();return c.list;
     }).catch(function(e){store.customError=(e&&e.message)||String(e);return store.custom;});
+  }
+  /* ---------- пробег (лист «Пробег»): минимальный пробег от постройки, км ---------- */
+  function hdrMileage(row){
+    var h={series:-1,number:-1,km:-1};
+    (row||[]).forEach(function(t,i){
+      var s=sheetKey(t);
+      if(h.series<0&&/сери/.test(s))h.series=i;
+      else if(h.number<0&&/(номер|№)/.test(s))h.number=i;
+      else if(h.km<0&&/(пробег|км)/.test(s))h.km=i;
+    });
+    return h;
+  }
+  function buildMileage(){
+    if(store.milCache)return store.milCache;
+    var out={found:false,table:{},issues:[],count:0};
+    var nm=store.data?findSheet(store.data,MILEAGE_SHEET):null;
+    if(!nm){return(store.milCache=out);}
+    var rows=store.data[nm],hi=0,m;
+    for(var i=0;i<Math.min(rows.length,10);i++){if(rows[i]&&hdrMileage(rows[i]).km>=0){hi=i;break;}}
+    m=hdrMileage(rows[hi]||[]);if(m.km<0)m={series:0,number:1,km:2};
+    var allowed=builtinSeries();
+    out.found=true;
+    for(var r=hi+1;r<rows.length;r++){
+      var row=rows[r];if(!row)continue;
+      var ser=normSeries(row[m.series]),num=norm(row[m.number]).replace(/\s+/g,''),raw=norm(row[m.km]);
+      if(!ser&&!num&&!raw)continue;
+      var rowN='строка '+(r+1)+' (лист «'+MILEAGE_SHEET+'»)';
+      if(!ser||!num){out.issues.push(rowN+': не указана серия или номер — строка пропущена');continue;}
+      if(allowed.indexOf(ser)<0){out.issues.push(rowN+': серия «'+row[m.series]+'» не поддерживается — строка пропущена');continue;}
+      if(!raw)continue;                                   // пустой пробег = минимума нет
+      var km=raw.replace(/[\s\u00a0]/g,'').replace(',','.');
+      if(!/^\d+(\.\d+)?$/.test(km)){out.issues.push(rowN+': пробег «'+raw+'» не является числом — строка пропущена');continue;}
+      var key=ser+'_'+num;
+      if(Object.prototype.hasOwnProperty.call(out.table,key)){out.issues.push(rowN+': '+ser+' № '+num+' уже есть выше — повтор пропущен');continue;}
+      out.table[key]=Math.floor(parseFloat(km));out.count++;
+    }
+    return(store.milCache=out);
+  }
+  function mileageFor(series,number){
+    var t=buildMileage(),key=normSeries(series)+'_'+norm(number).replace(/\s+/g,''),v;
+    if(t.found)v=t.table[key];
+    else{try{if(typeof MILEAGE_DATA!=='undefined')v=MILEAGE_DATA[key];}catch(e){}}   // файла/листа нет — встроенная таблица
+    return(v==null)?null:v;
   }
   function safeJson(o){return JSON.stringify(o).replace(/</g,'\\u003c');}
   function replaceConst(html,name,json,extra){
@@ -362,26 +641,50 @@
   }
   function applyRegistry(html,mode){
     try{
-      var reg=buildRegistry(mode);
-      var rl=buildRules(mode);store.rules[mode]=rl.rules;
-      store.issues[mode]=(reg?reg.issues:[]).concat(rl.issues);store.used[mode]=false;
-      var rulesJs='\nconst NODE_RULES='+safeJson(rl.rules)+';';
-      if(mode==='complex'){var cu=(window.__RISK_CORE__&&window.__RISK_CORE__.devOverride)||store.custom||[];rulesJs+='\nconst CUSTOM_EQUIPMENT='+safeJson(cu)+';';}
-      if(!reg)return html.replace(/<script[^>]*>/,function(t){return t+rulesJs;});
-      var a=replaceConst(html,'LOCOMOTIVE_DATA',safeJson(reg.loco),'');
-      var b=a&&replaceConst(a,'DEPOT_PLACES',safeJson(reg.places),'\nconst LOCOMOTIVE_PLACES='+safeJson(reg.lp)+';'+rulesJs);
-      if(!b)return html;
-      store.used[mode]=true;return b;
+      var reg=buildRegistry(mode),rl=buildRules(mode),ml=buildMileage();
+      store.rules[mode]=rl.rules;
+      store.issues[mode]=(reg?reg.issues:[]).concat(rl.issues,ml.issues);store.used[mode]=false;
+      // сведения для самого чек-листа: откуда взят список (чтобы он мог объяснить, почему номер не найден)
+      var sheet=SHEET_BY_MODE[mode]||'',info={source:'builtin',reason:'file',sheet:sheet,count:0,mileage:!!ml.found};
+      if(store.data){if(!findSheet(store.data,sheet))info.reason='sheet';else if(!reg)info.reason='empty';else{info.source='excel';info.reason='ok';info.count=reg.count;}}
+      var extra='\nconst NODE_RULES='+safeJson(rl.rules)+';\nconst REGISTRY_INFO='+safeJson(info)+';';
+      var chk=modeInfo(mode);
+      if(mode==='complex'||chk){var cu=(window.__RISK_CORE__&&window.__RISK_CORE__.devOverride)||store.custom||[];extra+='\nconst CUSTOM_EQUIPMENT='+safeJson(cu)+';';if(chk)extra+='\nconst CUSTOM_CHECKLIST='+safeJson(chk)+';';}
+      var hasMil=/const\s+MILEAGE_DATA\s*=/.test(html),milTable=null;
+      if(ml.found)milTable=ml.table;else{try{if(typeof MILEAGE_DATA!=='undefined')milTable=MILEAGE_DATA;}catch(e){}}
+      if(!hasMil&&milTable)extra+='\nconst MILEAGE_DATA='+safeJson(milTable)+';';   // ТТ и БИ: своей таблицы нет — передаём
+      var out=html;
+      if(reg){
+        var a=replaceConst(out,'LOCOMOTIVE_DATA',safeJson(reg.loco),'');
+        var b=a&&replaceConst(a,'DEPOT_PLACES',safeJson(reg.places),'\nconst LOCOMOTIVE_PLACES='+safeJson(reg.lp)+';'+extra);
+        if(b){out=b;extra=null;store.used[mode]=true;}
+      }
+      if(extra!==null)out=out.replace(/<script(?![^>]*\bsrc=)[^>]*>/,function(t){return t+extra;});   // список не подменяли — передаём только правила и сведения
+      if(ml.found&&hasMil){var mm=replaceConst(out,'MILEAGE_DATA',safeJson(ml.table),'');if(mm)out=mm;}   // таблица пробега — из Excel
+      return out;
     }catch(e){console.warn('[zona_riska] не удалось применить справочник',e);return html;}
   }
+
   // перечитать файл перед запуском чек-листа (не дольше ms миллисекунд — иначе используем то, что есть)
   function ready(ms){
     var p=Promise.all([load(true).catch(function(){}),loadCustom().catch(function(){})]);
     return Promise.race([p,new Promise(function(r){setTimeout(r,ms||2500);})]);
   }
+  // долго открытая вкладка (компьютер): при возврате на неё проверяем, не изменился ли файл
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden||store.loading||Date.now()-store.lastTry<60000||!store.data)return;
+    var before=store.sig;
+    load(true).then(function(){
+      if(before&&store.sig&&store.sig!==before&&typeof showToast==='function')showToast('📄 Файл zona_riska.xlsx обновлён. Изменения применятся при следующем открытии чек-листа.');
+    },function(){});
+  });
+  window.__cmIds=function(){return(window.__CUSTOM_MODES__||[]).map(function(m){return m.id;});};
+  // режимы из конструктора, известные с прошлого запуска: нужны сразу, чтобы открылся последний выбранный чек-лист
+  try{var __cm=JSON.parse(localStorage.getItem('custom_modes_v1')||'[]');if(Array.isArray(__cm))applyModes(__cm);}catch(e){}
+  document.addEventListener('DOMContentLoaded',function(){renderModeButtons();loadCustom().catch(function(){});});
   window.__RISK_CORE__={store:store,load:load,ready:ready,applyRegistry:applyRegistry,entriesFor:entriesFor,findSheet:findSheet,
     norm:norm,sheetKey:sheetKey,numberMatches:numberMatches,searchMatches:searchMatches,placesMap:placesMap,parseXlsx:parseXlsx,
-    FILE:FILE,SHEET_BY_MODE:SHEET_BY_MODE,TITLE_BY_MODE:TITLE_BY_MODE,INSTR_SHEET:INSTR_SHEET,nodeRulesText:nodeRulesText,reportNodeIssues:reportNodeIssues,NODES_SHEET:NODES_SHEET,loadCustom:loadCustom,cleanCustom:cleanCustom,CUSTOM_FILE:CUSTOM_FILE,devOverride:null};
+    FILE:FILE,SHEET_BY_MODE:SHEET_BY_MODE,TITLE_BY_MODE:TITLE_BY_MODE,INSTR_SHEET:INSTR_SHEET,nodeRulesText:nodeRulesText,reportNodeIssues:reportNodeIssues,NODES_SHEET:NODES_SHEET,loadCustom:loadCustom,applyModes:applyModes,renderModeButtons:renderModeButtons,cleanChecklists:cleanChecklists,BUILTIN_EQ:BUILTIN_EQ,devChecklists:null,mileageFor:mileageFor,xlsx:{index:xlsxIndex,build:buildXlsx,addSheets:addSheets,sigOf:sigOf,entryBytes:entryBytes},normSeries:normSeries,builtinSeries:builtinSeries,flat:flat,MILEAGE_SHEET:MILEAGE_SHEET,cleanCustom:cleanCustom,CUSTOM_FILE:CUSTOM_FILE,devOverride:null};
 })();
 </script>
 <script>
@@ -2725,6 +3028,23 @@ loadState=function(){var prev=STATE;var r=__psOrigLoad.apply(this,arguments);
   try{if(prev&&prev!==STATE&&prev.values&&STATE&&STATE.values){for(var iid in prev.values){var o=prev.values[iid];if(!o)continue;for(var k in o){if(k.slice(-6)==='_photo'&&o[k]){if(!STATE.values[iid])STATE.values[iid]={};if(!STATE.values[iid][k])STATE.values[iid][k]=o[k];}}}}}catch(e){}
   __psRestore();return r;};
 
+/* ===== Подсказка «номер не найден»: объясняет, откуда взят список локомотивов ===== */
+function __regHint(){
+  var base='Такого номера нет в базе для данного типа электровоза.';
+  try{
+    if(typeof REGISTRY_INFO==='undefined')return base;
+    var i=REGISTRY_INFO;
+    if(i.source==='excel')return base+' Список взят из файла zona_riska.xlsx (лист «'+i.sheet+'», локомотивов: '+i.count+'). Проверьте серию и номер в этом листе и что обновлённый файл загружен на сайт (после загрузки подождите 1–3 минуты и откройте чек-лист заново).';
+    var why={file:'файл zona_riska.xlsx не удалось прочитать (нет связи или файла нет на сайте)',sheet:'в файле нет листа «'+i.sheet+'»',empty:'в листе «'+i.sheet+'» нет ни одного корректного локомотива'}[i.reason]||'файл не использован';
+    return base+' Используется встроенный список, потому что '+why+'.';
+  }catch(e){return base;}
+}
+
+/* ===== Проверка пробега по таблице (как в комплексном чек-листе) ===== */
+function getMileageFromData(type,number){if(!type||!number)return null;if(typeof MILEAGE_DATA==='undefined')return null;return MILEAGE_DATA[type+'_'+number]||null;}
+function isValidMileage(mileageStr,type,number){var val=parseInt(mileageStr,10);if(isNaN(val)||val<0)return false;var t=getMileageFromData(type,number);if(t!==null)return val>=t;return val>0;}
+function getMileageError(mileageStr,type,number){var val=parseInt(mileageStr,10);if(isNaN(val)||val<0)return 'Введите корректное число (≥ 0)';var t=getMileageFromData(type,number);if(t!==null){if(val<t)return 'Пробег должен быть ≥ '+t+' км (по данным завода)';return null;}if(val<=0)return 'Пробег должен быть больше 0 (данные отсутствуют)';return null;}
+
 /* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
 const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
 function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
@@ -3105,7 +3425,7 @@ function saveState(silent){
             numInput.classList.add('number-input');
             const errorHint = document.createElement('div');
             errorHint.className = 'error-hint';
-            errorHint.textContent = 'Такого номера нет в базе для данного типа электровоза.';
+            errorHint.textContent = __regHint();
             numWrap.appendChild(numInput);
             numWrap.appendChild(errorHint);
 
@@ -3212,19 +3532,34 @@ function saveState(silent){
             mileInput.placeholder = 'Введите пробег (только цифры)';
             const isReady = type && rec && (STATE.general.place || '');
             mileInput.disabled = !isReady;
+            const mileErr = document.createElement('div');
+            mileErr.className = 'error-hint';
+            mileErr.style.display = 'none';
+            function __mileCheck() {
+                const v = mileInput.value, t = STATE.general.type, n = STATE.general.number;
+                const err = (v && t && n) ? getMileageError(v, t, n) : null;
+                mileInput.classList.toggle('error', !!err);
+                mileInput.dataset.mileInvalid = err ? '1' : '';
+                mileErr.textContent = err || '';
+                mileErr.style.display = err ? 'block' : 'none';
+            }
             mileInput.addEventListener('input', function() {
                 this.value = this.value.replace(/[^0-9]/g, '');
                 STATE.general.mileage = this.value;
+                __mileCheck();
                 saveState(true);
                 updateStats();
             });
             mileInput.addEventListener('change', function() {
                 this.value = this.value.replace(/[^0-9]/g, '');
                 STATE.general.mileage = this.value;
+                __mileCheck();
                 saveState(true);
                 updateStats();
             });
             mileWrap.appendChild(mileInput);
+            mileWrap.appendChild(mileErr);
+            __mileCheck();
             if (!isReady) {
                 const hint = document.createElement('div');
                 hint.className = 'hint-lock';
@@ -3782,9 +4117,7 @@ function saveState(silent){
         function computeStats() {
             const generalFields = ['date', 'type', 'number', 'depot', 'place', 'mileage'];
             let filledGeneral = 0;
-            for (const f of generalFields) {
-                if (STATE.general[f] && STATE.general[f] !== '') filledGeneral++;
-            }
+            for (const f of generalFields) { if (f === 'mileage') { if (STATE.general.mileage && isValidMileage(STATE.general.mileage, STATE.general.type, STATE.general.number)) filledGeneral++; } else if (STATE.general[f] && STATE.general[f] !== '') filledGeneral++; }
 
             let totalInstances = 0,
                 okInstances = 0,
@@ -3873,7 +4206,7 @@ function saveState(silent){
            ЭКСПОРТ (С ФОТО) — имя файла: дата_серия_номер_Чек-лист_ТТ.xlsx
            ======================================================================== */
         async function exportWithPhotos() { try{await __psReady();}catch(e){}
-            try {
+            try { const __ml = STATE.general.mileage || ''; if (!isValidMileage(__ml, STATE.general.type || '', STATE.general.number || '')) { showToast('⚠️ Некорректный пробег: ' + (getMileageError(__ml, STATE.general.type || '', STATE.general.number || '') || '')); return; }
                 if (currentUser !== 'admin') {
                     const stats = computeStats();
                     if (stats.percent < 100) {
@@ -4256,7 +4589,7 @@ function saveState(silent){
             const list = [];
             document.querySelectorAll('#generalGrid select, #generalGrid input').forEach(c => {
                 if (c.disabled || c.readOnly) return;
-                if (!c.value || c.value === '') list.push({ el: c.closest('.field') || c, focus: c });
+                if (!c.value || c.value === '' || (c.dataset && c.dataset.mileInvalid === '1')) list.push({ el: c.closest('.field') || c, focus: c });
             });
             document.querySelectorAll('#equipRoot select, #equipRoot input[type="text"]').forEach(c => {
                 if (c.disabled) return;
@@ -6532,6 +6865,23 @@ loadState=function(){var prev=STATE;var r=__psOrigLoad.apply(this,arguments);
   try{if(prev&&prev!==STATE&&prev.values&&STATE&&STATE.values){for(var iid in prev.values){var o=prev.values[iid];if(!o)continue;for(var k in o){if(k.slice(-6)==='_photo'&&o[k]){if(!STATE.values[iid])STATE.values[iid]={};if(!STATE.values[iid][k])STATE.values[iid][k]=o[k];}}}}}catch(e){}
   __psRestore();return r;};
 
+/* ===== Подсказка «номер не найден»: объясняет, откуда взят список локомотивов ===== */
+function __regHint(){
+  var base='Такого номера нет в базе для данного типа электровоза.';
+  try{
+    if(typeof REGISTRY_INFO==='undefined')return base;
+    var i=REGISTRY_INFO;
+    if(i.source==='excel')return base+' Список взят из файла zona_riska.xlsx (лист «'+i.sheet+'», локомотивов: '+i.count+'). Проверьте серию и номер в этом листе и что обновлённый файл загружен на сайт (после загрузки подождите 1–3 минуты и откройте чек-лист заново).';
+    var why={file:'файл zona_riska.xlsx не удалось прочитать (нет связи или файла нет на сайте)',sheet:'в файле нет листа «'+i.sheet+'»',empty:'в листе «'+i.sheet+'» нет ни одного корректного локомотива'}[i.reason]||'файл не использован';
+    return base+' Используется встроенный список, потому что '+why+'.';
+  }catch(e){return base;}
+}
+
+/* ===== Проверка пробега по таблице (как в комплексном чек-листе) ===== */
+function getMileageFromData(type,number){if(!type||!number)return null;if(typeof MILEAGE_DATA==='undefined')return null;return MILEAGE_DATA[type+'_'+number]||null;}
+function isValidMileage(mileageStr,type,number){var val=parseInt(mileageStr,10);if(isNaN(val)||val<0)return false;var t=getMileageFromData(type,number);if(t!==null)return val>=t;return val>0;}
+function getMileageError(mileageStr,type,number){var val=parseInt(mileageStr,10);if(isNaN(val)||val<0)return 'Введите корректное число (≥ 0)';var t=getMileageFromData(type,number);if(t!==null){if(val<t)return 'Пробег должен быть ≥ '+t+' км (по данным завода)';return null;}if(val<=0)return 'Пробег должен быть больше 0 (данные отсутствуют)';return null;}
+
 /* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
 const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
 function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
@@ -6914,7 +7264,7 @@ function saveState(silent){
             numInput.classList.add('number-input');
             const errorHint = document.createElement('div');
             errorHint.className = 'error-hint';
-            errorHint.textContent = 'Такого номера нет в базе для данного типа электровоза.';
+            errorHint.textContent = __regHint();
             numWrap.appendChild(numInput);
             numWrap.appendChild(errorHint);
 
@@ -7021,19 +7371,34 @@ function saveState(silent){
             mileInput.placeholder = 'Введите пробег (только цифры)';
             const isReady = type && rec && (STATE.general.place || '');
             mileInput.disabled = !isReady;
+            const mileErr = document.createElement('div');
+            mileErr.className = 'error-hint';
+            mileErr.style.display = 'none';
+            function __mileCheck() {
+                const v = mileInput.value, t = STATE.general.type, n = STATE.general.number;
+                const err = (v && t && n) ? getMileageError(v, t, n) : null;
+                mileInput.classList.toggle('error', !!err);
+                mileInput.dataset.mileInvalid = err ? '1' : '';
+                mileErr.textContent = err || '';
+                mileErr.style.display = err ? 'block' : 'none';
+            }
             mileInput.addEventListener('input', function() {
                 this.value = this.value.replace(/[^0-9]/g, '');
                 STATE.general.mileage = this.value;
+                __mileCheck();
                 saveState(true);
                 updateStats();
             });
             mileInput.addEventListener('change', function() {
                 this.value = this.value.replace(/[^0-9]/g, '');
                 STATE.general.mileage = this.value;
+                __mileCheck();
                 saveState(true);
                 updateStats();
             });
             mileWrap.appendChild(mileInput);
+            mileWrap.appendChild(mileErr);
+            __mileCheck();
             if (!isReady) {
                 const hint = document.createElement('div');
                 hint.className = 'hint-lock';
@@ -7522,9 +7887,7 @@ function saveState(silent){
         function computeStats() {
             const generalFields = ['date', 'type', 'number', 'depot', 'place', 'mileage'];
             let filledGeneral = 0;
-            for (const f of generalFields) {
-                if (STATE.general[f] && STATE.general[f] !== '') filledGeneral++;
-            }
+            for (const f of generalFields) { if (f === 'mileage') { if (STATE.general.mileage && isValidMileage(STATE.general.mileage, STATE.general.type, STATE.general.number)) filledGeneral++; } else if (STATE.general[f] && STATE.general[f] !== '') filledGeneral++; }
 
             let totalInstances = 0,
                 okInstances = 0,
@@ -7611,7 +7974,7 @@ function saveState(silent){
            ЭКСПОРТ (с фото) — имя файла по шаблону
            ======================================================================== */
         async function exportWithPhotos() { try{await __psReady();}catch(e){}
-            try {
+            try { const __ml = STATE.general.mileage || ''; if (!isValidMileage(__ml, STATE.general.type || '', STATE.general.number || '')) { showToast('⚠️ Некорректный пробег: ' + (getMileageError(__ml, STATE.general.type || '', STATE.general.number || '') || '')); return; }
                 if (currentUser !== 'admin') {
                     const stats = computeStats();
                     if (stats.percent < 100) {
@@ -7994,7 +8357,7 @@ function saveState(silent){
             const list = [];
             document.querySelectorAll('#generalGrid select, #generalGrid input').forEach(c => {
                 if (c.disabled || c.readOnly) return;
-                if (!c.value || c.value === '') list.push({ el: c.closest('.field') || c, focus: c });
+                if (!c.value || c.value === '' || (c.dataset && c.dataset.mileInvalid === '1')) list.push({ el: c.closest('.field') || c, focus: c });
             });
             document.querySelectorAll('#equipRoot select, #equipRoot input[type="text"]').forEach(c => {
                 if (c.disabled) return;
@@ -10840,6 +11203,18 @@ loadState=function(){var prev=STATE;var r=__psOrigLoad.apply(this,arguments);
   try{if(prev&&prev!==STATE&&prev.values&&STATE&&STATE.values){for(var iid in prev.values){var o=prev.values[iid];if(!o)continue;for(var k in o){if(k.slice(-6)==='_photo'&&o[k]){if(!STATE.values[iid])STATE.values[iid]={};if(!STATE.values[iid][k])STATE.values[iid][k]=o[k];}}}}}catch(e){}
   __psRestore();return r;};
 
+/* ===== Подсказка «номер не найден»: объясняет, откуда взят список локомотивов ===== */
+function __regHint(){
+  var base='Такого номера нет в базе для данного типа электровоза.';
+  try{
+    if(typeof REGISTRY_INFO==='undefined')return base;
+    var i=REGISTRY_INFO;
+    if(i.source==='excel')return base+' Список взят из файла zona_riska.xlsx (лист «'+i.sheet+'», локомотивов: '+i.count+'). Проверьте серию и номер в этом листе и что обновлённый файл загружен на сайт (после загрузки подождите 1–3 минуты и откройте чек-лист заново).';
+    var why={file:'файл zona_riska.xlsx не удалось прочитать (нет связи или файла нет на сайте)',sheet:'в файле нет листа «'+i.sheet+'»',empty:'в листе «'+i.sheet+'» нет ни одного корректного локомотива'}[i.reason]||'файл не использован';
+    return base+' Используется встроенный список, потому что '+why+'.';
+  }catch(e){return base;}
+}
+
 /* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
 const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
 function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
@@ -11419,7 +11794,7 @@ function renderGeneral() {
   numInput.classList.add('number-input');
   const errorHint = document.createElement('div');
   errorHint.className = 'error-hint';
-  errorHint.textContent = 'Такого номера нет в базе для данного типа электровоза.';
+  errorHint.textContent = __regHint();
   numWrap.appendChild(numInput);
   numWrap.appendChild(errorHint);
 
@@ -12921,7 +13296,7 @@ const EMBED_CHECKLIST_HTML=`<!DOCTYPE html>
         if(window.parent&&window.parent!==window&&window.parent.__EMBEDDED_MODE__){
             m=window.parent.__EMBEDDED_MODE__;
         }
-        window.__MODE__=(m==='housings')?'housings':'complex';
+        window.__MODE__=(m==='housings')?'housings':(/^k_/.test(String(m))?m:'complex');
     }catch(e){window.__MODE__='complex';}
 })();
 <\/script>
@@ -13432,8 +13807,8 @@ const EMBEDDED_MODES=[];
 const ALL_MODES=['complex','housings','tt','bi','hydro'];
 const MODE_NAMES={complex:'Комплексный',housings:'Только Кожуха',tt:'ТТ',bi:'БИ',hydro:'Гидродемпферы'};
 let MODE=(typeof window.__MODE__!=='undefined')?window.__MODE__:'complex';
-if(MODE!=='housings')MODE='complex';
-let LS_KEY=(MODE==='housings')?LS_KEY_HOUSINGS:LS_KEY_COMPLEX;
+if(MODE!=='housings'&&!/^k_/.test(String(MODE)))MODE='complex';
+let LS_KEY=(MODE==='housings')?LS_KEY_HOUSINGS:((MODE!=='complex')?('checklist_custom_'+MODE+'_v1'):LS_KEY_COMPLEX);
 try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}
 
 let STATE={general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[],changeLog:[]};
@@ -13480,14 +13855,45 @@ buildEquipment=function(type){
   var r=__ceOrigBuild.apply(this,arguments);
   try{
     if(!type||(typeof MODE!=='undefined'&&MODE==='housings'))return r;
+    var chk=(typeof CUSTOM_CHECKLIST!=='undefined')?CUSTOM_CHECKLIST:null;
     var list=(typeof CUSTOM_EQUIPMENT!=='undefined')?CUSTOM_EQUIPMENT:[];
     list.forEach(function(ce){
+      var want=chk?(chk.equipment.indexOf(ce.id)>=0):!!(ce.checklists&&ce.checklists.indexOf('complex')>=0);
+      if(!want)return;
       if(EQUIPMENT.some(function(e){return e.id===ce.id;}))return;
       EQUIPMENT.push({id:ce.id,title:ce.title,custom:true,fields:ce.fields.map(__ceField),instances:__ceInstances(ce.layout)});
     });
+    if(chk){   // свой чек-лист: только выбранное оборудование, в выбранном порядке
+      EQUIPMENT=EQUIPMENT.filter(function(e){return chk.equipment.indexOf(e.id)>=0;});
+      EQUIPMENT.sort(function(a,b){return chk.equipment.indexOf(a.id)-chk.equipment.indexOf(b.id);});
+    }
   }catch(e){console.warn('[конструктор]',e);}
   return r;
 };
+/* имя режима для файлов выгрузки и заголовок страницы своего чек-листа */
+function __modeLabel(){return(typeof MODE!=='undefined'&&MODE==='housings')?'кожухи':((typeof CUSTOM_CHECKLIST!=='undefined'&&CUSTOM_CHECKLIST)?CUSTOM_CHECKLIST.title:'комплексный');}
+if(typeof updateModeTitle==='function'){
+  var __ceOrigTitle=updateModeTitle;
+  updateModeTitle=function(){
+    __ceOrigTitle.apply(this,arguments);
+    try{
+      var c=(typeof CUSTOM_CHECKLIST!=='undefined')?CUSTOM_CHECKLIST:null;if(!c)return;
+      var h1=document.getElementById('modeTitle'),sub=document.getElementById('modeSubtitle');
+      if(h1)h1.textContent=c.title;if(sub)sub.textContent=c.subtitle||'';document.title='Чек-лист — '+c.title;
+    }catch(e){}
+  };
+}
+/* ===== Подсказка «номер не найден»: объясняет, откуда взят список локомотивов ===== */
+function __regHint(){
+  var base='Такого номера нет в базе для данного типа электровоза.';
+  try{
+    if(typeof REGISTRY_INFO==='undefined')return base;
+    var i=REGISTRY_INFO;
+    if(i.source==='excel')return base+' Список взят из файла zona_riska.xlsx (лист «'+i.sheet+'», локомотивов: '+i.count+'). Проверьте серию и номер в этом листе и что обновлённый файл загружен на сайт (после загрузки подождите 1–3 минуты и откройте чек-лист заново).';
+    var why={file:'файл zona_riska.xlsx не удалось прочитать (нет связи или файла нет на сайте)',sheet:'в файле нет листа «'+i.sheet+'»',empty:'в листе «'+i.sheet+'» нет ни одного корректного локомотива'}[i.reason]||'файл не использован';
+    return base+' Используется встроенный список, потому что '+why+'.';
+  }catch(e){return base;}
+}
 
 /* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
 const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
@@ -13963,7 +14369,7 @@ const dateWrap=document.createElement('div');dateWrap.className='field';dateWrap
 
 const typeWrap=document.createElement('div');typeWrap.className='field';typeWrap.dataset.generalField='type';const tl=document.createElement('label');tl.textContent='Тип электровоза';typeWrap.appendChild(tl);const ts=document.createElement('select');fillSelectOptions(ts,LOCOMOTIVE_TYPES,type,'— выберите тип —');ts.addEventListener('change',function(){const val=this.value;STATE.general.type=val;refreshChain('type');document.getElementById('locomotiveTypeTag').textContent=val||'—';buildEquipment(val);saveState(true);renderGeneral();renderPicker();renderEquip();updateStats();if(val)showToast('Тип электровоза изменён на '+val);else showToast('Выберите тип электровоза');});typeWrap.appendChild(ts);grid.appendChild(typeWrap);
 
-const numWrap=document.createElement('div');numWrap.className='field';numWrap.dataset.generalField='number';const nl=document.createElement('label');nl.textContent='Номер электровоза';numWrap.appendChild(nl);const ni=document.createElement('input');ni.type='text';ni.placeholder='Введите номер электровоза (с 2024 г.)';ni.value=number;ni.disabled=!type;ni.classList.add('number-input');const eh=document.createElement('div');eh.className='error-hint';eh.textContent='Такого номера нет в базе для данного типа электровоза.';numWrap.appendChild(ni);numWrap.appendChild(eh);
+const numWrap=document.createElement('div');numWrap.className='field';numWrap.dataset.generalField='number';const nl=document.createElement('label');nl.textContent='Номер электровоза';numWrap.appendChild(nl);const ni=document.createElement('input');ni.type='text';ni.placeholder='Введите номер электровоза (с 2024 г.)';ni.value=number;ni.disabled=!type;ni.classList.add('number-input');const eh=document.createElement('div');eh.className='error-hint';eh.textContent=__regHint();numWrap.appendChild(ni);numWrap.appendChild(eh);
 function validateNumber(){const val=ni.value.trim();if(val===''){STATE.general.number='';refreshChain('number');saveState(true);renderGeneral();updateStats();ni.classList.remove('error');eh.classList.remove('show');return true;}const valid=kzcNumbersForType(type);if(!valid.includes(val)){ni.classList.add('error');eh.classList.add('show');return false;}STATE.general.number=val;refreshChain('number');saveState(true);renderGeneral();updateStats();ni.classList.remove('error');eh.classList.remove('show');return true;}
 ni.addEventListener('blur',function(){const v=validateNumber();if(!v)setTimeout(()=>this.focus(),0);});ni.addEventListener('input',function(){this.classList.remove('error');eh.classList.remove('show');});ni.addEventListener('keypress',function(e){if(e.key==='Enter'){e.preventDefault();this.blur();}});
 if(!type){const h=document.createElement('div');h.className='hint-lock';h.textContent='Сначала выберите тип электровоза';numWrap.appendChild(h);}grid.appendChild(numWrap);
@@ -14415,7 +14821,7 @@ async function exportWithPhotos(){ try{await __psReady();}catch(e){}
         const date=STATE.general.date||'без_даты';
         const tv=STATE.general.type||'без_серии';
         const nv=STATE.general.number||'без_номера';
-        const bn=date+'_'+tv+'_'+nv+'_Чек-лист_'+(MODE==='housings'?'кожухи':'комплексный');
+        const bn=date+'_'+tv+'_'+nv+'_Чек-лист_'+__modeLabel();
         const sb=bn.replace(/[\\/\\\\:*?"<>|]/g,'_');
         a.download=sb+'.xlsx';
         a.href=url;
@@ -14448,7 +14854,7 @@ const url=URL.createObjectURL(blob);
 const a=document.createElement('a');
 const tv=STATE.general.type||'без_серии';
 const nv=STATE.general.number||'';
-const modeName=MODE==='housings'?'кожухи':'комплексный';
+const modeName=__modeLabel();
 const baseName=tv+(nv?'_'+nv:'')+'_'+modeName+(includePhotos?'_с_фото':'_без_фото');
 const sb=baseName.replace(/[\\/\\\\:*?"<>|]/g,'_');
 a.download=\`\${sb}.json\`;
@@ -14472,7 +14878,7 @@ else{const bc='</body>';const bi=newHtml.indexOf(bc);if(bi!==-1)newHtml=newHtml.
 const blob=new Blob([newHtml],{type:'text/html; charset=utf-8'});
 const url=URL.createObjectURL(blob);const a=document.createElement('a');
 const tv=STATE.general.type||'без_серии';const nv=STATE.general.number||'';
-const modeName=MODE==='housings'?'кожухи':'комплексный';
+const modeName=__modeLabel();
 const baseName=tv+(nv?'_'+nv:'')+'_'+modeName;const sb=baseName.replace(/[\\/\\\\:*?"<>|]/g,'_');
 a.download=\`чек-лист_\${sb}.html\`;a.href=url;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showToast('✅ Файл сохранён');}
 
@@ -15323,9 +15729,9 @@ function getSections(type){const count=getMaxSectionsForType(type);const s=[];fo
 const MODE_KEY='checklist_mode_v2';
 const LS_KEY_COMPLEX='checklist_2es5k_v1';
 const LS_KEY_HOUSINGS='checklist_housings_v4';
-const EMBEDDED_MODES=['complex','housings','tt','bi','hydro'];
-const ALL_MODES=['complex','housings','tt','bi','hydro'];
-const MODE_NAMES={complex:'Чек-лист Комплексный',housings:'Чек-лист проверки КМБ',tt:'Чек-лист проверки Тяговый трансформатор "ЛЗМ"',bi:'Чек-лист проверки установленной защиты системного диска (МСУД-015)',hydro:'Чек-лист проверки Гидродемпферов'};
+const EMBEDDED_MODES=['complex','housings','tt','bi','hydro'].concat(window.__cmIds?window.__cmIds():[]);
+const ALL_MODES=['complex','housings','tt','bi','hydro'].concat(window.__cmIds?window.__cmIds():[]);
+const MODE_NAMES={complex:'Чек-лист Комплексный',housings:'Чек-лист проверки КМБ',tt:'Чек-лист проверки Тяговый трансформатор "ЛЗМ"',bi:'Чек-лист проверки установленной защиты системного диска (МСУД-015)',hydro:'Чек-лист проверки Гидродемпферов'}; (window.__CUSTOM_MODES__||[]).forEach(function(m){MODE_NAMES[m.id]='Чек-лист '+m.title;});
 let MODE=null;
 let LS_KEY=LS_KEY_COMPLEX;
 if(typeof __EMBEDDED_MODE!=='undefined'&&__EMBEDDED_MODE){MODE=__EMBEDDED_MODE;const el=document.getElementById('__embedded_mode');if(el)el.parentNode.removeChild(el);}
@@ -16281,7 +16687,7 @@ function getEmbeddedSource(mode){
     if(mode==='tt')          html = EMBED_TT_HTML;
     else if(mode==='bi')     html = EMBED_BI_HTML;
     else if(mode==='hydro')  html = EMBED_HYDRO_HTML;
-    else if(mode==='complex' || mode==='housings'){
+    else if(mode==='complex' || mode==='housings' || /^k_/.test(String(mode))){
         window.__EMBEDDED_MODE__ = mode;
         html = EMBED_CHECKLIST_HTML;
     } else {
@@ -16289,7 +16695,7 @@ function getEmbeddedSource(mode){
     }
 
     // Подменяем определение instances() для НБ-514Е прямо в HTML перед выдачей в iframe
-    if(mode==='complex' || mode==='housings'){
+    if(mode==='complex' || mode==='housings' || /^k_/.test(String(mode))){
         html = html.split(NB514_OLD_JS).join(NB514_NEW_JS);
     }
     // справочник локомотивов/приписок/мест осмотра берём из zona_riska.xlsx (если файл прочитан)
@@ -17223,11 +17629,36 @@ init();
 <script>
 // Регистрация Service Worker — включает офлайн-режим и установку приложения.
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function () {
-        navigator.serviceWorker.register('sw.js').catch(function (err) {
-            console.warn('Не удалось зарегистрировать Service Worker', err);
-        });
+  // Сообщение «вышла новая версия»: service worker сравнивает свежую копию страницы с сохранённой.
+  var __updShow = function () {
+    if (document.getElementById('updBanner')) return;
+    var d = document.createElement('div'); d.id = 'updBanner';
+    d.setAttribute('style', 'position:fixed;left:8px;right:8px;bottom:8px;z-index:3600;background:#0a5eb0;color:#fff;padding:12px 14px;border-radius:10px;font:600 14px/1.35 sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.35);display:flex;gap:10px;align-items:center;flex-wrap:wrap');
+    var t = document.createElement('span'); t.style.flex = '1 1 200px';
+    t.textContent = '🔄 Вышла новая версия приложения. Обновите страницу, когда закончите текущий чек-лист (введённые данные сохраняются).';
+    var b = document.createElement('button'); b.textContent = 'Обновить'; b.setAttribute('style', 'border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer');
+    b.onclick = function () { location.reload(); };
+    var c = document.createElement('button'); c.textContent = 'Позже'; c.setAttribute('style', 'border:0;border-radius:8px;padding:8px 12px;cursor:pointer');
+    c.onclick = function () { d.remove(); };
+    d.appendChild(t); d.appendChild(b); d.appendChild(c); document.body.appendChild(d);
+  };
+  navigator.serviceWorker.addEventListener('message', function (e) {
+    if (e.data && e.data.type === 'update-available') __updShow();
+  });
+  var __updLast = 0;
+  var __updCheck = function () {
+    var n = Date.now(); if (n - __updLast < 120000) return; __updLast = n;
+    navigator.serviceWorker.getRegistration().then(function (r) { if (r) r.update(); });
+    fetch('index.html', { cache: 'no-cache' }).catch(function () {});   // идёт через service worker — он сравнит копии
+  };
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function (err) {
+      console.warn('Не удалось зарегистрировать Service Worker', err);
     });
+    setTimeout(__updCheck, 4000);
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) __updCheck(); });
+  setInterval(__updCheck, 30 * 60 * 1000);
 }
 </script>
 <!-- ============================================================
@@ -18731,6 +19162,8 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
         if(!e.explicitPlace&&e.places.length>1)p.appendChild(el('small',null,'  (по приписке)'));
         c.appendChild(p);
       }
+      var km=C.mileageFor(e.series,e.number);
+      if(km!=null)c.appendChild(el('div','rz-place','🛣 Пробег по данным завода: '+km+' км (ниже вводить нельзя)'));
       var nt=C.nodeRulesText(mode,e);
       if(nt)c.appendChild(el('div','rz-place','🔧 Узлы: '+nt));
       if(e.comment)c.appendChild(el('div','rz-comm',e.comment));
@@ -18762,18 +19195,18 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
     ui.depot.onchange=render;ui.q.oninput=render;
     var loco=curLoco();if(loco&&loco.n)ui.q.value=loco.n;   // сразу показываем текущий локомотив
   }
-  function refresh(force){
+  function refresh(force,silent){
     if(!ui)return;
-    ui.list.innerHTML='';ui.list.appendChild(el('div','rz-banner warn','Загрузка…'));
+    if(!silent){ui.list.innerHTML='';ui.list.appendChild(el('div','rz-banner warn','Загрузка…'));}
     load(force).then(function(){
       if(!ui)return;ui.stamp.textContent=store.stamp?('Файл от '+store.stamp):'';render();
     }).catch(function(){
-      if(!ui)return;ui.list.innerHTML='';ui.list.appendChild(el('div','rz-banner bad','Не удалось загрузить данные: '+(store.error||'ошибка')));
+      if(!ui||(silent&&store.data))return;ui.list.innerHTML='';ui.list.appendChild(el('div','rz-banner bad','Не удалось загрузить данные: '+(store.error||'ошибка')));
     });
   }
   function open(){
     if(!curMode()){return;}
-    build();ov.classList.add('open');refresh(!store.data);
+    build();ov.classList.add('open');if(store.data)render();refresh(true,!!store.data);   // всегда перечитываем файл; старые данные показываем сразу
     setTimeout(function(){try{ui.q.focus();}catch(e){}},50);
   }
   function close(){ov.classList.remove('open');ui=null;}
@@ -18825,7 +19258,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
 <button class="btn" id="devFab" type="button" title="Конструктор оборудования">🛠<span class="dvt"> Разработчик</span></button>
 <div id="devOverlay" role="dialog" aria-label="Конструктор оборудования">
   <div class="dv-bar">
-    <b>🛠 Конструктор оборудования (комплексный чек-лист)</b>
+    <b>🛠 Конструктор оборудования и чек-листов</b>
     <span class="dv-status" id="devStatus"></span>
     <button class="btn" id="devPrev" type="button">👁 Предпросмотр</button>
     <button class="btn" id="devExp" type="button">⬇ Экспорт</button>
@@ -18841,7 +19274,8 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
 <div id="devGh"><div class="dv-modal">
   <h3>⚙ Публикация в GitHub</h3>
   <div class="dv-row"><div><label>Владелец</label><input id="ghOwner"></div><div><label>Репозиторий</label><input id="ghRepo"></div></div>
-  <div class="dv-row"><div><label>Ветка</label><input id="ghBranch"></div><div><label>Файл в репозитории</label><input id="ghPath"></div></div>
+  <div class="dv-row"><div><label>Ветка</label><input id="ghBranch"></div><div><label>Файл оборудования</label><input id="ghPath"></div></div>
+  <div class="dv-row" style="grid-template-columns:1fr"><div><label>Файл справочника (Excel)</label><input id="ghPathXlsx"></div></div>
   <div class="dv-row" style="grid-template-columns:1fr"><div><label>Токен GitHub (fine-grained, права Contents: Read and write на этот репозиторий)</label><input id="ghToken" type="password" autocomplete="off" placeholder="github_pat_…"></div></div>
   <label style="display:flex;gap:6px;align-items:center;font-size:14px;margin:6px 0"><input type="checkbox" id="ghRemember" style="width:auto"> запомнить токен на этом устройстве (иначе — только до закрытия вкладки)</label>
   <div id="ghMsg"></div>
@@ -18852,8 +19286,10 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   'use strict';
   var C=window.__RISK_CORE__;if(!C)return;
   var LS_DRAFT='dev_draft_v1',LS_GH='dev_github_v1',LS_TOKEN='dev_token_v1',SS_TOKEN='dev_token_v1';
+  var ICONS=['🔧','🌡️','⚙️','🔩','🛢️','🔌','🧰','📋','🚆','🔍','🛠️','⚡'];
+  var COPY_SHEETS=['ТТ','БИ','Гидродемпферы','Комплексный','КМБ'];
   var $=function(id){return document.getElementById(id);};
-  var st={items:[],sel:0,published:'[]',msgs:[]};
+  var st={items:[],checks:[],copyFrom:{},view:'eq',sel:0,csel:0,published:'',msgs:[]};
   function isDev(){try{var u=JSON.parse(localStorage.getItem('checklist_user')||'null');return !!(u&&u.dev===true);}catch(e){return false;}}
   function h(tag,attrs,kids){
     var e=document.createElement(tag);
@@ -18864,53 +19300,76 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
     return e;
   }
   function copy(o){return JSON.parse(JSON.stringify(o));}
-  function cleaned(){return C.cleanCustom({equipment:st.items});}
-  function norm(list){return JSON.stringify(list);}
+  function cleaned(){return C.cleanCustom({equipment:st.items,checklists:st.checks});}
+  function norm(c){return JSON.stringify({e:c.list,c:c.checklists});}
+  function allEquip(){
+    var out=C.BUILTIN_EQ.map(function(b){return {id:b.id,title:b.title,builtin:true};});
+    st.items.forEach(function(it){out.push({id:it.id,title:it.title||'(без названия)',builtin:false});});
+    return out;
+  }
 
   /* ---------- модель ---------- */
   function nextKey(it){var n=0;it.fields.forEach(function(f){var m=/^f(\d+)$/.exec(f.key||'');if(m)n=Math.max(n,+m[1]);});return 'f'+(n+1);}
-  function newField(it,type){
-    return {key:nextKey(it),label:'',type:type,options:type==='select'?['Да','Нет']:[],ok:type==='select'?['Да']:[],photo:type==='select'?'deviation':'never',calc:true,hint:'',explain:''};
-  }
+  function newField(it,type){return {key:nextKey(it),label:'',type:type,options:type==='select'?['Да','Нет']:[],ok:type==='select'?['Да']:[],photo:type==='select'?'deviation':'never',calc:true,hint:'',explain:''};}
   function newItem(){
     var it={id:'c_'+Date.now().toString(36),title:'Новое оборудование',checklists:['complex'],layout:{scope:'all',blocks:[],count:1},fields:[]};
     it.fields.push(newField(it,'select'));return it;
   }
+  function newCheck(){return {id:'k_'+Date.now().toString(36),title:'Новый чек-лист',subtitle:'',icon:'🔧',sheet:'',equipment:[]};}
+  function showIssues(c){
+    var box=$('devIssues');if(!box)return;box.innerHTML='';
+    if(c.issues.length)box.appendChild(h('div',{class:'dv-msg warn',text:'Нужно исправить перед публикацией:\n• '+c.issues.join('\n• ')}));
+  }
   function save(){
-    var same=norm(cleaned().list)===st.published;
-    try{if(same)localStorage.removeItem(LS_DRAFT);else localStorage.setItem(LS_DRAFT,JSON.stringify(st.items));}catch(e){}   // черновик храним, только если он отличается от опубликованного
+    var cc=cleaned(),same=norm(cc)===st.published;showIssues(cc);
+    try{if(same)localStorage.removeItem(LS_DRAFT);else localStorage.setItem(LS_DRAFT,JSON.stringify({equipment:st.items,checklists:st.checks,copyFrom:st.copyFrom}));}catch(e){}   // черновик храним, только если он отличается от опубликованного
     $('devStatus').textContent=same?'совпадает с опубликованным':'есть неопубликованные изменения';
   }
   function say(kind,text){st.msgs=[{k:kind,t:text}];renderMsgs();}
   function renderMsgs(){var box=$('devMsgBox');if(!box)return;box.innerHTML='';st.msgs.forEach(function(m){box.appendChild(h('div',{class:'dv-msg '+m.k,text:m.t}));});}
+  function publishedNorm(){return norm({list:C.store.custom||[],checklists:C.store.checklists||[]});}
 
-  /* ---------- отрисовка ---------- */
+  /* ---------- вкладки и список слева ---------- */
+  function tabs(){
+    return h('div',{style:'display:flex;gap:6px;margin-bottom:8px'},[
+      h('button',{class:'btn'+(st.view==='eq'?' on':''),type:'button',style:'flex:1'+(st.view==='eq'?';background:#0a5eb0;color:#fff':''),text:'Оборудование ('+st.items.length+')',onclick:function(){st.view='eq';render();}}),
+      h('button',{class:'btn'+(st.view==='ck'?' on':''),type:'button',style:'flex:1'+(st.view==='ck'?';background:#0a5eb0;color:#fff':''),id:'devTabCk',text:'Чек-листы ('+st.checks.length+')',onclick:function(){st.view='ck';render();}})]);
+  }
+  function swap(arr,i,j,selKey){var t=arr[i];arr[i]=arr[j];arr[j]=t;if(st[selKey]===i)st[selKey]=j;else if(st[selKey]===j)st[selKey]=i;}
   function renderList(){
-    var L=$('devList');L.innerHTML='';
-    L.appendChild(h('button',{class:'btn primary',type:'button',style:'width:100%;margin-bottom:8px',text:'➕ Новое оборудование',onclick:function(){st.items.push(newItem());st.sel=st.items.length-1;save();render();}}));
-    st.items.forEach(function(it,i){
-      var row=h('div',{class:'dv-item'+(i===st.sel?' sel':''),onclick:function(){st.sel=i;render();}},[
-        h('span',{text:it.title||'(без названия)'}),
-        h('button',{class:'btn',type:'button',title:'Вверх',text:'↑',onclick:function(ev){ev.stopPropagation();if(i>0){var t=st.items[i];st.items[i]=st.items[i-1];st.items[i-1]=t;if(st.sel===i)st.sel=i-1;save();render();}}}),
-        h('button',{class:'btn',type:'button',title:'Вниз',text:'↓',onclick:function(ev){ev.stopPropagation();if(i<st.items.length-1){var t=st.items[i];st.items[i]=st.items[i+1];st.items[i+1]=t;if(st.sel===i)st.sel=i+1;save();render();}}})
-      ]);
-      L.appendChild(row);
-    });
-    if(!st.items.length)L.appendChild(h('div',{class:'dv-msg warn',text:'Пока нет оборудования. Нажмите «Новое оборудование».'}));
+    var L=$('devList');L.innerHTML='';L.appendChild(tabs());
+    if(st.view==='eq'){
+      L.appendChild(h('button',{class:'btn primary',type:'button',style:'width:100%;margin-bottom:8px',text:'➕ Новое оборудование',onclick:function(){st.items.push(newItem());st.sel=st.items.length-1;save();render();}}));
+      st.items.forEach(function(it,i){
+        L.appendChild(h('div',{class:'dv-item'+(i===st.sel?' sel':''),onclick:function(){st.sel=i;render();}},[
+          h('span',{text:it.title||'(без названия)'}),
+          h('button',{class:'btn',type:'button',title:'Вверх',text:'↑',onclick:function(ev){ev.stopPropagation();if(i>0){swap(st.items,i,i-1,'sel');save();render();}}}),
+          h('button',{class:'btn',type:'button',title:'Вниз',text:'↓',onclick:function(ev){ev.stopPropagation();if(i<st.items.length-1){swap(st.items,i,i+1,'sel');save();render();}}})]));
+      });
+      if(!st.items.length)L.appendChild(h('div',{class:'dv-msg warn',text:'Пока нет оборудования. Нажмите «Новое оборудование».'}));
+    }else{
+      L.appendChild(h('button',{class:'btn primary',type:'button',id:'devNewCk',style:'width:100%;margin-bottom:8px',text:'➕ Новый чек-лист',onclick:function(){st.checks.push(newCheck());st.csel=st.checks.length-1;save();render();}}));
+      st.checks.forEach(function(k,i){
+        L.appendChild(h('div',{class:'dv-item'+(i===st.csel?' sel':''),onclick:function(){st.csel=i;render();}},[
+          h('span',{text:(k.icon||'🔧')+' '+(k.title||'(без названия)')}),
+          h('button',{class:'btn',type:'button',title:'Вверх',text:'↑',onclick:function(ev){ev.stopPropagation();if(i>0){swap(st.checks,i,i-1,'csel');save();render();}}}),
+          h('button',{class:'btn',type:'button',title:'Вниз',text:'↓',onclick:function(ev){ev.stopPropagation();if(i<st.checks.length-1){swap(st.checks,i,i+1,'csel');save();render();}}})]));
+      });
+      if(!st.checks.length)L.appendChild(h('div',{class:'dv-msg warn',text:'Пока нет чек-листов. Нажмите «Новый чек-лист».'}));
+    }
   }
   function field(label,control){return h('div',null,[h('label',{text:label}),control]);}
-  function renderEditor(){
-    var E=$('devEditor');E.innerHTML='';E.appendChild(h('div',{id:'devMsgBox'}));
-    var c=cleaned();
-    if(c.issues.length)E.appendChild(h('div',{class:'dv-msg warn',text:'Нужно исправить перед публикацией:\n• '+c.issues.join('\n• ')}));
+
+  /* ---------- редактор оборудования ---------- */
+  function renderEquipEditor(E){
     var it=st.items[st.sel];
-    if(!it){E.appendChild(h('div',{class:'dv-msg warn',text:'Выберите оборудование слева или создайте новое.'}));renderMsgs();return;}
-    // общие
+    if(!it){E.appendChild(h('div',{class:'dv-msg warn',text:'Выберите оборудование слева или создайте новое.'}));return;}
+    var inComplex=!it.checklists||it.checklists.indexOf('complex')>=0;
     E.appendChild(h('div',{class:'dv-card'},[
       h('h4',{text:'Оборудование'}),
       h('div',{class:'dv-row'},[
         field('Название (как в списке выбора и в чек-листе)',h('input',{value:it.title,oninput:function(){it.title=this.value;save();renderList();}})),
-        field('Где использовать',h('select',null,[h('option',{text:'Комплексный чек-лист',value:'complex'})]))
+        field('Комплексный чек-лист',h('label',{class:'dv-ok'},[h('input',{type:'checkbox',style:'width:auto',checked:inComplex,onchange:function(){it.checklists=this.checked?['complex']:[];save();}}),'Включать это оборудование в комплексный чек-лист'])),
       ]),
       h('div',{class:'dv-row'},[
         field('Формат размещения: на каких секциях',h('select',{onchange:function(){it.layout.scope=this.value;save();}},[
@@ -18920,14 +19379,16 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
         field('Сколько таких узлов в секции',h('input',{type:'number',min:'1',max:'30',value:it.layout.count||1,oninput:function(){it.layout.count=Math.max(1,Math.min(30,parseInt(this.value,10)||1));save();}})),
         field('Или названия узлов в секции (по одному в строке; заменяет «сколько»)',h('textarea',{value:(it.layout.blocks||[]).join('\n'),oninput:function(){it.layout.blocks=this.value.split('\n').map(function(x){return x.trim();}).filter(Boolean);save();}}))
       ]),
-      h('div',{class:'dv-acts'},[h('button',{class:'btn',type:'button',text:'🗑 Удалить оборудование',onclick:function(){if(confirm('Удалить «'+(it.title||'без названия')+'» вместе со всеми полями?')){st.items.splice(st.sel,1);st.sel=Math.max(0,st.sel-1);save();render();}}})])
+      h('div',{class:'dv-acts'},[h('button',{class:'btn',type:'button',text:'🗑 Удалить оборудование',onclick:function(){
+        var used=st.checks.filter(function(k){return k.equipment.indexOf(it.id)>=0;}).map(function(k){return k.title;});
+        if(confirm('Удалить «'+(it.title||'без названия')+'» вместе со всеми полями?'+(used.length?'\nОно входит в чек-листы: '+used.join(', ')+' — оттуда оно тоже уберётся.':''))){
+          st.checks.forEach(function(k){k.equipment=k.equipment.filter(function(x){return x!==it.id;});});
+          st.items.splice(st.sel,1);st.sel=Math.max(0,st.sel-1);save();render();}}})])
     ]));
-    // поля
     it.fields.forEach(function(fl,i){E.appendChild(fieldCard(it,fl,i));});
     E.appendChild(h('div',{class:'dv-acts'},[
       h('button',{class:'btn',type:'button',text:'➕ Выпадающий список',onclick:function(){it.fields.push(newField(it,'select'));save();render();}}),
       h('button',{class:'btn',type:'button',text:'➕ Текстовое поле',onclick:function(){it.fields.push(newField(it,'text'));save();render();}})]));
-    renderMsgs();
   }
   function fieldCard(it,fl,i){
     var body=[];
@@ -18961,42 +19422,94 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
       h('button',{class:'btn',type:'button',text:'🗑 Удалить поле',onclick:function(){it.fields.splice(i,1);save();render();}})]));
     return h('div',{class:'dv-card'},[h('h4',{text:'Поле '+(i+1)+(fl.label?': '+fl.label:'')})].concat(body));
   }
+
+  /* ---------- редактор чек-листов ---------- */
+  function sheetSuggest(k){return String(k.sheet||k.title||'').replace(/[\[\]:*?\/\\<>]/g,'').replace(/\s+/g,' ').trim().slice(0,31);}
+  function renderCheckEditor(E){
+    var k=st.checks[st.csel];
+    if(!k){E.appendChild(h('div',{class:'dv-msg warn',text:'Выберите чек-лист слева или создайте новый.'}));return;}
+    var titles={};allEquip().forEach(function(e){titles[e.id]=e.title;});
+    var chosen=k.equipment.map(function(id){return {id:id,title:titles[id]||('(не найдено: '+id+')')};});
+    var free=allEquip().filter(function(e){return k.equipment.indexOf(e.id)<0;});
+    E.appendChild(h('div',{class:'dv-card'},[
+      h('h4',{text:'Чек-лист'}),
+      h('div',{class:'dv-row'},[
+        field('Название (кнопка на стартовом экране)',h('input',{id:'ckTitle',value:k.title,oninput:function(){k.title=this.value;save();renderList();}})),
+        field('Подзаголовок (под названием)',h('input',{value:k.subtitle||'',oninput:function(){k.subtitle=this.value;save();}})),
+        field('Значок',h('select',{onchange:function(){k.icon=this.value;save();renderList();}},ICONS.map(function(ic){return h('option',{value:ic,text:ic,selected:(k.icon||'🔧')===ic});})))
+      ]),
+      h('div',{class:'dv-row'},[
+        field('Лист Excel со списком локомотивов (создаётся при публикации)',h('input',{id:'ckSheet',value:k.sheet||'',placeholder:sheetSuggest(k)||'как название чек-листа',oninput:function(){k.sheet=this.value;save();}})),
+        field('Первоначальный список локомотивов в новом листе',h('select',{id:'ckCopy',onchange:function(){st.copyFrom[k.id]=this.value;save();}},
+          [h('option',{value:'',text:'Пустой (добавлю сам в редакторе справочника)',selected:!st.copyFrom[k.id]})].concat(COPY_SHEETS.map(function(n){return h('option',{value:n,text:'Скопировать список из листа «'+n+'»',selected:st.copyFrom[k.id]===n});}))))
+      ])
+    ]));
+    E.appendChild(h('div',{class:'dv-card'},[
+      h('h4',{text:'Оборудование в этом чек-листе (в таком порядке оно будет показано)'}),
+      chosen.length?h('div',null,chosen.map(function(c,i){
+        return h('div',{class:'dv-item'},[h('span',{text:c.title}),
+          h('button',{class:'btn',type:'button',text:'↑',onclick:function(){if(i>0){var t=k.equipment[i];k.equipment[i]=k.equipment[i-1];k.equipment[i-1]=t;save();render();}}}),
+          h('button',{class:'btn',type:'button',text:'↓',onclick:function(){if(i<k.equipment.length-1){var t=k.equipment[i];k.equipment[i]=k.equipment[i+1];k.equipment[i+1]=t;save();render();}}}),
+          h('button',{class:'btn',type:'button',text:'✕',title:'Убрать',onclick:function(){k.equipment.splice(i,1);save();render();}})]);
+      })):h('div',{class:'dv-msg warn',text:'Пока ничего не выбрано. Добавьте оборудование из списка ниже.'}),
+      h('h4',{text:'Добавить в чек-лист',style:'margin-top:12px'}),
+      h('div',{class:'dv-ok',id:'ckFree'},free.map(function(e){
+        return h('button',{class:'btn',type:'button',text:'➕ '+e.title+(e.builtin?'':' ★'),onclick:function(){k.equipment.push(e.id);save();render();}});})),
+      h('div',{class:'dv-msg',style:'margin-top:8px;font-size:12px',text:'★ — оборудование, созданное в конструкторе. Остальное — готовое оборудование комплексного чек-листа. Особые блоки (например, КПС) работают так же, как в комплексном.'})
+    ]));
+    E.appendChild(h('div',{class:'dv-acts'},[h('button',{class:'btn',type:'button',text:'🗑 Удалить чек-лист',onclick:function(){
+      if(confirm('Удалить чек-лист «'+(k.title||'без названия')+'»? Лист «'+(k.sheet||sheetSuggest(k))+'» в Excel останется, его можно удалить вручную.')){st.checks.splice(st.csel,1);st.csel=Math.max(0,st.csel-1);save();render();}}})]));
+  }
+  function renderEditor(){
+    var E=$('devEditor');E.innerHTML='';E.appendChild(h('div',{id:'devMsgBox'}));E.appendChild(h('div',{id:'devIssues'}));
+    if(st.view==='ck')renderCheckEditor(E);else renderEquipEditor(E);
+    renderMsgs();
+  }
   function render(){renderList();renderEditor();save();}
 
   /* ---------- предпросмотр на настоящем движке ---------- */
   function openPreview(){
-    var c=cleaned();
-    if(!c.list.length){say('warn','Для предпросмотра нужно хотя бы одно корректное оборудование.');return;}
+    var c=cleaned(),ck=null,mode='complex';
+    if(st.view==='ck'){
+      var cur=st.checks[st.csel];ck=cur?c.checklists.filter(function(x){return x.id===(cur.id.indexOf('k_')===0?cur.id:'k_'+cur.id);})[0]:null;
+      if(!ck){say('warn','Чек-лист не прошёл проверку — исправьте замечания (см. выше) и повторите.');return;}
+      mode=ck.id;
+    }
+    var list=copy(c.list);
+    if(!ck){list.forEach(function(e){e.checklists=['complex'];});}   // показываем всё созданное, даже если не включено в комплексный
+    if(!list.length){say('warn','Для предпросмотра нужно хотя бы одно корректное оборудование.');return;}
+    var oldModes=(C.store.checklists||[]).map(function(x){return {id:x.id,title:x.title,subtitle:x.subtitle,icon:x.icon,sheet:x.sheet};});
     try{
-      C.devOverride=c.list;
-      var html=getEmbeddedSource('complex');           // функция оболочки
-      C.devOverride=null;
-      var ids=c.list.map(function(e){return e.id;});
+      C.devOverride=list;C.devChecklists=ck?[ck]:null;
+      if(ck)C.applyModes(oldModes.filter(function(m){return m.id!==ck.id;}).concat([{id:ck.id,title:ck.title,subtitle:ck.subtitle,icon:ck.icon,sheet:ck.sheet}]));
+      var html=getEmbeddedSource(mode);
+      var ids=ck?ck.equipment:list.map(function(e){return e.id;});
       var today=new Date().toISOString().slice(0,10),num='591',depot='ТЧЭ-10 Карасук',place='СЛД-9 КАРАСУК';
       try{depot=LOCOMOTIVE_DATA['2ЭС5К'][num]||depot;var pl=(DEPOT_PLACES[depot]||[])[0];if(pl)place=pl;}catch(e){}
       var state={general:{type:'2ЭС5К',number:num,date:today,depot:depot,place:place,mileage:'999999'},values:{},selectedSections:[],selected:ids,changeLog:[]};
-      html=html.split('checklist_2es5k_v1').join('checklist_2es5k_preview');     // отдельное хранилище: рабочие данные не затрагиваются
+      html=html.split('checklist_2es5k_v1').join('checklist_2es5k_preview').split("'checklist_custom_'+MODE+'_v1'").join("'checklist_custom_'+MODE+'_preview'");   // отдельное хранилище
       var inj='<script>window.__EMBEDDED_STATE = '+JSON.stringify(state).replace(/</g,'\\u003c')+';</'+'script>';
       var i=html.indexOf('<script');html=html.slice(0,i)+inj+html.slice(i);
       $('devPrevFrame').srcdoc=html;$('devPreview').classList.add('open');
-    }catch(e){C.devOverride=null;say('bad','Не удалось открыть предпросмотр: '+e.message);}
+    }catch(e){say('bad','Не удалось открыть предпросмотр: '+e.message);}
+    finally{C.devOverride=null;C.devChecklists=null;C.applyModes(oldModes);}
   }
 
   /* ---------- экспорт / импорт ---------- */
-  function payload(list){return JSON.stringify({version:1,updated:new Date().toISOString(),equipment:list},null,2)+'\n';}
+  function payload(c){return JSON.stringify({version:2,updated:new Date().toISOString(),equipment:c.list,checklists:c.checklists},null,2)+'\n';}
   function doExport(){
-    var c=cleaned();var blob=new Blob([payload(c.list)],{type:'application/json'});
+    var c=cleaned();var blob=new Blob([payload(c)],{type:'application/json'});
     var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=C.CUSTOM_FILE;document.body.appendChild(a);a.click();
     setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);
-    say(c.issues.length?'warn':'ok','Файл '+C.CUSTOM_FILE+' скачан ('+c.list.length+' шт.).'+(c.issues.length?' В файл не попали записи с ошибками.':''));
+    say(c.issues.length?'warn':'ok','Файл '+C.CUSTOM_FILE+' скачан (оборудование: '+c.list.length+', чек-листы: '+c.checklists.length+').'+(c.issues.length?' В файл не попали записи с ошибками.':''));
   }
   function doImport(file){
     var r=new FileReader();
     r.onload=function(){
       try{var j=JSON.parse(r.result);var c=C.cleanCustom(j);
-        if(!c.list.length&&!confirm('В файле не найдено корректного оборудования. Всё равно заменить текущий список пустым?'))return;
-        if(st.items.length&&!confirm('Заменить текущий список ('+st.items.length+' шт.) данными из файла ('+c.list.length+' шт.)?'))return;
-        st.items=copy(c.list);st.sel=0;render();say(c.issues.length?'warn':'ok','Загружено: '+c.list.length+' шт.'+(c.issues.length?'\nПропущено:\n• '+c.issues.join('\n• '):''));
+        if(!c.list.length&&!c.checklists.length&&!confirm('В файле не найдено корректных данных. Всё равно заменить текущие данные пустыми?'))return;
+        if((st.items.length||st.checks.length)&&!confirm('Заменить текущие данные (оборудование: '+st.items.length+', чек-листы: '+st.checks.length+') данными из файла (оборудование: '+c.list.length+', чек-листы: '+c.checklists.length+')?'))return;
+        st.items=copy(c.list);st.checks=copy(c.checklists);st.sel=0;st.csel=0;render();say(c.issues.length?'warn':'ok','Загружено: оборудование '+c.list.length+', чек-листы '+c.checklists.length+'.'+(c.issues.length?'\nПропущено:\n• '+c.issues.join('\n• '):''));
       }catch(e){say('bad','Не удалось прочитать файл: '+e.message);}
     };
     r.readAsText(file);
@@ -19004,7 +19517,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
 
   /* ---------- GitHub ---------- */
   function ghCfg(){
-    var d={owner:'volchonok16161-droid',repo:'prilogenia',branch:'main',path:'oborudovanie.json'};
+    var d={owner:'volchonok16161-droid',repo:'prilogenia',branch:'main',path:'oborudovanie.json',pathXlsx:'zona_riska.xlsx'};
     try{var s=JSON.parse(localStorage.getItem(LS_GH)||'{}');for(var k in s)if(s[k])d[k]=s[k];}catch(e){}
     return d;
   }
@@ -19025,33 +19538,67 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
     return what+': ошибка '+s+'. '+m;
   }
   function b64(str){return btoa(unescape(encodeURIComponent(str)));}
+  function b64bytes(bytes){var s='';for(var i=0;i<bytes.length;i+=0x8000)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));return btoa(s);}
+  function unb64(str){var bin=atob(String(str).replace(/\s+/g,'')),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;}
+  // перед публикацией чек-листов создаём в Excel недостающие листы со списками локомотивов
+  function ensureSheets(cfg,cks){
+    var path=cfg.pathXlsx||'zona_riska.xlsx',url='/repos/'+encodeURIComponent(cfg.owner)+'/'+encodeURIComponent(cfg.repo)+'/contents/'+enc(path);
+    return ghApi('GET',url+'?ref='+encodeURIComponent(cfg.branch)).then(function(g){
+      if(g.status===404)throw new Error('Файла '+path+' нет в репозитории — сначала загрузите его туда один раз.');
+      if(g.status!==200)throw new Error(ghErr(g,'Чтение справочника'));
+      var bytes=unb64(g.json.content||''),ab=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);
+      return C.xlsx.index(ab).then(function(ix){
+        var miss=cks.filter(function(k){return !ix.paths[k.sheet];});
+        if(!miss.length)return {created:[]};
+        return C.parseXlsx(ab).then(function(sheets){
+          var specs=miss.map(function(k){
+            var rows=[],src=st.copyFrom[st.checks.filter(function(x){return (x.id.indexOf('k_')===0?x.id:'k_'+x.id)===k.id;}).map(function(x){return x.id;})[0]]||'';
+            if(src&&sheets[src]){rows=sheets[src].slice(1).filter(function(r){return r&&r.some(function(x){return x!=null&&x!=='';});}).map(function(r){return [0,1,2,3,4].map(function(i){return r[i]==null?'':r[i];});});}
+            return {name:k.sheet,header:['Серия','Номер','Приписка','Место осмотра (необязательно)','Комментарий (необязательно)'],rows:rows,widths:[12,12,26,36,40],styleFrom:'ТТ',seriesCol:0,seriesList:C.builtinSeries()};
+          });
+          return C.xlsx.addSheets(ab,specs).then(function(res){
+            return ghApi('PUT',url,{message:'Справочник: новые листы чек-листов ('+res.added.join(', ')+')',content:b64bytes(res.bytes),branch:cfg.branch,sha:g.json.sha}).then(function(p){
+              if(p.status!==200&&p.status!==201)throw new Error(ghErr(p,'Запись справочника'));
+              return {created:res.added};
+            });
+          });
+        });
+      });
+    });
+  }
   function publish(){
     var c=cleaned();
     if(c.issues.length){say('bad','Публикация остановлена — исправьте ошибки:\n• '+c.issues.join('\n• '));return;}
     var cfg=ghCfg();
     if(!ghToken()){say('warn','Сначала укажите токен GitHub (кнопка «⚙ GitHub»).');openGh();return;}
-    if(!confirm('Опубликовать '+c.list.length+' шт. оборудования в '+cfg.owner+'/'+cfg.repo+' ('+cfg.branch+')?\nПользователи увидят изменения через 1–3 минуты.'))return;
+    if(!confirm('Опубликовать в '+cfg.owner+'/'+cfg.repo+' ('+cfg.branch+'): оборудование — '+c.list.length+', чек-листы — '+c.checklists.length+'?'+(c.checklists.length?'\nНедостающие листы со списками локомотивов будут созданы в Excel.':'')+'\nПользователи увидят изменения через 1–3 минуты.'))return;
     var url='/repos/'+encodeURIComponent(cfg.owner)+'/'+encodeURIComponent(cfg.repo)+'/contents/'+enc(cfg.path);
-    say('warn','Публикация…');$('devPub').disabled=true;
-    ghApi('GET',url+'?ref='+encodeURIComponent(cfg.branch)).then(function(g){
+    say('warn','Публикация…');$('devPub').disabled=true;var created=[];
+    (c.checklists.length?ensureSheets(cfg,c.checklists):Promise.resolve({created:[]})).then(function(r){
+      created=r.created;
+      return ghApi('GET',url+'?ref='+encodeURIComponent(cfg.branch));
+    }).then(function(g){
       if(g.status!==200&&g.status!==404)throw new Error(ghErr(g,'Чтение файла'));
-      var body={message:'Конструктор: оборудование комплексного чек-листа ('+c.list.length+' шт.)',content:b64(payload(c.list)),branch:cfg.branch};
+      var body={message:'Конструктор: оборудование '+c.list.length+', чек-листы '+c.checklists.length,content:b64(payload(c)),branch:cfg.branch};
       if(g.status===200&&g.json&&g.json.sha)body.sha=g.json.sha;
       return ghApi('PUT',url,body);
     }).then(function(p){
-      if(p.status!==200&&p.status!==201)throw new Error(ghErr(p,'Запись файла'));
-      C.store.custom=copy(c.list);st.published=norm(c.list);save();
+      if(p.status!==200&&p.status!==201)throw new Error(ghErr(p,'Запись файла')+(created.length?'\n(Листы Excel уже созданы: '+created.join(', ')+'. Повторите публикацию.)':''));
+      C.store.custom=copy(c.list);C.store.checklists=copy(c.checklists);
+      var modes=c.checklists.map(function(k){return {id:k.id,title:k.title,subtitle:k.subtitle,icon:k.icon,sheet:k.sheet};});
+      C.applyModes(modes);try{localStorage.setItem('custom_modes_v1',JSON.stringify(modes));}catch(e){}C.renderModeButtons();
+      st.published=norm(c);save();
       var link=(p.json&&p.json.commit&&p.json.commit.html_url)||'';
-      say('ok','✅ Опубликовано ('+c.list.length+' шт.). GitHub Pages обновится через 1–3 минуты.'+(link?'\nКоммит: '+link:''));
+      say('ok','✅ Опубликовано (оборудование: '+c.list.length+', чек-листы: '+c.checklists.length+').'+(created.length?'\nСозданы листы Excel: '+created.join(', ')+'. Заполните их в «📊 Справочник (Excel)».':'')+'\nGitHub Pages обновится через 1–3 минуты.'+(link?'\nКоммит: '+link:''));
     }).catch(function(e){say('bad','❌ '+e.message);}).then(function(){$('devPub').disabled=false;});
   }
   function openGh(){
-    var cfg=ghCfg();$('ghOwner').value=cfg.owner;$('ghRepo').value=cfg.repo;$('ghBranch').value=cfg.branch;$('ghPath').value=cfg.path;
+    var cfg=ghCfg();$('ghOwner').value=cfg.owner;$('ghRepo').value=cfg.repo;$('ghBranch').value=cfg.branch;$('ghPath').value=cfg.path;$('ghPathXlsx').value=cfg.pathXlsx||'zona_riska.xlsx';
     $('ghToken').value='';$('ghToken').placeholder=ghToken()?'токен сохранён (введите новый, чтобы заменить)':'github_pat_…';
     $('ghRemember').checked=!!localStorage.getItem(LS_TOKEN);$('ghMsg').innerHTML='';$('devGh').classList.add('open');
   }
   function ghSave(){
-    var cfg={owner:$('ghOwner').value.trim(),repo:$('ghRepo').value.trim(),branch:$('ghBranch').value.trim(),path:$('ghPath').value.trim()};
+    var cfg={owner:$('ghOwner').value.trim(),repo:$('ghRepo').value.trim(),branch:$('ghBranch').value.trim(),path:$('ghPath').value.trim(),pathXlsx:$('ghPathXlsx').value.trim()};
     try{localStorage.setItem(LS_GH,JSON.stringify(cfg));}catch(e){}
     var tok=$('ghToken').value.trim();
     if(tok){try{sessionStorage.setItem(SS_TOKEN,tok);if($('ghRemember').checked)localStorage.setItem(LS_TOKEN,tok);else localStorage.removeItem(LS_TOKEN);}catch(e){}}
@@ -19071,20 +19618,33 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   /* ---------- открытие/закрытие ---------- */
   function open(){
     var draft=null;try{draft=JSON.parse(localStorage.getItem(LS_DRAFT)||'null');}catch(e){}
+    if(Array.isArray(draft))draft={equipment:draft,checklists:[],copyFrom:{}};   // черновик прежнего формата
+    var hasDraft=draft&&((draft.equipment||[]).length||(draft.checklists||[]).length);
     $('devOverlay').classList.add('open');
-    st.published=norm(C.store.custom||[]);
+    st.published=publishedNorm();
+    function fill(){
+      if(hasDraft){st.items=draft.equipment||[];st.checks=draft.checklists||[];st.copyFrom=draft.copyFrom||{};}
+      else{st.items=copy(C.store.custom||[]);st.checks=copy(C.store.checklists||[]);st.copyFrom={};}
+      st.sel=0;st.csel=0;
+    }
+    fill();render();
     C.loadCustom().then(function(){
-      st.published=norm(C.store.custom);
-      if(!st.items.length){st.items=(draft&&Array.isArray(draft)&&draft.length)?draft:copy(C.store.custom);st.sel=0;}
+      st.published=publishedNorm();
+      if(!hasDraft&&!st.items.length&&!st.checks.length){fill();}
       render();
     });
-    st.items=(draft&&Array.isArray(draft)&&draft.length)?draft:copy(C.store.custom||[]);st.sel=0;render();
   }
   function close(){
-    if(norm(cleaned().list)!==st.published&&!confirm('Есть неопубликованные изменения. Они сохранены как черновик на этом устройстве. Закрыть панель?'))return;
+    if(norm(cleaned())!==st.published&&!confirm('Есть неопубликованные изменения. Они сохранены как черновик на этом устройстве. Закрыть панель?'))return;
     $('devOverlay').classList.remove('open');
   }
-  $('devFab').addEventListener('click',open);
+  var menu=h('div',{id:'devMenu',style:'position:fixed;left:10px;bottom:120px;z-index:3060;display:none;background:var(--panel,#fff);color:var(--ink,#16324f);border:1px solid var(--line,#cfe0f0);border-radius:12px;padding:8px;box-shadow:0 6px 24px rgba(0,0,0,.3);min-width:230px'},[
+    h('button',{class:'btn',type:'button',style:'display:block;width:100%;margin-bottom:6px;text-align:left',text:'🔧 Конструктор оборудования',onclick:function(){menu.style.display='none';st.view='eq';open();}}),
+    h('button',{class:'btn',type:'button',style:'display:block;width:100%;margin-bottom:6px;text-align:left',id:'devMenuCk',text:'📋 Конструктор чек-листов',onclick:function(){menu.style.display='none';st.view='ck';open();}}),
+    h('button',{class:'btn',type:'button',style:'display:block;width:100%;text-align:left',text:'📊 Справочник (Excel)',onclick:function(){menu.style.display='none';if(window.__XL_PANEL_V1__)window.__XL_PANEL_V1__.open();}})]);
+  document.body.appendChild(menu);
+  $('devFab').addEventListener('click',function(ev){ev.stopPropagation();menu.style.display=(menu.style.display==='block')?'none':'block';});
+  document.addEventListener('click',function(ev){if(menu.style.display==='block'&&!menu.contains(ev.target))menu.style.display='none';});
   $('devClose').addEventListener('click',close);
   $('devPrev').addEventListener('click',openPreview);
   $('devPrevClose').addEventListener('click',function(){$('devPreview').classList.remove('open');$('devPrevFrame').srcdoc='';});
@@ -19098,7 +19658,402 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   $('ghCancel').addEventListener('click',function(){$('devGh').classList.remove('open');});
   function refreshFab(){$('devFab').style.display=isDev()?'block':'none';}
   setInterval(refreshFab,1000);refreshFab();window.__devRefresh=refreshFab;
-  window.__DEV_PANEL_V1__={open:open,publish:publish,cleaned:cleaned,state:st};
+  window.__DEV_PANEL_V1__={open:open,publish:publish,cleaned:cleaned,state:st,h:h,gh:{cfg:ghCfg,token:ghToken,api:ghApi,err:ghErr,enc:enc,open:openGh}};
+})();
+</script>
+<!-- ===== ПАНЕЛЬ РАЗРАБОТЧИКА: редактор справочника (zona_riska.xlsx) ===== -->
+<style>
+#xlOverlay,#xlPaste{position:fixed;inset:0;display:none;flex-direction:column;background:var(--bg,#eef4fb);color:var(--ink,#16324f);font-family:var(--sans,system-ui,sans-serif)}
+#xlOverlay{z-index:3210}#xlPaste{z-index:3350;background:rgba(0,0,0,.55);align-items:center;justify-content:center}
+#xlOverlay.open,#xlPaste.open{display:flex}
+#xlTabs{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;background:var(--panel2,#f2f7fc);border-bottom:1px solid var(--line,#cfe0f0)}
+#xlTabs button{font-size:13px}
+#xlTabs button.on{background:#0a5eb0;color:#fff}
+#xlTabs .bd{background:#d1453b;color:#fff;border-radius:9px;padding:0 6px;margin-left:5px;font-size:11px}
+#xlTool{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px}
+#xlTool input,#xlTool select{padding:7px 10px;font-size:14px;border:1px solid var(--line,#cfe0f0);border-radius:8px;background:var(--panel2,#f2f7fc);color:var(--ink,#16324f)}
+#xlInfo{padding:0 12px 6px;font-size:13px;color:var(--ink-dim,#6d84a0)}
+#xlMsgBox{padding:0 12px}
+#xlWrap{flex:1;overflow:auto;padding:0 12px 24px}
+#xlTable{border-collapse:collapse;width:100%;min-width:640px;background:var(--panel,#fff)}
+#xlTable th{position:sticky;top:0;background:#0a5eb0;color:#fff;font-size:12px;text-align:left;padding:6px 8px;z-index:1}
+#xlTable td{border-bottom:1px solid var(--line,#cfe0f0);padding:2px}
+#xlTable td.n{width:44px;text-align:right;color:var(--ink-dim,#6d84a0);font-size:12px;padding-right:6px}
+#xlTable input{width:100%;box-sizing:border-box;border:1px solid transparent;border-radius:6px;padding:6px 8px;font-size:14px;background:transparent;color:var(--ink,#16324f)}
+#xlTable input:focus{border-color:#0a5eb0;background:var(--panel2,#f2f7fc);outline:0}
+#xlTable tr.err td{background:#fce8e6}
+#xlTable tr.warn td{background:#fff4e0}
+html[data-theme="dark"] #xlTable tr.err td{background:#3a1d1a}html[data-theme="dark"] #xlTable tr.warn td{background:#3a2f12}
+#xlTable td.i{width:34px;text-align:center;font-size:15px;cursor:help}
+#xlPager{display:flex;gap:8px;align-items:center;justify-content:center;padding:10px;font-size:13px}
+.xl-modal{background:var(--panel,#fff);color:var(--ink,#16324f);border-radius:14px;padding:16px;width:min(640px,94vw);max-height:90vh;overflow:auto}
+.xl-modal textarea{width:100%;min-height:200px;box-sizing:border-box;font-family:monospace;font-size:13px;padding:8px;border:1px solid var(--line,#cfe0f0);border-radius:8px;background:var(--panel2,#f2f7fc);color:var(--ink,#16324f)}
+</style>
+<div id="xlOverlay" role="dialog" aria-label="Справочник Excel">
+  <div class="dv-bar">
+    <b>📊 Справочник (zona_riska.xlsx): локомотивы, места осмотра, пробег</b>
+    <span class="dv-status" id="xlStatus"></span>
+    <button class="btn" id="xlReload" type="button">🔄 С сайта</button>
+    <button class="btn" id="xlDown" type="button">⬇ Скачать</button>
+    <button class="btn" id="xlUp" type="button">⬆ Загрузить</button>
+    <button class="btn" id="xlGh" type="button">⚙ GitHub</button>
+    <button class="btn primary" id="xlPub" type="button">🚀 Опубликовать</button>
+    <button class="btn" id="xlClose" type="button">✕ Закрыть</button>
+    <input type="file" id="xlFile" accept=".xlsx" style="display:none">
+  </div>
+  <div id="xlTabs"></div>
+  <div id="xlMsgBox"></div>
+  <div id="xlTool"></div>
+  <div id="xlInfo"></div>
+  <div id="xlWrap"><table id="xlTable"><thead></thead><tbody></tbody></table><div id="xlPager"></div></div>
+</div>
+<div id="xlPaste"><div class="xl-modal">
+  <h3 style="margin:0 0 8px">📋 Вставить строки из Excel</h3>
+  <p style="margin:0 0 8px;font-size:14px;line-height:1.4" id="xlPasteHint"></p>
+  <textarea id="xlPasteText" placeholder="Скопируйте ячейки в Excel (Ctrl+C) и вставьте сюда (Ctrl+V)"></textarea>
+  <div id="xlPasteInfo" style="margin:8px 0;font-size:14px"></div>
+  <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn primary" id="xlPasteOk" type="button">Добавить строки</button><button class="btn" id="xlPasteCancel" type="button">Отмена</button></div>
+</div></div>
+<script>
+(function(){
+  'use strict';
+  var C=window.__RISK_CORE__,D=window.__DEV_PANEL_V1__;if(!C||!D)return;
+  var $=function(id){return document.getElementById(id);},h=D.h;
+  var LS_XL='xl_draft_v1',PAGE=100;
+  var CFG=[
+    {name:'ТТ',kind:'loco'},{name:'БИ',kind:'loco'},{name:'Гидродемпферы',kind:'loco'},{name:'Комплексный',kind:'loco'},{name:'КМБ',kind:'loco'},
+    {name:'Места осмотра',kind:'places'},{name:'Пробег',kind:'mileage'}];
+  var BASE=CFG.slice();
+  function refreshCfg(){CFG=BASE.concat((C.store.checklists||[]).map(function(k){return {name:k.sheet,kind:'loco'};}));}
+  var st={buf:null,sig:'',models:{},cur:0,page:0,q:'',fS:'',fD:'',issues:{},timer:null,saveTimer:null};
+  function skey(t){return C.sheetKey(t);}
+  function clone(o){return JSON.parse(JSON.stringify(o));}
+
+  /* ---------- модель листа ---------- */
+  function colMap(kind,header){
+    var m={};
+    header.forEach(function(t,i){
+      var s=skey(t);
+      if(kind!=='places'&&m.series==null&&/сери/.test(s))m.series=i;
+      else if(kind!=='places'&&m.number==null&&/(номер|№)/.test(s))m.number=i;
+      else if(kind!=='mileage'&&m.depot==null&&/(приписк|депо)/.test(s))m.depot=i;
+      else if(kind!=='mileage'&&m.place==null&&/(мест|осмотр)/.test(s))m.place=i;
+      else if(kind==='mileage'&&m.km==null&&/(пробег|км)/.test(s))m.km=i;
+      else if(kind!=='places'&&m.comment==null&&/(коммент|примеч)/.test(s))m.comment=i;
+    });
+    return m;
+  }
+  function buildModel(cfg,rows){
+    rows=rows||[];var hi=0;
+    for(var i=0;i<Math.min(rows.length,10);i++){
+      var r=rows[i];if(!r)continue;
+      var j=r.map(skey).join('|');
+      if(cfg.kind==='places'?/приписк|депо/.test(j):/номер/.test(j)){hi=i;break;}
+    }
+    var header=(rows[hi]||[]).map(function(x){return String(x==null?'':x);}),cols=header.length;
+    while(cols>0&&!header[cols-1])cols--;
+    var body=[];
+    for(var k=hi+1;k<rows.length;k++){
+      var rr=rows[k];if(!rr)continue;
+      var cells=[];for(var c=0;c<Math.max(cols,rr.length);c++)cells.push(rr[c]==null?'':String(rr[c]));
+      if(cells.every(function(x){return x==='';}))continue;
+      cols=Math.max(cols,cells.length);body.push(cells);
+    }
+    cols=Math.max(cols,header.length?cols:2);
+    while(header.length<cols)header.push('');
+    body=body.map(function(c){while(c.length<cols)c.push('');return c;});
+    var map=colMap(cfg.kind,header);
+    return {hdrRow:hi+1,header:header.slice(0,cols),cols:cols,rows:body,map:map,dirty:false};
+  }
+
+  /* ---------- проверки ---------- */
+  function flat(s){return C.flat(s);}
+  function validate(){
+    var allowed=C.builtinSeries(),pm=st.models['Места осмотра'],places={};
+    if(pm&&pm.map.depot!=null){pm.rows.forEach(function(r){var d=flat(r[pm.map.depot]);if(d&&r[pm.map.place]!=null&&String(r[pm.map.place]).trim())places[d]=1;});}
+    var res={};
+    CFG.forEach(function(cfg){
+      var m=st.models[cfg.name];if(!m)return;var iss={},seen={},cnt={err:0,warn:0};
+      function add(i,lvl,text){(iss[i]=iss[i]||[]).push({lvl:lvl,text:text});cnt[lvl]++;}
+      m.rows.forEach(function(r,i){
+        var g=function(k){return m.map[k]!=null?String(r[m.map[k]]==null?'':r[m.map[k]]).trim():'';};
+        if(cfg.kind==='places'){
+          var d=g('depot'),p=g('place');
+          if(!d||!p)add(i,'err','нужны и приписка, и место осмотра');
+          else{var k0=flat(d)+'|'+flat(p);if(seen[k0])add(i,'warn','повтор пары «приписка — место» (строка '+(seen[k0]+1)+')');else seen[k0]=i;}
+          return;
+        }
+        var ser=C.normSeries(g('series')),num=g('number').replace(/\s+/g,'');
+        if(!ser||!num){add(i,'err','не указана серия или номер');return;}
+        if(allowed.indexOf(ser)<0){add(i,'err','серия «'+g('series')+'» не поддерживается (допустимы: '+allowed.join(', ')+')');return;}
+        var key=ser+'|'+num;
+        if(seen[key]!=null)add(i,'err','повтор: такой локомотив уже есть в строке '+(seen[key]+1));else seen[key]=i;
+        if(cfg.kind==='loco'){
+          var dep=g('depot');
+          if(!dep)add(i,'err','не указана приписка');
+          else if(!places[flat(dep)])add(i,'warn','для приписки «'+dep+'» нет мест осмотра на листе «Места осмотра»');
+        }else{
+          var km=g('km').replace(/[\s\u00a0]/g,'').replace(',','.');
+          if(km&&!/^\d+(\.\d+)?$/.test(km))add(i,'err','пробег «'+g('km')+'» не является числом');
+        }
+      });
+      res[cfg.name]={rows:iss,err:cnt.err,warn:cnt.warn};
+    });
+    st.issues=res;
+  }
+  function totals(){var e=0,w=0;for(var n in st.issues){e+=st.issues[n].err;w+=st.issues[n].warn;}return {err:e,warn:w};}
+
+  /* ---------- сообщения ---------- */
+  function say(kind,text){var b=$('xlMsgBox');b.innerHTML='';if(text)b.appendChild(h('div',{class:'dv-msg '+kind,text:text}));}
+  function anyDirty(){return CFG.some(function(c){return st.models[c.name]&&st.models[c.name].dirty;});}
+  function updateStatus(){
+    var t=totals(),d=anyDirty();
+    $('xlStatus').textContent=(d?'есть неопубликованные правки':'без изменений')+' · ошибок: '+t.err+' · предупреждений: '+t.warn;
+  }
+  function scheduleSave(){
+    clearTimeout(st.saveTimer);
+    st.saveTimer=setTimeout(function(){
+      try{
+        if(!anyDirty()){localStorage.removeItem(LS_XL);return;}
+        var data={sig:st.sig,models:{}};
+        CFG.forEach(function(c){var m=st.models[c.name];if(m&&m.dirty)data.models[c.name]={rows:m.rows};});
+        localStorage.setItem(LS_XL,JSON.stringify(data));
+      }catch(e){}
+    },600);
+  }
+  function revalidateSoon(){
+    clearTimeout(st.timer);
+    st.timer=setTimeout(function(){validate();renderTabs();markRows();updateStatus();},250);
+  }
+
+  /* ---------- отрисовка ---------- */
+  function curCfg(){return CFG[st.cur];}
+  function curModel(){return st.models[curCfg().name];}
+  function renderTabs(){
+    var t=$('xlTabs');t.innerHTML='';
+    CFG.forEach(function(cfg,i){
+      var m=st.models[cfg.name],is=st.issues[cfg.name],n=m?m.rows.length:0;
+      var b=h('button',{class:'btn'+(i===st.cur?' on':''),type:'button',onclick:function(){st.cur=i;st.page=0;st.q='';st.fS='';st.fD='';render();}},[cfg.name+' ('+n+')']);
+      if(is&&is.err)b.appendChild(h('span',{class:'bd',text:String(is.err)}));
+      t.appendChild(b);
+    });
+  }
+  function filtered(){
+    var m=curModel(),cfg=curCfg(),out=[],q=flat(st.q),qn=/^\d+$/.test(st.q.trim());
+    if(!m)return out;
+    m.rows.forEach(function(r,i){
+      if(st.fS&&m.map.series!=null&&C.normSeries(r[m.map.series])!==st.fS)return;
+      if(st.fD&&m.map.depot!=null&&flat(r[m.map.depot])!==flat(st.fD))return;
+      if(q){
+        if(qn&&cfg.kind!=='places'&&m.map.number!=null){if(String(r[m.map.number]).trim().indexOf(st.q.trim())<0)return;}
+        else if(flat(r.join(' | ')).indexOf(q)<0)return;
+      }
+      out.push(i);
+    });
+    return out;
+  }
+  function renderTool(){
+    var m=curModel(),cfg=curCfg(),T=$('xlTool');T.innerHTML='';if(!m)return;
+    T.appendChild(h('input',{type:'search',placeholder:'Поиск (номер, приписка, слово)',value:st.q,oninput:function(){st.q=this.value;st.page=0;renderTable();}}));
+    if(m.map.series!=null){
+      var ss={};m.rows.forEach(function(r){var s=C.normSeries(r[m.map.series]);if(s)ss[s]=1;});
+      var sel=h('select',{onchange:function(){st.fS=this.value;st.page=0;renderTable();}},[h('option',{value:'',text:'Все серии'})].concat(Object.keys(ss).sort().map(function(s){return h('option',{value:s,text:s,selected:st.fS===s});})));
+      T.appendChild(sel);
+    }
+    if(m.map.depot!=null){
+      var dd={};m.rows.forEach(function(r){var d=String(r[m.map.depot]).trim();if(d)dd[d]=1;});
+      T.appendChild(h('select',{onchange:function(){st.fD=this.value;st.page=0;renderTable();}},[h('option',{value:'',text:'Все приписки'})].concat(Object.keys(dd).sort(function(a,b){return a.localeCompare(b,'ru');}).map(function(d){return h('option',{value:d,text:d,selected:st.fD===d});}))));
+    }
+    T.appendChild(h('button',{class:'btn',type:'button',text:'➕ Строка',onclick:addRow}));
+    T.appendChild(h('button',{class:'btn',type:'button',text:'📋 Вставить из Excel',onclick:openPaste}));
+  }
+  function renderTable(){
+    var m=curModel(),thead=$('xlTable').tHead,tb=$('xlTable').tBodies[0],pg=$('xlPager');
+    thead.innerHTML='';tb.innerHTML='';pg.innerHTML='';if(!m)return;
+    var tr=h('tr',null,[h('th',{text:'№'}),h('th',{text:''})]);
+    m.header.forEach(function(t){tr.appendChild(h('th',{text:t||'(без названия)'}));});
+    tr.appendChild(h('th',{text:''}));thead.appendChild(tr);
+    var idx=filtered(),pages=Math.max(1,Math.ceil(idx.length/PAGE));
+    if(st.page>=pages)st.page=pages-1;
+    $('xlInfo').textContent='Показано: '+idx.length+' из '+m.rows.length+' · страница '+(st.page+1)+' из '+pages;
+    idx.slice(st.page*PAGE,(st.page+1)*PAGE).forEach(function(ri){
+      var row=m.rows[ri],tr2=h('tr',{'data-r':String(ri)});
+      tr2.appendChild(h('td',{class:'n',text:String(ri+1)}));
+      tr2.appendChild(h('td',{class:'i'}));
+      for(var c=0;c<m.cols;c++)(function(c){
+        var inp=h('input',{value:row[c]==null?'':row[c],'data-c':String(c),oninput:function(){row[c]=this.value;m.dirty=true;scheduleSave();revalidateSoon();updateStatus();}});
+        tr2.appendChild(h('td',null,[inp]));
+      })(c);
+      tr2.appendChild(h('td',null,[h('button',{class:'btn',type:'button',title:'Удалить строку',text:'🗑',onclick:function(){m.rows.splice(ri,1);m.dirty=true;scheduleSave();validate();render();}})]));
+      tb.appendChild(tr2);
+    });
+    if(pages>1){
+      pg.appendChild(h('button',{class:'btn',type:'button',text:'← Назад',disabled:st.page===0,onclick:function(){st.page--;renderTable();}}));
+      pg.appendChild(h('span',{text:(st.page+1)+' / '+pages}));
+      pg.appendChild(h('button',{class:'btn',type:'button',text:'Вперёд →',disabled:st.page>=pages-1,onclick:function(){st.page++;renderTable();}}));
+    }
+    markRows();
+  }
+  function markRows(){
+    var is=st.issues[curCfg().name];
+    [].forEach.call($('xlTable').tBodies[0].rows,function(tr){
+      var ri=+tr.getAttribute('data-r'),list=is&&is.rows[ri];
+      tr.className=list?(list.some(function(x){return x.lvl==='err';})?'err':'warn'):'';
+      var cell=tr.cells[1];cell.textContent=list?(tr.className==='err'?'❌':'⚠️'):'';cell.title=list?list.map(function(x){return x.text;}).join('\n'):'';
+    });
+  }
+  function render(){renderTabs();renderTool();renderTable();updateStatus();}
+  function addRow(){
+    var m=curModel();if(!m)return;
+    m.rows.push(new Array(m.cols).fill(''));m.dirty=true;st.q='';st.fS='';st.fD='';
+    st.page=Math.max(0,Math.ceil(m.rows.length/PAGE)-1);validate();scheduleSave();render();
+    var inputs=$('xlTable').tBodies[0].querySelectorAll('tr:last-child input');if(inputs[0])inputs[0].focus();
+  }
+
+  /* ---------- вставка из Excel ---------- */
+  var pasteRows=[];
+  function parsePaste(text,m){
+    var out=[];
+    text.split(/\r?\n/).forEach(function(line,i){
+      if(!line.trim())return;
+      var cells=line.indexOf('\t')>=0?line.split('\t'):(line.indexOf(';')>=0?line.split(';'):[line]);
+      cells=cells.map(function(x){return x.trim();});
+      if(out.length===0&&cells.some(function(x){return /^(серия|номер|№|приписка|пробег)/i.test(x);}))return;   // строка заголовков
+      var row=new Array(m.cols).fill('');for(var c=0;c<Math.min(cells.length,m.cols);c++)row[c]=cells[c];
+      out.push(row);
+    });
+    return out;
+  }
+  function openPaste(){
+    var m=curModel();if(!m)return;
+    $('xlPasteHint').textContent='Столбцы вставляются по порядку: '+m.header.filter(Boolean).join(' → ')+'. Строка заголовков (если есть) пропускается.';
+    $('xlPasteText').value='';$('xlPasteInfo').textContent='';pasteRows=[];$('xlPaste').classList.add('open');$('xlPasteText').focus();
+  }
+  $('xlPasteText').addEventListener('input',function(){pasteRows=parsePaste(this.value,curModel());$('xlPasteInfo').textContent=pasteRows.length?('Будет добавлено строк: '+pasteRows.length):'';});
+  $('xlPasteOk').addEventListener('click',function(){
+    var m=curModel();if(!m||!pasteRows.length){$('xlPaste').classList.remove('open');return;}
+    pasteRows.forEach(function(r){m.rows.push(r);});m.dirty=true;
+    st.page=Math.max(0,Math.ceil(m.rows.length/PAGE)-1);$('xlPaste').classList.remove('open');
+    validate();scheduleSave();render();say('ok','Добавлено строк: '+pasteRows.length+'. Проверьте отмеченные ❌/⚠️ и нажмите «Опубликовать».');
+  });
+  $('xlPasteCancel').addEventListener('click',function(){$('xlPaste').classList.remove('open');});
+
+  /* ---------- загрузка файла ---------- */
+  function toBytes(ab){return new Uint8Array(ab);}
+  function loadFromBuffer(ab,keepDirty){
+    return C.parseXlsx(ab).then(function(sheets){
+      var miss=[];
+      CFG.forEach(function(cfg){
+        var nm=C.findSheet(sheets,cfg.name);
+        if(!nm){miss.push(cfg.name);st.models[cfg.name]=null;return;}
+        st.models[cfg.name]=buildModel(cfg,sheets[nm]);st.models[cfg.name].sheetName=nm;
+      });
+      return miss;
+    });
+  }
+  function openPanel(){
+    refreshCfg();
+    $('xlOverlay').classList.add('open');say('warn','Загрузка файла…');
+    reloadFromSite(true);
+  }
+  function reloadFromSite(askDraft){
+    refreshCfg();
+    if(!askDraft&&anyDirty()&&!confirm('Несохранённые правки будут отброшены (черновик на этом устройстве тоже). Загрузить файл с сайта заново?'))return;
+    fetch(C.FILE+'?v='+Date.now(),{cache:'no-store'}).then(function(r){
+      if(!r.ok)throw new Error('Файл '+C.FILE+' не найден на сайте (код '+r.status+').');
+      return r.arrayBuffer();
+    }).then(function(ab){
+      st.buf=ab;st.sig=C.xlsx.sigOf(ab);
+      return loadFromBuffer(ab).then(function(miss){
+        var draft=null;try{draft=JSON.parse(localStorage.getItem(LS_XL)||'null');}catch(e){}
+        if(askDraft&&draft&&draft.sig===st.sig&&Object.keys(draft.models).length&&confirm('Найден несохранённый черновик правок с этого устройства. Восстановить?')){
+          Object.keys(draft.models).forEach(function(n){var m=st.models[n];if(m){m.rows=draft.models[n].rows;m.dirty=true;}});
+        }else if(!askDraft||(draft&&draft.sig!==st.sig)){try{localStorage.removeItem(LS_XL);}catch(e){}}
+        validate();st.cur=0;st.page=0;st.q='';st.fS='';st.fD='';render();
+        say(miss.length?'warn':'ok',miss.length?('В файле не найдены листы: '+miss.join(', ')+'. Они недоступны для правки.'):'Файл загружен с сайта. Правьте таблицы и нажмите «Опубликовать».');
+      });
+    }).catch(function(e){say('bad','Не удалось загрузить файл: '+e.message);});
+  }
+
+  /* ---------- сборка, скачивание, загрузка своего файла ---------- */
+  function collectEdits(onlyDirty){
+    var edits={};
+    CFG.forEach(function(cfg){
+      var m=st.models[cfg.name];if(!m||(onlyDirty&&!m.dirty))return;
+      var nums=cfg.kind==='mileage'&&m.map.km!=null?[m.map.km]:[];
+      edits[m.sheetName||cfg.name]={hdrRow:m.hdrRow,cols:m.cols,rows:m.rows.map(function(r){return r.slice(0,m.cols);}),numCols:nums,pad:cfg.kind==='places'?100:300};
+    });
+    return edits;
+  }
+  function download(){
+    if(!st.buf){say('warn','Файл ещё не загружен.');return;}
+    var ed=collectEdits(true);
+    C.xlsx.build(st.buf,ed).then(function(bytes){
+      var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download=C.FILE;document.body.appendChild(a);a.click();
+      setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);
+      say('ok','Файл '+C.FILE+' скачан (с вашими правками).');
+    }).catch(function(e){say('bad','Не удалось собрать файл: '+e.message);});
+  }
+  $('xlFile').addEventListener('change',function(){
+    var f=this.files&&this.files[0];this.value='';if(!f)return;
+    if(anyDirty()&&!confirm('Данные листов будут заменены содержимым выбранного файла. Продолжить?'))return;
+    f.arrayBuffer().then(function(ab){return C.parseXlsx(ab);}).then(function(sheets){
+      var n=0;
+      CFG.forEach(function(cfg){var nm=C.findSheet(sheets,cfg.name);if(!nm||!st.models[cfg.name])return;var m=buildModel(cfg,sheets[nm]);m.sheetName=st.models[cfg.name].sheetName;m.dirty=true;st.models[cfg.name]=m;n++;});
+      validate();scheduleSave();render();say(n?'ok':'warn',n?('Загружено листов из файла: '+n+'. Проверьте таблицы и нажмите «Опубликовать».'):'В выбранном файле нет нужных листов.');
+    }).catch(function(e){say('bad','Не удалось прочитать файл: '+e.message);});
+  });
+
+  /* ---------- публикация ---------- */
+  function b64bytes(bytes){var s='';for(var i=0;i<bytes.length;i+=0x8000)s+=String.fromCharCode.apply(null,bytes.subarray(i,i+0x8000));return btoa(s);}
+  function unb64(str){var bin=atob(str.replace(/\s+/g,'')),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u;}
+  function publish(){
+    validate();updateStatus();renderTabs();markRows();
+    if(!anyDirty()){say('warn','Нет изменений для публикации.');return;}
+    var t=totals();
+    if(t.err){
+      var list=[];CFG.forEach(function(c){var is=st.issues[c.name];if(!is)return;Object.keys(is.rows).forEach(function(ri){is.rows[ri].forEach(function(x){if(x.lvl==='err'&&list.length<12)list.push('лист «'+c.name+'», строка '+(+ri+1)+': '+x.text);});});});
+      say('bad','Публикация остановлена: ошибок '+t.err+'. Исправьте строки с ❌.\n• '+list.join('\n• '));return;
+    }
+    if(t.warn&&!confirm('Есть предупреждения ('+t.warn+'): например, приписка без мест осмотра. Опубликовать всё равно?'))return;
+    var gh=D.gh,cfg=gh.cfg(),path=cfg.pathXlsx||'zona_riska.xlsx';
+    if(!gh.token()){say('warn','Сначала укажите токен GitHub (кнопка «⚙ GitHub»).');gh.open();return;}
+    if(!confirm('Опубликовать изменения в '+cfg.owner+'/'+cfg.repo+' ('+cfg.branch+', '+path+')?\nСайт обновится через 1–3 минуты.'))return;
+    var url='/repos/'+encodeURIComponent(cfg.owner)+'/'+encodeURIComponent(cfg.repo)+'/contents/'+gh.enc(path);
+    say('warn','Публикация…');$('xlPub').disabled=true;var fresh=null,sha=null;
+    gh.api('GET',url+'?ref='+encodeURIComponent(cfg.branch)).then(function(g){
+      if(g.status===404)throw new Error('Файла '+path+' нет в репозитории — сначала загрузите его туда вручную один раз.');
+      if(g.status!==200)throw new Error(gh.err(g,'Чтение файла'));
+      sha=g.json.sha;fresh=unb64(g.json.content||'');
+      var sig2=C.xlsx.sigOf(fresh.buffer.slice(fresh.byteOffset,fresh.byteOffset+fresh.byteLength));
+      if(sig2!==st.sig)throw new Error('Файл на GitHub изменён после того, как вы его открыли (кем-то или в другом окне). Ничего не записано. Ваши правки сохранены в черновике: нажмите «⬇ Скачать», чтобы сохранить их в файл, затем «🔄 С сайта» и внесите правки заново.');
+      return C.xlsx.build(fresh.buffer.slice(fresh.byteOffset,fresh.byteOffset+fresh.byteLength),collectEdits(true));
+    }).then(function(bytes){
+      var body={message:'Справочник: правки таблиц ('+CFG.filter(function(c){return st.models[c.name]&&st.models[c.name].dirty;}).map(function(c){return c.name;}).join(', ')+')',content:b64bytes(bytes),branch:cfg.branch,sha:sha};
+      return gh.api('PUT',url,body).then(function(p){
+        if(p.status!==200&&p.status!==201)throw new Error(gh.err(p,'Запись файла'));
+        var ab=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);
+        st.buf=ab;st.sig=C.xlsx.sigOf(ab);
+        CFG.forEach(function(c){if(st.models[c.name])st.models[c.name].dirty=false;});
+        try{localStorage.removeItem(LS_XL);}catch(e){}
+        updateStatus();
+        var link=(p.json&&p.json.commit&&p.json.commit.html_url)||'';
+        say('ok','✅ Опубликовано. GitHub Pages обновится через 1–3 минуты.'+(link?'\nКоммит: '+link:''));
+      });
+    }).catch(function(e){say('bad','❌ '+e.message);}).then(function(){$('xlPub').disabled=false;});
+  }
+
+  /* ---------- привязки ---------- */
+  $('xlReload').addEventListener('click',function(){reloadFromSite(false);});
+  $('xlDown').addEventListener('click',download);
+  $('xlUp').addEventListener('click',function(){$('xlFile').click();});
+  $('xlGh').addEventListener('click',function(){D.gh.open();});
+  $('xlPub').addEventListener('click',publish);
+  $('xlClose').addEventListener('click',function(){
+    if(anyDirty()&&!confirm('Есть неопубликованные правки. Они сохранены как черновик на этом устройстве. Закрыть?'))return;
+    $('xlOverlay').classList.remove('open');
+  });
+  window.__XL_PANEL_V1__={open:openPanel,state:st,validate:validate,publish:publish,build:collectEdits};
 })();
 </script>
 </body>
