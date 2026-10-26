@@ -3691,7 +3691,7 @@ function saveState(silent){
             controlWrap.style.gridTemplateColumns = '1fr';
 
             const prodVal = getVal(iid, 'proizvoditel');
-            const isLocked = (prodVal === 'ТТ' || prodVal === 'ЧТЗ') && field.key !== 'proizvoditel';
+            const isLocked = (prodVal === 'ВВ' || prodVal === 'СТЗ') && field.key !== 'proizvoditel';
 
             if (field.type === 'text') {
                 const input = document.createElement('input');
@@ -3779,7 +3779,7 @@ function saveState(silent){
             const allFields = eq.getFields(instance);
             for (let f of allFields) {
                 if (f.key === 'proizvoditel') continue;
-                if (newProducer === 'ТТ' || newProducer === 'ЧТЗ') {
+                if (newProducer === 'ВВ' || newProducer === 'СТЗ') {
                     setVal(iid, f.key, 'Не требуется');
                 } else {
                     setVal(iid, f.key, '');
