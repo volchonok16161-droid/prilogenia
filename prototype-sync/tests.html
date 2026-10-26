@@ -15,7 +15,6 @@ async function run(){
   catch(e){li.className='fail';li.textContent='FAIL — '+name+': '+e.message;failed++;}
   results.appendChild(li);
  }
- await ChecklistSyncPrototype.clearPrototypeData();
  await test('не разрешает запись без ID сотрудника',async()=>{
   let thrown=false;try{await ChecklistSyncPrototype.saveRecord('',{id:'x',data:{}})}catch(e){thrown=true}
   assert(thrown,'пустой ownerId принят');
