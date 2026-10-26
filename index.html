@@ -19,7 +19,11 @@
   var SHEET_BY_MODE={complex:'Комплексный',housings:'КМБ',tt:'ТТ',bi:'БИ',hydro:'Гидродемпферы'};
   var TITLE_BY_MODE={complex:'Комплексный чек-лист',housings:'КМБ',tt:'ТТ (тяговый трансформатор)',bi:'БИ (МСУД-015)',hydro:'Гидродемпферы'};
   var INSTR_SHEET='Инструкция',PLACES_SHEET='Места осмотра',NODES_SHEET='Узлы',MILEAGE_SHEET='Пробег';
+<<<<<<< HEAD
   var store={data:null,error:null,loading:null,stamp:'',lastTry:0,cache:{},places:null,milCache:null,issues:{},used:{},nodeIssues:{},rules:{},custom:[],customStamp:'',customError:null,customLoaded:false,checklists:[]};
+=======
+  var store={data:null,error:null,loading:null,stamp:'',lastTry:0,cache:{},places:null,milCache:null,issues:{},used:{},nodeIssues:{},rules:{},custom:[],customStamp:'',customError:null,customLoaded:false};
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
 
   /* ---------- чтение xlsx (zip + xml), без внешних библиотек ---------- */
   function u8str(u8){return new TextDecoder('utf-8').decode(u8);}
@@ -200,6 +204,7 @@
     });
   }
 
+<<<<<<< HEAD
   // новый лист: spec={name, header:[...], rows:[[...]], widths:[...], styleFrom:'ТТ', seriesCol:0, seriesList:[...]}
   function sheetXmlNew(sp,st){
     var cols=sp.header.length,ws=sp.widths||[],out=[];
@@ -259,6 +264,8 @@
     });
   }
 
+=======
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
   /* ---------- разбор листов ---------- */
   function norm(s){return String(s==null?'':s).replace(/ё/g,'е').replace(/Ё/g,'Е').trim();}
   function sheetKey(s){return norm(s).toLowerCase();}
@@ -575,7 +582,11 @@
   }
   function loadCustom(){
     return fetch(CUSTOM_FILE+'?v='+Date.now(),{cache:'no-store'}).then(function(resp){
+<<<<<<< HEAD
       if(resp.status===404){store.custom=[];store.checklists=[];applyModes([]);try{localStorage.removeItem('custom_modes_v1');}catch(e){}renderModeButtons();store.customError=null;store.customLoaded=true;return [];}
+=======
+      if(resp.status===404){store.custom=[];store.customError=null;store.customLoaded=true;return [];}
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
       if(!resp.ok)throw new Error('Файл '+CUSTOM_FILE+': код '+resp.status);
       store.customStamp=fmtStamp(resp.headers.get('last-modified'));
       return resp.json();
@@ -626,9 +637,14 @@
     return(store.milCache=out);
   }
   function mileageFor(series,number){
+<<<<<<< HEAD
     var t=buildMileage(),key=normSeries(series)+'_'+norm(number).replace(/\s+/g,''),v;
     if(t.found)v=t.table[key];
     else{try{if(typeof MILEAGE_DATA!=='undefined')v=MILEAGE_DATA[key];}catch(e){}}   // файла/листа нет — встроенная таблица
+=======
+    var t=buildMileage();if(!t.found)return null;
+    var v=t.table[normSeries(series)+'_'+norm(number).replace(/\s+/g,'')];
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
     return(v==null)?null:v;
   }
   function safeJson(o){return JSON.stringify(o).replace(/</g,'\\u003c');}
@@ -648,11 +664,15 @@
       var sheet=SHEET_BY_MODE[mode]||'',info={source:'builtin',reason:'file',sheet:sheet,count:0,mileage:!!ml.found};
       if(store.data){if(!findSheet(store.data,sheet))info.reason='sheet';else if(!reg)info.reason='empty';else{info.source='excel';info.reason='ok';info.count=reg.count;}}
       var extra='\nconst NODE_RULES='+safeJson(rl.rules)+';\nconst REGISTRY_INFO='+safeJson(info)+';';
+<<<<<<< HEAD
       var chk=modeInfo(mode);
       if(mode==='complex'||chk){var cu=(window.__RISK_CORE__&&window.__RISK_CORE__.devOverride)||store.custom||[];extra+='\nconst CUSTOM_EQUIPMENT='+safeJson(cu)+';';if(chk)extra+='\nconst CUSTOM_CHECKLIST='+safeJson(chk)+';';}
       var hasMil=/const\s+MILEAGE_DATA\s*=/.test(html),milTable=null;
       if(ml.found)milTable=ml.table;else{try{if(typeof MILEAGE_DATA!=='undefined')milTable=MILEAGE_DATA;}catch(e){}}
       if(!hasMil&&milTable)extra+='\nconst MILEAGE_DATA='+safeJson(milTable)+';';   // ТТ и БИ: своей таблицы нет — передаём
+=======
+      if(mode==='complex'){var cu=(window.__RISK_CORE__&&window.__RISK_CORE__.devOverride)||store.custom||[];extra+='\nconst CUSTOM_EQUIPMENT='+safeJson(cu)+';';}
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
       var out=html;
       if(reg){
         var a=replaceConst(out,'LOCOMOTIVE_DATA',safeJson(reg.loco),'');
@@ -660,7 +680,11 @@
         if(b){out=b;extra=null;store.used[mode]=true;}
       }
       if(extra!==null)out=out.replace(/<script(?![^>]*\bsrc=)[^>]*>/,function(t){return t+extra;});   // список не подменяли — передаём только правила и сведения
+<<<<<<< HEAD
       if(ml.found&&hasMil){var mm=replaceConst(out,'MILEAGE_DATA',safeJson(ml.table),'');if(mm)out=mm;}   // таблица пробега — из Excel
+=======
+      if(ml.found){var mm=replaceConst(out,'MILEAGE_DATA',safeJson(ml.table),'');if(mm)out=mm;}   // таблица пробега — из Excel
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
       return out;
     }catch(e){console.warn('[zona_riska] не удалось применить справочник',e);return html;}
   }
@@ -678,6 +702,7 @@
       if(before&&store.sig&&store.sig!==before&&typeof showToast==='function')showToast('📄 Файл zona_riska.xlsx обновлён. Изменения применятся при следующем открытии чек-листа.');
     },function(){});
   });
+<<<<<<< HEAD
   window.__cmIds=function(){return(window.__CUSTOM_MODES__||[]).map(function(m){return m.id;});};
   // режимы из конструктора, известные с прошлого запуска: нужны сразу, чтобы открылся последний выбранный чек-лист
   try{var __cm=JSON.parse(localStorage.getItem('custom_modes_v1')||'[]');if(Array.isArray(__cm))applyModes(__cm);}catch(e){}
@@ -685,6 +710,11 @@
   window.__RISK_CORE__={store:store,load:load,ready:ready,applyRegistry:applyRegistry,entriesFor:entriesFor,findSheet:findSheet,
     norm:norm,sheetKey:sheetKey,numberMatches:numberMatches,searchMatches:searchMatches,placesMap:placesMap,parseXlsx:parseXlsx,
     FILE:FILE,SHEET_BY_MODE:SHEET_BY_MODE,TITLE_BY_MODE:TITLE_BY_MODE,INSTR_SHEET:INSTR_SHEET,nodeRulesText:nodeRulesText,reportNodeIssues:reportNodeIssues,NODES_SHEET:NODES_SHEET,loadCustom:loadCustom,applyModes:applyModes,renderModeButtons:renderModeButtons,cleanChecklists:cleanChecklists,BUILTIN_EQ:BUILTIN_EQ,devChecklists:null,mileageFor:mileageFor,xlsx:{index:xlsxIndex,build:buildXlsx,addSheets:addSheets,sigOf:sigOf,entryBytes:entryBytes},normSeries:normSeries,builtinSeries:builtinSeries,flat:flat,MILEAGE_SHEET:MILEAGE_SHEET,cleanCustom:cleanCustom,CUSTOM_FILE:CUSTOM_FILE,devOverride:null};
+=======
+  window.__RISK_CORE__={store:store,load:load,ready:ready,applyRegistry:applyRegistry,entriesFor:entriesFor,findSheet:findSheet,
+    norm:norm,sheetKey:sheetKey,numberMatches:numberMatches,searchMatches:searchMatches,placesMap:placesMap,parseXlsx:parseXlsx,
+    FILE:FILE,SHEET_BY_MODE:SHEET_BY_MODE,TITLE_BY_MODE:TITLE_BY_MODE,INSTR_SHEET:INSTR_SHEET,nodeRulesText:nodeRulesText,reportNodeIssues:reportNodeIssues,NODES_SHEET:NODES_SHEET,loadCustom:loadCustom,mileageFor:mileageFor,xlsx:{index:xlsxIndex,build:buildXlsx,sigOf:sigOf,entryBytes:entryBytes},normSeries:normSeries,builtinSeries:builtinSeries,flat:flat,MILEAGE_SHEET:MILEAGE_SHEET,cleanCustom:cleanCustom,CUSTOM_FILE:CUSTOM_FILE,devOverride:null};
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
 })();
 </script>
 <script>
@@ -3040,11 +3070,14 @@ function __regHint(){
   }catch(e){return base;}
 }
 
+<<<<<<< HEAD
 /* ===== Проверка пробега по таблице (как в комплексном чек-листе) ===== */
 function getMileageFromData(type,number){if(!type||!number)return null;if(typeof MILEAGE_DATA==='undefined')return null;return MILEAGE_DATA[type+'_'+number]||null;}
 function isValidMileage(mileageStr,type,number){var val=parseInt(mileageStr,10);if(isNaN(val)||val<0)return false;var t=getMileageFromData(type,number);if(t!==null)return val>=t;return val>0;}
 function getMileageError(mileageStr,type,number){var val=parseInt(mileageStr,10);if(isNaN(val)||val<0)return 'Введите корректное число (≥ 0)';var t=getMileageFromData(type,number);if(t!==null){if(val<t)return 'Пробег должен быть ≥ '+t+' км (по данным завода)';return null;}if(val<=0)return 'Пробег должен быть больше 0 (данные отсутствуют)';return null;}
 
+=======
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
 /* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
 const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
 function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
@@ -3846,7 +3879,7 @@ function saveState(silent){
             controlWrap.style.gridTemplateColumns = '1fr';
 
             const prodVal = getVal(iid, 'proizvoditel');
-            const isLocked = (prodVal === 'ТТ' || prodVal === 'ЧТЗ') && field.key !== 'proizvoditel';
+            const isLocked = (prodVal === 'ВВ' || prodVal === 'СТЗ') && field.key !== 'proizvoditel';
 
             if (field.type === 'text') {
                 const input = document.createElement('input');
@@ -3934,7 +3967,7 @@ function saveState(silent){
             const allFields = eq.getFields(instance);
             for (let f of allFields) {
                 if (f.key === 'proizvoditel') continue;
-                if (newProducer === 'ТТ' || newProducer === 'ЧТЗ') {
+                if (newProducer === 'ВВ' || newProducer === 'СТЗ') {
                     setVal(iid, f.key, 'Не требуется');
                 } else {
                     setVal(iid, f.key, '');
@@ -6877,11 +6910,14 @@ function __regHint(){
   }catch(e){return base;}
 }
 
+<<<<<<< HEAD
 /* ===== Проверка пробега по таблице (как в комплексном чек-листе) ===== */
 function getMileageFromData(type,number){if(!type||!number)return null;if(typeof MILEAGE_DATA==='undefined')return null;return MILEAGE_DATA[type+'_'+number]||null;}
 function isValidMileage(mileageStr,type,number){var val=parseInt(mileageStr,10);if(isNaN(val)||val<0)return false;var t=getMileageFromData(type,number);if(t!==null)return val>=t;return val>0;}
 function getMileageError(mileageStr,type,number){var val=parseInt(mileageStr,10);if(isNaN(val)||val<0)return 'Введите корректное число (≥ 0)';var t=getMileageFromData(type,number);if(t!==null){if(val<t)return 'Пробег должен быть ≥ '+t+' км (по данным завода)';return null;}if(val<=0)return 'Пробег должен быть больше 0 (данные отсутствуют)';return null;}
 
+=======
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
 /* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
 const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
 function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
@@ -13895,6 +13931,18 @@ function __regHint(){
   }catch(e){return base;}
 }
 
+/* ===== Подсказка «номер не найден»: объясняет, откуда взят список локомотивов ===== */
+function __regHint(){
+  var base='Такого номера нет в базе для данного типа электровоза.';
+  try{
+    if(typeof REGISTRY_INFO==='undefined')return base;
+    var i=REGISTRY_INFO;
+    if(i.source==='excel')return base+' Список взят из файла zona_riska.xlsx (лист «'+i.sheet+'», локомотивов: '+i.count+'). Проверьте серию и номер в этом листе и что обновлённый файл загружен на сайт (после загрузки подождите 1–3 минуты и откройте чек-лист заново).';
+    var why={file:'файл zona_riska.xlsx не удалось прочитать (нет связи или файла нет на сайте)',sheet:'в файле нет листа «'+i.sheet+'»',empty:'в листе «'+i.sheet+'» нет ни одного корректного локомотива'}[i.reason]||'файл не использован';
+    return base+' Используется встроенный список, потому что '+why+'.';
+  }catch(e){return base;}
+}
+
 /* ===== Вход разработчика (роль dev: права администратора + кнопка конструктора) ===== */
 const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};
 function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
@@ -15729,9 +15777,15 @@ function getSections(type){const count=getMaxSectionsForType(type);const s=[];fo
 const MODE_KEY='checklist_mode_v2';
 const LS_KEY_COMPLEX='checklist_2es5k_v1';
 const LS_KEY_HOUSINGS='checklist_housings_v4';
+<<<<<<< HEAD
 const EMBEDDED_MODES=['complex','housings','tt','bi','hydro'].concat(window.__cmIds?window.__cmIds():[]);
 const ALL_MODES=['complex','housings','tt','bi','hydro'].concat(window.__cmIds?window.__cmIds():[]);
 const MODE_NAMES={complex:'Чек-лист Комплексный',housings:'Чек-лист проверки КМБ',tt:'Чек-лист проверки Тяговый трансформатор "ЛЗМ"',bi:'Чек-лист проверки установленной защиты системного диска (МСУД-015)',hydro:'Чек-лист проверки Гидродемпферов'}; (window.__CUSTOM_MODES__||[]).forEach(function(m){MODE_NAMES[m.id]='Чек-лист '+m.title;});
+=======
+const EMBEDDED_MODES=['complex','housings','tt','bi','hydro'];
+const ALL_MODES=['complex','housings','tt','bi','hydro'];
+const MODE_NAMES={complex:'Чек-лист Комплексный',housings:'Чек-лист проверки КМБ',tt:'Чек-лист проверки Тягового трансформатора',bi:'Чек-лист проверки установленной защиты системного диска (МСУД-015)',hydro:'Чек-лист проверки Гидродемпферов'};
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
 let MODE=null;
 let LS_KEY=LS_KEY_COMPLEX;
 if(typeof __EMBEDDED_MODE!=='undefined'&&__EMBEDDED_MODE){MODE=__EMBEDDED_MODE;const el=document.getElementById('__embedded_mode');if(el)el.parentNode.removeChild(el);}
@@ -19639,8 +19693,12 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
     $('devOverlay').classList.remove('open');
   }
   var menu=h('div',{id:'devMenu',style:'position:fixed;left:10px;bottom:120px;z-index:3060;display:none;background:var(--panel,#fff);color:var(--ink,#16324f);border:1px solid var(--line,#cfe0f0);border-radius:12px;padding:8px;box-shadow:0 6px 24px rgba(0,0,0,.3);min-width:230px'},[
+<<<<<<< HEAD
     h('button',{class:'btn',type:'button',style:'display:block;width:100%;margin-bottom:6px;text-align:left',text:'🔧 Конструктор оборудования',onclick:function(){menu.style.display='none';st.view='eq';open();}}),
     h('button',{class:'btn',type:'button',style:'display:block;width:100%;margin-bottom:6px;text-align:left',id:'devMenuCk',text:'📋 Конструктор чек-листов',onclick:function(){menu.style.display='none';st.view='ck';open();}}),
+=======
+    h('button',{class:'btn',type:'button',style:'display:block;width:100%;margin-bottom:6px;text-align:left',text:'🔧 Конструктор оборудования',onclick:function(){menu.style.display='none';open();}}),
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
     h('button',{class:'btn',type:'button',style:'display:block;width:100%;text-align:left',text:'📊 Справочник (Excel)',onclick:function(){menu.style.display='none';if(window.__XL_PANEL_V1__)window.__XL_PANEL_V1__.open();}})]);
   document.body.appendChild(menu);
   $('devFab').addEventListener('click',function(ev){ev.stopPropagation();menu.style.display=(menu.style.display==='block')?'none':'block';});
@@ -19723,8 +19781,11 @@ html[data-theme="dark"] #xlTable tr.err td{background:#3a1d1a}html[data-theme="d
   var CFG=[
     {name:'ТТ',kind:'loco'},{name:'БИ',kind:'loco'},{name:'Гидродемпферы',kind:'loco'},{name:'Комплексный',kind:'loco'},{name:'КМБ',kind:'loco'},
     {name:'Места осмотра',kind:'places'},{name:'Пробег',kind:'mileage'}];
+<<<<<<< HEAD
   var BASE=CFG.slice();
   function refreshCfg(){CFG=BASE.concat((C.store.checklists||[]).map(function(k){return {name:k.sheet,kind:'loco'};}));}
+=======
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
   var st={buf:null,sig:'',models:{},cur:0,page:0,q:'',fS:'',fD:'',issues:{},timer:null,saveTimer:null};
   function skey(t){return C.sheetKey(t);}
   function clone(o){return JSON.parse(JSON.stringify(o));}
@@ -19952,12 +20013,18 @@ html[data-theme="dark"] #xlTable tr.err td{background:#3a1d1a}html[data-theme="d
     });
   }
   function openPanel(){
+<<<<<<< HEAD
     refreshCfg();
+=======
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
     $('xlOverlay').classList.add('open');say('warn','Загрузка файла…');
     reloadFromSite(true);
   }
   function reloadFromSite(askDraft){
+<<<<<<< HEAD
     refreshCfg();
+=======
+>>>>>>> 4e801c3ec0d8b0f8491a2d97bcbcaafe159cca17
     if(!askDraft&&anyDirty()&&!confirm('Несохранённые правки будут отброшены (черновик на этом устройстве тоже). Загрузить файл с сайта заново?'))return;
     fetch(C.FILE+'?v='+Date.now(),{cache:'no-store'}).then(function(r){
       if(!r.ok)throw new Error('Файл '+C.FILE+' не найден на сайте (код '+r.status+').');
