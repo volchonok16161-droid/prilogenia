@@ -94,13 +94,9 @@ Deno.serve((req) => {
   if (req.method !== "GET" && req.method !== "HEAD") {
     return new Response("Method not allowed", { status: 405, headers: { "Allow": "GET, HEAD" } });
   }
-  return new Response(req.method === "HEAD" ? null : html, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-store",
-      "X-Content-Type-Options": "nosniff",
-      "Referrer-Policy": "no-referrer",
-    },
-  });
+  const headers = new Headers();
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set("cache-control", "no-store");
+  headers.set("referrer-policy", "no-referrer");
+  return new Response(req.method === "HEAD" ? null : html, { status: 200, headers });
 });
