@@ -66,7 +66,13 @@ Deno.serve(async (req: Request) => {
       .eq("role", "employee")
       .order("created_at", { ascending: true });
     if (error) return json({ error: "Не удалось загрузить сотрудников" }, 500);
-    return json({ employees: data ?? [] });
+    const employees = await Promise.all((data ?? []).map(async (profile) => {
+      const { data: authRecord } = await admin.auth.admin.getUserById(profile.id);
+      const bannedUntil = authRecord.user?.banned_until ?? null;
+      const suspended = Boolean(bannedUntil && new Date(bannedUntil).getTime() > Date.now());
+      return { ...profile, suspended, banned_until: bannedUntil };
+    }));
+    return json({ employees });
   }
 
   if (body.action === "invite_employee") {
@@ -94,11 +100,11 @@ Deno.serve(async (req: Request) => {
       return json({ error: inviteError?.message ?? "Не удалось отправить приглашение" }, 400);
     }
 
-    const { error: profileError } = await admin.from("profiles").insert({
+    const { error: profileError } = await admin.from("profiles").upsert({
       id: inviteData.user.id,
       display_name: displayName,
       role: "employee",
-    });
+    }, { onConflict: "id" });
 
     if (profileError) {
       // Не оставляем Auth-пользователя без профиля при неудаче вставки.
