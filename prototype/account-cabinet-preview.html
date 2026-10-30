@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Личный кабинет — тестовый макет</title>
+<style>
+:root{color-scheme:light;--bg:#f4f6fa;--card:#fff;--ink:#172033;--muted:#718096;--line:#e6eaf0;--blue:#315efb;--blue-soft:#edf2ff;--green:#16845b;--shadow:0 8px 28px rgba(26,39,68,.06)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button{font:inherit;cursor:pointer}.app{max-width:1180px;margin:auto;padding:28px 22px 50px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:24px}.brand{display:flex;align-items:center;gap:12px;font-weight:750;font-size:18px}.logo{width:42px;height:42px;border-radius:13px;background:#172b57;color:white;display:grid;place-items:center;font-weight:800}.tag{font-size:12px;padding:6px 10px;border-radius:99px;background:#fff3d7;color:#946200;font-weight:650}
+.layout{display:grid;grid-template-columns:245px 1fr;gap:22px}.side,.panel,.stat,.welcome{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}.side{padding:16px;height:max-content}.person{display:flex;align-items:center;gap:11px;padding:8px 7px 17px;border-bottom:1px solid var(--line);margin-bottom:12px}.avatar{width:42px;height:42px;border-radius:50%;background:#dce6ff;color:#2346a8;display:grid;place-items:center;font-weight:750}.person strong{display:block}.muted{color:var(--muted);font-size:13px}.nav{display:grid;gap:6px}.nav button{border:0;background:transparent;text-align:left;padding:11px 12px;border-radius:11px;color:#4b5870}.nav button.active{background:var(--blue-soft);color:#244bd4;font-weight:700}.nav .ico{display:inline-block;width:25px}.main{min-width:0}.welcome{padding:25px 27px;margin-bottom:18px;background:linear-gradient(115deg,#fff 55%,#edf2ff)}.welcome h1{margin:0 0 5px;font-size:25px;letter-spacing:-.5px}.welcome p{margin:0;color:var(--muted)}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}.stat{padding:18px 19px}.stat .label{color:var(--muted);font-size:13px}.stat .num{font-size:28px;font-weight:780;margin-top:5px;letter-spacing:-.7px}.stat .hint{font-size:12px;color:var(--green);margin-top:2px}.panel{padding:21px 22px;margin-bottom:18px}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}.panel h2{font-size:17px;margin:0}.link{border:0;background:transparent;color:var(--blue);font-weight:650}.item{display:flex;align-items:center;gap:13px;padding:13px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}.item-icon{width:38px;height:38px;border-radius:11px;background:#f0f3f8;display:grid;place-items:center}.item-info{flex:1;min-width:0}.item-info strong{display:block}.status{font-size:12px;padding:5px 9px;border-radius:99px;background:#e8f7ef;color:#14744e;font-weight:650}.status.progress{background:#fff3dc;color:#936100}.btn{border:0;border-radius:11px;padding:10px 14px;background:var(--blue);color:white;font-weight:650}.btn.secondary{background:#f0f3f8;color:#35425b}.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{padding:13px 14px;border:1px solid var(--line);border-radius:12px}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}.field strong{font-size:14px}.notice{font-size:12px;color:#7a5b13;background:#fff8e7;border:1px solid #f4e5b8;border-radius:12px;padding:12px 14px;margin-top:15px}.hidden{display:none!important}.foot{text-align:center;color:#8b95a6;font-size:12px;margin-top:17px}
+@media(max-width:760px){.app{padding:17px 13px 35px}.layout{grid-template-columns:1fr}.side{padding:12px}.person{padding-bottom:11px;margin-bottom:8px}.nav{grid-template-columns:repeat(3,1fr)}.nav button{text-align:center;padding:9px 5px;font-size:12px}.nav .ico{display:block;width:auto;font-size:18px}.stats{gap:8px}.stat{padding:13px 11px}.stat .num{font-size:23px}.welcome{padding:20px}.welcome h1{font-size:22px}.panel{padding:17px 15px}.profile-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:390px){.stats{grid-template-columns:1fr 1fr}.stat:last-child{grid-column:span 2}.profile-grid{grid-template-columns:1fr}.tag{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top"><div class="brand"><div class="logo">ЧК</div><div>Рабочая система<br><span class="muted">Личный кабинет</span></div></div><span class="tag">ТЕСТОВЫЙ МАКЕТ · ДЕМО-ДАННЫЕ</span></header>
+<div class="layout">
+<aside class="side">
+ <div class="person"><div class="avatar">ИП</div><div><strong>Иван Петров</strong><div class="muted">Сотрудник · Активен</div></div></div>
+ <nav class="nav">
+  <button class="active" data-page="home"><span class="ico">▦</span>Обзор</button>
+  <button data-page="profile"><span class="ico">♙</span>Мой профиль</button>
+  <button data-page="security"><span class="ico">⚙</span>Безопасность</button>
+ </nav>
+</aside>
+<main class="main">
+<section id="home">
+ <div class="welcome"><h1>Здравствуйте, Иван!</h1><p>Здесь собрана ваша рабочая информация и личные чек-листы.</p></div>
+ <div class="stats">
+  <div class="stat"><div class="label">Мои чек-листы</div><div class="num">12</div><div class="hint">Все ваши записи</div></div>
+  <div class="stat"><div class="label">Завершено</div><div class="num">8</div><div class="hint">За текущий период</div></div>
+  <div class="stat"><div class="label">В работе</div><div class="num">4</div><div class="hint" style="color:#936100">Требуют внимания</div></div>
+ </div>
+ <div class="panel"><div class="panel-head"><h2>Последние чек-листы</h2><button class="link" type="button">Все чек-листы →</button></div>
+  <div class="item"><div class="item-icon">▤</div><div class="item-info"><strong>Осмотр оборудования № 014</strong><span class="muted">Сегодня · Депо</span></div><span class="status progress">В работе</span></div>
+  <div class="item"><div class="item-icon">▤</div><div class="item-info"><strong>Ежедневная проверка № 013</strong><span class="muted">Вчера · Участок 2</span></div><span class="status">Завершён</span></div>
+  <div class="item"><div class="item-icon">▤</div><div class="item-info"><strong>Осмотр оборудования № 012</strong><span class="muted">24 октября · Депо</span></div><span class="status">Завершён</span></div>
+ </div>
+ <div class="panel"><div class="panel-head"><h2>Быстрый переход</h2></div><button class="btn" type="button">Открыть рабочие чек-листы</button></div>
+</section>
+<section id="profile" class="hidden">
+ <div class="welcome"><h1>Мой профиль</h1><p>Основная информация вашей учётной записи.</p></div>
+ <div class="panel"><h2 style="margin-bottom:15px">Данные сотрудника</h2><div class="profile-grid">
+ <div class="field"><label>Имя</label><strong>Иван Петров</strong></div><div class="field"><label>Роль</label><strong>Сотрудник</strong></div>
+ <div class="field"><label>Статус аккаунта</label><strong>Активен</strong></div><div class="field"><label>Доступ</label><strong>Личные чек-листы</strong></div>
+ </div><div class="notice">Это демонстрационные сведения. В рабочей версии данные будут загружаться из профиля Supabase.</div></div>
+</section>
+<section id="security" class="hidden">
+ <div class="welcome"><h1>Безопасность аккаунта</h1><p>Настройки защиты и управления входом.</p></div>
+ <div class="panel"><div class="item"><div class="item-icon">🔐</div><div class="item-info"><strong>Пароль</strong><span class="muted">Управление паролем через защищённую авторизацию</span></div><button class="btn secondary" type="button">Изменить</button></div>
+ <div class="item"><div class="item-icon">↪</div><div class="item-info"><strong>Завершить сеанс</strong><span class="muted">Выйти из текущей учётной записи</span></div><button class="btn secondary" type="button">Выйти</button></div>
+ <div class="notice">Кнопки в этом макете не выполняют реальные действия. Вход, смена пароля и выход будут подключены через Supabase Auth.</div></div>
+</section>
+<div class="foot">Тестовый интерфейс · Данные вымышлены · Не подключён к рабочим аккаунтам</div>
+</main>
+</div>
+</div>
+<script>
+document.querySelectorAll('[data-page]').forEach(function(btn){btn.addEventListener('click',function(){
+ document.querySelectorAll('[data-page]').forEach(function(b){b.classList.toggle('active',b===btn)});
+ ['home','profile','security'].forEach(function(id){document.getElementById(id).classList.toggle('hidden',id!==btn.dataset.page)});
+});});
+</script>
+</body></html>
