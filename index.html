@@ -3846,6 +3846,7 @@ function saveState(silent){
             controlWrap.style.gridTemplateColumns = '1fr';
 
             const prodVal = getVal(iid, 'proizvoditel');
+            const isLocked = (prodVal === 'ТТ' || prodVal === 'ЧТЗ') && field.key !== 'proizvoditel';
 
             if (field.type === 'text') {
                 const input = document.createElement('input');
@@ -3933,6 +3934,7 @@ function saveState(silent){
             const allFields = eq.getFields(instance);
             for (let f of allFields) {
                 if (f.key === 'proizvoditel') continue;
+                if (newProducer === 'ТТ' || newProducer === 'ЧТЗ') {
                     setVal(iid, f.key, 'Не требуется');
                 } else {
                     setVal(iid, f.key, '');
@@ -15729,6 +15731,7 @@ const LS_KEY_COMPLEX='checklist_2es5k_v1';
 const LS_KEY_HOUSINGS='checklist_housings_v4';
 const EMBEDDED_MODES=['complex','housings','tt','bi','hydro'].concat(window.__cmIds?window.__cmIds():[]);
 const ALL_MODES=['complex','housings','tt','bi','hydro'].concat(window.__cmIds?window.__cmIds():[]);
+const MODE_NAMES={complex:'Чек-лист Комплексный',housings:'Чек-лист проверки КМБ',tt:'Чек-лист проверки Тяговый трансформатор "ЛЗМ"',bi:'Чек-лист проверки установленной защиты системного диска (МСУД-015)',hydro:'Чек-лист проверки Гидродемпферов'}; (window.__CUSTOM_MODES__||[]).forEach(function(m){MODE_NAMES[m.id]='Чек-лист '+m.title;});
 let MODE=null;
 let LS_KEY=LS_KEY_COMPLEX;
 if(typeof __EMBEDDED_MODE!=='undefined'&&__EMBEDDED_MODE){MODE=__EMBEDDED_MODE;const el=document.getElementById('__embedded_mode');if(el)el.parentNode.removeChild(el);}
