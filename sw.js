@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v19';
+const CACHE_VERSION = 'checklist-cache-v20';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -75,7 +75,7 @@ self.addEventListener('fetch', (event) => {
 
   // Файл «Зона риска» редактируется вручную и должен обновляться сразу:
   // сначала сеть (в обход HTTP-кэша), при отсутствии сети — последняя сохранённая копия.
-  if (isSameOrigin && /\/(zona_riska\.xlsx|oborudovanie\.json)$/.test(url.pathname)) {
+  if (isSameOrigin && /\/(zona_riska\.xlsx|oborudovanie\.json|examples\.json)$/.test(url.pathname)) {
     const key = new Request(url.origin + url.pathname);
     event.respondWith(
       fetch(req, { cache: 'no-store' })
