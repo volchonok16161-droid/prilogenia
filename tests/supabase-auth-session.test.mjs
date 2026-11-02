@@ -22,3 +22,11 @@ test("auth client continues to persist and refresh sessions", () => {
   assert.match(source, /autoRefreshToken: true/);
   assert.match(source, /storageKey: STORAGE_KEY/);
 });
+
+test("session restore and sign-in retry transient profile reads once", () => {
+  assert.match(source, /async function getProfileWithRetry\(user, attempts = 2\)/);
+  assert.match(source, /await getProfileWithRetry\(data\.user\)/);
+  assert.match(source, /attempt \+ 1 >= attempts/);
+  assert.match(source, /setTimeout\(resolve, 400\)/);
+  assert.equal((source.match(/getProfileWithRetry\(data\.user\)/g) || []).length, 2);
+});
