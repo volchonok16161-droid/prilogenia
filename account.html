@@ -30,7 +30,7 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
   <section class="panel"><h2>Профиль</h2><div class="profile">
    <div class="field"><span>Email</span><strong id="email">—</strong></div>
    <div class="field"><span>Идентификатор аккаунта</span><strong id="userId">—</strong></div>
-   <div class="field"><span>Роль</span><strong id="roleValue">—</strong></div>
+   <div class="field"><span>Роль</span><strong id="roleProfileValue">—</strong></div>
    <div class="field"><span>Статус</span><strong>Авторизован</strong></div>
   </div>
   <form id="profileForm" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:16px">
@@ -88,6 +88,7 @@ async function loadCabinet() {
   $("email").textContent = user.email || "—";
   $("userId").textContent = user.id;
   $("roleValue").textContent = roleLabels[profile.role] || profile.role;
+  $("roleProfileValue").textContent = roleLabels[profile.role] || profile.role;
   $("checklistCount").textContent = String(rows.length);
   $("lastSaved").textContent = rows.length ? formatDate(rows[0].updated_at) : "Пока нет";
   const list = $("checklists");
