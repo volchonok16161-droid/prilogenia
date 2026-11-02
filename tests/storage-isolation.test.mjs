@@ -48,6 +48,19 @@ test("photo storage derives record keys and restore prefixes from scoped LS_KEY"
   assert.match(html, /idbPutPhoto\(namespace,iid,photoKey,dataUrl\)/);
 });
 
+test("logout waits for pending IndexedDB photo migration and writes", () => {
+  assert.equal(
+    count(html, "if (typeof _photoMigrationPromise !== 'undefined' && _photoMigrationPromise) await _photoMigrationPromise;"),
+    5,
+  );
+  assert.equal(
+    count(html, "if (typeof _photoWriteChain !== 'undefined' && _photoWriteChain) await _photoWriteChain;"),
+    5,
+  );
+  assert.equal(count(html, "let _photoWriteChain=Promise.resolve();"), 1);
+  assert.equal(count(html, "_photoWriteChain=_photoWriteChain.then(function()"), 1);
+});
+
 test("all checklist runtimes react to auth changes in other tabs", () => {
   assert.equal(count(html, "function __tmhInstallAuthWatcher(api)"), 5);
   assert.equal(count(html, "__tmhInstallAuthWatcher(api);"), 5);
