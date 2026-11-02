@@ -100,32 +100,40 @@ export function createChecklistPhotoSync({
 
     const photos = collectPhotos(state);
     const manifest = [];
-    for (const photo of photos) {
-      const match = DATA_URL_RE.exec(photo.dataUrl);
-      if (!match) fail("INVALID_PHOTO", "Поддерживаются только фотографии JPEG, PNG и WebP");
-      const contentType = match[1].toLowerCase();
-      if (!ALLOWED_TYPES.has(contentType)) fail("INVALID_PHOTO", "Формат фотографии не поддерживается");
-      const bytes = decodeBase64(match[2]);
-      const fileId = uuid(idFactory(), "photo id");
-      const path = [
-        userId,
-        rowId,
-        String(revision),
-        segment(photo.itemId, "itemId"),
-        segment(photo.field, "photo field") + "-" + fileId,
-      ].join("/");
-      const result = await storageApi.from(BUCKET).upload(path, new Blob([bytes], { type: contentType }), {
-        contentType,
-        upsert: false,
-        cacheControl: "31536000",
-      });
-      storageError(result, "загрузка фотографии");
-      manifest.push(Object.freeze({
-        itemId: photo.itemId,
-        field: photo.field,
-        path,
-        contentType,
-      }));
+    try {
+      for (const photo of photos) {
+        const match = DATA_URL_RE.exec(photo.dataUrl);
+        if (!match) fail("INVALID_PHOTO", "Поддерживаются только фотографии JPEG, PNG и WebP");
+        const contentType = match[1].toLowerCase();
+        if (!ALLOWED_TYPES.has(contentType)) fail("INVALID_PHOTO", "Формат фотографии не поддерживается");
+        const bytes = decodeBase64(match[2]);
+        const fileId = uuid(idFactory(), "photo id");
+        const path = [
+          userId,
+          rowId,
+          String(revision),
+          segment(photo.itemId, "itemId"),
+          segment(photo.field, "photo field") + "-" + fileId,
+        ].join("/");
+        const result = await storageApi.from(BUCKET).upload(path, new Blob([bytes], { type: contentType }), {
+          contentType,
+          upsert: false,
+          cacheControl: "31536000",
+        });
+        storageError(result, "загрузка фотографии");
+        manifest.push(Object.freeze({
+          itemId: photo.itemId,
+          field: photo.field,
+          path,
+          contentType,
+        }));
+      }
+    } catch (error) {
+      if (manifest.length) {
+        try { await removeManifest(manifest); }
+        catch (cleanupError) { error.cleanupError = cleanupError; }
+      }
+      throw error;
     }
     return Object.freeze({ manifest: Object.freeze(manifest), uploaded: manifest.length });
   }
