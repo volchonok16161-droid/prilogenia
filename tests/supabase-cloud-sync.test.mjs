@@ -111,3 +111,15 @@ test("database migration makes checklist ownership immutable and revision monoto
   assert.match(sql, /before insert or update on public\.checklists/i);
   assert.match(sql, /for each row execute function public\.enforce_checklist_revision\(\)/i);
 });
+
+test("get scopes cloud record lookup to id and verified owner", async () => {
+  const row = { id: ROW_ID, owner_id: USER_A, revision: 2 };
+  const { sync, client } = makeSync({ responses: [{ data: row, error: null }] });
+  assert.equal(await sync.get(ROW_ID), row);
+  assert.deepEqual(client.calls[0].filters, [["id", ROW_ID], ["owner_id", USER_A]]);
+});
+
+test("get reports inaccessible or missing records without exposing other owners", async () => {
+  const { sync } = makeSync({ responses: [{ data: null, error: null }] });
+  await assert.rejects(sync.get(ROW_ID), (error) => error.code === "NOT_FOUND");
+});
