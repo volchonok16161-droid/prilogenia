@@ -87,3 +87,30 @@ test("legacy storage namespaces remain present and are not migrated implicitly",
   ]) assert.ok(html.includes(key), `missing legacy key: ${key}`);
   assert.match(html, /LS_KEY = base \+ '::user:' \+ uid/);
 });
+
+test("switching account UUIDs produces isolated local namespaces for all checklist types", () => {
+  const bases = [
+    "checklist_tt_v1",
+    "checklist_msud_v1",
+    "checklist_hydro_v1",
+    "checklist_2es5k_v1",
+    "checklist_housings_v4",
+  ];
+  const users = [
+    "11111111-1111-4111-8111-111111111111",
+    "22222222-2222-4222-8222-222222222222",
+  ];
+  for (const base of bases) {
+    const context = { window: {}, LS_KEY: base };
+    const start = html.indexOf("function __tmhApplyUserStorageScope(uid) {");
+    const end = html.indexOf("\n}\n", start);
+    runInNewContext(html.slice(start, end + 2), context);
+    context.__tmhApplyUserStorageScope(users[0]);
+    const accountAKey = context.LS_KEY;
+    context.__tmhApplyUserStorageScope(users[1]);
+    const accountBKey = context.LS_KEY;
+    assert.notEqual(accountAKey, accountBKey, base + " must not share storage between users");
+    assert.equal(accountAKey, base + "::user:" + users[0]);
+    assert.equal(accountBKey, base + "::user:" + users[1]);
+  }
+});
