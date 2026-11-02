@@ -24,7 +24,7 @@ test("the embedded bridge exposes live checklist state and the scoped storage ke
 
 test("cloud backup is explicit and never runs automatically during checklist startup", () => {
   assert.match(html, /button\.addEventListener\('click',async function\(\)/);
-  assert.ok(html.includes("window.confirm('Сохранить текущий чек-лист в облако?"));
+  assert.ok(html.includes("window.confirm('Сохранить текущий чек-лист и фотографии в приватное облако?"));
   assert.match(html, /const result=await backup\.saveCurrent\(\)/);
   assert.equal(count(html, "backup.saveCurrent()"), 2, "native and embedded checklists each have one explicit save handler");
   assert.match(html, /button\.disabled=true/);
@@ -100,4 +100,14 @@ test("embedded restore is attached to the iframe document and keeps the parent a
   assert.match(bridge, /const api=window\.parent&&window\.parent\.TMHAuth/);
   assert.match(bridge, /createChecklistCloudRestore\(/);
   assert.match(bridge, /restore\.restore\(selected\.id\)/);
+});
+
+
+test("native and embedded cloud save/restore wire the private photo Storage adapter", () => {
+  assert.match(html, /import \{ createChecklistPhotoSync \} from '\.\/prototype\/supabase-cloud-photos\.js'/);
+  assert.equal(count(html, "createChecklistPhotoSync({authApi:api})"), 4);
+  assert.equal(count(html, "hydrateState:async function(state,metadata,manifest)"), 2);
+  assert.match(html, /photoSync\.uploadState/);
+  assert.match(html, /photoSync\.restoreState/);
+  assert.match(html, /фотографий: '\+result\.photosUploaded/);
 });
