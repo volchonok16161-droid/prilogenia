@@ -38,6 +38,15 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
    <button class="btn" id="saveProfileBtn" type="submit">Сохранить имя</button>
   </form>
   <p id="profileStatus" class="muted" role="status" aria-live="polite" style="margin:10px 0 0"></p>
+  <div style="border-top:1px solid var(--line);margin-top:18px;padding-top:16px">
+   <h3 style="font-size:15px;margin:0 0 12px">Безопасность аккаунта</h3>
+   <form id="passwordForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end">
+    <label style="display:grid;gap:6px"><span class="muted">Новый пароль</span><input id="newPassword" type="password" minlength="8" autocomplete="new-password" required style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink)"></label>
+    <label style="display:grid;gap:6px"><span class="muted">Повторите пароль</span><input id="confirmPassword" type="password" minlength="8" autocomplete="new-password" required style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink)"></label>
+    <button class="btn" id="savePasswordBtn" type="submit">Изменить пароль</button>
+   </form>
+   <p id="passwordStatus" class="muted" role="status" aria-live="polite" style="margin:10px 0 0"></p>
+  </div>
   </section>
   <section class="panel"><h2>Мои облачные чек-листы</h2><div id="checklists"><div class="empty">Загрузка списка…</div></div></section>
   <div class="notice">Здесь отображаются только облачные копии текущего аккаунта. Локальные данные и фотографии на устройстве не изменяются. Список доступен только для просмотра.</div>
@@ -158,6 +167,45 @@ $("profileForm").addEventListener("submit", async (event) => {
   } finally {
     button.disabled = false;
     button.textContent = "Сохранить имя";
+  }
+});
+$("passwordForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = $("savePasswordBtn");
+  const status = $("passwordStatus");
+  const password = $("newPassword").value;
+  const confirmation = $("confirmPassword").value;
+  if (password.length < 8) {
+    status.textContent = "Пароль должен содержать не менее 8 символов.";
+    status.className = "error";
+    return;
+  }
+  if (password !== confirmation) {
+    status.textContent = "Пароли не совпадают.";
+    status.className = "error";
+    return;
+  }
+  button.disabled = true;
+  button.textContent = "Изменение…";
+  status.textContent = "";
+  try {
+    await window.TMHAuthReady;
+    const api = window.TMHAuth;
+    const identity = await api.getCurrentIdentity();
+    if (identity?.error) throw identity.error;
+    if (!identity?.user?.id) throw new Error("Сессия завершена. Войдите снова.");
+    const { error } = await api.client.auth.updateUser({ password });
+    if (error) throw error;
+    $("newPassword").value = "";
+    $("confirmPassword").value = "";
+    status.textContent = "Пароль успешно изменён.";
+    status.className = "muted";
+  } catch (error) {
+    status.textContent = error?.message || "Не удалось изменить пароль.";
+    status.className = "error";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Изменить пароль";
   }
 });
 $("logoutBtn").addEventListener("click", async () => {
