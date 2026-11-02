@@ -9,7 +9,7 @@
 :root{color-scheme:light;--bg:#f4f6fa;--card:#fff;--ink:#172033;--muted:#718096;--line:#e6eaf0;--blue:#315efb;--green:#16845b;--red:#b42318}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.brand{display:flex;align-items:center;gap:12px;font-weight:750}.logo{width:42px;height:42px;border-radius:13px;background:#172b57;color:#fff;display:grid;place-items:center}.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;padding:10px 14px;background:var(--blue);color:white;text-decoration:none;font-weight:650;cursor:pointer}.btn.secondary{background:#e9edf5;color:#344054}.btn:disabled{opacity:.55;cursor:wait}.welcome,.panel,.stat{background:var(--card);border:1px solid var(--line);border-radius:17px}.welcome{padding:23px 25px;margin-bottom:16px}.welcome h1{margin:0 0 5px;font-size:25px}.muted{color:var(--muted)}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:16px}.stat{padding:17px 19px}.stat-label{font-size:13px;color:var(--muted)}.stat-value{font-size:28px;font-weight:780;margin-top:4px}.panel{padding:20px 21px;margin-bottom:16px}.panel h2{font-size:17px;margin:0 0 14px}.profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.field{border:1px solid var(--line);border-radius:11px;padding:12px 13px;min-width:0}.field span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.field strong{overflow-wrap:anywhere}.item{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}.item-icon{width:37px;height:37px;border-radius:10px;background:#f0f3f8;display:grid;place-items:center;flex:none}.item-info{flex:1;min-width:0}.item-info strong{display:block;overflow-wrap:anywhere}.item-info small{color:var(--muted)}.revision{font-size:12px;color:var(--muted);white-space:nowrap}.notice{padding:12px 14px;background:#fff8e7;border:1px solid #f4e5b8;border-radius:11px;color:#795b16;font-size:13px}.error{color:var(--red)}.empty{padding:20px 0;color:var(--muted);text-align:center}.loading{color:var(--muted)}.hidden{display:none!important}
-@media(max-width:620px){.app{padding:16px 12px 34px}.top{align-items:flex-start}.stats{gap:8px}.stat{padding:13px 11px}.stat-value{font-size:23px}.welcome{padding:19px}.welcome h1{font-size:22px}.panel{padding:16px 14px}.profile{grid-template-columns:1fr}.revision{display:none}.actions{justify-content:flex-end}}
+.admin-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.admin-row:first-child{border-top:0}.admin-info{flex:1;min-width:0}.admin-info strong{display:block;overflow-wrap:anywhere}.admin-meta{font-size:12px;color:var(--muted);overflow-wrap:anywhere}.admin-pill{display:inline-block;margin-top:4px;padding:3px 8px;border-radius:20px;background:#e8f7ef;color:#14744e;font-size:12px}.admin-pill.off{background:#fff0ee;color:#a33b30}.admin-row button{flex:none}@media(max-width:620px){.app{padding:16px 12px 34px}.top{align-items:flex-start}.stats{gap:8px}.stat{padding:13px 11px}.stat-value{font-size:23px}.welcome{padding:19px}.welcome h1{font-size:22px}.panel{padding:16px 14px}.profile{grid-template-columns:1fr}.revision{display:none}.actions{justify-content:flex-end}}
 </style>
 </head>
 <body>
@@ -51,6 +51,15 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
   </div>
   </section>
   <section class="panel"><h2>Мои облачные чек-листы</h2><div id="checklists"><div class="empty">Загрузка списка…</div></div></section>
+  <section class="panel hidden" id="adminPanel" aria-labelledby="adminHeading">
+   <h2 id="adminHeading">Управление сотрудниками</h2>
+   <p class="muted" style="margin:0 0 12px">Доступно администраторам и разработчикам. Действия выполняются серверной функцией с проверкой прав.</p>
+   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <button class="btn secondary" id="refreshEmployeesBtn" type="button">Обновить список</button>
+    <span id="adminStatus" class="muted" role="status" aria-live="polite"></span>
+   </div>
+   <div id="employeeList" style="margin-top:12px"><div class="empty">Загрузка списка сотрудников…</div></div>
+  </section>
   <div class="notice">Здесь отображаются только облачные копии текущего аккаунта. Локальные данные и фотографии на устройстве не изменяются. Список доступен только для просмотра.</div>
  </div>
  <div id="error" class="panel error hidden" role="alert"></div>
@@ -70,6 +79,78 @@ function showError(message) {
   $("content").classList.add("hidden");
   $("error").textContent = message;
   $("error").classList.remove("hidden");
+}
+async function callAdmin(api, body) {
+  const { data, error } = await api.client.functions.invoke("account-admin", { body });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+async function loadEmployees(api) {
+  const host = $("employeeList");
+  const status = $("adminStatus");
+  host.replaceChildren();
+  const loading = document.createElement("div");
+  loading.className = "empty";
+  loading.textContent = "Загрузка сотрудников…";
+  host.append(loading);
+  status.textContent = "";
+  try {
+    const result = await callAdmin(api, { action: "list_employees" });
+    const employees = Array.isArray(result?.employees) ? result.employees : [];
+    host.replaceChildren();
+    if (!employees.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "Сотрудников пока нет.";
+      host.append(empty);
+      return;
+    }
+    for (const employee of employees) {
+      const row = document.createElement("article");
+      row.className = "admin-row";
+      const info = document.createElement("div");
+      info.className = "admin-info";
+      const name = document.createElement("strong");
+      name.textContent = employee.display_name || "Без имени";
+      const meta = document.createElement("div");
+      meta.className = "admin-meta";
+      meta.textContent = employee.id;
+      const pill = document.createElement("span");
+      pill.className = "admin-pill" + (employee.suspended ? " off" : "");
+      pill.textContent = employee.suspended ? "Доступ заблокирован" : "Доступ активен";
+      info.append(name, meta, pill);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = employee.suspended ? "btn secondary" : "btn";
+      button.textContent = employee.suspended ? "Восстановить" : "Заблокировать";
+      button.addEventListener("click", async () => {
+        const action = employee.suspended ? "восстановить доступ" : "заблокировать доступ";
+        if (!window.confirm("Вы действительно хотите " + action + " для сотрудника «" + (employee.display_name || employee.id) + "»?")) return;
+        button.disabled = true;
+        status.textContent = "Обновляем доступ…";
+        try {
+          await callAdmin(api, { action: "set_employee_access", user_id: employee.id, suspended: !employee.suspended });
+          status.textContent = "Статус доступа обновлён.";
+          await loadEmployees(api);
+        } catch (error) {
+          status.textContent = error?.message || "Не удалось изменить доступ.";
+          status.className = "error";
+          button.disabled = false;
+        }
+      });
+      row.append(info, button);
+      host.append(row);
+    }
+  } catch (error) {
+    host.replaceChildren();
+    const message = document.createElement("div");
+    message.className = "empty error";
+    message.textContent = error?.message || "Не удалось загрузить сотрудников.";
+    host.append(message);
+    status.textContent = "Проверьте доступ к административной функции.";
+    status.className = "error";
+  }
 }
 async function loadCabinet() {
   $("loading").classList.remove("hidden");
@@ -106,6 +187,9 @@ async function loadCabinet() {
   $("lastSignIn").textContent = formatDate(user.last_sign_in_at);
   $("roleValue").textContent = roleLabels[profile.role] || profile.role;
   $("roleProfileValue").textContent = roleLabels[profile.role] || profile.role;
+  const canManageEmployees = ["developer", "admin"].includes(profile.role);
+  $("adminPanel").classList.toggle("hidden", !canManageEmployees);
+  if (canManageEmployees) await loadEmployees(api);
   $("checklistCount").textContent = String(rows.length);
   $("lastSaved").textContent = rows.length ? formatDate(rows[0].updated_at) : "Пока нет";
   const list = $("checklists");
@@ -140,6 +224,25 @@ async function loadCabinet() {
   $("error").classList.add("hidden");
   $("content").classList.remove("hidden");
 }
+$("refreshEmployeesBtn").addEventListener("click", async () => {
+  const button = $("refreshEmployeesBtn");
+  button.disabled = true;
+  try {
+    await window.TMHAuthReady;
+    const api = window.TMHAuth;
+    const identity = await api.getCurrentIdentity();
+    if (identity?.error) throw identity.error;
+    if (!identity?.profile || !["developer", "admin"].includes(identity.profile.role)) {
+      throw new Error("Недостаточно прав для просмотра сотрудников.");
+    }
+    await loadEmployees(api);
+  } catch (error) {
+    $("adminStatus").textContent = error?.message || "Не удалось обновить список.";
+    $("adminStatus").className = "error";
+  } finally {
+    button.disabled = false;
+  }
+});
 $("profileForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = $("saveProfileBtn");
