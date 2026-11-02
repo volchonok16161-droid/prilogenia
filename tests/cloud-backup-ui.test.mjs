@@ -75,3 +75,29 @@ test("restored native checklist is linked to the restored cloud row revision", (
   assert.match(html, /applyState:async function\(incoming,metadata\)/);
   assert.match(html, /localStorage\.setItem\(LS_KEY\+'::cloud-ref',JSON\.stringify\(\{id:metadata\.id,revision:metadata\.revision\}\)\)/);
 });
+
+
+test("embedded TT, BI and hydro checklists expose a mode-isolated cloud restore action", () => {
+  const start = html.indexOf("function __tmhAttachCloudBackup(source, mode)");
+  const end = html.indexOf("function getEmbeddedSource(mode)", start);
+  const bridge = html.slice(start, end);
+  assert.match(bridge, /id="tmhCloudRestoreBtn" type="button">☁️ Восстановить из облака/);
+  assert.match(bridge, /import \{ createChecklistCloudRestore \} from '\.\/prototype\/supabase-cloud-restore\.js'/);
+  assert.match(bridge, /items\.filter\(function\(item\)\{return item\.mode===context\.mode;\}\)/);
+  assert.match(bridge, /beforeApply:async function\(\)\{await backup\.createSnapshot/);
+  assert.match(bridge, /applyState:context\.applyState/);
+  assert.match(bridge, /localStorage\.setItem\(LS_KEY\+'::cloud-ref'/);
+  assert.match(bridge, /_photo\$\/i\.test\(key\)/);
+  assert.match(bridge, /window\.parent&&window\.parent\.TMHAuth/);
+  assert.match(bridge, /Восстановить «'\+selected\.title/);
+});
+
+test("embedded restore is attached to the iframe document and keeps the parent auth session", () => {
+  const start = html.indexOf("function __tmhAttachCloudBackup(source, mode)");
+  const end = html.indexOf("function getEmbeddedSource(mode)", start);
+  const bridge = html.slice(start, end);
+  assert.match(bridge, /id="tmhCloudRestoreBtn"/);
+  assert.match(bridge, /const api=window\.parent&&window\.parent\.TMHAuth/);
+  assert.match(bridge, /createChecklistCloudRestore\(/);
+  assert.match(bridge, /restore\.restore\(selected\.id\)/);
+});
