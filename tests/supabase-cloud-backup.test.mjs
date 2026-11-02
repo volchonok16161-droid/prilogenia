@@ -183,7 +183,6 @@ test("photo manifest is uploaded for the exact next cloud revision and stored wi
     getState: () => h.state,
     getMode: () => "complex",
     getStorageKey: () => "checklist_complex::user:" + USER,
-    cloudApi: h.backup && undefined,
     photoSync,
     idFactory: () => ROW,
     cloudApi: {
