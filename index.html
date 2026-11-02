@@ -2785,8 +2785,16 @@ function __tmhInstallAuthWatcher(api) {
       // Embedded runtimes can observe the parent's SIGNED_IN event before
       // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
       if (activeUid && activeUid !== session.user.id) {
+        // A srcdoc document must not reload on an account mismatch: lock it
+        // and return to login in place, without writing under the new account.
         window.__TMH_STORAGE_LOCKED = true;
-        window.location.reload();
+        window.__TMH_STORAGE_UID = null;
+        currentUser = null;
+        try { localStorage.removeItem('checklist_user'); } catch (e) {}
+        if (typeof updateUserUI === 'function') updateUserUI();
+        var loginModal = document.getElementById('loginModal');
+        if (loginModal) loginModal.style.display = 'flex';
+        return;
       }
     }
   });
@@ -6416,8 +6424,16 @@ function __tmhInstallAuthWatcher(api) {
       // Embedded runtimes can observe the parent's SIGNED_IN event before
       // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
       if (activeUid && activeUid !== session.user.id) {
+        // A srcdoc document must not reload on an account mismatch: lock it
+        // and return to login in place, without writing under the new account.
         window.__TMH_STORAGE_LOCKED = true;
-        window.location.reload();
+        window.__TMH_STORAGE_UID = null;
+        currentUser = null;
+        try { localStorage.removeItem('checklist_user'); } catch (e) {}
+        if (typeof updateUserUI === 'function') updateUserUI();
+        var loginModal = document.getElementById('loginModal');
+        if (loginModal) loginModal.style.display = 'flex';
+        return;
       }
     }
   });
@@ -9646,8 +9662,16 @@ function __tmhInstallAuthWatcher(api) {
       // Embedded runtimes can observe the parent's SIGNED_IN event before
       // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
       if (activeUid && activeUid !== session.user.id) {
+        // A srcdoc document must not reload on an account mismatch: lock it
+        // and return to login in place, without writing under the new account.
         window.__TMH_STORAGE_LOCKED = true;
-        window.location.reload();
+        window.__TMH_STORAGE_UID = null;
+        currentUser = null;
+        try { localStorage.removeItem('checklist_user'); } catch (e) {}
+        if (typeof updateUserUI === 'function') updateUserUI();
+        var loginModal = document.getElementById('loginModal');
+        if (loginModal) loginModal.style.display = 'flex';
+        return;
       }
     }
   });
@@ -14224,8 +14248,16 @@ function __tmhInstallAuthWatcher(api) {
       // Embedded runtimes can observe the parent's SIGNED_IN event before
       // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
       if (activeUid && activeUid !== session.user.id) {
+        // A srcdoc document must not reload on an account mismatch: lock it
+        // and return to login in place, without writing under the new account.
         window.__TMH_STORAGE_LOCKED = true;
-        window.location.reload();
+        window.__TMH_STORAGE_UID = null;
+        currentUser = null;
+        try { localStorage.removeItem('checklist_user'); } catch (e) {}
+        if (typeof updateUserUI === 'function') updateUserUI();
+        var loginModal = document.getElementById('loginModal');
+        if (loginModal) loginModal.style.display = 'flex';
+        return;
       }
     }
   });
@@ -16435,8 +16467,16 @@ function __tmhInstallAuthWatcher(api) {
       // Embedded runtimes can observe the parent's SIGNED_IN event before
       // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
       if (activeUid && activeUid !== session.user.id) {
+        // A srcdoc document must not reload on an account mismatch: lock it
+        // and return to login in place, without writing under the new account.
         window.__TMH_STORAGE_LOCKED = true;
-        window.location.reload();
+        window.__TMH_STORAGE_UID = null;
+        currentUser = null;
+        try { localStorage.removeItem('checklist_user'); } catch (e) {}
+        if (typeof updateUserUI === 'function') updateUserUI();
+        var loginModal = document.getElementById('loginModal');
+        if (loginModal) loginModal.style.display = 'flex';
+        return;
       }
     }
   });

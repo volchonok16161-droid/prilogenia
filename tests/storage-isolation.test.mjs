@@ -141,7 +141,10 @@ test("sign-out locks writes and shows login without reloading an embedded srcdoc
   assert.match(signedOut, /__TMH_STORAGE_UID = null/);
   assert.match(signedOut, /loginModal\.style\.display = 'flex'/);
   assert.doesNotMatch(signedOut, /location\.reload\(\)/);
-  assert.match(watcher, /event === 'SIGNED_IN'[\s\S]*?activeUid && activeUid !== session\.user\.id[\s\S]*?__TMH_STORAGE_LOCKED = true[\s\S]*?location\.reload\(\)/);
+  assert.match(watcher, /event === 'SIGNED_IN'[\s\S]*?activeUid && activeUid !== session\.user\.id[\s\S]*?__TMH_STORAGE_LOCKED = true[\s\S]*?loginModal\.style\.display = 'flex'/);
+  assert.doesNotMatch(watcher, /location\.reload\(\)/);
+  assert.equal(count(html, "function __tmhInstallAuthWatcher(api)"), 5);
+  assert.equal(count(html, "window.location.reload();"), 0);
 
   let onChange;
   let reloads = 0;
@@ -167,9 +170,18 @@ test("sign-out locks writes and shows login without reloading an embedded srcdoc
   assert.equal(uiUpdates, 1);
   assert.equal(loginModal.style.display, "flex");
 
-  // A known account mismatch must still lock and reload the old runtime.
+  // A known account mismatch must lock writes and show login in place.
   context.window.__TMH_STORAGE_UID = "22222222-2222-4222-8222-222222222222";
+  context.currentUser = "user";
+  loginModal.style.display = "none";
+  removedKey = "";
+  uiUpdates = 0;
   onChange("SIGNED_IN", { user: { id: "11111111-1111-4111-8111-111111111111" } });
-  assert.equal(reloads, 1);
+  assert.equal(reloads, 0);
   assert.equal(context.window.__TMH_STORAGE_LOCKED, true);
+  assert.equal(context.window.__TMH_STORAGE_UID, null);
+  assert.equal(context.currentUser, null);
+  assert.equal(removedKey, "checklist_user");
+  assert.equal(uiUpdates, 1);
+  assert.equal(loginModal.style.display, "flex");
 });
