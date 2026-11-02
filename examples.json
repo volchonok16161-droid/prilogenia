@@ -1,12 +1,9 @@
 {
   "version": 1,
-  "updated": "2026-11-02T11:04:35.998Z",
+  "updated": "2026-11-02T11:06:01.511Z",
   "items": {
     "cx|vb8|zav": {
       "ok": "examples/e_11hwbr_ok_mvurndpt.jpg"
-    },
-    "cx|vb8|f0": {
-      "nok": "examples/e_xmpdck_nok_mvz5j7y5.jpg"
     }
   }
 }
