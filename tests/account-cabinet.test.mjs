@@ -64,3 +64,13 @@ test("password change uses Supabase Auth and never writes password into profile"
   assert.match(html, /confirmPassword"\)\.value = ""/);
   assert.doesNotMatch(html, /\.from\("profiles"\)[\s\S]*?password\s*:/);
 });
+
+test("profile shows live email confirmation, registration and last sign-in metadata", () => {
+  assert.match(html, /id="emailStatus"/);
+  assert.match(html, /id="createdAt"/);
+  assert.match(html, /id="lastSignIn"/);
+  assert.match(html, /user\.email_confirmed_at \? "Подтверждён" : "Не подтверждён"/);
+  assert.match(html, /formatDate\(user\.created_at\)/);
+  assert.match(html, /formatDate\(user\.last_sign_in_at\)/);
+  assert.doesNotMatch(html, /<strong>Авторизован<\/strong>/);
+});
