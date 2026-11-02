@@ -98,5 +98,40 @@ export function createChecklistCloudBackup({
     return Object.freeze({ row, photosExcluded: stats.removed, created: !reference });
   }
 
-  return Object.freeze({ saveCurrent });
+  async function createSnapshot({ label = "Перед восстановлением из облака" } = {}) {
+    const identity = await authApi.getCurrentIdentity();
+    const userId = identity?.user?.id;
+    if (identity?.error || !userId) {
+      const error = new Error("Сначала войдите в аккаунт Supabase");
+      error.code = "AUTH_REQUIRED";
+      throw error;
+    }
+
+    const storageKey = getStorageKey();
+    if (typeof storageKey !== "string" ||
+        !storageKey.endsWith("::user:" + userId)) {
+      const error = new Error("Локальное хранилище не соответствует текущему аккаунту");
+      error.code = "STORAGE_SCOPE_MISMATCH";
+      throw error;
+    }
+
+    const state = getState();
+    if (!state || typeof state !== "object" || Array.isArray(state)) {
+      throw new Error("Нет данных чек-листа для резервной копии");
+    }
+
+    const stats = { removed: 0 };
+    const mode = String(getMode() || "unknown");
+    const payload = { mode, state: cloneWithoutPhotos(state, stats) };
+    const title = [label, state.general?.type || mode, state.general?.number || ""]
+      .filter(Boolean).join(" — ").slice(0, 200);
+    const row = await cloud.create({
+      title,
+      equipmentType: mode.slice(0, 120),
+      payload,
+    });
+    return Object.freeze({ row, photosExcluded: stats.removed });
+  }
+
+  return Object.freeze({ saveCurrent, createSnapshot });
 }
