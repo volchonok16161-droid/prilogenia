@@ -146,9 +146,16 @@ export function createChecklistPhotoSync({
       if (!entry || typeof entry.path !== "string") fail("INVALID_MANIFEST", "Некорректный путь фотографии");
       const parts = entry.path.split("/");
       if (parts.length !== 5 || parts[0] !== userId ||
-          !/^[0-9a-f-]{36}$/i.test(parts[1]) ||
-          !/^[1-9][0-9]*$/.test(parts[2])) {
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parts[1]) ||
+          !/^[1-9][0-9]*$/.test(parts[2]) ||
+          typeof entry.itemId !== "string" || typeof entry.field !== "string") {
         fail("INVALID_MANIFEST", "Нельзя удалить файл вне папки текущего пользователя");
+      }
+      const fieldPrefix = segment(entry.field, "photo field") + "-";
+      if (parts[3] !== segment(entry.itemId, "itemId") ||
+          !parts[4].startsWith(fieldPrefix) ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parts[4].slice(fieldPrefix.length))) {
+        fail("INVALID_MANIFEST", "Путь файла не соответствует манифесту фотографии");
       }
       return entry.path;
     });
