@@ -2649,7 +2649,19 @@ var h='';for(i=0;i<8;i++)h+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);retur
 function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==='c6a92f1d718a2a74fbbe448c66b70baffa1811636e527d1e3245b6c2e2285147';}catch(e){return false;}}
         let currentUser = null;
 
-        function __getTMHAuthApi() {
+        function __tmhApplyUserStorageScope(uid) {
+  if (typeof uid !== 'string' || !/^[0-9a-f-]{36}$/i.test(uid)) {
+    throw new Error('Не удалось подтвердить UUID пользователя Supabase');
+  }
+  var base = String(LS_KEY || '');
+  var marker = base.lastIndexOf('::user:');
+  if (marker >= 0) base = base.slice(0, marker);
+  LS_KEY = base + '::user:' + uid;
+  window.__TMH_STORAGE_UID = uid;
+  window.__TMH_STORAGE_LOCKED = false;
+}
+
+function __getTMHAuthApi() {
   try {
     if (window.TMHAuth) return window.TMHAuth;
     if (window.parent && window.parent !== window && window.parent.TMHAuth) return window.parent.TMHAuth;
@@ -2668,6 +2680,7 @@ async function checkAuth() {
       updateUserUI();
       return false;
     }
+    __tmhApplyUserStorageScope(identity.user.id);
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
     try {
@@ -2694,6 +2707,7 @@ async function doLogin(login, password) {
   if (!api) return false;
   const result = await api.signIn(login, password);
   if (!result || result.error || !result.user || !result.profile) return false;
+  __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
   try {
@@ -2712,6 +2726,11 @@ async function doLogin(login, password) {
 }
 
 async function doLogout() {
+  try {
+    if (typeof saveState === 'function') saveState(true);
+    if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
+  } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
+  window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
   if (api) {
     const result = await api.signOut();
@@ -3039,7 +3058,7 @@ function updateUserUI() {
         /* ========================================================================
            СОСТОЯНИЕ / ХРАНЕНИЕ
            ======================================================================== */
-        const LS_KEY = 'checklist_tt_v1';
+        let LS_KEY = 'checklist_tt_v1';
         let STATE = {
             general: { type: '', number: '', date: '', depot: '', place: '', mileage: '' },
             values: {},
@@ -3338,6 +3357,7 @@ function __psOverflow(silent){
   return __PS.chain;
 }
 function saveState(silent){
+  if(window.__TMH_STORAGE_LOCKED)return false;
   if(!STATE||!STATE.general)return false;
   if(__psFlagOn()){
     try{localStorage.setItem(LS_KEY,JSON.stringify(__psLight()));}
@@ -4507,6 +4527,7 @@ function saveState(silent){
         let dialogShown = false;
 
         function showContinueDialogOrStart() {
+            if (!window.__TMH_STORAGE_UID) { document.getElementById('loginModal').style.display = 'flex'; return; }
             if (dialogShown) return;
             const hasSaved = localStorage.getItem(LS_KEY) !== null;
             if (typeof __EMBEDDED_STATE !== 'undefined' && __EMBEDDED_STATE) {
@@ -6215,7 +6236,19 @@ var h='';for(i=0;i<8;i++)h+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);retur
 function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==='c6a92f1d718a2a74fbbe448c66b70baffa1811636e527d1e3245b6c2e2285147';}catch(e){return false;}}
         let currentUser = null;
 
-        function __getTMHAuthApi() {
+        function __tmhApplyUserStorageScope(uid) {
+  if (typeof uid !== 'string' || !/^[0-9a-f-]{36}$/i.test(uid)) {
+    throw new Error('Не удалось подтвердить UUID пользователя Supabase');
+  }
+  var base = String(LS_KEY || '');
+  var marker = base.lastIndexOf('::user:');
+  if (marker >= 0) base = base.slice(0, marker);
+  LS_KEY = base + '::user:' + uid;
+  window.__TMH_STORAGE_UID = uid;
+  window.__TMH_STORAGE_LOCKED = false;
+}
+
+function __getTMHAuthApi() {
   try {
     if (window.TMHAuth) return window.TMHAuth;
     if (window.parent && window.parent !== window && window.parent.TMHAuth) return window.parent.TMHAuth;
@@ -6234,6 +6267,7 @@ async function checkAuth() {
       updateUserUI();
       return false;
     }
+    __tmhApplyUserStorageScope(identity.user.id);
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
     try {
@@ -6260,6 +6294,7 @@ async function doLogin(login, password) {
   if (!api) return false;
   const result = await api.signIn(login, password);
   if (!result || result.error || !result.user || !result.profile) return false;
+  __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
   try {
@@ -6278,6 +6313,11 @@ async function doLogin(login, password) {
 }
 
 async function doLogout() {
+  try {
+    if (typeof saveState === 'function') saveState(true);
+    if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
+  } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
+  window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
   if (api) {
     const result = await api.signOut();
@@ -6919,7 +6959,7 @@ function updateUserUI() {
         /* ========================================================================
            СОСТОЯНИЕ / ХРАНЕНИЕ
            ======================================================================== */
-        const LS_KEY = 'checklist_msud_v1';
+        let LS_KEY = 'checklist_msud_v1';
         let STATE = {
             general: { type: '', number: '', date: '', depot: '', place: '', mileage: '' },
             values: {},
@@ -7218,6 +7258,7 @@ function __psOverflow(silent){
   return __PS.chain;
 }
 function saveState(silent){
+  if(window.__TMH_STORAGE_LOCKED)return false;
   if(!STATE||!STATE.general)return false;
   if(__psFlagOn()){
     try{localStorage.setItem(LS_KEY,JSON.stringify(__psLight()));}
@@ -8318,6 +8359,7 @@ function saveState(silent){
         let dialogShown = false;
 
         function showContinueDialogOrStart() {
+            if (!window.__TMH_STORAGE_UID) { document.getElementById('loginModal').style.display = 'flex'; return; }
             if (dialogShown) return;
             const hasSaved = localStorage.getItem(LS_KEY) !== null;
             if (typeof __EMBEDDED_STATE !== 'undefined' && __EMBEDDED_STATE) {
@@ -9380,6 +9422,18 @@ var h='';for(i=0;i<8;i++)h+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);retur
 function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==='c6a92f1d718a2a74fbbe448c66b70baffa1811636e527d1e3245b6c2e2285147';}catch(e){return false;}}
 let currentUser = null;
 
+function __tmhApplyUserStorageScope(uid) {
+  if (typeof uid !== 'string' || !/^[0-9a-f-]{36}$/i.test(uid)) {
+    throw new Error('Не удалось подтвердить UUID пользователя Supabase');
+  }
+  var base = String(LS_KEY || '');
+  var marker = base.lastIndexOf('::user:');
+  if (marker >= 0) base = base.slice(0, marker);
+  LS_KEY = base + '::user:' + uid;
+  window.__TMH_STORAGE_UID = uid;
+  window.__TMH_STORAGE_LOCKED = false;
+}
+
 function __getTMHAuthApi() {
   try {
     if (window.TMHAuth) return window.TMHAuth;
@@ -9399,6 +9453,7 @@ async function checkAuth() {
       updateUserUI();
       return false;
     }
+    __tmhApplyUserStorageScope(identity.user.id);
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
     try {
@@ -9425,6 +9480,7 @@ async function doLogin(login, password) {
   if (!api) return false;
   const result = await api.signIn(login, password);
   if (!result || result.error || !result.user || !result.profile) return false;
+  __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
   try {
@@ -9443,6 +9499,11 @@ async function doLogin(login, password) {
 }
 
 async function doLogout() {
+  try {
+    if (typeof saveState === 'function') saveState(true);
+    if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
+  } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
+  window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
   if (api) {
     const result = await api.signOut();
@@ -11276,7 +11337,7 @@ function buildEquipment(type) {
 /* ========================================================================
    СОСТОЯНИЕ / ХРАНЕНИЕ
    ======================================================================== */
-const LS_KEY = 'checklist_hydro_v1';
+let LS_KEY = 'checklist_hydro_v1';
 let STATE = { 
   general: { 
     type: '', 
@@ -11594,6 +11655,7 @@ function __psOverflow(silent){
   return __PS.chain;
 }
 function saveState(silent){
+  if(window.__TMH_STORAGE_LOCKED)return false;
   if(!STATE||!STATE.general)return false;
   if(__psFlagOn()){
     try{localStorage.setItem(LS_KEY,JSON.stringify(__psLight()));}
@@ -13196,6 +13258,7 @@ function saveAsHtmlFile() {
 let dialogShown = false;
 
 function showContinueDialogOrStart() {
+  if (!window.__TMH_STORAGE_UID) { document.getElementById('loginModal').style.display = 'flex'; return; }
   if (dialogShown) return;
   const hasSaved = localStorage.getItem(LS_KEY) !== null;
   if (typeof __EMBEDDED_STATE !== 'undefined' && __EMBEDDED_STATE) {
@@ -13893,6 +13956,18 @@ for(i=0;i<8;i++)H[i]=(H[i]+a[i])|0;}
 var h='';for(i=0;i<8;i++)h+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);return h;}
 function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==='c6a92f1d718a2a74fbbe448c66b70baffa1811636e527d1e3245b6c2e2285147';}catch(e){return false;}}
 let currentUser=null;
+function __tmhApplyUserStorageScope(uid) {
+  if (typeof uid !== 'string' || !/^[0-9a-f-]{36}$/i.test(uid)) {
+    throw new Error('Не удалось подтвердить UUID пользователя Supabase');
+  }
+  var base = String(LS_KEY || '');
+  var marker = base.lastIndexOf('::user:');
+  if (marker >= 0) base = base.slice(0, marker);
+  LS_KEY = base + '::user:' + uid;
+  window.__TMH_STORAGE_UID = uid;
+  window.__TMH_STORAGE_LOCKED = false;
+}
+
 function __getTMHAuthApi() {
   try {
     if (window.TMHAuth) return window.TMHAuth;
@@ -13912,6 +13987,7 @@ async function checkAuth() {
       updateUserUI();
       return false;
     }
+    __tmhApplyUserStorageScope(identity.user.id);
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
     try {
@@ -13938,6 +14014,7 @@ async function doLogin(login, password) {
   if (!api) return false;
   const result = await api.signIn(login, password);
   if (!result || result.error || !result.user || !result.profile) return false;
+  __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
   try {
@@ -13956,6 +14033,11 @@ async function doLogin(login, password) {
 }
 
 async function doLogout() {
+  try {
+    if (typeof saveState === 'function') saveState(true);
+    if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
+  } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
+  window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
   if (api) {
     const result = await api.signOut();
@@ -15191,6 +15273,7 @@ function updateModePicker(){
 // ========================================================================
 let dialogShown=false;
 function showContinueDialogOrStart(){
+    if(!window.__TMH_STORAGE_UID){document.getElementById('loginModal').style.display='flex';return;}
     if(dialogShown)return;
     const hasSaved=localStorage.getItem(LS_KEY)!==null;
     if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){
@@ -15358,6 +15441,7 @@ function __psOverflow(silent){
   return __PS.chain;
 }
 function saveState(silent){
+  if(window.__TMH_STORAGE_LOCKED)return false;
   if(!STATE||!STATE.general)return false;
   if(__psFlagOn()){
     try{localStorage.setItem(LS_KEY,JSON.stringify(__psLight()));}
@@ -15900,6 +15984,18 @@ for(i=0;i<8;i++)H[i]=(H[i]+a[i])|0;}
 var h='';for(i=0;i<8;i++)h+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);return h;}
 function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==='c6a92f1d718a2a74fbbe448c66b70baffa1811636e527d1e3245b6c2e2285147';}catch(e){return false;}}
 let currentUser=null;
+function __tmhApplyUserStorageScope(uid) {
+  if (typeof uid !== 'string' || !/^[0-9a-f-]{36}$/i.test(uid)) {
+    throw new Error('Не удалось подтвердить UUID пользователя Supabase');
+  }
+  var base = String(LS_KEY || '');
+  var marker = base.lastIndexOf('::user:');
+  if (marker >= 0) base = base.slice(0, marker);
+  LS_KEY = base + '::user:' + uid;
+  window.__TMH_STORAGE_UID = uid;
+  window.__TMH_STORAGE_LOCKED = false;
+}
+
 function __getTMHAuthApi() {
   try {
     if (window.TMHAuth) return window.TMHAuth;
@@ -15919,6 +16015,7 @@ async function checkAuth() {
       updateUserUI();
       return false;
     }
+    __tmhApplyUserStorageScope(identity.user.id);
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
     try {
@@ -15945,6 +16042,7 @@ async function doLogin(login, password) {
   if (!api) return false;
   const result = await api.signIn(login, password);
   if (!result || result.error || !result.user || !result.profile) return false;
+  __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
   try {
@@ -15963,6 +16061,11 @@ async function doLogin(login, password) {
 }
 
 async function doLogout() {
+  try {
+    if (typeof saveState === 'function') saveState(true);
+    if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
+  } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
+  window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
   if (api) {
     const result = await api.signOut();
@@ -17080,6 +17183,7 @@ function updateModePicker(){
 // ========================================================================
 let dialogShown=false;
 function showContinueDialogOrStart(){
+    if(!window.__TMH_STORAGE_UID){document.getElementById('loginModal').style.display='flex';return;}
     if(dialogShown)return;
     const hasSaved=localStorage.getItem(LS_KEY)!==null;
     if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){
@@ -17150,6 +17254,7 @@ function setupCommonHandlers(){
 }
 
 function saveState(silent){
+    if(window.__TMH_STORAGE_LOCKED)return false;
     if(!STATE || !STATE.general) return; // safety
     const writeLight=function(){
         try{
