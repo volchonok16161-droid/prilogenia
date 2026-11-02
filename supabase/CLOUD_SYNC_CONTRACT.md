@@ -187,7 +187,7 @@ CI: 80 source-level тестов пройдены, 0 ошибок. Это не �
 
 ### Проверка
 - Подключённый Supabase-проект повторно проверен: bucket checklist-photos приватный, лимит 10 MiB, разрешены JPEG/PNG/WebP; четыре Storage RLS политики owner-scoped присутствуют.
-- GitHub Actions: 92 source-level теста пройдены, 0 ошибок. Проверены manifest, revision-scoped upload, restore hydration, запрет чужого пути и rollback частичной загрузки/неудачной записи.
+- GitHub Actions: 93 source-level теста пройдены, 0 ошибок. Проверены manifest, revision-scoped upload, restore hydration, запрет чужого пути и rollback частичной загрузки/неудачной записи.
 - Это ещё не реальный browser E2E: пока не выполнялась фактическая загрузка файла из браузера с пользовательской Auth-сессией, а также проверка восстановления на втором устройстве. Старые фото остаются в локальном IndexedDB до явного сохранения облачной копии с фото.
 - Security Advisor всё ещё показывает отдельное предупреждение Leaked Password Protection Disabled; оно не связано с Storage, но остаётся открытой задачей Auth.
 
