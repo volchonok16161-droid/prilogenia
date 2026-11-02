@@ -23,13 +23,14 @@ export function createChecklistCloudBackup({
   getState,
   getMode,
   getStorageKey,
+  cloudApi: injectedCloudApi,
 } = {}) {
   if (!authApi || !storage || typeof getState !== "function" ||
       typeof getMode !== "function" || typeof getStorageKey !== "function") {
     throw new Error("Для облачной копии нужны Auth, storage и функции доступа к состоянию");
   }
 
-  const cloud = createCloudSync(authApi);
+  const cloud = injectedCloudApi || createCloudSync(authApi);
 
   async function saveCurrent() {
     const identity = await authApi.getCurrentIdentity();
