@@ -2769,9 +2769,15 @@ function __tmhInstallAuthWatcher(api) {
   api.onAuthStateChange(function(event, session) {
     if (window.__TMH_AUTH_ACTION) return;
     if (event === 'SIGNED_OUT') {
+      // This runtime may be hosted in an about:srcdoc iframe. Do not reload
+      // that document: lock writes and return to the login UI in place.
       window.__TMH_STORAGE_LOCKED = true;
       window.__TMH_STORAGE_UID = null;
-      window.location.reload();
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      if (typeof updateUserUI === 'function') updateUserUI();
+      var loginModal = document.getElementById('loginModal');
+      if (loginModal) loginModal.style.display = 'flex';
       return;
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
@@ -6394,9 +6400,15 @@ function __tmhInstallAuthWatcher(api) {
   api.onAuthStateChange(function(event, session) {
     if (window.__TMH_AUTH_ACTION) return;
     if (event === 'SIGNED_OUT') {
+      // This runtime may be hosted in an about:srcdoc iframe. Do not reload
+      // that document: lock writes and return to the login UI in place.
       window.__TMH_STORAGE_LOCKED = true;
       window.__TMH_STORAGE_UID = null;
-      window.location.reload();
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      if (typeof updateUserUI === 'function') updateUserUI();
+      var loginModal = document.getElementById('loginModal');
+      if (loginModal) loginModal.style.display = 'flex';
       return;
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
@@ -9618,9 +9630,15 @@ function __tmhInstallAuthWatcher(api) {
   api.onAuthStateChange(function(event, session) {
     if (window.__TMH_AUTH_ACTION) return;
     if (event === 'SIGNED_OUT') {
+      // This runtime may be hosted in an about:srcdoc iframe. Do not reload
+      // that document: lock writes and return to the login UI in place.
       window.__TMH_STORAGE_LOCKED = true;
       window.__TMH_STORAGE_UID = null;
-      window.location.reload();
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      if (typeof updateUserUI === 'function') updateUserUI();
+      var loginModal = document.getElementById('loginModal');
+      if (loginModal) loginModal.style.display = 'flex';
       return;
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
@@ -14190,9 +14208,15 @@ function __tmhInstallAuthWatcher(api) {
   api.onAuthStateChange(function(event, session) {
     if (window.__TMH_AUTH_ACTION) return;
     if (event === 'SIGNED_OUT') {
+      // This runtime may be hosted in an about:srcdoc iframe. Do not reload
+      // that document: lock writes and return to the login UI in place.
       window.__TMH_STORAGE_LOCKED = true;
       window.__TMH_STORAGE_UID = null;
-      window.location.reload();
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      if (typeof updateUserUI === 'function') updateUserUI();
+      var loginModal = document.getElementById('loginModal');
+      if (loginModal) loginModal.style.display = 'flex';
       return;
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
@@ -16395,9 +16419,15 @@ function __tmhInstallAuthWatcher(api) {
   api.onAuthStateChange(function(event, session) {
     if (window.__TMH_AUTH_ACTION) return;
     if (event === 'SIGNED_OUT') {
+      // This runtime may be hosted in an about:srcdoc iframe. Do not reload
+      // that document: lock writes and return to the login UI in place.
       window.__TMH_STORAGE_LOCKED = true;
       window.__TMH_STORAGE_UID = null;
-      window.location.reload();
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      if (typeof updateUserUI === 'function') updateUserUI();
+      var loginModal = document.getElementById('loginModal');
+      if (loginModal) loginModal.style.display = 'flex';
       return;
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
