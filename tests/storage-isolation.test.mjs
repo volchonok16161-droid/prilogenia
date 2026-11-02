@@ -133,5 +133,22 @@ test("account switching triggers reload before a different user's checklist can 
   const end = html.indexOf("\n}\n", start);
   const watcher = html.slice(start, end + 2);
   assert.match(watcher, /event === 'SIGNED_OUT'[\s\S]*?__TMH_STORAGE_LOCKED = true[\s\S]*?__TMH_STORAGE_UID = null[\s\S]*?location\.reload\(\)/);
-  assert.match(watcher, /event === 'SIGNED_IN'[\s\S]*?activeUid !== session\.user\.id[\s\S]*?__TMH_STORAGE_LOCKED = true[\s\S]*?location\.reload\(\)/);
+  assert.match(watcher, /event === 'SIGNED_IN'[\\s\\S]*?activeUid && activeUid !== session\\.user\\.id[\\s\\S]*?__TMH_STORAGE_LOCKED = true[\\s\\S]*?location\\.reload\\(\\)/);
+
+  let onChange;
+  let reloads = 0;
+  const context = { window: { location: { reload() { reloads += 1; } } } };
+  runInNewContext(watcher, context);
+  context.__tmhInstallAuthWatcher({ onAuthStateChange(callback) { onChange = callback; } });
+
+  // No scope yet: do not reload; checkAuth() will establish the user's scope.
+  onChange("SIGNED_IN", { user: { id: "11111111-1111-4111-8111-111111111111" } });
+  assert.equal(reloads, 0);
+  assert.equal(context.window.__TMH_STORAGE_LOCKED, undefined);
+
+  // A known account mismatch must still lock and reload.
+  context.window.__TMH_STORAGE_UID = "22222222-2222-4222-8222-222222222222";
+  onChange("SIGNED_IN", { user: { id: "11111111-1111-4111-8111-111111111111" } });
+  assert.equal(reloads, 1);
+  assert.equal(context.window.__TMH_STORAGE_LOCKED, true);
 });
