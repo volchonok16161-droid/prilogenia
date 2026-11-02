@@ -1,0 +1,19 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+
+test("main authenticated user menu links to the personal cabinet", () => {
+  const userMenu = html.match(/<div class="user-info" id="userInfo"[\s\S]*?<\/div>/)?.[0];
+  assert.ok(userMenu, "main user menu exists");
+  assert.match(userMenu, /id="accountCabinetLink"/);
+  assert.match(userMenu, /href="\.\/account\.html"/);
+  assert.match(userMenu, /id="logoutBtn"/);
+});
+
+test("cabinet link is navigation only and does not alter checklist save behavior", () => {
+  assert.match(html, /id="accountCabinetLink" href="\.\/account\.html"/);
+  assert.match(html, /id="tmhNativeCloudBackupBtn"/);
+  assert.match(html, /id="btnSave"/);
+});
