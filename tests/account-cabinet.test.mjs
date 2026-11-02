@@ -35,3 +35,10 @@ test("account cabinet is read-only and contains no demo identity or fake counter
   assert.doesNotMatch(html, /\.insert\(|\.update\(|\.upsert\(|\.delete\(/);
   assert.match(html, /Облачных копий пока нет/);
 });
+
+test("account cabinet can refresh its profile and checklist list without signing out", () => {
+  assert.match(html, /id="refreshBtn"/);
+  assert.match(html, /await loadCabinet\(\)/);
+  assert.match(html, /identity\?\.error/);
+  assert.match(html, /Не удалось обновить данные кабинета/);
+});
