@@ -1103,11 +1103,9 @@ if(button){
       const api=window.TMHAuth;
       if(!api)throw new Error('Авторизация Supabase недоступна');
       const photoSync=createChecklistPhotoSync({authApi:api});
-      const photoSync=createChecklistPhotoSync({authApi:api});
       const backup=createChecklistCloudBackup({
         authApi:api,
         storage:window.localStorage,
-        photoSync,
         photoSync,
         getState:function(){return getContext().state;},
         getMode:function(){return getContext().mode;},
@@ -15509,9 +15507,11 @@ if(button){
       if(typeof getContext!=='function')throw new Error('Не удалось получить данные открытого чек-листа');
       const api=window.parent&&window.parent.TMHAuth;
       if(!api)throw new Error('Авторизация Supabase недоступна');
+      const photoSync=createChecklistPhotoSync({authApi:api});
       const backup=createChecklistCloudBackup({
         authApi:api,
         storage:window.localStorage,
+        photoSync,
         getState:function(){return getContext().state;},
         getMode:function(){return getContext().mode;},
         getStorageKey:function(){return getContext().storageKey;}
