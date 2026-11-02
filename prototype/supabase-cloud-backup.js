@@ -24,6 +24,8 @@ export function createChecklistCloudBackup({
   getMode,
   getStorageKey,
   cloudApi: injectedCloudApi,
+  photoSync,
+  idFactory = () => crypto.randomUUID(),
 } = {}) {
   if (!authApi || !storage || typeof getState !== "function" ||
       typeof getMode !== "function" || typeof getStorageKey !== "function") {
@@ -55,47 +57,49 @@ export function createChecklistCloudBackup({
     }
 
     const stats = { removed: 0 };
+    const mode = String(getMode() || "unknown");
+    const checklistId = reference?.id || idFactory();
+    const nextRevision = reference ? reference.revision + 1 : 1;
+    let manifest = [];
+    let uploaded = false;
+    if (photoSync) {
+      const result = await photoSync.uploadState({ state, checklistId, revision: nextRevision });
+      manifest = result.manifest;
+      uploaded = manifest.length > 0;
+    }
     const payload = {
-      mode: String(getMode() || "unknown"),
+      mode,
       state: cloneWithoutPhotos(state, stats),
+      photos: manifest,
     };
     const title = [
       "Чек-лист",
       state.general?.type || getMode(),
       state.general?.number || "",
     ].filter(Boolean).join(" — ").slice(0, 200);
-    const equipmentType = String(getMode() || "unknown").slice(0, 120);
-    const refKey = storageKey + "::cloud-ref";
+    const equipmentType = mode.slice(0, 120);
 
-    let reference = null;
-    const stored = storage.getItem(refKey);
-    if (stored) {
-      try {
-        reference = JSON.parse(stored);
-      } catch {
-        const error = new Error("Повреждена локальная ссылка на облачную запись. Не создаю дубликат автоматически.");
-        error.code = "INVALID_CLOUD_REFERENCE";
-        throw error;
+    let row;
+    try {
+      row = reference
+        ? await cloud.update({
+            id: reference.id,
+            expectedRevision: reference.revision,
+            title,
+            equipmentType,
+            payload,
+          })
+        : await cloud.create({ id: checklistId, title, equipmentType, payload });
+    } catch (error) {
+      if (uploaded) {
+        try { await photoSync.removeManifest(manifest); }
+        catch (cleanupError) { error.cleanupError = cleanupError; }
       }
-      if (!reference?.id || !Number.isSafeInteger(reference?.revision) || reference.revision < 1) {
-        const error = new Error("Локальная ссылка на облачную запись неполная. Не создаю дубликат автоматически.");
-        error.code = "INVALID_CLOUD_REFERENCE";
-        throw error;
-      }
+      throw error;
     }
 
-    const row = reference
-      ? await cloud.update({
-          id: reference.id,
-          expectedRevision: reference.revision,
-          title,
-          equipmentType,
-          payload,
-        })
-      : await cloud.create({ title, equipmentType, payload });
-
     storage.setItem(refKey, JSON.stringify({ id: row.id, revision: row.revision }));
-    return Object.freeze({ row, photosExcluded: stats.removed, created: !reference });
+    return Object.freeze({ row, photosExcluded: stats.removed, photosUploaded: manifest.length, created: !reference });
   }
 
   async function createSnapshot({ label = "Перед восстановлением из облака" } = {}) {
@@ -122,15 +126,31 @@ export function createChecklistCloudBackup({
 
     const stats = { removed: 0 };
     const mode = String(getMode() || "unknown");
-    const payload = { mode, state: cloneWithoutPhotos(state, stats) };
+    const checklistId = idFactory();
+    let manifest = [];
+    if (photoSync) {
+      const result = await photoSync.uploadState({ state, checklistId, revision: 1 });
+      manifest = result.manifest;
+    }
+    const payload = { mode, state: cloneWithoutPhotos(state, stats), photos: manifest };
     const title = [label, state.general?.type || mode, state.general?.number || ""]
       .filter(Boolean).join(" — ").slice(0, 200);
-    const row = await cloud.create({
-      title,
-      equipmentType: mode.slice(0, 120),
-      payload,
-    });
-    return Object.freeze({ row, photosExcluded: stats.removed });
+    let row;
+    try {
+      row = await cloud.create({
+        id: checklistId,
+        title,
+        equipmentType: mode.slice(0, 120),
+        payload,
+      });
+    } catch (error) {
+      if (manifest.length) {
+        try { await photoSync.removeManifest(manifest); }
+        catch (cleanupError) { error.cleanupError = cleanupError; }
+      }
+      throw error;
+    }
+    return Object.freeze({ row, photosExcluded: stats.removed, photosUploaded: manifest.length });
   }
 
   return Object.freeze({ saveCurrent, createSnapshot });
