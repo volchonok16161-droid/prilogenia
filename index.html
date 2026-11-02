@@ -15300,9 +15300,64 @@ function updateModeTitle(){const h1=document.getElementById('modeTitle');const s
    ВСТРАИВАЕМЫЕ ЧЕК-ЛИСТЫ (ТТ / БИ / Гидродемпфер) — изолированные iframe
    ======================================================================== */
 function b64ToUtf8(b64){const binary=atob(b64);const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return new TextDecoder('utf-8').decode(bytes);}
+function __tmhAttachCloudBackup(source){
+if(typeof source!=='string'||!source||source.indexOf('id="tmhCloudBackupBtn"')!==-1)return source;
+var footbar='<div class="footbar">';
+if(source.indexOf(footbar)===-1)return source;
+source=source.replace(footbar,footbar+'\n<button class="btn" id="tmhCloudBackupBtn" type="button">☁️ Сохранить в облако</button>');
+var bridge=`<script>
+(function(){
+  try {
+    window.__TMH_GET_CLOUD_BACKUP_CONTEXT=function(){
+      return {state:STATE,mode:(typeof MODE==='undefined'?'unknown':MODE),storageKey:LS_KEY};
+    };
+  } catch(e) { window.__TMH_CLOUD_BACKUP_CONTEXT_ERROR=String(e&&e.message||e); }
+})();
+<\\/script>
+<script type="module">
+import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js';
+const button=document.getElementById('tmhCloudBackupBtn');
+if(button){
+  button.addEventListener('click',async function(){
+    if(button.disabled)return;
+    button.disabled=true;
+    const oldText=button.textContent;
+    button.textContent='⏳ Сохраняю…';
+    try{
+      const getContext=window.__TMH_GET_CLOUD_BACKUP_CONTEXT;
+      if(typeof getContext!=='function')throw new Error('Не удалось получить данные открытого чек-листа');
+      const api=window.parent&&window.parent.TMHAuth;
+      if(!api)throw new Error('Авторизация Supabase недоступна');
+      const backup=createChecklistCloudBackup({
+        authApi:api,
+        storage:window.localStorage,
+        getState:function(){return getContext().state;},
+        getMode:function(){return getContext().mode;},
+        getStorageKey:function(){return getContext().storageKey;}
+      });
+      const result=await backup.saveCurrent();
+      const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
+      if(typeof showToast==='function')showToast(message+' · фото остаются на устройстве');
+      else window.alert(message+'\nФотографии остаются на устройстве.');
+    }catch(error){
+      console.error('Cloud backup failed',error);
+      const message=error&&error.code==='REVISION_CONFLICT'
+        ?'Облачная запись изменена в другом месте. Обновите данные и повторите.'
+        :String(error&&error.message||'Не удалось сохранить копию в облаке');
+      if(typeof showToast==='function')showToast(message);
+      else window.alert(message);
+    }finally{
+      button.disabled=false;
+      button.textContent=oldText;
+    }
+  });
+}
+<\\/script>`;
+return source.replace('</body>',bridge+'</body>');
+}
 function getEmbeddedSource(mode){
 if(typeof EMBED_TT_HTML==='undefined')return '';if(mode==='tt')return EMBED_TT_HTML;if(mode==='bi')return EMBED_BI_HTML;if(mode==='hydro')return EMBED_HYDRO_HTML;return'';}
-function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];frame.srcdoc=getEmbeddedSource(mode);host.style.display='flex';}
+function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];frame.srcdoc=__tmhAttachCloudBackup(getEmbeddedSource(mode));host.style.display='flex';}
 function hideEmbeddedApp(){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');if(host)host.style.display='none';if(frame)frame.srcdoc='about:blank';if(nativeApp)nativeApp.style.display='';}
 
 async function selectModeAndStart(mode){
@@ -17243,7 +17298,7 @@ function getEmbeddedSource(mode){
     // справочник локомотивов/приписок/мест осмотра берём из zona_riska.xlsx (если файл прочитан)
     return (window.__RISK_CORE__ ? window.__RISK_CORE__.applyRegistry(html, mode) : html);
 }
-function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];host.style.display='flex';var __go=function(){if(host.style.display==='none')return;frame.srcdoc=getEmbeddedSource(mode);};if(window.__RISK_CORE__)window.__RISK_CORE__.ready(2500).then(__go,__go);else __go();}
+function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];host.style.display='flex';var __go=function(){if(host.style.display==='none')return;frame.srcdoc=__tmhAttachCloudBackup(getEmbeddedSource(mode));};if(window.__RISK_CORE__)window.__RISK_CORE__.ready(2500).then(__go,__go);else __go();}
 function hideEmbeddedApp(){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');if(host)host.style.display='none';if(frame)frame.srcdoc='about:blank';if(nativeApp)nativeApp.style.display='';}
 
 async function selectModeAndStart(mode){
