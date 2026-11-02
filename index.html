@@ -15320,6 +15320,7 @@ const button=document.getElementById('tmhCloudBackupBtn');
 if(button){
   button.addEventListener('click',async function(){
     if(button.disabled)return;
+    if(!window.confirm('Сохранить текущий чек-лист в облако? Фотографии останутся только на этом устройстве.'))return;
     button.disabled=true;
     const oldText=button.textContent;
     button.textContent='⏳ Сохраняю…';
