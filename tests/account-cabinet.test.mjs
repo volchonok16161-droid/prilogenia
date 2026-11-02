@@ -42,3 +42,13 @@ test("account cabinet can refresh its profile and checklist list without signing
   assert.match(html, /identity\?\.error/);
   assert.match(html, /Не удалось обновить данные кабинета/);
 });
+
+test("profile editor updates only the current user's display_name", () => {
+  assert.match(html, /id="profileForm"/);
+  assert.match(html, /maxlength="80"/);
+  assert.match(html, /\.from\("profiles"\)/);
+  assert.match(html, /\.update\(\{ display_name: displayName \}\)/);
+  assert.match(html, /\.eq\("id", identity\.user\.id\)/);
+  assert.match(html, /\.select\("id,display_name,role,updated_at"\)/);
+  assert.doesNotMatch(html, /\.update\(\{[^}]*role\s*:/);
+});
