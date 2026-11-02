@@ -31,7 +31,7 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
    <div class="field"><span>Email</span><strong id="email">—</strong></div>
    <div class="field"><span>Идентификатор аккаунта</span><strong id="userId">—</strong></div>
    <div class="field"><span>Роль</span><strong id="roleProfileValue">—</strong></div>
-   <div class="field"><span>Статус email</span><strong id="emailStatus">—</strong></div>
+   <div class="field"><span>Статус email</span><strong id="emailStatus">—</strong><button class="btn secondary hidden" id="resendConfirmBtn" type="button" style="margin-top:9px;padding:7px 10px;font-size:12px">Отправить письмо ещё раз</button><small id="emailConfirmStatus" class="muted" role="status" aria-live="polite"></small></div>
    <div class="field"><span>Дата регистрации</span><strong id="createdAt">—</strong></div>
    <div class="field"><span>Последний вход</span><strong id="lastSignIn">—</strong></div>
   </div>
@@ -99,6 +99,7 @@ async function loadCabinet() {
   $("email").textContent = user.email || "—";
   $("userId").textContent = user.id;
   $("emailStatus").textContent = user.email_confirmed_at ? "Подтверждён" : "Не подтверждён";
+  $("resendConfirmBtn").classList.toggle("hidden", Boolean(user.email_confirmed_at));
   $("createdAt").textContent = formatDate(user.created_at);
   $("lastSignIn").textContent = formatDate(user.last_sign_in_at);
   $("roleValue").textContent = roleLabels[profile.role] || profile.role;
@@ -172,6 +173,42 @@ $("profileForm").addEventListener("submit", async (event) => {
   } finally {
     button.disabled = false;
     button.textContent = "Сохранить имя";
+  }
+});
+let confirmResendUntil = 0;
+$("resendConfirmBtn").addEventListener("click", async () => {
+  const button = $("resendConfirmBtn");
+  const status = $("emailConfirmStatus");
+  const now = Date.now();
+  if (now < confirmResendUntil) {
+    status.textContent = "Повторная отправка будет доступна через " + Math.ceil((confirmResendUntil - now) / 1000) + " сек.";
+    return;
+  }
+  button.disabled = true;
+  button.textContent = "Отправка…";
+  status.textContent = "";
+  try {
+    await window.TMHAuthReady;
+    const api = window.TMHAuth;
+    const identity = await api.getCurrentIdentity();
+    if (identity?.error) throw identity.error;
+    if (!identity?.user?.email || identity.user.email_confirmed_at) {
+      throw new Error("Подтверждение для этого адреса уже не требуется. Обновите страницу.");
+    }
+    const { error } = await api.client.auth.resend({
+      type: "signup",
+      email: identity.user.email
+    });
+    if (error) throw error;
+    confirmResendUntil = Date.now() + 60000;
+    status.textContent = "Письмо отправлено. Проверьте входящие и папку «Спам».";
+    status.className = "muted";
+  } catch (error) {
+    status.textContent = error?.message || "Не удалось отправить письмо.";
+    status.className = "error";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Отправить письмо ещё раз";
   }
 });
 $("passwordForm").addEventListener("submit", async (event) => {
