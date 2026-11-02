@@ -56,6 +56,24 @@ export function createChecklistCloudBackup({
       throw new Error("Нет данных чек-листа для облачной копии");
     }
 
+    const refKey = storageKey + "::cloud-ref";
+    let reference = null;
+    const stored = storage.getItem(refKey);
+    if (stored) {
+      try {
+        reference = JSON.parse(stored);
+      } catch {
+        const error = new Error("Повреждена локальная ссылка на облачную запись. Не создаю дубликат автоматически.");
+        error.code = "INVALID_CLOUD_REFERENCE";
+        throw error;
+      }
+      if (!reference?.id || !Number.isSafeInteger(reference?.revision) || reference.revision < 1) {
+        const error = new Error("Локальная ссылка на облачную запись неполная. Не создаю дубликат автоматически.");
+        error.code = "INVALID_CLOUD_REFERENCE";
+        throw error;
+      }
+    }
+
     const stats = { removed: 0 };
     const mode = String(getMode() || "unknown");
     const checklistId = reference?.id || idFactory();
