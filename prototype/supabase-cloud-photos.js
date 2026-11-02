@@ -164,8 +164,8 @@ export function createChecklistPhotoSync({
         fail("INVALID_MANIFEST", "Некорректная запись фотографии в манифесте");
       }
       const parts = entry.path.split("/");
-      const expectedItem = encodeURIComponent(segment(entry.itemId, "itemId"));
-      const expectedFieldPrefix = encodeURIComponent(segment(entry.field, "photo field")) + "-";
+      const expectedItem = segment(entry.itemId, "itemId");
+      const expectedFieldPrefix = segment(entry.field, "photo field") + "-";
       if (parts.length !== 5 || parts[0] !== userId || parts[1] !== rowId ||
           !/^[1-9][0-9]*$/.test(parts[2]) || parts[3] !== expectedItem ||
           !parts[4].startsWith(expectedFieldPrefix) ||
