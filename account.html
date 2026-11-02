@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#172b57">
+<title>Личный кабинет</title>
+<style>
+:root{color-scheme:light;--bg:#f4f6fa;--card:#fff;--ink:#172033;--muted:#718096;--line:#e6eaf0;--blue:#315efb;--green:#16845b;--red:#b42318}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.brand{display:flex;align-items:center;gap:12px;font-weight:750}.logo{width:42px;height:42px;border-radius:13px;background:#172b57;color:#fff;display:grid;place-items:center}.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;padding:10px 14px;background:var(--blue);color:white;text-decoration:none;font-weight:650;cursor:pointer}.btn.secondary{background:#e9edf5;color:#344054}.btn:disabled{opacity:.55;cursor:wait}.welcome,.panel,.stat{background:var(--card);border:1px solid var(--line);border-radius:17px}.welcome{padding:23px 25px;margin-bottom:16px}.welcome h1{margin:0 0 5px;font-size:25px}.muted{color:var(--muted)}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:16px}.stat{padding:17px 19px}.stat-label{font-size:13px;color:var(--muted)}.stat-value{font-size:28px;font-weight:780;margin-top:4px}.panel{padding:20px 21px;margin-bottom:16px}.panel h2{font-size:17px;margin:0 0 14px}.profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.field{border:1px solid var(--line);border-radius:11px;padding:12px 13px;min-width:0}.field span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.field strong{overflow-wrap:anywhere}.item{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}.item-icon{width:37px;height:37px;border-radius:10px;background:#f0f3f8;display:grid;place-items:center;flex:none}.item-info{flex:1;min-width:0}.item-info strong{display:block;overflow-wrap:anywhere}.item-info small{color:var(--muted)}.revision{font-size:12px;color:var(--muted);white-space:nowrap}.notice{padding:12px 14px;background:#fff8e7;border:1px solid #f4e5b8;border-radius:11px;color:#795b16;font-size:13px}.error{color:var(--red)}.empty{padding:20px 0;color:var(--muted);text-align:center}.loading{color:var(--muted)}.hidden{display:none!important}
+@media(max-width:620px){.app{padding:16px 12px 34px}.top{align-items:flex-start}.stats{gap:8px}.stat{padding:13px 11px}.stat-value{font-size:23px}.welcome{padding:19px}.welcome h1{font-size:22px}.panel{padding:16px 14px}.profile{grid-template-columns:1fr}.revision{display:none}.actions{justify-content:flex-end}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top">
+ <div class="brand"><div class="logo">ЧК</div><div>Рабочая система<br><span class="muted">Личный кабинет</span></div></div>
+ <div class="actions"><a class="btn secondary" href="./index.html">К чек-листам</a><button class="btn secondary" id="logoutBtn" type="button">Выйти</button></div>
+</header>
+<main>
+ <section class="welcome"><h1 id="greeting">Личный кабинет</h1><div class="muted" id="subtitle">Загрузка данных аккаунта…</div></section>
+ <div id="loading" class="panel loading">Проверяем сессию и загружаем ваши данные…</div>
+ <div id="content" class="hidden">
+  <section class="stats">
+   <div class="stat"><div class="stat-label">Мои облачные чек-листы</div><div class="stat-value" id="checklistCount">—</div></div>
+   <div class="stat"><div class="stat-label">Последнее сохранение</div><div class="stat-value" id="lastSaved" style="font-size:17px">—</div></div>
+   <div class="stat"><div class="stat-label">Роль аккаунта</div><div class="stat-value" id="roleValue" style="font-size:20px">—</div></div>
+  </section>
+  <section class="panel"><h2>Профиль</h2><div class="profile">
+   <div class="field"><span>Имя</span><strong id="displayName">—</strong></div>
+   <div class="field"><span>Email</span><strong id="email">—</strong></div>
+   <div class="field"><span>Идентификатор аккаунта</span><strong id="userId">—</strong></div>
+   <div class="field"><span>Статус</span><strong>Авторизован</strong></div>
+  </div></section>
+  <section class="panel"><h2>Мои облачные чек-листы</h2><div id="checklists"><div class="empty">Загрузка списка…</div></div></section>
+  <div class="notice">Здесь отображаются только облачные копии текущего аккаунта. Локальные данные и фотографии на устройстве не изменяются. Список доступен только для просмотра.</div>
+ </div>
+ <div id="error" class="panel error hidden" role="alert"></div>
+</main>
+</div>
+<script type="module" src="./prototype/supabase-auth.js"></script>
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const roleLabels = { employee: "Сотрудник", admin: "Администратор", developer: "Разработчик" };
+const formatDate = (value) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(date);
+};
+function showError(message) {
+  $("loading").classList.add("hidden");
+  $("content").classList.add("hidden");
+  $("error").textContent = message;
+  $("error").classList.remove("hidden");
+}
+async function loadCabinet() {
+  await window.TMHAuthReady;
+  const api = window.TMHAuth;
+  if (!api) throw new Error("Модуль авторизации не загрузился. Откройте страницу через основной сайт.");
+  const identity = await api.getCurrentIdentity();
+  if (!identity?.user || !identity?.profile) {
+    location.replace("./index.html");
+    return;
+  }
+  const { user, profile } = identity;
+  const { data, error } = await api.client
+    .from("checklists")
+    .select("id,title,equipment_type,revision,created_at,updated_at")
+    .eq("owner_id", user.id)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+  if (error) throw error;
+  const rows = Array.isArray(data) ? data : [];
+  $("greeting").textContent = profile.display_name ? "Здравствуйте, " + profile.display_name + "!" : "Личный кабинет";
+  $("subtitle").textContent = "Ваш профиль и облачные копии чек-листов";
+  $("displayName").textContent = profile.display_name || "Не указано";
+  $("email").textContent = user.email || "—";
+  $("userId").textContent = user.id;
+  $("roleValue").textContent = roleLabels[profile.role] || profile.role;
+  $("checklistCount").textContent = String(rows.length);
+  $("lastSaved").textContent = rows.length ? formatDate(rows[0].updated_at) : "Пока нет";
+  const list = $("checklists");
+  list.replaceChildren();
+  if (!rows.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Облачных копий пока нет. Откройте чек-лист и нажмите «Сохранить в облако».";
+    list.append(empty);
+  } else {
+    for (const row of rows) {
+      const item = document.createElement("article");
+      item.className = "item";
+      const icon = document.createElement("div");
+      icon.className = "item-icon";
+      icon.textContent = "▤";
+      const info = document.createElement("div");
+      info.className = "item-info";
+      const title = document.createElement("strong");
+      title.textContent = row.title || "Чек-лист";
+      const meta = document.createElement("small");
+      meta.textContent = (row.equipment_type || "Тип не указан") + " · Обновлён " + formatDate(row.updated_at);
+      info.append(title, meta);
+      const revision = document.createElement("span");
+      revision.className = "revision";
+      revision.textContent = "Версия " + String(row.revision ?? "—");
+      item.append(icon, info, revision);
+      list.append(item);
+    }
+  }
+  $("loading").classList.add("hidden");
+  $("error").classList.add("hidden");
+  $("content").classList.remove("hidden");
+}
+$("logoutBtn").addEventListener("click", async () => {
+  const button = $("logoutBtn");
+  button.disabled = true;
+  try {
+    await window.TMHAuthReady;
+    const result = await window.TMHAuth.signOut();
+    if (result?.error) throw result.error;
+    location.replace("./index.html");
+  } catch (error) {
+    button.disabled = false;
+    showError(error?.message || "Не удалось завершить сеанс.");
+  }
+});
+try { await loadCabinet(); }
+catch (error) { showError(error?.message || "Не удалось загрузить личный кабинет."); }
+</script>
+</body>
+</html>
