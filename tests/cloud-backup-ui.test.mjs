@@ -24,6 +24,7 @@ test("the embedded bridge exposes live checklist state and the scoped storage ke
 
 test("cloud backup is explicit and never runs automatically during checklist startup", () => {
   assert.match(html, /button\.addEventListener\('click',async function\(\)/);
+  assert.match(html, /window\.confirm\('Сохранить текущий чек-лист в облако\\?/);
   assert.match(html, /const result=await backup\.saveCurrent\(\)/);
   assert.equal(count(html, "backup.saveCurrent()"), 1);
   assert.match(html, /button\.disabled=true/);
