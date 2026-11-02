@@ -1,4 +1,4 @@
-name: Checklist security and cloud data-layer tests
+name: Checklist security, cloud data-layer and revision guard tests
 
 on:
   push:
