@@ -38,7 +38,7 @@ test("account cabinet is read-only and contains no demo identity or fake counter
 });
 
 test("employee management panel is shown only for admin and developer roles", () => {
-  assert.match(html, /id="adminPanel"[^>]*class="panel hidden"/);
+  assert.match(html, /<section class="panel hidden" id="adminPanel"/);
   assert.match(html, /\["developer", "admin"\]\.includes\(profile\.role\)/);
   assert.match(html, /adminPanel"\)\.classList\.toggle\("hidden", !canManageEmployees\)/);
 });
