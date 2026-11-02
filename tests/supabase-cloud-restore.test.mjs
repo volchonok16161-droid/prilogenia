@@ -60,3 +60,32 @@ test("restore requires an authenticated session before cloud access", async () =
   assert.deepEqual(h.calls, []);
   assert.equal(h.applied, null);
 });
+
+
+test("restore creates a safety snapshot before applying incoming state", async () => {
+  const calls = [];
+  const h = harness();
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async list() { return [h.row]; }, async get(id) { calls.push("get"); return h.row; } },
+    getMode: () => "complex",
+    async beforeApply(meta) { calls.push(["snapshot", meta.revision]); },
+    async applyState() { calls.push("apply"); },
+  });
+  await restore.restore(ROW);
+  assert.deepEqual(calls, ["get", ["snapshot", 3], "apply"]);
+});
+
+test("failed safety snapshot aborts restore before local state can be overwritten", async () => {
+  let applied = false;
+  const h = harness();
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async list() { return [h.row]; }, async get() { return h.row; } },
+    getMode: () => "complex",
+    async beforeApply() { throw new Error("snapshot failed"); },
+    async applyState() { applied = true; },
+  });
+  await assert.rejects(restore.restore(ROW), /snapshot failed/);
+  assert.equal(applied, false);
+});
