@@ -98,8 +98,10 @@ async function loadCabinet() {
   $("displayNameInput").value = profile.display_name || "";
   $("email").textContent = user.email || "—";
   $("userId").textContent = user.id;
-  $("emailStatus").textContent = user.email_confirmed_at ? "Подтверждён" : "Не подтверждён";
-  $("resendConfirmBtn").classList.toggle("hidden", Boolean(user.email_confirmed_at));
+  const emailConfirmed = Boolean(user.email_confirmed_at);
+  $("emailStatus").textContent = emailConfirmed ? "Подтверждён" : "Не подтверждён";
+  $("resendConfirmBtn").classList.toggle("hidden", emailConfirmed);
+  $("emailConfirmStatus").textContent = emailConfirmed ? "Адрес электронной почты подтверждён." : "";
   $("createdAt").textContent = formatDate(user.created_at);
   $("lastSignIn").textContent = formatDate(user.last_sign_in_at);
   $("roleValue").textContent = roleLabels[profile.role] || profile.role;
@@ -173,6 +175,17 @@ $("profileForm").addEventListener("submit", async (event) => {
   } finally {
     button.disabled = false;
     button.textContent = "Сохранить имя";
+  }
+});
+await window.TMHAuthReady;
+window.TMHAuth.onAuthStateChange((event, session) => {
+  if (!["SIGNED_IN", "USER_UPDATED", "TOKEN_REFRESHED"].includes(event) || !session?.user) return;
+  const confirmed = Boolean(session.user.email_confirmed_at);
+  $("emailStatus").textContent = confirmed ? "Подтверждён" : "Не подтверждён";
+  $("resendConfirmBtn").classList.toggle("hidden", confirmed);
+  if (confirmed) {
+    $("emailConfirmStatus").textContent = "Адрес электронной почты успешно подтверждён.";
+    $("emailConfirmStatus").className = "muted";
   }
 });
 let confirmResendUntil = 0;
