@@ -111,3 +111,8 @@ test("native and embedded cloud save/restore wire the private photo Storage adap
   assert.match(html, /photoSync\.restoreState/);
   assert.match(html, /фотографий: '\+result\.photosUploaded/);
 });
+
+
+test("cloud photo actions wait for the IndexedDB photo queue before snapshotting local state", () => {
+  assert.equal(count(html, "await __psReady();if(__PS.chain)await __PS.chain;"), 4);
+});
