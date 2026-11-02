@@ -114,3 +114,24 @@ test("switching account UUIDs produces isolated local namespaces for all checkli
     assert.equal(accountBKey, base + "::user:" + users[1]);
   }
 });
+
+test("logout locks checklist writes before signing out and keeps data on disk", () => {
+  const start = html.indexOf("async function doLogout() {");
+  assert.notEqual(start, -1);
+  const end = html.indexOf("\n}\n", start);
+  assert.notEqual(end, -1);
+  const logout = html.slice(start, end + 2);
+  assert.ok(logout.indexOf("window.__TMH_STORAGE_LOCKED = true") < logout.indexOf("api.signOut()"));
+  assert.match(logout, /if \(result && result\.error\)[\s\S]*?window\.__TMH_STORAGE_LOCKED = false/);
+  assert.match(logout, /localStorage\.removeItem\('checklist_user'\)/);
+  assert.doesNotMatch(logout, /localStorage\.clear\(|indexedDB\.deleteDatabase\(|removeItem\(LS_KEY/);
+});
+
+test("account switching triggers reload before a different user's checklist can write", () => {
+  const start = html.indexOf("function __tmhInstallAuthWatcher(api) {");
+  assert.notEqual(start, -1);
+  const end = html.indexOf("\n}\n", start);
+  const watcher = html.slice(start, end + 2);
+  assert.match(watcher, /event === 'SIGNED_OUT'[\s\S]*?__TMH_STORAGE_LOCKED = true[\s\S]*?__TMH_STORAGE_UID = null[\s\S]*?location\.reload\(\)/);
+  assert.match(watcher, /event === 'SIGNED_IN'[\s\S]*?activeUid !== session\.user\.id[\s\S]*?__TMH_STORAGE_LOCKED = true[\s\S]*?location\.reload\(\)/);
+});
