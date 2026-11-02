@@ -15313,7 +15313,7 @@ var bridge=`<script>
     };
   } catch(e) { window.__TMH_CLOUD_BACKUP_CONTEXT_ERROR=String(e&&e.message||e); }
 })();
-<\\/script>
+<\/script>
 <script type="module">
 import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js';
 const button=document.getElementById('tmhCloudBackupBtn');
@@ -15352,7 +15352,7 @@ if(button){
     }
   });
 }
-<\\/script>`;
+<\/script>`;
 return source.replace('</body>',bridge+'</body>');
 }
 function getEmbeddedSource(mode){
