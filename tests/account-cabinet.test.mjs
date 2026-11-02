@@ -37,6 +37,27 @@ test("account cabinet is read-only and contains no demo identity or fake counter
   assert.match(html, /Облачных копий пока нет/);
 });
 
+test("employee management panel is shown only for admin and developer roles", () => {
+  assert.match(html, /id="adminPanel"[^>]*class="panel hidden"/);
+  assert.match(html, /\["developer", "admin"\]\.includes\(profile\.role\)/);
+  assert.match(html, /adminPanel"\)\.classList\.toggle\("hidden", !canManageEmployees\)/);
+});
+
+test("employee management uses the secured account-admin function and supports list/access actions", () => {
+  assert.match(html, /functions\.invoke\("account-admin", \{ body \}\)/);
+  assert.match(html, /action: "list_employees"/);
+  assert.match(html, /action: "set_employee_access"/);
+  assert.match(html, /window\.confirm\(/);
+  assert.match(html, /employee\.suspended \? "Восстановить" : "Заблокировать"/);
+  assert.doesNotMatch(html, /action: "invite_employee"/);
+});
+
+test("employee data is rendered as text, not HTML", () => {
+  assert.match(html, /name\.textContent = employee\.display_name/);
+  assert.match(html, /meta\.textContent = employee\.id/);
+  assert.doesNotMatch(html, /employeeList[\s\S]*?innerHTML\s*=/);
+});
+
 test("account cabinet can refresh its profile and checklist list without signing out", () => {
   assert.match(html, /id="refreshBtn"/);
   assert.match(html, /await loadCabinet\(\)/);
