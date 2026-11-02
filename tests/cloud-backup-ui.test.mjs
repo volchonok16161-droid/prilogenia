@@ -70,3 +70,8 @@ test("native checklist offers explicit restore and snapshots local state before 
   assert.match(html, /_photo\$\/i\.test\(key\)/);
   assert.match(html, /await __PS\.chain/);
 });
+
+test("restored native checklist is linked to the restored cloud row revision", () => {
+  assert.match(html, /applyState:async function\(incoming,metadata\)/);
+  assert.match(html, /localStorage\.setItem\(LS_KEY\+'::cloud-ref',JSON\.stringify\(\{id:metadata\.id,revision:metadata\.revision\}\)\)/);
+});
