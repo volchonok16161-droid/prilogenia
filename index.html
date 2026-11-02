@@ -1032,6 +1032,7 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     vertical-align:middle;
 }
 </style>
+<script type="module" src="prototype/supabase-auth.js"></script>
 </head>
 <body>
 <div id="nativeApp">
@@ -1156,12 +1157,12 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     <div class="modal">
         <h2>🔐 Авторизация</h2>
         <p>Введите логин и пароль для доступа к чек-листу</p>
-        <div class="field"><label>Логин</label><input type="text" id="loginInput" placeholder="Введите логин"></div>
+        <div class="field"><label>Email</label><input type="text" id="loginInput" placeholder="Введите email"></div>
         <div class="field"><label>Пароль</label><input type="password" id="passwordInput" placeholder="Введите пароль"></div>
         <div class="error" id="loginError">Неверный логин или пароль</div>
         <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
-            <div style="margin-top:4px;">Пользователь: любой логин/пароль</div>
+            
         </div>
     </div>
 </div>
@@ -2606,12 +2607,12 @@ const EMBED_TT_HTML=`<!DOCTYPE html>
         <div class="modal">
             <h2>🔐 Авторизация</h2>
             <p>Введите логин и пароль для доступа к чек-листу</p>
-            <div class="field"><label>Логин</label><input type="text" id="loginInput" placeholder="Введите логин"></div>
+            <div class="field"><label>Email</label><input type="text" id="loginInput" placeholder="Введите email"></div>
             <div class="field"><label>Пароль</label><input type="password" id="passwordInput" placeholder="Введите пароль"></div>
             <div class="error" id="loginError">Неверный логин или пароль</div>
             <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
             <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
-                <div style="margin-top:4px;">Пользователь: любой логин/пароль</div>
+                
             </div>
         </div>
     </div>
@@ -2648,47 +2649,90 @@ var h='';for(i=0;i<8;i++)h+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);retur
 function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==='c6a92f1d718a2a74fbbe448c66b70baffa1811636e527d1e3245b6c2e2285147';}catch(e){return false;}}
         let currentUser = null;
 
-        function checkAuth() {
-            const saved = localStorage.getItem('checklist_user');
-            if (saved) {
-                try {
-                    const data = JSON.parse(saved);
-                    currentUser = (data.role === 'admin') ? 'admin' : 'user';
-                    updateUserUI();
-                    return true;
-                } catch (e) { return false; }
-            }
-            return false;
-        }
+        function __getTMHAuthApi() {
+  try {
+    if (window.TMHAuth) return window.TMHAuth;
+    if (window.parent && window.parent !== window && window.parent.TMHAuth) return window.parent.TMHAuth;
+  } catch (e) {}
+  return null;
+}
 
-        function doLogin(login, password) {
-            if (login === ADMIN_CREDENTIALS.login && __adminPassOk(password)) {
-                currentUser = 'admin';
-                localStorage.setItem('checklist_user', JSON.stringify({ login, role: 'admin' }));
-                updateUserUI();
-                document.getElementById('loginModal').style.display = 'none';
-                showToast('✅ Вход выполнен как Администратор');
-                return true;
-            } else if (login && password && login !== ADMIN_CREDENTIALS.login) {
-                currentUser = 'user';
-                localStorage.setItem('checklist_user', JSON.stringify({ login, role: 'user' }));
-                updateUserUI();
-                document.getElementById('loginModal').style.display = 'none';
-                showToast('✅ Вход выполнен как Пользователь');
-                return true;
-            }
-            return false;
-        }
+async function checkAuth() {
+  const api = __getTMHAuthApi();
+  if (!api) { currentUser = null; return false; }
+  try {
+    const identity = await api.getCurrentIdentity();
+    if (!identity || !identity.user || !identity.profile) {
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      updateUserUI();
+      return false;
+    }
+    const role = identity.profile.role;
+    currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
+    try {
+      localStorage.setItem('checklist_user', JSON.stringify({
+        login: identity.user.email || '',
+        role: currentUser,
+        profileRole: role,
+        dev: role === 'developer',
+        authUid: identity.user.id
+      }));
+    } catch (e) {}
+    updateUserUI();
+    return true;
+  } catch (e) {
+    console.error('Auth check failed', e);
+    currentUser = null;
+    updateUserUI();
+    return false;
+  }
+}
 
-        function doLogout() {
-            currentUser = null;
-            localStorage.removeItem('checklist_user');
-            updateUserUI();
-            document.getElementById('loginModal').style.display = 'flex';
-            showToast('👋 Вы вышли из системы');
-        }
+async function doLogin(login, password) {
+  const api = __getTMHAuthApi();
+  if (!api) return false;
+  const result = await api.signIn(login, password);
+  if (!result || result.error || !result.user || !result.profile) return false;
+  const role = result.profile.role;
+  currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
+  try {
+    localStorage.setItem('checklist_user', JSON.stringify({
+      login: result.user.email || '',
+      role: currentUser,
+      profileRole: role,
+      dev: role === 'developer',
+      authUid: result.user.id
+    }));
+  } catch (e) {}
+  updateUserUI();
+  const modal = document.getElementById('loginModal');
+  if (modal) modal.style.display = 'none';
+  return true;
+}
 
-        function updateUserUI() {
+async function doLogout() {
+  const api = __getTMHAuthApi();
+  if (api) {
+    const result = await api.signOut();
+    if (result && result.error) {
+      console.error('Sign out failed', result.error);
+      showToast('Не удалось завершить сеанс');
+      return;
+    }
+  }
+  currentUser = null;
+  try { localStorage.removeItem('checklist_user'); } catch (e) {}
+  updateUserUI();
+  try {
+    const topWindow = window.parent && window.parent !== window ? window.parent : window;
+    topWindow.location.reload();
+  } catch (e) {
+    window.location.reload();
+  }
+}
+
+function updateUserUI() {
             const info = document.getElementById('userInfo');
             const name = document.getElementById('userName');
             const role = document.getElementById('userRole');
@@ -4653,21 +4697,21 @@ function saveState(silent){
             else showToast('Переход к последнему незаполненному полю');
         }
 
-        function init() {
-            const hasAuth = checkAuth();
+        async function init() {
+            const hasAuth = await checkAuth();
             if (!hasAuth) {
                 document.getElementById('loginModal').style.display = 'flex';
             } else {
                 showContinueDialogOrStart();
             }
 
-            document.getElementById('loginBtn').onclick = function() {
+            document.getElementById('loginBtn').onclick = async function() {
                 const login = document.getElementById('loginInput').value.trim();
-                const password = document.getElementById('passwordInput').value.trim();
+                const password = document.getElementById('passwordInput').value;
                 const error = document.getElementById('loginError');
                 if (!login || !password) { error.textContent = 'Заполните все поля';
                     error.classList.add('show'); return; }
-                if (doLogin(login, password)) {
+                if (await doLogin(login, password)) {
                     error.classList.remove('show');
                     showContinueDialogOrStart();
                 } else {
@@ -6128,12 +6172,12 @@ const EMBED_BI_HTML=`<!DOCTYPE html>
         <div class="modal">
             <h2>🔐 Авторизация</h2>
             <p>Введите логин и пароль для доступа к чек-листу</p>
-            <div class="field"><label>Логин</label><input type="text" id="loginInput" placeholder="Введите логин"></div>
+            <div class="field"><label>Email</label><input type="text" id="loginInput" placeholder="Введите email"></div>
             <div class="field"><label>Пароль</label><input type="password" id="passwordInput" placeholder="Введите пароль"></div>
             <div class="error" id="loginError">Неверный логин или пароль</div>
             <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
             <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
-                <div style="margin-top:4px;">Пользователь: любой логин/пароль</div>
+                
             </div>
         </div>
     </div>
@@ -6171,47 +6215,90 @@ var h='';for(i=0;i<8;i++)h+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);retur
 function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==='c6a92f1d718a2a74fbbe448c66b70baffa1811636e527d1e3245b6c2e2285147';}catch(e){return false;}}
         let currentUser = null;
 
-        function checkAuth() {
-            const saved = localStorage.getItem('checklist_user');
-            if (saved) {
-                try {
-                    const data = JSON.parse(saved);
-                    currentUser = (data.role === 'admin') ? 'admin' : 'user';
-                    updateUserUI();
-                    return true;
-                } catch (e) { return false; }
-            }
-            return false;
-        }
+        function __getTMHAuthApi() {
+  try {
+    if (window.TMHAuth) return window.TMHAuth;
+    if (window.parent && window.parent !== window && window.parent.TMHAuth) return window.parent.TMHAuth;
+  } catch (e) {}
+  return null;
+}
 
-        function doLogin(login, password) {
-            if (login === ADMIN_CREDENTIALS.login && __adminPassOk(password)) {
-                currentUser = 'admin';
-                localStorage.setItem('checklist_user', JSON.stringify({ login, role: 'admin' }));
-                updateUserUI();
-                document.getElementById('loginModal').style.display = 'none';
-                showToast('✅ Вход выполнен как Администратор');
-                return true;
-            } else if (login && password && login !== ADMIN_CREDENTIALS.login) {
-                currentUser = 'user';
-                localStorage.setItem('checklist_user', JSON.stringify({ login, role: 'user' }));
-                updateUserUI();
-                document.getElementById('loginModal').style.display = 'none';
-                showToast('✅ Вход выполнен как Пользователь');
-                return true;
-            }
-            return false;
-        }
+async function checkAuth() {
+  const api = __getTMHAuthApi();
+  if (!api) { currentUser = null; return false; }
+  try {
+    const identity = await api.getCurrentIdentity();
+    if (!identity || !identity.user || !identity.profile) {
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      updateUserUI();
+      return false;
+    }
+    const role = identity.profile.role;
+    currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
+    try {
+      localStorage.setItem('checklist_user', JSON.stringify({
+        login: identity.user.email || '',
+        role: currentUser,
+        profileRole: role,
+        dev: role === 'developer',
+        authUid: identity.user.id
+      }));
+    } catch (e) {}
+    updateUserUI();
+    return true;
+  } catch (e) {
+    console.error('Auth check failed', e);
+    currentUser = null;
+    updateUserUI();
+    return false;
+  }
+}
 
-        function doLogout() {
-            currentUser = null;
-            localStorage.removeItem('checklist_user');
-            updateUserUI();
-            document.getElementById('loginModal').style.display = 'flex';
-            showToast('👋 Вы вышли из системы');
-        }
+async function doLogin(login, password) {
+  const api = __getTMHAuthApi();
+  if (!api) return false;
+  const result = await api.signIn(login, password);
+  if (!result || result.error || !result.user || !result.profile) return false;
+  const role = result.profile.role;
+  currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
+  try {
+    localStorage.setItem('checklist_user', JSON.stringify({
+      login: result.user.email || '',
+      role: currentUser,
+      profileRole: role,
+      dev: role === 'developer',
+      authUid: result.user.id
+    }));
+  } catch (e) {}
+  updateUserUI();
+  const modal = document.getElementById('loginModal');
+  if (modal) modal.style.display = 'none';
+  return true;
+}
 
-        function updateUserUI() {
+async function doLogout() {
+  const api = __getTMHAuthApi();
+  if (api) {
+    const result = await api.signOut();
+    if (result && result.error) {
+      console.error('Sign out failed', result.error);
+      showToast('Не удалось завершить сеанс');
+      return;
+    }
+  }
+  currentUser = null;
+  try { localStorage.removeItem('checklist_user'); } catch (e) {}
+  updateUserUI();
+  try {
+    const topWindow = window.parent && window.parent !== window ? window.parent : window;
+    topWindow.location.reload();
+  } catch (e) {
+    window.location.reload();
+  }
+}
+
+function updateUserUI() {
             const info = document.getElementById('userInfo');
             const name = document.getElementById('userName');
             const role = document.getElementById('userRole');
@@ -8420,21 +8507,21 @@ function saveState(silent){
             else showToast('Переход к последнему незаполненному полю');
         }
 
-        function init() {
-            const hasAuth = checkAuth();
+        async function init() {
+            const hasAuth = await checkAuth();
             if (!hasAuth) {
                 document.getElementById('loginModal').style.display = 'flex';
             } else {
                 showContinueDialogOrStart();
             }
 
-            document.getElementById('loginBtn').onclick = function() {
+            document.getElementById('loginBtn').onclick = async function() {
                 const login = document.getElementById('loginInput').value.trim();
-                const password = document.getElementById('passwordInput').value.trim();
+                const password = document.getElementById('passwordInput').value;
                 const error = document.getElementById('loginError');
                 if (!login || !password) { error.textContent = 'Заполните все поля';
                     error.classList.add('show'); return; }
-                if (doLogin(login, password)) {
+                if (await doLogin(login, password)) {
                     error.classList.remove('show');
                     showContinueDialogOrStart();
                 } else {
@@ -9251,12 +9338,12 @@ html[data-theme="dark"] .frow.unfilled-highlight,html[data-theme="dark"] .field.
   <div class="modal">
     <h2>🔐 Авторизация</h2>
     <p>Введите логин и пароль для доступа к чек-листу</p>
-    <div class="field"><label>Логин</label><input type="text" id="loginInput" placeholder="Введите логин"></div>
+    <div class="field"><label>Email</label><input type="text" id="loginInput" placeholder="Введите email"></div>
     <div class="field"><label>Пароль</label><input type="password" id="passwordInput" placeholder="Введите пароль"></div>
     <div class="error" id="loginError">Неверный логин или пароль</div>
     <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
-      <div style="margin-top:4px;">Пользователь: любой логин/пароль</div>
+      
     </div>
   </div>
 </div>
@@ -9293,44 +9380,87 @@ var h='';for(i=0;i<8;i++)h+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);retur
 function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==='c6a92f1d718a2a74fbbe448c66b70baffa1811636e527d1e3245b6c2e2285147';}catch(e){return false;}}
 let currentUser = null;
 
-function checkAuth() {
-  const saved = localStorage.getItem('checklist_user');
-  if (saved) {
-    try {
-      const data = JSON.parse(saved);
-      currentUser = (data.role === 'admin') ? 'admin' : 'user';
+function __getTMHAuthApi() {
+  try {
+    if (window.TMHAuth) return window.TMHAuth;
+    if (window.parent && window.parent !== window && window.parent.TMHAuth) return window.parent.TMHAuth;
+  } catch (e) {}
+  return null;
+}
+
+async function checkAuth() {
+  const api = __getTMHAuthApi();
+  if (!api) { currentUser = null; return false; }
+  try {
+    const identity = await api.getCurrentIdentity();
+    if (!identity || !identity.user || !identity.profile) {
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
       updateUserUI();
-      return true;
-    } catch(e) { return false; }
+      return false;
+    }
+    const role = identity.profile.role;
+    currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
+    try {
+      localStorage.setItem('checklist_user', JSON.stringify({
+        login: identity.user.email || '',
+        role: currentUser,
+        profileRole: role,
+        dev: role === 'developer',
+        authUid: identity.user.id
+      }));
+    } catch (e) {}
+    updateUserUI();
+    return true;
+  } catch (e) {
+    console.error('Auth check failed', e);
+    currentUser = null;
+    updateUserUI();
+    return false;
   }
-  return false;
 }
 
-function doLogin(login, password) {
-  if (login === ADMIN_CREDENTIALS.login && __adminPassOk(password)) {
-    currentUser = 'admin';
-    localStorage.setItem('checklist_user', JSON.stringify({ login, role: 'admin' }));
-    updateUserUI();
-    document.getElementById('loginModal').style.display = 'none';
-    showToast('✅ Вход выполнен как Администратор');
-    return true;
-  } else if (login && password && login !== ADMIN_CREDENTIALS.login) {
-    currentUser = 'user';
-    localStorage.setItem('checklist_user', JSON.stringify({ login, role: 'user' }));
-    updateUserUI();
-    document.getElementById('loginModal').style.display = 'none';
-    showToast('✅ Вход выполнен как Пользователь');
-    return true;
-  }
-  return false;
-}
-
-function doLogout() {
-  currentUser = null;
-  localStorage.removeItem('checklist_user');
+async function doLogin(login, password) {
+  const api = __getTMHAuthApi();
+  if (!api) return false;
+  const result = await api.signIn(login, password);
+  if (!result || result.error || !result.user || !result.profile) return false;
+  const role = result.profile.role;
+  currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
+  try {
+    localStorage.setItem('checklist_user', JSON.stringify({
+      login: result.user.email || '',
+      role: currentUser,
+      profileRole: role,
+      dev: role === 'developer',
+      authUid: result.user.id
+    }));
+  } catch (e) {}
   updateUserUI();
-  document.getElementById('loginModal').style.display = 'flex';
-  showToast('👋 Вы вышли из системы');
+  const modal = document.getElementById('loginModal');
+  if (modal) modal.style.display = 'none';
+  return true;
+}
+
+async function doLogout() {
+  const api = __getTMHAuthApi();
+  if (api) {
+    const result = await api.signOut();
+    if (result && result.error) {
+      console.error('Sign out failed', result.error);
+      showToast('Не удалось завершить сеанс');
+      return;
+    }
+  }
+  currentUser = null;
+  try { localStorage.removeItem('checklist_user'); } catch (e) {}
+  updateUserUI();
+  try {
+    const topWindow = window.parent && window.parent !== window ? window.parent : window;
+    topWindow.location.reload();
+  } catch (e) {
+    window.location.reload();
+  }
 }
 
 function updateUserUI() {
@@ -13201,20 +13331,20 @@ function findAndScrollToUnfilled() {
   else showToast('Переход к последнему незаполненному полю');
 }
 
-function init() {
-  const hasAuth = checkAuth();
+async function init() {
+  const hasAuth = await checkAuth();
   if (!hasAuth) {
     document.getElementById('loginModal').style.display = 'flex';
   } else {
     showContinueDialogOrStart();
   }
 
-  document.getElementById('loginBtn').onclick = function() {
+  document.getElementById('loginBtn').onclick = async function() {
     const login = document.getElementById('loginInput').value.trim();
-    const password = document.getElementById('passwordInput').value.trim();
+    const password = document.getElementById('passwordInput').value;
     const error = document.getElementById('loginError');
     if (!login || !password) { error.textContent = 'Заполните все поля'; error.classList.add('show'); return; }
-    if (doLogin(login, password)) {
+    if (await doLogin(login, password)) {
       error.classList.remove('show');
       showContinueDialogOrStart();
     } else {
@@ -13721,12 +13851,12 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     <div class="modal">
         <h2>🔐 Авторизация</h2>
         <p>Введите логин и пароль для доступа к чек-листу</p>
-        <div class="field"><label>Логин</label><input type="text" id="loginInput" placeholder="Введите логин"></div>
+        <div class="field"><label>Email</label><input type="text" id="loginInput" placeholder="Введите email"></div>
         <div class="field"><label>Пароль</label><input type="password" id="passwordInput" placeholder="Введите пароль"></div>
         <div class="error" id="loginError">Неверный логин или пароль</div>
         <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
-            <div style="margin-top:4px;">Пользователь: любой логин/пароль</div>
+            
         </div>
     </div>
 </div>
@@ -13763,9 +13893,89 @@ for(i=0;i<8;i++)H[i]=(H[i]+a[i])|0;}
 var h='';for(i=0;i<8;i++)h+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);return h;}
 function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==='c6a92f1d718a2a74fbbe448c66b70baffa1811636e527d1e3245b6c2e2285147';}catch(e){return false;}}
 let currentUser=null;
-function checkAuth(){const saved=localStorage.getItem('checklist_user');if(saved){try{const data=JSON.parse(saved);currentUser=(data.role==='admin')?'admin':'user';updateUserUI();return true;}catch(e){return false;}}return false;}
-function doLogin(login,password){if(login===ADMIN_CREDENTIALS.login&&__adminPassOk(password)){currentUser='admin';localStorage.setItem('checklist_user',JSON.stringify({login,role:'admin'}));updateUserUI();document.getElementById('loginModal').style.display='none';showToast('✅ Вход выполнен как Администратор');return true;}else if(login&&password&&login!==ADMIN_CREDENTIALS.login){currentUser='user';localStorage.setItem('checklist_user',JSON.stringify({login,role:'user'}));updateUserUI();document.getElementById('loginModal').style.display='none';showToast('✅ Вход выполнен как Пользователь');return true;}return false;}
-function doLogout(){currentUser=null;localStorage.removeItem('checklist_user');updateUserUI();document.getElementById('loginModal').style.display='flex';showToast('👋 Вы вышли из системы');}
+function __getTMHAuthApi() {
+  try {
+    if (window.TMHAuth) return window.TMHAuth;
+    if (window.parent && window.parent !== window && window.parent.TMHAuth) return window.parent.TMHAuth;
+  } catch (e) {}
+  return null;
+}
+
+async function checkAuth() {
+  const api = __getTMHAuthApi();
+  if (!api) { currentUser = null; return false; }
+  try {
+    const identity = await api.getCurrentIdentity();
+    if (!identity || !identity.user || !identity.profile) {
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      updateUserUI();
+      return false;
+    }
+    const role = identity.profile.role;
+    currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
+    try {
+      localStorage.setItem('checklist_user', JSON.stringify({
+        login: identity.user.email || '',
+        role: currentUser,
+        profileRole: role,
+        dev: role === 'developer',
+        authUid: identity.user.id
+      }));
+    } catch (e) {}
+    updateUserUI();
+    return true;
+  } catch (e) {
+    console.error('Auth check failed', e);
+    currentUser = null;
+    updateUserUI();
+    return false;
+  }
+}
+
+async function doLogin(login, password) {
+  const api = __getTMHAuthApi();
+  if (!api) return false;
+  const result = await api.signIn(login, password);
+  if (!result || result.error || !result.user || !result.profile) return false;
+  const role = result.profile.role;
+  currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
+  try {
+    localStorage.setItem('checklist_user', JSON.stringify({
+      login: result.user.email || '',
+      role: currentUser,
+      profileRole: role,
+      dev: role === 'developer',
+      authUid: result.user.id
+    }));
+  } catch (e) {}
+  updateUserUI();
+  const modal = document.getElementById('loginModal');
+  if (modal) modal.style.display = 'none';
+  return true;
+}
+
+async function doLogout() {
+  const api = __getTMHAuthApi();
+  if (api) {
+    const result = await api.signOut();
+    if (result && result.error) {
+      console.error('Sign out failed', result.error);
+      showToast('Не удалось завершить сеанс');
+      return;
+    }
+  }
+  currentUser = null;
+  try { localStorage.removeItem('checklist_user'); } catch (e) {}
+  updateUserUI();
+  try {
+    const topWindow = window.parent && window.parent !== window ? window.parent : window;
+    topWindow.location.reload();
+  } catch (e) {
+    window.location.reload();
+  }
+}
+
 function updateUserUI(){const info=document.getElementById('userInfo');const name=document.getElementById('userName');const role=document.getElementById('userRole');if(currentUser){info.style.display='flex';if(currentUser==='admin'){name.textContent='Администратор';role.textContent='(admin)';role.classList.remove('dim');}else{name.textContent='Пользователь';role.textContent='(user)';role.classList.add('dim');}}else{info.style.display='none';}}
 
 /* ========================================================================
@@ -14896,7 +15106,7 @@ if(typeof EMBED_TT_HTML==='undefined')return '';if(mode==='tt')return EMBED_TT_H
 function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];frame.srcdoc=getEmbeddedSource(mode);host.style.display='flex';}
 function hideEmbeddedApp(){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');if(host)host.style.display='none';if(frame)frame.srcdoc='about:blank';if(nativeApp)nativeApp.style.display='';}
 
-function selectModeAndStart(mode){
+async function selectModeAndStart(mode){
     // Если MODE уже был установлен и он совпадает — это не первый запуск
     if(MODE && mode===MODE){
         showToast('Этот чек-лист уже открыт');
@@ -14913,6 +15123,8 @@ function selectModeAndStart(mode){
     try{localStorage.setItem(MODE_KEY,mode);}catch(e){}
     closeModeModal();
     if(EMBEDDED_MODES.indexOf(mode)!==-1){
+        const hasAuth = await checkAuth();
+        if(!hasAuth){document.getElementById('loginModal').style.display='flex';updateModePicker();return;}
         showEmbeddedApp(mode);
         updateModePicker();
         return;
@@ -14920,7 +15132,7 @@ function selectModeAndStart(mode){
     LS_KEY=(mode==='housings')?LS_KEY_HOUSINGS:LS_KEY_COMPLEX;
     updateModeTitle();
     updateModePicker();
-    const hasAuth=checkAuth();
+    const hasAuth = await checkAuth();
     if(!hasAuth)document.getElementById('loginModal').style.display='flex';
     else showContinueDialogOrStart();
 }
@@ -15019,12 +15231,12 @@ function initThemeSwitch(){document.querySelectorAll('#themeSwitch button').forE
 window.addEventListener('storage',function(e){if(e.key===THEME_KEY&&THEME_VALUES.includes(e.newValue)){document.documentElement.setAttribute('data-theme',e.newValue);document.querySelectorAll('#themeSwitch button').forEach(b=>{b.classList.toggle('active',b.dataset.themeValue===e.newValue);});}});
 
 function setupCommonHandlers(){
-    document.getElementById('loginBtn').onclick=function(){
+    document.getElementById('loginBtn').onclick = async function() {
         const l=document.getElementById('loginInput').value.trim();
-        const p=document.getElementById('passwordInput').value.trim();
+        const p=document.getElementById('passwordInput').value;
         const err=document.getElementById('loginError');
         if(!l||!p){err.textContent='Заполните все поля';err.classList.add('show');return;}
-        if(doLogin(l,p)){err.classList.remove('show');showContinueDialogOrStart();}
+        if (await doLogin(l,p)){err.classList.remove('show');if(MODE&&EMBEDDED_MODES.indexOf(MODE)!==-1)showEmbeddedApp(MODE);else showContinueDialogOrStart();}
         else{err.textContent='Неверный логин или пароль';err.classList.add('show');}
     };
     document.getElementById('loginInput').onkeypress=function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();};
@@ -15161,10 +15373,10 @@ function saveState(silent){
   return true;
 }
 
-function init(){
+async function init(){
     initPhotoModal();
     updateModeTitle();
-    const hasAuth=checkAuth();
+    const hasAuth = await checkAuth();
     if(!hasAuth)document.getElementById('loginModal').style.display='flex';
     else showContinueDialogOrStart();
     setupCommonHandlers();
@@ -15688,10 +15900,89 @@ for(i=0;i<8;i++)H[i]=(H[i]+a[i])|0;}
 var h='';for(i=0;i<8;i++)h+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);return h;}
 function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==='c6a92f1d718a2a74fbbe448c66b70baffa1811636e527d1e3245b6c2e2285147';}catch(e){return false;}}
 let currentUser=null;
-function checkAuth(){const saved=localStorage.getItem('checklist_user');if(saved){try{const data=JSON.parse(saved);currentUser=(data.role==='admin')?'admin':'user';updateUserUI();return true;}catch(e){return false;}}return false;}
-const DEV_CREDENTIALS={login:'developer',passHash:'04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277'};function __devPassOk(p){try{return __sha256('tmh-checklist-dev:'+String(p))==='04fab717765ab87625bc5d5cbf1da92c2ec5122dcfaaf45b30fe61cf489af277';}catch(e){return false;}}
-function doLogin(login,password){if(login===DEV_CREDENTIALS.login){if(__devPassOk(password)){currentUser='admin';localStorage.setItem('checklist_user',JSON.stringify({login,role:'admin',dev:true}));updateUserUI();document.getElementById('loginModal').style.display='none';showToast('✅ Вход выполнен как Разработчик');if(window.__devRefresh)window.__devRefresh();return true;}return false;}if(login===ADMIN_CREDENTIALS.login&&__adminPassOk(password)){currentUser='admin';localStorage.setItem('checklist_user',JSON.stringify({login,role:'admin'}));updateUserUI();document.getElementById('loginModal').style.display='none';showToast('✅ Вход выполнен как Администратор');return true;}else if(login&&password&&login!==ADMIN_CREDENTIALS.login){currentUser='user';localStorage.setItem('checklist_user',JSON.stringify({login,role:'user'}));updateUserUI();document.getElementById('loginModal').style.display='none';showToast('✅ Вход выполнен как Пользователь');return true;}return false;}
-function doLogout(){currentUser=null;localStorage.removeItem('checklist_user');updateUserUI();document.getElementById('loginModal').style.display='flex';showToast('👋 Вы вышли из системы');}
+function __getTMHAuthApi() {
+  try {
+    if (window.TMHAuth) return window.TMHAuth;
+    if (window.parent && window.parent !== window && window.parent.TMHAuth) return window.parent.TMHAuth;
+  } catch (e) {}
+  return null;
+}
+
+async function checkAuth() {
+  const api = __getTMHAuthApi();
+  if (!api) { currentUser = null; return false; }
+  try {
+    const identity = await api.getCurrentIdentity();
+    if (!identity || !identity.user || !identity.profile) {
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      updateUserUI();
+      return false;
+    }
+    const role = identity.profile.role;
+    currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
+    try {
+      localStorage.setItem('checklist_user', JSON.stringify({
+        login: identity.user.email || '',
+        role: currentUser,
+        profileRole: role,
+        dev: role === 'developer',
+        authUid: identity.user.id
+      }));
+    } catch (e) {}
+    updateUserUI();
+    return true;
+  } catch (e) {
+    console.error('Auth check failed', e);
+    currentUser = null;
+    updateUserUI();
+    return false;
+  }
+}
+
+async function doLogin(login, password) {
+  const api = __getTMHAuthApi();
+  if (!api) return false;
+  const result = await api.signIn(login, password);
+  if (!result || result.error || !result.user || !result.profile) return false;
+  const role = result.profile.role;
+  currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
+  try {
+    localStorage.setItem('checklist_user', JSON.stringify({
+      login: result.user.email || '',
+      role: currentUser,
+      profileRole: role,
+      dev: role === 'developer',
+      authUid: result.user.id
+    }));
+  } catch (e) {}
+  updateUserUI();
+  const modal = document.getElementById('loginModal');
+  if (modal) modal.style.display = 'none';
+  return true;
+}
+
+async function doLogout() {
+  const api = __getTMHAuthApi();
+  if (api) {
+    const result = await api.signOut();
+    if (result && result.error) {
+      console.error('Sign out failed', result.error);
+      showToast('Не удалось завершить сеанс');
+      return;
+    }
+  }
+  currentUser = null;
+  try { localStorage.removeItem('checklist_user'); } catch (e) {}
+  updateUserUI();
+  try {
+    const topWindow = window.parent && window.parent !== window ? window.parent : window;
+    topWindow.location.reload();
+  } catch (e) {
+    window.location.reload();
+  }
+}
+
 function updateUserUI(){const info=document.getElementById('userInfo');const name=document.getElementById('userName');const role=document.getElementById('userRole');if(currentUser){info.style.display='flex';if(currentUser==='admin'){const __d=(function(){try{return JSON.parse(localStorage.getItem('checklist_user')).dev===true;}catch(e){return false;}})();name.textContent=__d?'Разработчик':'Администратор';role.textContent=__d?'(developer)':'(admin)';role.classList.remove('dim');}else{name.textContent='Пользователь';role.textContent='(user)';role.classList.add('dim');}}else{info.style.display='none';}}
 
 /* ========================================================================
@@ -16704,7 +16995,7 @@ function getEmbeddedSource(mode){
 function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];host.style.display='flex';var __go=function(){if(host.style.display==='none')return;frame.srcdoc=getEmbeddedSource(mode);};if(window.__RISK_CORE__)window.__RISK_CORE__.ready(2500).then(__go,__go);else __go();}
 function hideEmbeddedApp(){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');if(host)host.style.display='none';if(frame)frame.srcdoc='about:blank';if(nativeApp)nativeApp.style.display='';}
 
-function selectModeAndStart(mode){
+async function selectModeAndStart(mode){
     // Если MODE уже был установлен и он совпадает — это не первый запуск
     if(MODE && mode===MODE){
         showToast('Этот чек-лист уже открыт');
@@ -16721,6 +17012,8 @@ function selectModeAndStart(mode){
     try{localStorage.setItem(MODE_KEY,mode);}catch(e){}
     closeModeModal();
     if(EMBEDDED_MODES.indexOf(mode)!==-1){
+        const hasAuth = await checkAuth();
+        if(!hasAuth){document.getElementById('loginModal').style.display='flex';updateModePicker();return;}
         showEmbeddedApp(mode);
         updateModePicker();
         return;
@@ -16728,7 +17021,7 @@ function selectModeAndStart(mode){
     LS_KEY=(mode==='housings')?LS_KEY_HOUSINGS:LS_KEY_COMPLEX;
     updateModeTitle();
     updateModePicker();
-    const hasAuth=checkAuth();
+    const hasAuth = await checkAuth();
     if(!hasAuth)document.getElementById('loginModal').style.display='flex';
     else showContinueDialogOrStart();
 }
@@ -16827,12 +17120,12 @@ function initThemeSwitch(){document.querySelectorAll('#themeSwitch button').forE
 window.addEventListener('storage',function(e){if(e.key===THEME_KEY&&THEME_VALUES.includes(e.newValue)){document.documentElement.setAttribute('data-theme',e.newValue);document.querySelectorAll('#themeSwitch button').forEach(b=>{b.classList.toggle('active',b.dataset.themeValue===e.newValue);});}});
 
 function setupCommonHandlers(){
-    document.getElementById('loginBtn').onclick=function(){
+    document.getElementById('loginBtn').onclick = async function() {
         const l=document.getElementById('loginInput').value.trim();
-        const p=document.getElementById('passwordInput').value.trim();
+        const p=document.getElementById('passwordInput').value;
         const err=document.getElementById('loginError');
         if(!l||!p){err.textContent='Заполните все поля';err.classList.add('show');return;}
-        if(doLogin(l,p)){err.classList.remove('show');showContinueDialogOrStart();}
+        if (await doLogin(l,p)){err.classList.remove('show');showContinueDialogOrStart();}
         else{err.textContent='Неверный логин или пароль';err.classList.add('show');}
     };
     document.getElementById('loginInput').onkeypress=function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();};
@@ -16882,7 +17175,7 @@ function saveState(silent){
     }
     if(!silent)showToast('Сохранено в браузере');
 }
-function init(){
+async function init(){
     initPhotoModal();
     updateModePicker();
 
@@ -16909,6 +17202,8 @@ function init(){
     }
 
     if(EMBEDDED_MODES.indexOf(MODE)!==-1){
+        const hasAuth = await checkAuth();
+        if(!hasAuth){document.getElementById('loginModal').style.display='flex';setupCommonHandlers();return;}
         showEmbeddedApp(MODE);
         updateModePicker();
         setupCommonHandlers();
@@ -16917,13 +17212,13 @@ function init(){
 
     updateModeTitle();
     updateModePicker();
-    const hasAuth=checkAuth();
+    const hasAuth = await checkAuth();
     if(!hasAuth)document.getElementById('loginModal').style.display='flex';
     else showContinueDialogOrStart();
     setupCommonHandlers();
 }
 
-init();
+window.addEventListener('DOMContentLoaded', function(){ init(); }, { once: true });
 </script>
 
 <!-- ============================================================
