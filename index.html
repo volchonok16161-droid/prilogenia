@@ -1033,6 +1033,46 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
 }
 </style>
 <script type="module" src="prototype/supabase-auth.js"></script>
+<script type="module">
+import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js';
+const button=document.getElementById('tmhNativeCloudBackupBtn');
+if(button){
+  button.addEventListener('click',async function(){
+    if(button.disabled)return;
+    if(!window.confirm('Сохранить текущий чек-лист в облако? Фотографии останутся только на этом устройстве.'))return;
+    button.disabled=true;
+    const oldText=button.textContent;
+    button.textContent='⏳ Сохраняю…';
+    try{
+      const getContext=window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT;
+      if(typeof getContext!=='function')throw new Error('Не удалось получить данные открытого чек-листа');
+      const api=window.TMHAuth;
+      if(!api)throw new Error('Авторизация Supabase недоступна');
+      const backup=createChecklistCloudBackup({
+        authApi:api,
+        storage:window.localStorage,
+        getState:function(){return getContext().state;},
+        getMode:function(){return getContext().mode;},
+        getStorageKey:function(){return getContext().storageKey;}
+      });
+      const result=await backup.saveCurrent();
+      const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
+      if(typeof showToast==='function')showToast(message+' · фото остаются на устройстве');
+      else window.alert(message+'\nФотографии остаются на устройстве.');
+    }catch(error){
+      console.error('Cloud backup failed',error);
+      const message=error&&error.code==='REVISION_CONFLICT'
+        ?'Облачная запись изменена в другом месте. Обновите данные и повторите.'
+        :String(error&&error.message||'Не удалось сохранить копию в облаке');
+      if(typeof showToast==='function')showToast(message);
+      else window.alert(message);
+    }finally{
+      button.disabled=false;
+      button.textContent=oldText;
+    }
+  });
+}
+</script>
 </head>
 <body>
 <div id="nativeApp">
@@ -1090,6 +1130,7 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     <div id="equipRoot"></div>
 </div>
 <div class="footbar">
+    <button class="btn" id="tmhNativeCloudBackupBtn" type="button">☁️ Сохранить в облако</button>
     <button class="btn primary" id="btnSave">💾 Сохранить в браузере</button>
     <button class="btn" id="btnSaveHtml">💾 Сохранить как файл</button>
     <button class="btn" id="btnExport" title="Экспорт доступен только при 100% заполнении (для пользователей)">📷 Экспорт Excel</button>
@@ -14221,6 +14262,9 @@ let LS_KEY=(MODE==='housings')?LS_KEY_HOUSINGS:((MODE!=='complex')?('checklist_c
 try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}
 
 let STATE={general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[],changeLog:[]};
+window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
+  return {state:STATE,mode:MODE,storageKey:LS_KEY};
+};
 if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){STATE=__EMBEDDED_STATE;const el=document.getElementById('__embedded_state');if(el)el.parentNode.removeChild(el);}
 
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);if(raw){const p=JSON.parse(raw);STATE=Object.assign({general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[],changeLog:[]},p);if(!Array.isArray(STATE.selectedSections))STATE.selectedSections=[];if(!Array.isArray(STATE.selected))STATE.selected=[];}}catch(e){console.warn('Не удалось загрузить сохранённые данные',e);}}
