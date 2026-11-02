@@ -165,3 +165,57 @@ test("createSnapshot creates a separate immutable cloud copy without changing th
   assert.equal(h.values.has("checklist_complex::user:" + USER + "::cloud-ref"), false);
   assert.equal(h.state.values.item1.front_photo, "data:image/jpeg;base64,AAAA");
 });
+
+
+test("photo manifest is uploaded for the exact next cloud revision and stored with the payload", async () => {
+  const h = makeHarness();
+  const calls = [];
+  const photoSync = {
+    async uploadState(input) {
+      calls.push(["upload", input.checklistId, input.revision]);
+      return { manifest: [{ itemId: "item1", field: "front_photo", path: "private/path", contentType: "image/jpeg" }], uploaded: 1 };
+    },
+    async removeManifest(manifest) { calls.push(["remove", manifest.length]); },
+  };
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem() { return null; }, setItem() {} },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    cloudApi: h.backup && undefined,
+    photoSync,
+    idFactory: () => ROW,
+    cloudApi: {
+      async create(input) {
+        calls.push(["create", input.id, input.payload.photos.length]);
+        return { id: input.id, revision: 1 };
+      },
+    },
+  });
+  const result = await backup.saveCurrent();
+  assert.deepEqual(calls, [["upload", ROW, 1], ["create", ROW, 1]]);
+  assert.equal(result.photosUploaded, 1);
+});
+
+test("photo uploads are rolled back when the cloud revision write fails", async () => {
+  const h = makeHarness();
+  const calls = [];
+  const manifest = [{ itemId: "item1", field: "front_photo", path: "private/path", contentType: "image/jpeg" }];
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem() { return JSON.stringify({ id: ROW, revision: 4 }); }, setItem() {} },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    photoSync: {
+      async uploadState(input) { calls.push(["upload", input.revision]); return { manifest, uploaded: 1 }; },
+      async removeManifest(input) { calls.push(["remove", input.length]); },
+    },
+    cloudApi: {
+      async update() { calls.push(["update"]); throw Object.assign(new Error("conflict"), { code: "REVISION_CONFLICT" }); },
+    },
+  });
+  await assert.rejects(backup.saveCurrent(), (error) => error.code === "REVISION_CONFLICT");
+  assert.deepEqual(calls, [["upload", 5], ["update"], ["remove", 1]]);
+});
