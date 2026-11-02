@@ -47,18 +47,16 @@ function encodeBase64(bytes) {
   return btoa(binary);
 }
 
-function collectPhotos(value, itemId = null, output = []) {
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => collectPhotos(item, itemId ?? String(index), output));
-    return output;
-  }
-  if (!value || typeof value !== "object") return output;
-
-  for (const [key, item] of Object.entries(value)) {
-    if (/_photo$/i.test(key) && typeof item === "string" && item.startsWith("data:")) {
-      output.push({ itemId: itemId ?? "root", field: key, dataUrl: item });
-    } else if (item && typeof item === "object") {
-      collectPhotos(item, itemId ?? key, output);
+function collectPhotos(state) {
+  const output = [];
+  const values = state?.values;
+  if (!values || typeof values !== "object" || Array.isArray(values)) return output;
+  for (const [itemId, item] of Object.entries(values)) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    for (const [field, dataUrl] of Object.entries(item)) {
+      if (/_photo$/i.test(field) && typeof dataUrl === "string" && dataUrl.startsWith("data:")) {
+        output.push({ itemId, field, dataUrl });
+      }
     }
   }
   return output;
@@ -66,7 +64,7 @@ function collectPhotos(value, itemId = null, output = []) {
 
 function setPhoto(state, itemId, field, dataUrl) {
   const target = state?.values?.[itemId];
-  if (!target || typeof target !== "object" || !/_photo$/i.test(field)) {
+  if (!target || typeof target !== "object" || Array.isArray(target) || !/_photo$/i.test(field)) {
     fail("INVALID_MANIFEST", "Манифест фотографии не соответствует структуре чек-листа");
   }
   target[field] = dataUrl;
