@@ -89,6 +89,10 @@ test("email confirmation resend uses Supabase Auth signup flow and rate-limits r
   assert.match(html, /identity\.user\.email_confirmed_at/);
 });
 
+test("email confirmation resend explicitly returns to the current cabinet page", () => {
+  assert.match(html, /options:\s*\{[\s\S]*?emailRedirectTo:\s*`\$\{location\.origin\}\$\{location\.pathname\}`/);
+});
+
 test("email confirmation callback refreshes profile status without a manual reload", () => {
   assert.match(html, /onAuthStateChange\(\(event, session\) => \{/);
   assert.match(html, /\["SIGNED_IN", "USER_UPDATED", "TOKEN_REFRESHED"\]\.includes\(event\)/);
