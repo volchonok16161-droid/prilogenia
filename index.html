@@ -3068,7 +3068,6 @@ function updateUserUI() {
 
         if (typeof __EMBEDDED_STATE !== 'undefined' && __EMBEDDED_STATE) {
             STATE = __EMBEDDED_STATE;
-            localStorage.setItem(LS_KEY, JSON.stringify(STATE));
         }
 
         function loadState() {
@@ -3357,7 +3356,7 @@ function __psOverflow(silent){
   return __PS.chain;
 }
 function saveState(silent){
-  if(window.__TMH_STORAGE_LOCKED)return false;
+  if(!window.__TMH_STORAGE_UID||window.__TMH_STORAGE_LOCKED)return false;
   if(!STATE||!STATE.general)return false;
   if(__psFlagOn()){
     try{localStorage.setItem(LS_KEY,JSON.stringify(__psLight()));}
@@ -6969,7 +6968,6 @@ function updateUserUI() {
 
         if (typeof __EMBEDDED_STATE !== 'undefined' && __EMBEDDED_STATE) {
             STATE = __EMBEDDED_STATE;
-            localStorage.setItem(LS_KEY, JSON.stringify(STATE));
         }
 
         function loadState() {
@@ -7258,7 +7256,7 @@ function __psOverflow(silent){
   return __PS.chain;
 }
 function saveState(silent){
-  if(window.__TMH_STORAGE_LOCKED)return false;
+  if(!window.__TMH_STORAGE_UID||window.__TMH_STORAGE_LOCKED)return false;
   if(!STATE||!STATE.general)return false;
   if(__psFlagOn()){
     try{localStorage.setItem(LS_KEY,JSON.stringify(__psLight()));}
@@ -11358,7 +11356,6 @@ let STATE = {
 
 if (typeof __EMBEDDED_STATE !== 'undefined' && __EMBEDDED_STATE) {
   STATE = __EMBEDDED_STATE;
-  localStorage.setItem(LS_KEY, JSON.stringify(STATE));
 }
 
 function loadState() {
@@ -11655,7 +11652,7 @@ function __psOverflow(silent){
   return __PS.chain;
 }
 function saveState(silent){
-  if(window.__TMH_STORAGE_LOCKED)return false;
+  if(!window.__TMH_STORAGE_UID||window.__TMH_STORAGE_LOCKED)return false;
   if(!STATE||!STATE.general)return false;
   if(__psFlagOn()){
     try{localStorage.setItem(LS_KEY,JSON.stringify(__psLight()));}
@@ -14104,7 +14101,7 @@ let LS_KEY=(MODE==='housings')?LS_KEY_HOUSINGS:((MODE!=='complex')?('checklist_c
 try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}
 
 let STATE={general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[],changeLog:[]};
-if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){STATE=__EMBEDDED_STATE;try{localStorage.setItem(LS_KEY,JSON.stringify(STATE));}catch(e){}const el=document.getElementById('__embedded_state');if(el)el.parentNode.removeChild(el);}
+if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){STATE=__EMBEDDED_STATE;const el=document.getElementById('__embedded_state');if(el)el.parentNode.removeChild(el);}
 
 function loadState(){try{const raw=localStorage.getItem(LS_KEY);if(raw){const p=JSON.parse(raw);STATE=Object.assign({general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[],changeLog:[]},p);if(!Array.isArray(STATE.selectedSections))STATE.selectedSections=[];if(!Array.isArray(STATE.selected))STATE.selected=[];}}catch(e){console.warn('Не удалось загрузить сохранённые данные',e);}}
 var __psOrigLoad=loadState;
@@ -15441,7 +15438,7 @@ function __psOverflow(silent){
   return __PS.chain;
 }
 function saveState(silent){
-  if(window.__TMH_STORAGE_LOCKED)return false;
+  if(!window.__TMH_STORAGE_UID||window.__TMH_STORAGE_LOCKED)return false;
   if(!STATE||!STATE.general)return false;
   if(__psFlagOn()){
     try{localStorage.setItem(LS_KEY,JSON.stringify(__psLight()));}
@@ -16134,7 +16131,7 @@ if(MODE){try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}}
 if(MODE==='housings')LS_KEY=LS_KEY_HOUSINGS;
 
 let STATE={general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[],changeLog:[]};
-if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){STATE=__EMBEDDED_STATE;try{localStorage.setItem(LS_KEY,JSON.stringify(STATE));}catch(e){}const el=document.getElementById('__embedded_state');if(el)el.parentNode.removeChild(el);}
+if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){STATE=__EMBEDDED_STATE;const el=document.getElementById('__embedded_state');if(el)el.parentNode.removeChild(el);}
 
 /* ===== Хранилище фото на базе IndexedDB (вместо localStorage) =====
    Фото — самые "тяжёлые" данные чек-листа. localStorage ограничен
@@ -17254,7 +17251,7 @@ function setupCommonHandlers(){
 }
 
 function saveState(silent){
-    if(window.__TMH_STORAGE_LOCKED)return false;
+    if(!window.__TMH_STORAGE_UID||window.__TMH_STORAGE_LOCKED)return false;
     if(!STATE || !STATE.general) return; // safety
     const writeLight=function(){
         try{
