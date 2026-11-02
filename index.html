@@ -3846,7 +3846,6 @@ function saveState(silent){
             controlWrap.style.gridTemplateColumns = '1fr';
 
             const prodVal = getVal(iid, 'proizvoditel');
-            const isLocked = (prodVal === 'ТТТ' || prodVal === 'СТЗ') && field.key !== 'proizvoditel';
 
             if (field.type === 'text') {
                 const input = document.createElement('input');
@@ -3934,7 +3933,6 @@ function saveState(silent){
             const allFields = eq.getFields(instance);
             for (let f of allFields) {
                 if (f.key === 'proizvoditel') continue;
-                if (newProducer === 'ТТТ' || newProducer === 'СТЗ') {
                     setVal(iid, f.key, 'Не требуется');
                 } else {
                     setVal(iid, f.key, '');
@@ -15731,7 +15729,6 @@ const LS_KEY_COMPLEX='checklist_2es5k_v1';
 const LS_KEY_HOUSINGS='checklist_housings_v4';
 const EMBEDDED_MODES=['complex','housings','tt','bi','hydro'].concat(window.__cmIds?window.__cmIds():[]);
 const ALL_MODES=['complex','housings','tt','bi','hydro'].concat(window.__cmIds?window.__cmIds():[]);
-const MODE_NAMES={complex:'Чек-лист Комплексный',housings:'Чек-лист проверки КМБ',tt:'Чек-лист проверки Тягового трансформатора',bi:'Чек-лист проверки установленной защиты системного диска (МСУД-015)',hydro:'Чек-лист проверки Гидродемпферов'}; (window.__CUSTOM_MODES__||[]).forEach(function(m){MODE_NAMES[m.id]='Чек-лист '+m.title;});
 let MODE=null;
 let LS_KEY=LS_KEY_COMPLEX;
 if(typeof __EMBEDDED_MODE!=='undefined'&&__EMBEDDED_MODE){MODE=__EMBEDDED_MODE;const el=document.getElementById('__embedded_mode');if(el)el.parentNode.removeChild(el);}
@@ -17849,6 +17846,882 @@ if ('serviceWorker' in navigator) {
     var ef2 = document.getElementById('embeddedFrame');
     if (ef2) bindIframe(ef2);
   }, 2000);
+})();
+</script>
+<!-- ============================================================
+     PATCH: кнопки «OK» / «NOK» у каждой операции — фото-примеры.
+     - Показывают эталонное фото: как должно быть (OK) и как выглядит
+       несоответствие (NOK). Работает во всех чек-листах, в том числе
+       созданных в конструкторе.
+     - Обычный пользователь видит кнопки только там, где пример задан.
+     - Разработчик видит кнопки у всех операций и загружает/заменяет/удаляет
+       фото прямо в окне примера. Фото публикуются в репозиторий
+       (папка examples/, индекс examples.json) через токен GitHub.
+     ============================================================ -->
+<script id="__OKNOK_EXAMPLES_V1__">
+(function(){
+  'use strict';
+  if (window.__OKNOK_PARENT__) return;
+  window.__OKNOK_PARENT__ = true;
+
+  var FILE = 'examples.json', DIR = 'examples/', LS_CACHE = 'oknok_examples_cache_v1';
+  var DATA = { items: {}, local: {}, rev: 0 };
+  // Учётная запись «Редактор примеров»: задаётся скриптом tools/make_editor.py (пока пусто — роль выключена).
+  var EDITOR = { login: '', passHash: '' };
+  // Учётная запись «Помощник»: только предлагает фото (без токена), разработчик принимает и публикует.
+  // Задаётся скриптом tools/make_contributor.py.
+  var CONTRIB = { login: 'user', passHash: 'deb30a44339ba9195a981e3b76b10c52dd94c88b2a2cc36b342d008f93d60b3a' };
+  try {
+    var c = JSON.parse(localStorage.getItem(LS_CACHE) || 'null');
+    if (c && c.items) DATA.items = c.items;
+  } catch (e) {}
+
+  function abs(p){ try { return new URL(p, location.href).href; } catch (e) { return p; } }
+  function commit(){
+    DATA.rev++;
+    try { localStorage.setItem(LS_CACHE, JSON.stringify({ items: DATA.items })); } catch (e) {}
+  }
+
+  /* ---------- загрузка индекса примеров ---------- */
+  var warmed = {};
+  function warm(){            // кладём фото в кэш service worker — они будут доступны офлайн
+    var list = [];
+    Object.keys(DATA.items).forEach(function(k){
+      var it = DATA.items[k] || {};
+      ['ok', 'nok'].forEach(function(s){ if (it[s] && !warmed[it[s]]) list.push(it[s]); });
+    });
+    (function next(){
+      var p = list.shift(); if (!p) return;
+      warmed[p] = 1;
+      fetch(abs(p)).catch(function(){ delete warmed[p]; }).then(function(){ setTimeout(next, 150); });
+    })();
+  }
+  function load(){
+    fetch(FILE + '?t=' + Date.now(), { cache: 'no-store' })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){
+        if (!j || !j.items) return;
+        DATA.items = j.items; commit(); warm();
+      })
+      .catch(function(){});
+  }
+  load();
+  setInterval(load, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) load(); });
+
+  /* ---------- публикация на GitHub (только разработчик) ---------- */
+  function gh(){ var d = window.__DEV_PANEL_V1__; return d && d.gh; }
+  function b64txt(s){ return btoa(unescape(encodeURIComponent(s))); }
+  function blobB64(blob){
+    return new Promise(function(res, rej){
+      var r = new FileReader();
+      r.onload = function(){ res(String(r.result).split(',')[1]); };
+      r.onerror = function(){ rej(new Error('Не удалось прочитать фото')); };
+      r.readAsDataURL(blob);
+    });
+  }
+  function hash(s){
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+    return h.toString(36);
+  }
+  function cUrl(g, cfg, path){
+    return '/repos/' + encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo) + '/contents/' + g.enc(path);
+  }
+  function refQ(cfg){ return '?ref=' + encodeURIComponent(cfg.branch); }
+
+  function updateIndex(g, cfg, mut, msg, n){
+    n = n || 0;
+    var u = cUrl(g, cfg, FILE);
+    return g.api('GET', u + refQ(cfg)).then(function(r){
+      var items = {}, sha;
+      if (r.status === 200){
+        sha = r.json.sha;
+        try {
+          var bin = atob(String(r.json.content || '').replace(/\s+/g, '')), arr = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          var j = JSON.parse(new TextDecoder().decode(arr));
+          items = j.items || {};
+        } catch (e) {}
+      } else if (r.status !== 404){
+        throw new Error(g.err(r, 'Чтение ' + FILE));
+      }
+      mut(items);
+      var body = {
+        message: msg,
+        content: b64txt(JSON.stringify({ version: 1, updated: new Date().toISOString(), items: items }, null, 2) + '\n'),
+        branch: cfg.branch
+      };
+      if (sha) body.sha = sha;
+      return g.api('PUT', u, body).then(function(p){
+        if (p.status === 200 || p.status === 201) return items;
+        if ((p.status === 409 || p.status === 422) && n < 2) return updateIndex(g, cfg, mut, msg, n + 1);
+        throw new Error(g.err(p, 'Запись ' + FILE));
+      });
+    });
+  }
+  function dropFile(g, cfg, path){      // старое фото удаляем «по возможности»
+    var u = cUrl(g, cfg, path);
+    g.api('GET', u + refQ(cfg)).then(function(r){
+      if (r.status === 200) g.api('DELETE', u, { message: 'Удалено старое фото примера', sha: r.json.sha, branch: cfg.branch });
+    }).catch(function(){});
+  }
+  function needGh(){
+    var g = gh();
+    if (!g) return Promise.reject(new Error('Панель разработчика не загружена. Войдите как разработчик.'));
+    if (!g.token()){
+      try { g.open(); } catch (e) {}
+      return Promise.reject(new Error('Не указан токен GitHub: в окне «⚙ GitHub» вставьте токен, сохраните и повторите.'));
+    }
+    return Promise.resolve(g);
+  }
+  function save(key, side, blob){
+    return needGh().then(function(g){
+      var cfg = g.cfg(), name = DIR + 'e_' + hash(key) + '_' + side + '_' + Date.now().toString(36) + '.jpg', old = null;
+      return blobB64(blob).then(function(b){
+        return g.api('PUT', cUrl(g, cfg, name), { message: 'Пример ' + side.toUpperCase() + ': ' + key, content: b, branch: cfg.branch });
+      }).then(function(p){
+        if (p.status !== 201 && p.status !== 200) throw new Error(g.err(p, 'Загрузка фото'));
+        return updateIndex(g, cfg, function(items){
+          var it = items[key] || (items[key] = {});
+          old = it[side] || null; it[side] = name;
+        }, 'Примеры: ' + key + ' (' + side + ')');
+      }).then(function(items){
+        try { DATA.local[name] = URL.createObjectURL(blob); } catch (e) {}
+        DATA.items = items; commit();
+        if (old && old !== name) dropFile(g, cfg, old);
+        return true;
+      });
+    });
+  }
+  function remove(key, side){
+    return needGh().then(function(g){
+      var cfg = g.cfg(), old = null;
+      return updateIndex(g, cfg, function(items){
+        var it = items[key]; if (!it) return;
+        old = it[side] || null; delete it[side];
+        if (!it.ok && !it.nok) delete items[key];
+      }, 'Примеры: удалён ' + side + ' у ' + key).then(function(items){
+        DATA.items = items; commit();
+        if (old) dropFile(g, cfg, old);
+        return true;
+      });
+    });
+  }
+
+  /* ---------- черновики помощника (хранятся только на его устройстве) ---------- */
+  var DR = {}, idbP = null;
+  function idb(){
+    if (idbP) return idbP;
+    idbP = new Promise(function(res){
+      try {
+        var rq = indexedDB.open('oknok_drafts', 1);
+        rq.onupgradeneeded = function(){ rq.result.createObjectStore('d', { keyPath: 'id' }); };
+        rq.onsuccess = function(){ res(rq.result); };
+        rq.onerror = function(){ res(null); };
+      } catch (e) { res(null); }
+    });
+    return idbP;
+  }
+  function idbOp(mode, fn){
+    return idb().then(function(db){
+      if (!db) return null;
+      return new Promise(function(res){
+        try {
+          var tx = db.transaction('d', mode), rq = fn(tx.objectStore('d'));
+          tx.oncomplete = function(){ res(rq ? rq.result : true); };
+          tx.onerror = tx.onabort = function(){ res(null); };
+        } catch (e) { res(null); }
+      });
+    });
+  }
+  idbOp('readonly', function(st){ return st.getAll(); }).then(function(list){
+    (list || []).forEach(function(d){ DR[d.id] = d; });
+    if (list && list.length) commit();
+  });
+  function draftPut(key, side, title, blob){
+    var d = { id: key + '|' + side, key: key, side: side, title: title || '', blob: blob, ts: Date.now() };
+    if (DR[d.id] && DR[d.id].url){ try { URL.revokeObjectURL(DR[d.id].url); } catch (e) {} }
+    DR[d.id] = d; commit();
+    return idbOp('readwrite', function(st){ return st.put({ id: d.id, key: d.key, side: d.side, title: d.title, blob: d.blob, ts: d.ts }); }).then(function(r){
+      if (r === null) throw new Error('Не удалось сохранить фото в памяти устройства. Оно останется только до закрытия страницы — отправьте файл разработчику сразу.');
+      return true;
+    });
+  }
+  function draftDel(key, side){
+    var id = key + '|' + side, d = DR[id];
+    if (d && d.url){ try { URL.revokeObjectURL(d.url); } catch (e) {} }
+    delete DR[id]; commit();
+    return idbOp('readwrite', function(st){ return st['delete'](id); });
+  }
+  function clearDrafts(){
+    Object.keys(DR).forEach(function(k){ var d = DR[k]; if (d && d.url){ try { URL.revokeObjectURL(d.url); } catch (e) {} } });
+    DR = {}; commit();
+    return idbOp('readwrite', function(st){ return st.clear(); });
+  }
+  function exportDrafts(author){
+    var list = Object.keys(DR).map(function(k){ return DR[k]; });
+    if (!list.length) return Promise.reject(new Error('Нет фото для отправки.'));
+    return Promise.all(list.map(function(d){
+      return new Promise(function(res, rej){
+        var r = new FileReader();
+        r.onload = function(){ res({ key: d.key, side: d.side, title: d.title, dataUrl: String(r.result) }); };
+        r.onerror = function(){ rej(new Error('Не удалось прочитать фото')); };
+        r.readAsDataURL(d.blob);
+      });
+    })).then(function(items){
+      function pad(n){ return (n < 10 ? '0' : '') + n; }
+      var t = new Date();
+      var name = 'foto_' + String(author || 'user').replace(/[^A-Za-z0-9_.\-]/g, '') + '_' + t.getFullYear() + pad(t.getMonth() + 1) + pad(t.getDate()) + '_' + pad(t.getHours()) + pad(t.getMinutes()) + '.json';
+      var json = JSON.stringify({ type: 'oknok-proposals', version: 1, author: author || '', created: t.toISOString(), items: items });
+      return new File([json], name, { type: 'application/json' });
+    });
+  }
+
+  /* ---------- «входящие»: отдельный репозиторий GitHub, куда помощник кладёт фото ---------- */
+  var LS_INBOX = 'oknok_inbox_cfg_v1', REPO_RE = /^[A-Za-z0-9_.\-]+\/[A-Za-z0-9_.\-]+$/;
+  function inboxCfg(){
+    try {
+      var c = JSON.parse(localStorage.getItem(LS_INBOX) || 'null');
+      if (c && REPO_RE.test(c.repo || '') && c.token) return { repo: String(c.repo), branch: String(c.branch || 'main'), token: String(c.token) };
+    } catch (e) {}
+    return null;
+  }
+  function inboxSet(c){
+    if (!c){ try { localStorage.removeItem(LS_INBOX); } catch (e) {} return; }
+    localStorage.setItem(LS_INBOX, JSON.stringify({ repo: String(c.repo || '').trim(), branch: String(c.branch || 'main').trim() || 'main', token: String(c.token || '').trim() }));
+  }
+  function ghx(method, path, body){
+    var c = inboxCfg();
+    if (!c) return Promise.reject(new Error('Связь с разработчиком не настроена (репозиторий входящих и токен).'));
+    var h = { 'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer ' + c.token, 'X-GitHub-Api-Version': '2022-11-28' };
+    if (body) h['Content-Type'] = 'application/json';
+    return fetch('https://api.github.com' + path, { method: method, headers: h, body: body ? JSON.stringify(body) : undefined }).then(function(r){
+      return r.text().then(function(t){ var j = null; try { j = JSON.parse(t); } catch (e) {} return { status: r.status, json: j }; });
+    }, function(){ throw new Error('Нет связи с GitHub. Проверьте интернет.'); });
+  }
+  function ghxErr(r, what){
+    var m = (r.json && r.json.message) || ('HTTP ' + r.status);
+    if (r.status === 401) return what + ': токен недействителен или просрочен.';
+    if (r.status === 403 || r.status === 404) return what + ': нет доступа к репозиторию входящих — проверьте его имя и права токена (Contents: Read and write). ' + m;
+    return what + ': ' + m;
+  }
+  function inboxSend(file){
+    var c = inboxCfg();
+    if (!c) return Promise.reject(new Error('Связь с разработчиком не настроена.'));
+    return blobB64(file).then(function(b){
+      return ghx('PUT', '/repos/' + c.repo + '/contents/inbox/' + encodeURIComponent(file.name), { message: 'Фото от помощника: ' + file.name, content: b, branch: c.branch });
+    }).then(function(r){
+      if (r.status !== 201 && r.status !== 200) throw new Error(ghxErr(r, 'Отправка'));
+      return true;
+    });
+  }
+  function inboxList(){
+    var c = inboxCfg();
+    if (!c) return Promise.reject(new Error('Связь не настроена.'));
+    return ghx('GET', '/repos/' + c.repo + '/contents/inbox?ref=' + encodeURIComponent(c.branch)).then(function(r){
+      if (r.status === 404){      // папки ещё нет — это нормально, если репозиторий доступен
+        return ghx('GET', '/repos/' + c.repo).then(function(r2){ if (r2.status !== 200) throw new Error(ghxErr(r2, 'Чтение входящих')); return []; });
+      }
+      if (r.status !== 200 || !Array.isArray(r.json)) throw new Error(ghxErr(r, 'Чтение входящих'));
+      return r.json.filter(function(x){ return x.type === 'file' && /\.json$/i.test(x.name); }).map(function(x){ return { name: x.name, sha: x.sha, size: x.size }; });
+    });
+  }
+  function inboxRead(sha){
+    var c = inboxCfg();
+    return ghx('GET', '/repos/' + c.repo + '/git/blobs/' + encodeURIComponent(sha)).then(function(r){
+      if (r.status !== 200 || !r.json) throw new Error(ghxErr(r, 'Чтение файла'));
+      var bin = atob(String(r.json.content || '').replace(/\s+/g, '')), arr = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      return new TextDecoder().decode(arr);
+    });
+  }
+  function inboxDelete(name, sha){
+    var c = inboxCfg();
+    return ghx('DELETE', '/repos/' + c.repo + '/contents/inbox/' + encodeURIComponent(name), { message: 'Принято: ' + name, sha: sha, branch: c.branch }).then(function(r){ return r.status === 200; });
+  }
+  function inboxLink(){       // ссылка для помощника: открыв её, он подключается без ручного ввода
+    var c = inboxCfg(); if (!c) return '';
+    var j = btoa(unescape(encodeURIComponent(JSON.stringify({ r: c.repo, b: c.branch, t: c.token })))).replace(/\+/g, '-').replace(/\//g, '_');
+    return location.origin + location.pathname + '#oknok=' + j;
+  }
+  (function consumeLink(){
+    try {
+      var m = /^#oknok=([A-Za-z0-9_\-=]+)$/.exec(location.hash || ''); if (!m) return;
+      var j = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
+      history.replaceState(null, '', location.pathname + location.search);
+      if (j && REPO_RE.test(j.r || '') && j.t){
+        setTimeout(function(){
+          if (confirm('Подключить отправку фото разработчику?\nФото будут отправляться в репозиторий: ' + j.r)){
+            inboxSet({ repo: j.r, branch: j.b || 'main', token: j.t });
+            alert('✅ Готово. Теперь кнопка «Отправить разработчику» отправляет фото сразу.');
+          }
+        }, 900);
+      }
+    } catch (e) {}
+  })();
+
+  window.__OKNOK_API__ = {
+    get: function(key){ return DATA.items[key] || null; },
+    src: function(p){ return DATA.local[p] || abs(p); },
+    rev: function(){ return DATA.rev; },
+    editor: EDITOR,
+    contrib: CONTRIB,
+    draftPut: draftPut,
+    draftDel: draftDel,
+    clearDrafts: clearDrafts,
+    exportDrafts: exportDrafts,
+    draftHas: function(key, side){ return !!DR[key + '|' + side]; },
+    draftUrl: function(key, side){ var d = DR[key + '|' + side]; if (!d) return ''; if (!d.url) d.url = URL.createObjectURL(d.blob); return d.url; },
+    draftCount: function(){ return Object.keys(DR).length; },
+    inboxCfg: inboxCfg,
+    inboxSet: inboxSet,
+    inboxSend: inboxSend,
+    inboxList: inboxList,
+    inboxRead: inboxRead,
+    inboxDelete: inboxDelete,
+    inboxLink: inboxLink,
+    save: save,
+    remove: remove
+  };
+
+  /* ---------- часть, которая работает внутри чек-листа (iframe) ---------- */
+  function INJECTABLE(){
+    'use strict';
+    if (window.__OKNOK_INSIDE__) return;
+    window.__OKNOK_INSIDE__ = true;
+
+    function api(){
+      try { if (window.parent && window.parent !== window && window.parent.__OKNOK_API__) return window.parent.__OKNOK_API__; } catch (e) {}
+      return window.__OKNOK_API__ || null;
+    }
+    function family(){
+      var k = '';
+      try { k = String(LS_KEY); } catch (e) {}
+      if (/_tt_/.test(k)) return 'tt';
+      if (/_msud_/.test(k)) return 'bi';
+      if (/_hydro_/.test(k)) return 'hy';
+      return 'cx';           // комплексный, КМБ и новые чек-листы из конструктора
+    }
+    function role(){      // 'dev' | 'ex' (редактор с токеном) | 'ct' (помощник, только предлагает) | null
+      try {
+        var u = JSON.parse(localStorage.getItem('checklist_user') || 'null'); if (!u) return null;
+        if (u.dev === true) return 'dev';
+        var A = api(), E = A && A.editor, C = A && A.contrib;
+        if (u.ex === true && E && E.login && E.login === u.login) return 'ex';
+        if (u.ct === true && C && C.login && C.login === u.login) return 'ct';
+      } catch (e) {}
+      return null;
+    }
+    function isDev(){ return role() !== null; }     // может видеть кнопки у всех операций
+    function ghPanel(){
+      try { return (window.parent && window.parent.__DEV_PANEL_V1__) || window.__DEV_PANEL_V1__ || null; } catch (e) { return window.__DEV_PANEL_V1__ || null; }
+    }
+    /* Входы «Редактор примеров» (с токеном) и «Помощник» (только предлагает фото):
+       оборачиваем doLogin и подпись пользователя в каждом документе */
+    function installAltLogins(){
+      var A = api(); if (!A) return;
+      var acc = [];
+      if (A.editor && A.editor.login && A.editor.passHash) acc.push({ c: A.editor, salt: 'tmh-checklist-ex:', flag: 'ex', name: 'Редактор примеров', tag: '(editor)' });
+      if (A.contrib && A.contrib.login && A.contrib.passHash) acc.push({ c: A.contrib, salt: 'tmh-checklist-ct:', flag: 'ct', name: 'Помощник (фото)', tag: '(helper)' });
+      if (!acc.length) return;
+      var tries = 0;
+      (function go(){
+        if (typeof window.doLogin === 'function' && !window.doLogin.__oknokEd){
+          var orig = window.doLogin;
+          var w = function(login, password){
+            for (var i = 0; i < acc.length; i++){
+              var a = acc[i];
+              if (login !== a.c.login) continue;
+              var ok = false;
+              try { ok = (typeof __sha256 === 'function') && __sha256(a.salt + String(password)) === a.c.passHash; } catch (e) {}
+              if (!ok) return false;
+              try { currentUser = 'user'; } catch (e) {}
+              var rec = { login: login, role: 'user' }; rec[a.flag] = true;
+              try { localStorage.setItem('checklist_user', JSON.stringify(rec)); } catch (e) {}
+              try { updateUserUI(); } catch (e) {}
+              var m = document.getElementById('loginModal'); if (m) m.style.display = 'none';
+              try { showToast('✅ Вход выполнен: ' + a.name); } catch (e) {}
+              return true;
+            }
+            return orig.apply(this, arguments);
+          };
+          w.__oknokEd = true;
+          try { window.doLogin = w; } catch (e) {}
+        }
+        if (typeof window.updateUserUI === 'function' && !window.updateUserUI.__oknokEd){
+          var ou = window.updateUserUI;
+          var wu = function(){
+            var r = ou.apply(this, arguments);
+            try {
+              var u = JSON.parse(localStorage.getItem('checklist_user') || 'null');
+              for (var i = 0; i < acc.length; i++){
+                if (u && u[acc[i].flag]){
+                  var n = document.getElementById('userName'), t = document.getElementById('userRole');
+                  if (n) n.textContent = acc[i].name; if (t) t.textContent = acc[i].tag;
+                }
+              }
+            } catch (e) {}
+            return r;
+          };
+          wu.__oknokEd = true;
+          try { window.updateUserUI = wu; } catch (e) {}
+        }
+        try { var cu = JSON.parse(localStorage.getItem('checklist_user') || 'null'); if (cu && (cu.ex || cu.ct) && window.updateUserUI && window.updateUserUI.__oknokEd) window.updateUserUI(); } catch (e) {}
+        var done = typeof window.doLogin === 'function' && window.doLogin.__oknokEd && typeof window.updateUserUI === 'function' && window.updateUserUI.__oknokEd;
+        if (!done && ++tries < 60) setTimeout(go, 250);
+      })();
+    }
+
+    function el(tag, cls, txt){
+      var e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (txt != null) e.textContent = txt;
+      return e;
+    }
+
+    function ensureStyle(){
+      if (document.getElementById('__oknok_style__')) return;
+      var st = document.createElement('style');
+      st.id = '__oknok_style__';
+      st.textContent = [
+        '.oknok-bar{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}',
+        '.oknok-btn{font:600 12px/1 var(--sans,system-ui,sans-serif);padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid;white-space:nowrap;}',
+        '.oknok-ok{color:var(--ok,#1f9d55);border-color:var(--ok,#1f9d55);background:rgba(31,157,85,.12);}',
+        '.oknok-nok{color:var(--bad,#c0392b);border-color:var(--bad,#c0392b);background:rgba(192,57,43,.10);}',
+        '.oknok-btn.oknok-empty{opacity:.45;border-style:dashed;}',
+        '.oknok-ov{position:fixed;inset:0;z-index:99990;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:12px;}',
+        '.oknok-box{background:var(--panel,#fff);color:var(--ink,#16324f);border-radius:12px;max-width:min(96vw,900px);width:100%;max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.4);font-family:var(--sans,system-ui,sans-serif);}',
+        '.oknok-tabs{display:flex;gap:6px;padding:10px 12px 0;}',
+        '.oknok-tab{flex:1;font:600 14px/1 inherit;padding:9px 6px;border-radius:8px;border:1px solid var(--line,#cfe0f0);background:var(--panel2,#f2f7fc);color:var(--ink,#16324f);cursor:pointer;}',
+        '.oknok-tab.on.oknok-ok{background:var(--ok,#1f9d55);color:#fff;border-color:var(--ok,#1f9d55);}',
+        '.oknok-tab.on.oknok-nok{background:var(--bad,#c0392b);color:#fff;border-color:var(--bad,#c0392b);}',
+        '.oknok-t{padding:8px 14px 4px;font-size:13px;line-height:1.35;color:var(--ink-dim,#5b7690);}',
+        '.oknok-body{padding:6px 12px;overflow:auto;flex:1;text-align:center;min-height:120px;}',
+        '.oknok-img{max-width:100%;max-height:68vh;border-radius:8px;cursor:zoom-in;}',
+        '.oknok-img.oknok-zoom{max-height:none;cursor:zoom-out;}',
+        '.oknok-msg{padding:30px 10px;color:var(--ink-dim,#5b7690);font-size:14px;}',
+        '.oknok-st{padding:0 14px;font-size:12px;min-height:16px;white-space:pre-wrap;}',
+        '.oknok-st.bad{color:var(--bad,#c0392b);}.oknok-st.ok{color:var(--ok,#1f9d55);}',
+        '.oknok-act{display:flex;gap:8px;padding:10px 12px 12px;flex-wrap:wrap;justify-content:flex-end;}',
+        '.oknok-act button{font:600 13px/1 inherit;padding:9px 14px;border-radius:8px;border:1px solid var(--line,#cfe0f0);background:var(--panel2,#f2f7fc);color:var(--ink,#16324f);cursor:pointer;}',
+        '.oknok-act button[disabled]{opacity:.5;cursor:default;}',
+        '.oknok-fld{font-size:12px;color:var(--ink-dim,#5b7690);}',
+        '.oknok-inp{width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--line,#cfe0f0);border-radius:8px;background:var(--panel2,#f2f7fc);color:var(--ink,#16324f);font-size:14px;margin:4px 0 12px;}',
+        '.oknok-note{font-size:12px;color:var(--warn,#b9770e);padding:4px 6px 0;}',
+        '.oknok-list{overflow:auto;padding:6px 12px;flex:1;text-align:left;}',
+        '.oknok-row{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line,#cfe0f0);font-size:13px;}',
+        '.oknok-thumb{width:72px;height:54px;object-fit:cover;border-radius:6px;flex:none;}',
+        '.oknok-badge{display:inline-block;font-weight:700;font-size:11px;padding:1px 6px;border-radius:4px;margin-right:6px;color:#fff;}',
+        '.oknok-badge.ok{background:var(--ok,#1f9d55);}.oknok-badge.nok{background:var(--bad,#c0392b);}'
+      ].join('');
+      (document.head || document.documentElement).appendChild(st);
+    }
+
+    function resize(file){
+      return new Promise(function(res, rej){
+        var url = URL.createObjectURL(file), img = new Image();
+        img.onload = function(){
+          var M = 1280, w = img.naturalWidth, h = img.naturalHeight, k = Math.min(1, M / Math.max(w, h));
+          var c = document.createElement('canvas');
+          c.width = Math.round(w * k); c.height = Math.round(h * k);
+          var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+          x.drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          c.toBlob(function(b){ b ? res(b) : rej(new Error('Не удалось сжать фото')); }, 'image/jpeg', 0.8);
+        };
+        img.onerror = function(){ URL.revokeObjectURL(url); rej(new Error('Не удалось открыть файл как изображение')); };
+        img.src = url;
+      });
+    }
+
+    /* ---------- окно примера ---------- */
+    var current = null;
+    function closeViewer(){
+      if (current){ current.remove(); current = null; }
+      document.removeEventListener('keydown', onKey, true);
+    }
+    function onKey(e){ if (e.key === 'Escape') closeViewer(); }
+
+    /* ---------- отправка и приём пакета с фото помощника ---------- */
+    function downloadFile(file){
+      var u = URL.createObjectURL(file), a = document.createElement('a');
+      a.href = u; a.download = file.name; document.body.appendChild(a); a.click();
+      setTimeout(function(){ a.remove(); URL.revokeObjectURL(u); }, 2500);
+    }
+    function deliver(file){
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })){
+        return navigator.share({ files: [file], title: 'Фото-примеры OK/NOK' }).then(function(){ return 'shared'; }, function(e){
+          if (e && e.name === 'AbortError') return 'cancel';
+          downloadFile(file); return 'downloaded';
+        });
+      }
+      downloadFile(file); return Promise.resolve('downloaded');
+    }
+    var KEYRE = /^(tt|bi|hy|cx)\|[^|\s]{1,100}\|[^|\s]{1,160}$/;
+    function dataToBlob(u){
+      var b = atob(u.split(',')[1]), a = new Uint8Array(b.length);
+      for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i);
+      return new Blob([a], { type: 'image/jpeg' });
+    }
+    function parsePack(text){
+      var data; try { data = JSON.parse(String(text)); } catch (e) { return { err: 'Не удалось прочитать файл. Нужен файл foto_….json от помощника.' }; }
+      if (!data || data.type !== 'oknok-proposals' || !Array.isArray(data.items)) return { err: 'Это не пакет фото-примеров (нужен файл foto_….json).' };
+      var items = data.items.filter(function(x){
+        return x && KEYRE.test(String(x.key)) && (x.side === 'ok' || x.side === 'nok') && typeof x.dataUrl === 'string' && x.dataUrl.indexOf('data:image/jpeg;base64,') === 0 && x.dataUrl.length < 4000000;
+      });
+      if (!items.length) return { err: 'В файле нет подходящих фото.' };
+      return { items: items, author: data.author };
+    }
+    function openImport(A){       // выбрать файл вручную (запасной путь)
+      var inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+      inp.addEventListener('change', function(){
+        var f = inp.files && inp.files[0]; if (!f) return;
+        var rd = new FileReader();
+        rd.onload = function(){ var pk = parsePack(rd.result); if (pk.err){ alert(pk.err); return; } showReview(A, pk.items, pk.author, null); };
+        rd.readAsText(f);
+      });
+      inp.click();
+    }
+    function dlg(titleText){
+      closeViewer();
+      var ov = el('div', 'oknok-ov'); current = ov;
+      var box = el('div', 'oknok-box'); ov.appendChild(box);
+      box.appendChild(el('div', 'oknok-t', titleText));
+      var body = el('div', 'oknok-list'); box.appendChild(body);
+      var st = el('div', 'oknok-st'); box.appendChild(st);
+      var act = el('div', 'oknok-act'); box.appendChild(act);
+      function btn(t, fn){ var b = el('button', '', t); b.type = 'button'; b.addEventListener('click', fn); act.appendChild(b); return b; }
+      function say(cls, t){ st.className = 'oknok-st ' + (cls || ''); st.textContent = t || ''; }
+      document.body.appendChild(ov);
+      document.addEventListener('keydown', onKey, true);
+      return { body: body, btn: btn, say: say, ov: ov };
+    }
+    function openInboxCfg(A, onSaved){
+      var c = A.inboxCfg() || { repo: '', branch: 'main', token: '' };
+      var d = dlg('⚙ Связь: куда отправлять фото. Это закрытый репозиторий «входящие» на GitHub и токен только для него. Настраивается один раз.');
+      function field(label, val, type){
+        var w = el('div', 'oknok-fld'); w.appendChild(el('div', '', label));
+        var i = document.createElement('input'); i.type = type || 'text'; i.value = val || ''; i.className = 'oknok-inp'; i.autocomplete = 'off'; i.autocapitalize = 'off'; i.spellcheck = false;
+        w.appendChild(i); d.body.appendChild(w); return i;
+      }
+      var iRepo = field('Репозиторий входящих (владелец/имя, например ivan/tmh-inbox)', c.repo);
+      var iTok = field('Токен GitHub (Fine-grained: только этот репозиторий, Contents — Read and write)', c.token, 'password');
+      d.btn('💾 Сохранить', function(){
+        var repo = iRepo.value.trim(), tok = iTok.value.trim();
+        if (!/^[A-Za-z0-9_.\-]+\/[A-Za-z0-9_.\-]+$/.test(repo)){ d.say('bad', 'Укажите репозиторий как владелец/имя.'); return; }
+        if (!tok){ d.say('bad', 'Вставьте токен.'); return; }
+        A.inboxSet({ repo: repo, branch: 'main', token: tok });
+        closeViewer(); if (onSaved) onSaved();
+      });
+      if (role() === 'dev' || role() === 'ex'){
+        d.btn('🔗 Ссылка для помощника', function(){
+          var cfg = A.inboxCfg(); if (!cfg){ d.say('bad', 'Сначала сохраните репозиторий и токен.'); return; }
+          var link = A.inboxLink();
+          var done = function(){ d.say('ok', '✅ Ссылка скопирована. Отправьте её помощнику лично (в ней токен). Он откроет её на своём устройстве и подтвердит подключение.'); };
+          try { navigator.clipboard.writeText(link).then(done, function(){ prompt('Скопируйте ссылку:', link); }); } catch (e) { prompt('Скопируйте ссылку:', link); }
+        });
+      }
+      d.btn('Закрыть', closeViewer);
+    }
+    function openInboxList(A){
+      var d = dlg('📥 Принять фото от помощника');
+      d.btn('📂 Из файла…', function(){ openImport(A); });
+      d.btn('⚙ Связь', function(){ openInboxCfg(A, function(){ openInboxList(A); }); });
+      d.btn('Закрыть', closeViewer);
+      if (!A.inboxCfg()){ d.body.appendChild(el('div', 'oknok-msg', 'Связь с входящими не настроена. Нажмите «⚙ Связь» или выберите файл вручную.')); return; }
+      d.say('', 'Загружаю список…');
+      A.inboxList().then(function(arr){
+        d.say('');
+        if (!arr.length){ d.body.appendChild(el('div', 'oknok-msg', 'Во входящих пока ничего нет.')); return; }
+        arr.sort(function(a, b){ return a.name < b.name ? 1 : -1; });
+        arr.forEach(function(x){
+          var row = el('div', 'oknok-row'), tx = el('div', '', x.name + ' · ' + Math.max(1, Math.round(x.size / 1024)) + ' КБ'); tx.style.flex = '1'; tx.style.wordBreak = 'break-all';
+          var b = el('button', 'oknok-btn oknok-ok', 'Открыть'); b.type = 'button';
+          b.addEventListener('click', function(){
+            d.say('', 'Читаю файл…');
+            A.inboxRead(x.sha).then(function(text){
+              var pk = parsePack(text); if (pk.err){ d.say('bad', '❌ ' + pk.err); return; }
+              showReview(A, pk.items, pk.author, x);
+            }).catch(function(e){ d.say('bad', '❌ ' + (e && e.message || e)); });
+          });
+          row.appendChild(tx); row.appendChild(b); d.body.appendChild(row);
+        });
+      }).catch(function(e){ d.say('bad', '❌ ' + (e && e.message || e)); });
+    }
+    function showReview(A, items, author, meta){
+      closeViewer();
+      var ov = el('div', 'oknok-ov'); current = ov;
+      var box = el('div', 'oknok-box'); ov.appendChild(box);
+      box.appendChild(el('div', 'oknok-t', '📥 Фото от помощника' + (author ? ' (' + author + ')' : '') + ': ' + items.length + ' шт. Снимите галочки с лишнего и опубликуйте.'));
+      var list = el('div', 'oknok-list'); box.appendChild(list);
+      var checks = [];
+      items.forEach(function(x){
+        var row = el('label', 'oknok-row'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; checks.push(cb);
+        var im = new Image(); im.className = 'oknok-thumb'; im.src = x.dataUrl;
+        var tx = el('div', ''), bd = el('span', 'oknok-badge ' + x.side, x.side === 'ok' ? 'OK' : 'NOK');
+        tx.appendChild(bd); tx.appendChild(document.createTextNode(String(x.title || x.key).slice(0, 140)));
+        var ex = A.get(x.key); if (ex && ex[x.side]) tx.appendChild(el('div', 'oknok-note', '⚠ заменит уже опубликованное фото'));
+        row.appendChild(cb); row.appendChild(im); row.appendChild(tx); list.appendChild(row);
+      });
+      var st = el('div', 'oknok-st'); box.appendChild(st);
+      var act = el('div', 'oknok-act'); box.appendChild(act);
+      var bGo = el('button', '', '🚀 Опубликовать выбранные'), bX = el('button', '', 'Закрыть'); bGo.type = bX.type = 'button';
+      act.appendChild(bGo); act.appendChild(bX);
+      var busy = false;
+      function say(cls, t){ st.className = 'oknok-st ' + (cls || ''); st.textContent = t || ''; }
+      bX.addEventListener('click', function(){ if (!busy) closeViewer(); });
+      bGo.addEventListener('click', function(){
+        if (busy) return;
+        var todo = items.filter(function(x, i){ return checks[i].checked; }), total = todo.length;
+        if (!total){ say('bad', 'Ничего не выбрано.'); return; }
+        busy = true; bGo.disabled = true; var done = 0;
+        (function next(){
+          var x = todo.shift();
+          if (!x){
+            busy = false; say('ok', '✅ Опубликовано: ' + done + '. У пользователей появится через 1–3 минуты.'); rescan(true);
+            if (meta) setTimeout(function(){
+              if (confirm('Фото опубликованы. Удалить этот файл из входящих?')) A.inboxDelete(meta.name, meta.sha).then(function(ok){ say('ok', ok ? '✅ Опубликовано: ' + done + '. Файл удалён из входящих.' : '✅ Опубликовано: ' + done + '. Из входящих удалить не удалось.'); });
+            }, 300);
+            return;
+          }
+          say('', 'Публикую ' + (done + 1) + ' из ' + total + '…');
+          A.save(x.key, x.side, dataToBlob(x.dataUrl)).then(function(){ done++; next(); }).catch(function(e){
+            busy = false; bGo.disabled = false; say('bad', '❌ Остановлено на «' + (x.title || x.key) + '»: ' + (e && e.message || e) + '\nОпубликовано до этого: ' + done + '. Исправьте причину и нажмите ещё раз — уже опубликованные можно снять галочкой.');
+          });
+        })();
+      });
+      document.body.appendChild(ov);
+      document.addEventListener('keydown', onKey, true);
+    }
+
+    function openViewer(key, side, title){
+      var A = api(); if (!A) return;
+      closeViewer();
+      var rl = role(), dev = rl !== null, ct = rl === 'ct', pub = rl === 'dev' || rl === 'ex', busy = false;
+      var ov = el('div', 'oknok-ov'); current = ov;
+      ov.addEventListener('click', function(e){ if (e.target === ov) closeViewer(); });
+      var box = el('div', 'oknok-box'); ov.appendChild(box);
+
+      var tabs = el('div', 'oknok-tabs'), tOk = el('button', 'oknok-tab oknok-ok', '✅ OK — как должно быть'), tNok = el('button', 'oknok-tab oknok-nok', '❌ NOK — несоответствие');
+      tOk.type = tNok.type = 'button';
+      tabs.appendChild(tOk); tabs.appendChild(tNok); box.appendChild(tabs);
+      box.appendChild(el('div', 'oknok-t', title || ''));
+      var body = el('div', 'oknok-body'); box.appendChild(body);
+      var st = el('div', 'oknok-st'); box.appendChild(st);
+      var act = el('div', 'oknok-act'); box.appendChild(act);
+
+      var file = document.createElement('input'); file.type = 'file'; file.accept = 'image/*'; file.style.display = 'none';
+      var bUp = el('button', '', ''), bDel = el('button', '', '🗑 Удалить'), bClose = el('button', '', 'Закрыть'), bTok = el('button', '', '🔑 Токен GitHub'),
+          bSend = el('button', '', ''), bImp = el('button', '', '📥 Принять от помощника'), bFile = el('button', '', '💾 Файлом'), bCfg = el('button', '', '⚙ Связь');
+      bUp.type = bDel.type = bClose.type = bTok.type = bSend.type = bImp.type = bFile.type = bCfg.type = 'button';
+      if (dev){ act.appendChild(file); }
+      if (pub){ act.appendChild(bImp); act.appendChild(bCfg); act.appendChild(bTok); }
+      if (ct){ act.appendChild(bSend); act.appendChild(bFile); act.appendChild(bCfg); }
+      if (dev){ act.appendChild(bUp); act.appendChild(bDel); }
+      act.appendChild(bClose);
+
+      function say(cls, t){ st.className = 'oknok-st ' + (cls || ''); st.textContent = t || ''; }
+      function render(){
+        var it = A.get(key), p = it && it[side], d = ct && A.draftHas(key, side);
+        tOk.classList.toggle('on', side === 'ok'); tNok.classList.toggle('on', side === 'nok');
+        body.innerHTML = '';
+        if (d || p){
+          var img = new Image(); img.className = 'oknok-img'; img.alt = side === 'ok' ? 'Пример OK' : 'Пример NOK';
+          img.onerror = function(){ body.innerHTML = ''; body.appendChild(el('div', 'oknok-msg', 'Не удалось загрузить фото (нет сети?). Откройте пример при наличии интернета — дальше он будет доступен офлайн.')); };
+          img.addEventListener('click', function(){ img.classList.toggle('oknok-zoom'); });
+          img.src = d ? A.draftUrl(key, side) : A.src(p); body.appendChild(img);
+          if (d) body.appendChild(el('div', 'oknok-note', '✎ Ваше фото. Оно ещё не отправлено разработчику — нажмите «Отправить разработчику».'));
+        } else {
+          body.appendChild(el('div', 'oknok-msg', dev ? 'Пример ещё не добавлен.' : 'Для этого варианта пример не добавлен.'));
+        }
+        if (ct){
+          bUp.textContent = (d || p) ? '📷 Предложить своё фото' : '📷 Предложить фото';
+          bDel.textContent = '🗑 Убрать моё фото'; bDel.style.display = d ? '' : 'none';
+          var n = A.draftCount(); bSend.textContent = '📤 Отправить разработчику' + (n ? ' (' + n + ')' : ''); bSend.disabled = bFile.disabled = busy || !n;
+        } else {
+          bUp.textContent = p ? '📷 Заменить фото' : '📷 Загрузить фото';
+          bDel.textContent = '🗑 Удалить'; bDel.style.display = p ? '' : 'none';
+        }
+        bUp.disabled = bDel.disabled = busy;
+      }
+      tOk.addEventListener('click', function(){ side = 'ok'; say(); render(); });
+      tNok.addEventListener('click', function(){ side = 'nok'; say(); render(); });
+      bClose.addEventListener('click', closeViewer);
+      bTok.addEventListener('click', function(){
+        var d = ghPanel();
+        try { d.gh.open(); } catch (e) { say('bad', '❌ Окно токена недоступно. Обновите страницу.'); }
+      });
+      bImp.addEventListener('click', function(){ openInboxList(A); });
+      bCfg.addEventListener('click', function(){ openInboxCfg(A, function(){ openViewer(key, side, title); }); });
+      bUp.addEventListener('click', function(){ if (!busy) file.click(); });
+      file.addEventListener('change', function(){
+        var f = file.files && file.files[0]; file.value = '';
+        if (!f) return;
+        var s = side; busy = true; render();
+        if (ct){
+          say('', 'Сжимаю и сохраняю фото…');
+          resize(f).then(function(b){ return A.draftPut(key, s, title, b); }).then(function(){
+            busy = false; render(); say('ok', '✅ Фото сохранено на этом устройстве. Когда загрузите всё нужное — нажмите «Отправить разработчику».'); rescan(true);
+          }).catch(function(e){ busy = false; render(); say('bad', '❌ ' + (e && e.message || e)); });
+          return;
+        }
+        say('', 'Сжимаю и публикую фото…');
+        resize(f).then(function(b){ return A.save(key, s, b); }).then(function(){
+          busy = false; render(); say('ok', '✅ Опубликовано. У других пользователей появится через 1–3 минуты.'); rescan(true);
+        }).catch(function(e){ busy = false; render(); say('bad', '❌ ' + (e && e.message || e)); });
+      });
+      bDel.addEventListener('click', function(){
+        if (busy) return;
+        var s = side;
+        if (ct){
+          if (!confirm('Убрать ваше фото (оно ещё не отправлено)?')) return;
+          A.draftDel(key, s).then(function(){ render(); say('ok', 'Фото убрано.'); rescan(true); });
+          return;
+        }
+        if (!confirm('Удалить этот пример?')) return;
+        busy = true; render(); say('', 'Удаляю…');
+        A.remove(key, s).then(function(){ busy = false; render(); say('ok', 'Удалено.'); rescan(true); })
+          .catch(function(e){ busy = false; render(); say('bad', '❌ ' + (e && e.message || e)); });
+      });
+      bSend.addEventListener('click', function(){
+        if (busy) return;
+        if (!A.inboxCfg()){ openInboxCfg(A, function(){ openViewer(key, side, title); }); return; }
+        var author2 = ''; try { author2 = (JSON.parse(localStorage.getItem('checklist_user') || '{}') || {}).login || ''; } catch (e) {}
+        busy = true; render(); say('', 'Отправляю разработчику…');
+        A.exportDrafts(author2).then(function(f){ return A.inboxSend(f); }).then(function(){
+          busy = false; render(); say('ok', '✅ Отправлено разработчику.');
+          setTimeout(function(){
+            if (confirm('Фото отправлены разработчику. Убрать их с этого устройства?')) A.clearDrafts().then(function(){ render(); say('ok', 'Отправленные фото убраны с устройства.'); rescan(true); });
+          }, 300);
+        }).catch(function(e){ busy = false; render(); say('bad', '❌ ' + (e && e.message || e) + '\nМожно отправить файлом: кнопка «💾 Файлом».'); });
+      });
+      bFile.addEventListener('click', function(){
+        if (busy) return;
+        var author = ''; try { author = (JSON.parse(localStorage.getItem('checklist_user') || '{}') || {}).login || ''; } catch (e) {}
+        busy = true; render(); say('', 'Готовлю файл…');
+        A.exportDrafts(author).then(function(f){ return deliver(f); }).then(function(r){
+          busy = false;
+          if (r === 'cancel'){ render(); say('', 'Отправка отменена. Фото остались на устройстве.'); return; }
+          render(); say('ok', r === 'downloaded' ? '✅ Файл сохранён на устройстве (папка «Загрузки»). Отправьте его разработчику через мессенджер или почту.' : '✅ Файл отправлен.');
+          setTimeout(function(){
+            if (confirm('Файл создан. Убрать отправленные фото с этого устройства?\n\nНажмите «Отмена», если ещё не отправили файл разработчику.')){
+              A.clearDrafts().then(function(){ render(); say('ok', 'Отправленные фото убраны с устройства.'); rescan(true); });
+            }
+          }, 300);
+        }).catch(function(e){ busy = false; render(); say('bad', '❌ ' + (e && e.message || e)); });
+      });
+      render();
+      document.body.appendChild(ov);
+      document.addEventListener('keydown', onKey, true);
+    }
+
+    /* ---------- кнопки у операций ---------- */
+    var SEL = '.frow[data-field-key], .field-row[data-field-key]';
+    function labelOf(row){ return row.querySelector(':scope > .flabel') || row.querySelector(':scope > label'); }
+    function titleOf(row){
+      var l = labelOf(row); if (!l) return '';
+      var t = ''; for (var i = 0; i < l.childNodes.length; i++){ if (l.childNodes[i].nodeType === 3) t += l.childNodes[i].textContent; }
+      return t.trim() || l.textContent.trim().slice(0, 140);
+    }
+    function keyOf(row){
+      var card = row.closest('[data-iid]'); if (!card) return null;
+      var eq = String(card.dataset.iid || '').split('|')[0];
+      if (!eq) return null;
+      return family() + '|' + eq + '|' + row.dataset.fieldKey;
+    }
+    function makeBar(row, key){
+      var bar = el('div', 'oknok-bar'); bar.dataset.oknokKey = key;
+      ['ok', 'nok'].forEach(function(side){
+        var b = el('button', 'oknok-btn oknok-' + side, side === 'ok' ? '✅ OK' : '❌ NOK');
+        b.type = 'button'; b.dataset.side = side;
+        b.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); openViewer(key, side, titleOf(row)); });
+        bar.appendChild(b);
+      });
+      var l = labelOf(row);
+      if (!l) row.appendChild(bar);
+      else if (l.tagName === 'LABEL') l.insertAdjacentElement('afterend', bar);
+      else l.appendChild(bar);
+      return bar;
+    }
+    function paint(bar){
+      var A = api(), key = bar.dataset.oknokKey, it = A && A.get(key), dev = isDev(), any = false;
+      Array.prototype.forEach.call(bar.querySelectorAll('.oknok-btn'), function(b){
+        var sd = b.dataset.side, has = !!(it && it[sd]), dr = !!(dev && A.draftHas && A.draftHas(key, sd));
+        if (has) any = true;
+        b.classList.toggle('oknok-empty', !has && !dr);
+        b.textContent = (sd === 'ok' ? '✅ OK' : '❌ NOK') + (dr ? ' ✎' : '');
+        b.style.display = (has || dev) ? '' : 'none';
+      });
+      bar.style.display = (any || dev) ? '' : 'none';
+    }
+    var lastSig = '';
+    function rescan(force){
+      var A = api(); if (!A) return;
+      ensureStyle();
+      var rows = document.querySelectorAll(SEL), added = false, i;
+      for (i = 0; i < rows.length; i++){
+        var row = rows[i];
+        if (row.__oknokBar && row.__oknokBar.isConnected) continue;
+        if (!row.dataset.fieldKey || row.dataset.fieldKey === 'undefined') continue;
+        var key = keyOf(row); if (!key) continue;
+        row.__oknokBar = makeBar(row, key); added = true;
+      }
+      var sig = A.rev() + '|' + isDev();
+      if (added || force || sig !== lastSig){
+        lastSig = sig;
+        for (i = 0; i < rows.length; i++) if (rows[i].__oknokBar) paint(rows[i].__oknokBar);
+      }
+    }
+    var timer = null;
+    function later(){ if (timer) return; timer = setTimeout(function(){ timer = null; try { rescan(); } catch (e) {} }, 150); }
+    function start(){
+      if (window.MutationObserver) new MutationObserver(later).observe(document.body || document.documentElement, { childList: true, subtree: true });
+      setInterval(later, 2000);    // подхватываем смену роли и обновление индекса примеров
+      later();
+    }
+    installAltLogins();
+    if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+  }
+
+  try { INJECTABLE.call(window); } catch (e) {}      // вход редактора нужен и в оболочке
+
+  function injectInto(win, doc){
+    try {
+      if (win.__OKNOK_INSIDE__) return;
+      var s = doc.createElement('script');
+      s.textContent = '(' + INJECTABLE.toString() + ').call(window);';
+      (doc.body || doc.head || doc.documentElement).appendChild(s);
+    } catch (e) {}
+  }
+  function bindIframe(f){
+    if (!f || f.__OKNOK_BOUND__) return;
+    f.__OKNOK_BOUND__ = true;
+    function tryGo(){
+      try {
+        var doc = f.contentDocument, win = f.contentWindow;
+        if (!doc || !win || !doc.body) return;
+        injectInto(win, doc);
+      } catch (e) {}
+    }
+    f.addEventListener('load', tryGo);
+    tryGo(); setTimeout(tryGo, 300); setTimeout(tryGo, 1000); setTimeout(tryGo, 2500);
+  }
+  var all = document.querySelectorAll('iframe');
+  for (var i = 0; i < all.length; i++) bindIframe(all[i]);
+  if (window.MutationObserver){
+    new MutationObserver(function(){
+      var list = document.querySelectorAll('iframe');
+      for (var j = 0; j < list.length; j++) bindIframe(list[j]);
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  }
+  setInterval(function(){
+    var list = document.querySelectorAll('iframe');
+    for (var j = 0; j < list.length; j++){
+      var f = list[j];
+      try { if (f.contentWindow && !f.contentWindow.__OKNOK_INSIDE__ && f.contentDocument && f.contentDocument.body) injectInto(f.contentWindow, f.contentDocument); } catch (e) {}
+    }
+  }, 3000);
 })();
 </script>
 <!-- ============================================================
