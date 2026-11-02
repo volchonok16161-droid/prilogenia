@@ -1,4 +1,4 @@
-name: Storage isolation regression checks
+name: Storage isolation regression checks v2
 
 on:
   push:
