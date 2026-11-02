@@ -53,3 +53,14 @@ test("profile editor updates only the current user's display_name", () => {
   assert.match(html, /\.select\("id,display_name,role,updated_at"\)/);
   assert.doesNotMatch(html, /\.update\(\{[^}]*role\s*:/);
 });
+
+test("password change uses Supabase Auth and never writes password into profile", () => {
+  assert.match(html, /id="passwordForm"/);
+  assert.match(html, /id="newPassword"[^>]*minlength="8"/);
+  assert.match(html, /id="confirmPassword"[^>]*minlength="8"/);
+  assert.match(html, /password !== confirmation/);
+  assert.match(html, /api\.client\.auth\.updateUser\(\{ password \}\)/);
+  assert.match(html, /newPassword"\)\.value = ""/);
+  assert.match(html, /confirmPassword"\)\.value = ""/);
+  assert.doesNotMatch(html, /\.from\("profiles"\)[\s\S]*?password\s*:/);
+});
