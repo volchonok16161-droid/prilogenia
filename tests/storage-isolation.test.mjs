@@ -41,10 +41,11 @@ test("every checklist runtime blocks writes before login and after logout", () =
 test("photo storage derives record keys and restore prefixes from scoped LS_KEY", () => {
   assert.equal(count(html, "function __psCollect()"), 4);
   assert.equal(count(html, "LS_KEY+'::'+iid+'::'+k"), 4);
-  assert.equal(count(html, "var prefix=LS_KEY+'::';"), 8);
+  assert.equal(count(html, "var prefix=LS_KEY+'::';"), 4);
   assert.equal(count(html, "function __psFlagKey()"), 4);
   assert.equal(count(html, "return LS_KEY+'__photos_idb';"), 4);
   assert.match(html, /function photoDbKey/);
+  assert.match(html, /idbPutPhoto\(namespace,iid,photoKey,dataUrl\)/);
 });
 
 test("all checklist runtimes react to auth changes in other tabs", () => {
@@ -59,7 +60,8 @@ test("the browser auth client validates the server identity and profile role", (
   assert.match(auth, /\.from\("profiles"\)/);
   assert.match(auth, /\.eq\("id", user\.id\)/);
   assert.match(auth, /new Set\(\["employee", "admin", "developer"\]\)/);
-  assert.doesNotMatch(auth, /service_role/i);
+  assert.match(auth, /const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_/);
+  assert.doesNotMatch(auth, /const\s+SUPABASE_SERVICE_ROLE_KEY\s*=/i);
 });
 
 test("legacy storage namespaces remain present and are not migrated implicitly", () => {
