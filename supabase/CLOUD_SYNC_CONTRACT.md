@@ -43,7 +43,7 @@ const records = await cloud.list();
 - требует при UPDATE ровно `old.revision + 1`;
 - устанавливает `updated_at` на стороне БД.
 
-Миграция добавлена в репозиторий, но **не применена к подключённому Supabase-проекту**. Перед применением её нужно проверить на staging/копии и выполнить через контролируемое применение миграций. До этого клиентский compare-and-swap защищён от случайных конфликтов, но не следует считать серверный revision guard активным.
+Миграция добавлена в репозиторий. Повторная read-only проверка подключённого Supabase-проекта fecigiwjtbtabnsfsdym 2026-11-02 подтвердила, что trigger checklists_revision_guard активен на public.checklists, а функция public.enforce_checklist_revision() совпадает по ключевой логике с миграцией: owner неизменяем, revision увеличивается ровно на 1, updated_at задаётся БД. Серверный revision guard уже действует. Перед любым повторным применением миграции сначала сверять фактическую схему и migration history.
 
 
 ## Явная локальная резервная копия
@@ -73,3 +73,13 @@ const records = await cloud.list();
 - удалённые записи автоматически не загружаются в интерфейс;
 - Storage для фото ещё не подключён;
 - перед эксплуатацией необходимо проверить пять режимов в браузере на двух тестовых аккаунтах.
+
+
+## Повторная проверка live-проекта (2026-11-02)
+
+- public.checklists существует с полями id, owner_id, title, equipment_type, payload jsonb, revision, created_at, updated_at; RLS включён.
+- public.profiles также существует с RLS.
+- В live DB обнаружен активный trigger checklists_revision_guard и функция public.enforce_checklist_revision().
+- Security Advisor: остаётся предупреждение Leaked Password Protection Disabled; к синхронизации напрямую не относится, но требует отдельного решения по Auth.
+- В таблице найдены четыре записи, похожие на тестовые/QA, включая маркеры пользователей A/B. Данные не изменялись и не удалялись.
+- Проверка метаданных не является полноценным браузерным E2E или проверкой Storage.
