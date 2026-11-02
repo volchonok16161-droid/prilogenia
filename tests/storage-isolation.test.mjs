@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { runInNewContext } from "node:vm";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const auth = await readFile(new URL("../prototype/supabase-auth.js", import.meta.url), "utf8");
@@ -8,6 +9,22 @@ const auth = await readFile(new URL("../prototype/supabase-auth.js", import.meta
 function count(source, token) {
   return source.split(token).length - 1;
 }
+
+test("the scope helper rejects invalid IDs and never stacks a second user suffix", () => {
+  const start = html.indexOf("function __tmhApplyUserStorageScope(uid) {");
+  assert.notEqual(start, -1);
+  const end = html.indexOf("\n}\n", start);
+  assert.notEqual(end, -1);
+  const helper = html.slice(start, end + 2);
+  const context = { window: {}, LS_KEY: "checklist_tt_v1" };
+  runInNewContext(helper, context);
+
+  context.__tmhApplyUserStorageScope("11111111-1111-4111-8111-111111111111");
+  assert.equal(context.LS_KEY, "checklist_tt_v1::user:11111111-1111-4111-8111-111111111111");
+  context.__tmhApplyUserStorageScope("22222222-2222-4222-8222-222222222222");
+  assert.equal(context.LS_KEY, "checklist_tt_v1::user:22222222-2222-4222-8222-222222222222");
+  assert.throws(() => context.__tmhApplyUserStorageScope("not-a-uuid"), /UUID пользователя Supabase/);
+});
 
 test("all five checklist runtimes bind storage to the authenticated Supabase UUID", () => {
   assert.equal(count(html, "function __tmhApplyUserStorageScope"), 5);
@@ -17,19 +34,17 @@ test("all five checklist runtimes bind storage to the authenticated Supabase UUI
 
 test("every checklist runtime blocks writes before login and after logout", () => {
   assert.equal(count(html, "function saveState(silent)"), 5);
-  assert.equal(
-    count(html, "if(!window.__TMH_STORAGE_UID||window.__TMH_STORAGE_LOCKED)return false;"),
-    5,
-  );
+  assert.equal(count(html, "if(!window.__TMH_STORAGE_UID||window.__TMH_STORAGE_LOCKED)return false;"), 5);
   assert.equal(count(html, "function showContinueDialogOrStart"), 5);
 });
 
-test("photo storage derives record keys and its restore prefix from the scoped LS_KEY", () => {
+test("photo storage derives record keys and restore prefixes from scoped LS_KEY", () => {
   assert.equal(count(html, "function __psCollect()"), 4);
   assert.equal(count(html, "LS_KEY+'::'+iid+'::'+k"), 4);
-  assert.equal(count(html, "var prefix=LS_KEY+'::';"), 4);
+  assert.equal(count(html, "var prefix=LS_KEY+'::';"), 8);
   assert.equal(count(html, "function __psFlagKey()"), 4);
   assert.equal(count(html, "return LS_KEY+'__photos_idb';"), 4);
+  assert.match(html, /function photoDbKey/);
 });
 
 test("all checklist runtimes react to auth changes in other tabs", () => {
