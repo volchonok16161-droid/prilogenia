@@ -9,7 +9,7 @@ function count(source, token) {
 }
 
 test("the explicit cloud backup button is injected into embedded checklist footbars", () => {
-  assert.equal(count(html, "function __tmhAttachCloudBackup(source)"), 1);
+  assert.equal(count(html, "function __tmhAttachCloudBackup(source, mode)"), 1);
   assert.match(html, /id="tmhCloudBackupBtn" type="button">☁️ Сохранить в облако/);
   assert.match(html, /source\.replace\(footbar,footbar\+/);
   assert.equal(count(html, "frame.srcdoc=__tmhAttachCloudBackup(getEmbeddedSource(mode));"), 2);
@@ -39,6 +39,8 @@ test("the injected bridge closes both scripts safely inside the parent template"
   assert.equal(count(bridge, "type=\"module\""), 1);
   assert.match(bridge, /createChecklistCloudBackup/);
   assert.match(bridge, /prototype\/supabase-cloud-backup\.js/);
+  assert.match(bridge, /mode:\$\{JSON\.stringify\(mode\|\|\(\(typeof MODE==='undefined'\)\?'unknown':MODE\)\)\}/);
+
 });
 
 
@@ -48,4 +50,12 @@ test("the primary checklist screen exposes its own explicit cloud backup action"
   assert.match(html, /const button=document\.getElementById\('tmhNativeCloudBackupBtn'\)/);
   assert.match(html, /window\.confirm\('Сохранить текущий чек-лист в облако\?/);
   assert.match(html, /import \{ createChecklistCloudBackup \} from '\.\/prototype\/supabase-cloud-backup\.js'/);
+});
+
+
+test("all embedded modes pass their active mode into the backup bridge", () => {
+  assert.equal(count(html, "__tmhAttachCloudBackup(getEmbeddedSource(mode),mode)"), 2);
+  for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
+    assert.ok(html.includes(mode + ":'"), "mode name is registered: " + mode);
+  }
 });
