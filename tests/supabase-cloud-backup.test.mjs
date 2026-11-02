@@ -13,13 +13,21 @@ function makeHarness({ reference = null, updateError = null } = {}) {
     getItem(key) { return values.get(key) ?? null; },
     setItem(key, value) { values.set(key, String(value)); },
   };
-  const row = { id: ROW, revision: reference ? reference.revision + 1 : 1 };
+  let currentRevision = reference?.revision ?? 0;
   const cloudApi = {
-    async create(input) { calls.push({ action: "create", input }); return row; },
+    async create(input) {
+      calls.push({ action: "create", input });
+      currentRevision = 1;
+      return { id: ROW, revision: currentRevision };
+    },
     async update(input) {
       calls.push({ action: "update", input });
       if (updateError) throw updateError;
-      return row;
+      if (input.expectedRevision !== currentRevision) {
+        throw Object.assign(new Error("conflict"), { code: "REVISION_CONFLICT" });
+      }
+      currentRevision += 1;
+      return { id: ROW, revision: currentRevision };
     },
   };
   const authApi = {
@@ -90,4 +98,56 @@ test("an invalid saved cloud reference does not silently create a duplicate", as
   h.values.set("checklist_complex::user:" + USER + "::cloud-ref", "{broken");
   await assert.rejects(h.backup.saveCurrent(), (error) => error.code === "INVALID_CLOUD_REFERENCE");
   assert.equal(h.calls.length, 0);
+});
+
+
+test("create followed by a second explicit save updates the same row", async () => {
+  const h = makeHarness();
+  const first = await h.backup.saveCurrent();
+  const second = await h.backup.saveCurrent();
+  assert.equal(first.created, true);
+  assert.equal(second.created, false);
+  assert.deepEqual(h.calls.map((call) => call.action), ["create", "update"]);
+  assert.equal(h.calls[1].input.id, ROW);
+  assert.equal(h.calls[1].input.expectedRevision, 1);
+  assert.deepEqual(JSON.parse(h.values.get("checklist_complex::user:" + USER + "::cloud-ref")), {
+    id: ROW,
+    revision: 2,
+  });
+});
+
+test("a failed first cloud create does not store a reference or pretend success", async () => {
+  const h = makeHarness();
+  h.backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: {
+      getItem: (key) => h.values.get(key) ?? null,
+      setItem: (key, value) => h.values.set(key, String(value)),
+    },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    cloudApi: {
+      async create() { throw Object.assign(new Error("offline"), { code: "CLOUD_REQUEST_FAILED" }); },
+      async update() { throw new Error("must not update"); },
+    },
+  });
+  await assert.rejects(h.backup.saveCurrent(), (error) => error.code === "CLOUD_REQUEST_FAILED");
+  assert.equal(h.values.has("checklist_complex::user:" + USER + "::cloud-ref"), false);
+});
+
+test("photo exclusion recurses through nested objects and arrays without mutating local state", async () => {
+  const h = makeHarness();
+  h.state.values.nested = [
+    { side_photo: "data:image/jpeg;base64,BBBB", status: "ok" },
+    { child: { detail_photo: "local-photo", note: "kept" } },
+  ];
+  const result = await h.backup.saveCurrent();
+  const nested = h.calls[0].input.payload.state.values.nested;
+  assert.equal("side_photo" in nested[0], false);
+  assert.equal("detail_photo" in nested[1].child, false);
+  assert.equal(nested[1].child.note, "kept");
+  assert.equal(result.photosExcluded, 2);
+  assert.equal(h.state.values.nested[0].side_photo, "data:image/jpeg;base64,BBBB");
+  assert.equal(h.state.values.nested[1].child.detail_photo, "local-photo");
 });
