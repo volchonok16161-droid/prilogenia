@@ -127,26 +127,47 @@ test("logout locks checklist writes before signing out and keeps data on disk", 
   assert.doesNotMatch(logout, /localStorage\.clear\(|indexedDB\.deleteDatabase\(|removeItem\(LS_KEY/);
 });
 
-test("account switching triggers reload before a different user's checklist can write", () => {
+test("sign-out locks writes and shows login without reloading an embedded srcdoc runtime", () => {
   const start = html.indexOf("function __tmhInstallAuthWatcher(api) {");
   assert.notEqual(start, -1);
   const end = html.indexOf("\n}\n", start);
   const watcher = html.slice(start, end + 2);
-  assert.match(watcher, /event === 'SIGNED_OUT'[\s\S]*?__TMH_STORAGE_LOCKED = true[\s\S]*?__TMH_STORAGE_UID = null[\s\S]*?location\.reload\(\)/);
+  const signedOutStart = watcher.indexOf("if (event === 'SIGNED_OUT')");
+  const signedInStart = watcher.indexOf("if (event === 'SIGNED_IN')");
+  assert.notEqual(signedOutStart, -1);
+  assert.notEqual(signedInStart, -1);
+  const signedOut = watcher.slice(signedOutStart, signedInStart);
+  assert.match(signedOut, /__TMH_STORAGE_LOCKED = true/);
+  assert.match(signedOut, /__TMH_STORAGE_UID = null/);
+  assert.match(signedOut, /loginModal\.style\.display = 'flex'/);
+  assert.doesNotMatch(signedOut, /location\.reload\(\)/);
   assert.match(watcher, /event === 'SIGNED_IN'[\s\S]*?activeUid && activeUid !== session\.user\.id[\s\S]*?__TMH_STORAGE_LOCKED = true[\s\S]*?location\.reload\(\)/);
 
   let onChange;
   let reloads = 0;
-  const context = { window: { location: { reload() { reloads += 1; } } } };
+  let removedKey = "";
+  let uiUpdates = 0;
+  const loginModal = { style: { display: "none" } };
+  const context = {
+    currentUser: "user",
+    window: { __TMH_STORAGE_UID: "11111111-1111-4111-8111-111111111111", location: { reload() { reloads += 1; } } },
+    localStorage: { removeItem(key) { removedKey = key; } },
+    document: { getElementById(id) { return id === "loginModal" ? loginModal : null; } },
+    updateUserUI() { uiUpdates += 1; },
+  };
   runInNewContext(watcher, context);
   context.__tmhInstallAuthWatcher({ onAuthStateChange(callback) { onChange = callback; } });
 
-  // No scope yet: do not reload; checkAuth() will establish the user's scope.
-  onChange("SIGNED_IN", { user: { id: "11111111-1111-4111-8111-111111111111" } });
+  onChange("SIGNED_OUT", null);
   assert.equal(reloads, 0);
-  assert.equal(context.window.__TMH_STORAGE_LOCKED, undefined);
+  assert.equal(context.window.__TMH_STORAGE_LOCKED, true);
+  assert.equal(context.window.__TMH_STORAGE_UID, null);
+  assert.equal(context.currentUser, null);
+  assert.equal(removedKey, "checklist_user");
+  assert.equal(uiUpdates, 1);
+  assert.equal(loginModal.style.display, "flex");
 
-  // A known account mismatch must still lock and reload.
+  // A known account mismatch must still lock and reload the old runtime.
   context.window.__TMH_STORAGE_UID = "22222222-2222-4222-8222-222222222222";
   onChange("SIGNED_IN", { user: { id: "11111111-1111-4111-8111-111111111111" } });
   assert.equal(reloads, 1);
