@@ -1035,6 +1035,57 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
 <script type="module" src="prototype/supabase-auth.js"></script>
 <script type="module">
 import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js';
+import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.js';
+const restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');
+if(restoreButton){
+  restoreButton.addEventListener('click',async function(){
+    if(restoreButton.disabled)return;
+    if(!window.confirm('Загрузить список облачных копий? Текущие локальные данные будут сохранены в отдельную облачную копию перед восстановлением.'))return;
+    restoreButton.disabled=true;
+    const oldText=restoreButton.textContent;
+    restoreButton.textContent='⏳ Загружаю список…';
+    try{
+      const getContext=window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT;
+      if(typeof getContext!=='function')throw new Error('Не удалось получить состояние чек-листа');
+      const context=getContext(),api=window.TMHAuth;
+      if(!api)throw new Error('Авторизация Supabase недоступна');
+      const backup=createChecklistCloudBackup({
+        authApi:api,storage:window.localStorage,
+        getState:function(){return context.state;},
+        getMode:function(){return context.mode;},
+        getStorageKey:function(){return context.storageKey;}
+      });
+      const restore=createChecklistCloudRestore({
+        authApi:api,getMode:function(){return context.mode;},
+        beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},
+        applyState:context.applyState
+      });
+      const items=await restore.listAvailable();
+      if(!items.length){if(typeof showToast==='function')showToast('В облаке пока нет чек-листов');return;}
+      const lines=items.map(function(item,index){
+        return (index+1)+'. '+(item.title||'Без названия')+' · версия '+item.revision+' · '+(item.updatedAt||'дата неизвестна');
+      });
+      const choice=window.prompt('Выберите облачную копию по номеру:\n\n'+lines.join('\n')+'\n\nВведите номер из списка:');
+      if(choice===null)return;
+      const selectedIndex=Number(choice)-1;
+      if(!Number.isInteger(selectedIndex)||selectedIndex<0||selectedIndex>=items.length)throw new Error('Неверный номер облачной копии');
+      const selected=items[selectedIndex];
+      if(selected.mode!==context.mode)throw new Error('Эта копия относится к другому режиму чек-листа');
+      if(!window.confirm('Восстановить «'+selected.title+'»? Текущая локальная версия сначала будет сохранена в облако. Фотографии с этого устройства сохранятся.'))return;
+      restoreButton.textContent='⏳ Создаю копию и восстанавливаю…';
+      await restore.restore(selected.id);
+      if(typeof showToast==='function')showToast('Чек-лист восстановлен. Локальные фотографии сохранены.');
+      else window.alert('Чек-лист восстановлен. Локальные фотографии сохранены.');
+    }catch(error){
+      console.error('Cloud restore failed',error);
+      if(typeof showToast==='function')showToast(String(error&&error.message||'Не удалось восстановить чек-лист'));
+      else window.alert(String(error&&error.message||'Не удалось восстановить чек-лист'));
+    }finally{
+      restoreButton.disabled=false;
+      restoreButton.textContent=oldText;
+    }
+  });
+}
 const button=document.getElementById('tmhNativeCloudBackupBtn');
 if(button){
   button.addEventListener('click',async function(){
@@ -1132,6 +1183,7 @@ if(button){
 </div>
 <div class="footbar">
     <button class="btn" id="tmhNativeCloudBackupBtn" type="button">☁️ Сохранить в облако</button>
+    <button class="btn" id="tmhNativeCloudRestoreBtn" type="button">☁️ Восстановить из облака</button>
     <button class="btn primary" id="btnSave">💾 Сохранить в браузере</button>
     <button class="btn" id="btnSaveHtml">💾 Сохранить как файл</button>
     <button class="btn" id="btnExport" title="Экспорт доступен только при 100% заполнении (для пользователей)">📷 Экспорт Excel</button>
@@ -14264,7 +14316,30 @@ try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}
 
 let STATE={general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[],changeLog:[]};
 window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
-  return {state:STATE,mode:MODE,storageKey:LS_KEY};
+  return {
+    state:STATE,mode:MODE,storageKey:LS_KEY,
+    applyState:async function(incoming){
+      await __psReady();
+      var current=STATE||{};
+      var next=structuredClone(incoming);
+      var oldValues=current.values||{},newValues=next.values||{};
+      Object.keys(oldValues).forEach(function(iid){
+        var oldItem=oldValues[iid]||{};
+        var newItem=newValues[iid]||(newValues[iid]={});
+        Object.keys(oldItem).forEach(function(key){
+          if(/_photo$/i.test(key)&&oldItem[key]&&!newItem[key])newItem[key]=oldItem[key];
+        });
+      });
+      STATE=next;
+      var saved=saveState(true);
+      if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
+      if(__PS.chain)await __PS.chain;
+      await __psReady();
+      buildEquipment(STATE.general&&STATE.general.type||'');
+      renderGeneral();renderPicker();renderEquip();updateStats();
+      return true;
+    }
+  };
 };
 if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){STATE=__EMBEDDED_STATE;const el=document.getElementById('__embedded_state');if(el)el.parentNode.removeChild(el);}
 
