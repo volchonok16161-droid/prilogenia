@@ -14318,7 +14318,8 @@ let STATE={general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},valu
 window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
   return {
     state:STATE,mode:MODE,storageKey:LS_KEY,
-    applyState:async function(incoming){
+    applyState:async function(incoming,metadata){
+      if(!metadata||typeof metadata.id!=='string'||!Number.isSafeInteger(metadata.revision)||metadata.revision<1)throw new Error('Некорректная версия облачной записи');
       await __psReady();
       var current=STATE||{};
       var next=structuredClone(incoming);
@@ -14335,6 +14336,7 @@ window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
       if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
       if(__PS.chain)await __PS.chain;
       await __psReady();
+      localStorage.setItem(LS_KEY+'::cloud-ref',JSON.stringify({id:metadata.id,revision:metadata.revision}));
       buildEquipment(STATE.general&&STATE.general.type||'');
       renderGeneral();renderPicker();renderEquip();updateStats();
       return true;
