@@ -1036,6 +1036,7 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
 <script type="module">
 import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js';
 import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.js';
+import { createChecklistPhotoSync } from './prototype/supabase-cloud-photos.js';
 const restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');
 if(restoreButton){
   restoreButton.addEventListener('click',async function(){
@@ -1049,8 +1050,9 @@ if(restoreButton){
       if(typeof getContext!=='function')throw new Error('Не удалось получить состояние чек-листа');
       const context=getContext(),api=window.TMHAuth;
       if(!api)throw new Error('Авторизация Supabase недоступна');
+      const photoSync=createChecklistPhotoSync({authApi:api});
       const backup=createChecklistCloudBackup({
-        authApi:api,storage:window.localStorage,
+        authApi:api,storage:window.localStorage,photoSync,
         getState:function(){return context.state;},
         getMode:function(){return context.mode;},
         getStorageKey:function(){return context.storageKey;}
@@ -1058,6 +1060,7 @@ if(restoreButton){
       const restore=createChecklistCloudRestore({
         authApi:api,getMode:function(){return context.mode;},
         beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},
+        hydrateState:async function(state,metadata,manifest){return (await photoSync.restoreState({state,checklistId:metadata.id,manifest})).state;},
         applyState:context.applyState
       });
       const items=await restore.listAvailable();
@@ -1090,7 +1093,7 @@ const button=document.getElementById('tmhNativeCloudBackupBtn');
 if(button){
   button.addEventListener('click',async function(){
     if(button.disabled)return;
-    if(!window.confirm('Сохранить текущий чек-лист в облако? Фотографии останутся только на этом устройстве.'))return;
+    if(!window.confirm('Сохранить текущий чек-лист и фотографии в приватное облако?'))return;
     button.disabled=true;
     const oldText=button.textContent;
     button.textContent='⏳ Сохраняю…';
@@ -1099,17 +1102,21 @@ if(button){
       if(typeof getContext!=='function')throw new Error('Не удалось получить данные открытого чек-листа');
       const api=window.TMHAuth;
       if(!api)throw new Error('Авторизация Supabase недоступна');
+      const photoSync=createChecklistPhotoSync({authApi:api});
+      const photoSync=createChecklistPhotoSync({authApi:api});
       const backup=createChecklistCloudBackup({
         authApi:api,
         storage:window.localStorage,
+        photoSync,
+        photoSync,
         getState:function(){return getContext().state;},
         getMode:function(){return getContext().mode;},
         getStorageKey:function(){return getContext().storageKey;}
       });
       const result=await backup.saveCurrent();
       const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
-      if(typeof showToast==='function')showToast(message+' · фото остаются на устройстве');
-      else window.alert(message+'\nФотографии остаются на устройстве.');
+      if(typeof showToast==='function')showToast(message+' · фотографий: '+result.photosUploaded);
+      else window.alert(message+'\nЗагружено фотографий: '+result.photosUploaded);
     }catch(error){
       console.error('Cloud backup failed',error);
       const message=error&&error.code==='REVISION_CONFLICT'
@@ -15460,6 +15467,7 @@ var bridge=`<script>
 <script type="module">
 import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js';
 import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.js';
+import { createChecklistPhotoSync } from './prototype/supabase-cloud-photos.js';
 const restoreButton=document.getElementById('tmhCloudRestoreBtn');
 if(restoreButton){
   restoreButton.addEventListener('click',async function(){
@@ -15471,8 +15479,9 @@ if(restoreButton){
       if(typeof getContext!=='function')throw new Error('Не удалось получить состояние встроенного чек-листа');
       const context=getContext(),api=window.parent&&window.parent.TMHAuth;
       if(!api)throw new Error('Авторизация Supabase недоступна');
-      const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;}});
-      const restore=createChecklistCloudRestore({authApi:api,getMode:function(){return context.mode;},beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},applyState:context.applyState});
+      const photoSync=createChecklistPhotoSync({authApi:api});
+      const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,photoSync,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;}});
+      const restore=createChecklistCloudRestore({authApi:api,getMode:function(){return context.mode;},beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},hydrateState:async function(state,metadata,manifest){return (await photoSync.restoreState({state,checklistId:metadata.id,manifest})).state;},applyState:context.applyState});
       const items=await restore.listAvailable(),matching=items.filter(function(item){return item.mode===context.mode;});
       if(!matching.length){if(typeof showToast==='function')showToast('Для этого режима облачных копий пока нет');return;}
       const lines=matching.map(function(item,index){return (index+1)+'. '+(item.title||'Без названия')+' · версия '+item.revision+' · '+(item.updatedAt||'дата неизвестна');});
@@ -15491,7 +15500,7 @@ const button=document.getElementById('tmhCloudBackupBtn');
 if(button){
   button.addEventListener('click',async function(){
     if(button.disabled)return;
-    if(!window.confirm('Сохранить текущий чек-лист в облако? Фотографии останутся только на этом устройстве.'))return;
+    if(!window.confirm('Сохранить текущий чек-лист и фотографии в приватное облако?'))return;
     button.disabled=true;
     const oldText=button.textContent;
     button.textContent='⏳ Сохраняю…';
@@ -15509,8 +15518,8 @@ if(button){
       });
       const result=await backup.saveCurrent();
       const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
-      if(typeof showToast==='function')showToast(message+' · фото остаются на устройстве');
-      else window.alert(message+'\nФотографии остаются на устройстве.');
+      if(typeof showToast==='function')showToast(message+' · фотографий: '+result.photosUploaded);
+      else window.alert(message+'\nЗагружено фотографий: '+result.photosUploaded);
     }catch(error){
       console.error('Cloud backup failed',error);
       const message=error&&error.code==='REVISION_CONFLICT'
