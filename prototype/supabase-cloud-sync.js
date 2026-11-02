@@ -97,6 +97,21 @@ export function createCloudSync(authApi) {
     return unwrap(result, "list") || [];
   }
 
+  async function get(id) {
+    const ownerId = await getOwnerId();
+    validateUuid(id);
+    const result = await authApi.client
+      .from(TABLE)
+      .select(COLUMNS)
+      .eq("id", id)
+      .eq("owner_id", ownerId)
+      .maybeSingle();
+
+    const row = unwrap(result, "get");
+    if (!row) fail("NOT_FOUND", "Чек-лист не найден или недоступен");
+    return row;
+  }
+
   async function create(input = {}) {
     const ownerId = await getOwnerId();
     const row = {
@@ -163,5 +178,5 @@ export function createCloudSync(authApi) {
     return true;
   }
 
-  return Object.freeze({ list, create, update, remove });
+  return Object.freeze({ list, get, create, update, remove });
 }
