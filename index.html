@@ -2661,6 +2661,27 @@ function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==
   window.__TMH_STORAGE_LOCKED = false;
 }
 
+function __tmhInstallAuthWatcher(api) {
+  if (window.__TMH_AUTH_WATCHER_INSTALLED || !api || typeof api.onAuthStateChange !== 'function') return;
+  window.__TMH_AUTH_WATCHER_INSTALLED = true;
+  api.onAuthStateChange(function(event, session) {
+    if (window.__TMH_AUTH_ACTION) return;
+    if (event === 'SIGNED_OUT') {
+      window.__TMH_STORAGE_LOCKED = true;
+      window.__TMH_STORAGE_UID = null;
+      window.location.reload();
+      return;
+    }
+    if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
+      var activeUid = window.__TMH_STORAGE_UID || null;
+      if (!activeUid || activeUid !== session.user.id) {
+        window.__TMH_STORAGE_LOCKED = true;
+        window.location.reload();
+      }
+    }
+  });
+}
+
 function __getTMHAuthApi() {
   try {
     if (window.TMHAuth) return window.TMHAuth;
@@ -2672,6 +2693,7 @@ function __getTMHAuthApi() {
 async function checkAuth() {
   const api = __getTMHAuthApi();
   if (!api) { currentUser = null; return false; }
+  __tmhInstallAuthWatcher(api);
   try {
     const identity = await api.getCurrentIdentity();
     if (!identity || !identity.user || !identity.profile) {
@@ -2705,7 +2727,10 @@ async function checkAuth() {
 async function doLogin(login, password) {
   const api = __getTMHAuthApi();
   if (!api) return false;
-  const result = await api.signIn(login, password);
+  window.__TMH_AUTH_ACTION = 'login';
+  let result;
+  try { result = await api.signIn(login, password); }
+  finally { window.__TMH_AUTH_ACTION = ''; }
   if (!result || result.error || !result.user || !result.profile) return false;
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
@@ -2733,8 +2758,11 @@ async function doLogout() {
   window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
   if (api) {
+    window.__TMH_AUTH_ACTION = 'logout';
     const result = await api.signOut();
     if (result && result.error) {
+      window.__TMH_AUTH_ACTION = '';
+      window.__TMH_STORAGE_LOCKED = false;
       console.error('Sign out failed', result.error);
       showToast('Не удалось завершить сеанс');
       return;
@@ -6247,6 +6275,27 @@ function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==
   window.__TMH_STORAGE_LOCKED = false;
 }
 
+function __tmhInstallAuthWatcher(api) {
+  if (window.__TMH_AUTH_WATCHER_INSTALLED || !api || typeof api.onAuthStateChange !== 'function') return;
+  window.__TMH_AUTH_WATCHER_INSTALLED = true;
+  api.onAuthStateChange(function(event, session) {
+    if (window.__TMH_AUTH_ACTION) return;
+    if (event === 'SIGNED_OUT') {
+      window.__TMH_STORAGE_LOCKED = true;
+      window.__TMH_STORAGE_UID = null;
+      window.location.reload();
+      return;
+    }
+    if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
+      var activeUid = window.__TMH_STORAGE_UID || null;
+      if (!activeUid || activeUid !== session.user.id) {
+        window.__TMH_STORAGE_LOCKED = true;
+        window.location.reload();
+      }
+    }
+  });
+}
+
 function __getTMHAuthApi() {
   try {
     if (window.TMHAuth) return window.TMHAuth;
@@ -6258,6 +6307,7 @@ function __getTMHAuthApi() {
 async function checkAuth() {
   const api = __getTMHAuthApi();
   if (!api) { currentUser = null; return false; }
+  __tmhInstallAuthWatcher(api);
   try {
     const identity = await api.getCurrentIdentity();
     if (!identity || !identity.user || !identity.profile) {
@@ -6291,7 +6341,10 @@ async function checkAuth() {
 async function doLogin(login, password) {
   const api = __getTMHAuthApi();
   if (!api) return false;
-  const result = await api.signIn(login, password);
+  window.__TMH_AUTH_ACTION = 'login';
+  let result;
+  try { result = await api.signIn(login, password); }
+  finally { window.__TMH_AUTH_ACTION = ''; }
   if (!result || result.error || !result.user || !result.profile) return false;
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
@@ -6319,8 +6372,11 @@ async function doLogout() {
   window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
   if (api) {
+    window.__TMH_AUTH_ACTION = 'logout';
     const result = await api.signOut();
     if (result && result.error) {
+      window.__TMH_AUTH_ACTION = '';
+      window.__TMH_STORAGE_LOCKED = false;
       console.error('Sign out failed', result.error);
       showToast('Не удалось завершить сеанс');
       return;
@@ -9432,6 +9488,27 @@ function __tmhApplyUserStorageScope(uid) {
   window.__TMH_STORAGE_LOCKED = false;
 }
 
+function __tmhInstallAuthWatcher(api) {
+  if (window.__TMH_AUTH_WATCHER_INSTALLED || !api || typeof api.onAuthStateChange !== 'function') return;
+  window.__TMH_AUTH_WATCHER_INSTALLED = true;
+  api.onAuthStateChange(function(event, session) {
+    if (window.__TMH_AUTH_ACTION) return;
+    if (event === 'SIGNED_OUT') {
+      window.__TMH_STORAGE_LOCKED = true;
+      window.__TMH_STORAGE_UID = null;
+      window.location.reload();
+      return;
+    }
+    if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
+      var activeUid = window.__TMH_STORAGE_UID || null;
+      if (!activeUid || activeUid !== session.user.id) {
+        window.__TMH_STORAGE_LOCKED = true;
+        window.location.reload();
+      }
+    }
+  });
+}
+
 function __getTMHAuthApi() {
   try {
     if (window.TMHAuth) return window.TMHAuth;
@@ -9443,6 +9520,7 @@ function __getTMHAuthApi() {
 async function checkAuth() {
   const api = __getTMHAuthApi();
   if (!api) { currentUser = null; return false; }
+  __tmhInstallAuthWatcher(api);
   try {
     const identity = await api.getCurrentIdentity();
     if (!identity || !identity.user || !identity.profile) {
@@ -9476,7 +9554,10 @@ async function checkAuth() {
 async function doLogin(login, password) {
   const api = __getTMHAuthApi();
   if (!api) return false;
-  const result = await api.signIn(login, password);
+  window.__TMH_AUTH_ACTION = 'login';
+  let result;
+  try { result = await api.signIn(login, password); }
+  finally { window.__TMH_AUTH_ACTION = ''; }
   if (!result || result.error || !result.user || !result.profile) return false;
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
@@ -9504,8 +9585,11 @@ async function doLogout() {
   window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
   if (api) {
+    window.__TMH_AUTH_ACTION = 'logout';
     const result = await api.signOut();
     if (result && result.error) {
+      window.__TMH_AUTH_ACTION = '';
+      window.__TMH_STORAGE_LOCKED = false;
       console.error('Sign out failed', result.error);
       showToast('Не удалось завершить сеанс');
       return;
@@ -13965,6 +14049,27 @@ function __tmhApplyUserStorageScope(uid) {
   window.__TMH_STORAGE_LOCKED = false;
 }
 
+function __tmhInstallAuthWatcher(api) {
+  if (window.__TMH_AUTH_WATCHER_INSTALLED || !api || typeof api.onAuthStateChange !== 'function') return;
+  window.__TMH_AUTH_WATCHER_INSTALLED = true;
+  api.onAuthStateChange(function(event, session) {
+    if (window.__TMH_AUTH_ACTION) return;
+    if (event === 'SIGNED_OUT') {
+      window.__TMH_STORAGE_LOCKED = true;
+      window.__TMH_STORAGE_UID = null;
+      window.location.reload();
+      return;
+    }
+    if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
+      var activeUid = window.__TMH_STORAGE_UID || null;
+      if (!activeUid || activeUid !== session.user.id) {
+        window.__TMH_STORAGE_LOCKED = true;
+        window.location.reload();
+      }
+    }
+  });
+}
+
 function __getTMHAuthApi() {
   try {
     if (window.TMHAuth) return window.TMHAuth;
@@ -13976,6 +14081,7 @@ function __getTMHAuthApi() {
 async function checkAuth() {
   const api = __getTMHAuthApi();
   if (!api) { currentUser = null; return false; }
+  __tmhInstallAuthWatcher(api);
   try {
     const identity = await api.getCurrentIdentity();
     if (!identity || !identity.user || !identity.profile) {
@@ -14009,7 +14115,10 @@ async function checkAuth() {
 async function doLogin(login, password) {
   const api = __getTMHAuthApi();
   if (!api) return false;
-  const result = await api.signIn(login, password);
+  window.__TMH_AUTH_ACTION = 'login';
+  let result;
+  try { result = await api.signIn(login, password); }
+  finally { window.__TMH_AUTH_ACTION = ''; }
   if (!result || result.error || !result.user || !result.profile) return false;
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
@@ -14037,8 +14146,11 @@ async function doLogout() {
   window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
   if (api) {
+    window.__TMH_AUTH_ACTION = 'logout';
     const result = await api.signOut();
     if (result && result.error) {
+      window.__TMH_AUTH_ACTION = '';
+      window.__TMH_STORAGE_LOCKED = false;
       console.error('Sign out failed', result.error);
       showToast('Не удалось завершить сеанс');
       return;
@@ -15993,6 +16105,27 @@ function __tmhApplyUserStorageScope(uid) {
   window.__TMH_STORAGE_LOCKED = false;
 }
 
+function __tmhInstallAuthWatcher(api) {
+  if (window.__TMH_AUTH_WATCHER_INSTALLED || !api || typeof api.onAuthStateChange !== 'function') return;
+  window.__TMH_AUTH_WATCHER_INSTALLED = true;
+  api.onAuthStateChange(function(event, session) {
+    if (window.__TMH_AUTH_ACTION) return;
+    if (event === 'SIGNED_OUT') {
+      window.__TMH_STORAGE_LOCKED = true;
+      window.__TMH_STORAGE_UID = null;
+      window.location.reload();
+      return;
+    }
+    if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
+      var activeUid = window.__TMH_STORAGE_UID || null;
+      if (!activeUid || activeUid !== session.user.id) {
+        window.__TMH_STORAGE_LOCKED = true;
+        window.location.reload();
+      }
+    }
+  });
+}
+
 function __getTMHAuthApi() {
   try {
     if (window.TMHAuth) return window.TMHAuth;
@@ -16004,6 +16137,7 @@ function __getTMHAuthApi() {
 async function checkAuth() {
   const api = __getTMHAuthApi();
   if (!api) { currentUser = null; return false; }
+  __tmhInstallAuthWatcher(api);
   try {
     const identity = await api.getCurrentIdentity();
     if (!identity || !identity.user || !identity.profile) {
@@ -16037,7 +16171,10 @@ async function checkAuth() {
 async function doLogin(login, password) {
   const api = __getTMHAuthApi();
   if (!api) return false;
-  const result = await api.signIn(login, password);
+  window.__TMH_AUTH_ACTION = 'login';
+  let result;
+  try { result = await api.signIn(login, password); }
+  finally { window.__TMH_AUTH_ACTION = ''; }
   if (!result || result.error || !result.user || !result.profile) return false;
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
@@ -16065,8 +16202,11 @@ async function doLogout() {
   window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
   if (api) {
+    window.__TMH_AUTH_ACTION = 'logout';
     const result = await api.signOut();
     if (result && result.error) {
+      window.__TMH_AUTH_ACTION = '';
+      window.__TMH_STORAGE_LOCKED = false;
       console.error('Sign out failed', result.error);
       showToast('Не удалось завершить сеанс');
       return;
