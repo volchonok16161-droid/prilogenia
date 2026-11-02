@@ -89,3 +89,47 @@ test("failed safety snapshot aborts restore before local state can be overwritte
   await assert.rejects(restore.restore(ROW), /snapshot failed/);
   assert.equal(applied, false);
 });
+
+
+test("restore hydrates private photo manifest before applying the checklist state", async () => {
+  const h = harness({
+    payload: {
+      mode: "complex",
+      state: { values: { item1: { status: "ok" } } },
+      photos: [{ itemId: "item1", field: "front_photo", path: "private/path", contentType: "image/jpeg" }],
+    },
+  });
+  const calls = [];
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    async beforeApply() { calls.push("snapshot"); },
+    async hydrateState(state, metadata, manifest) {
+      calls.push(["hydrate", metadata.id, manifest.length]);
+      state.values.item1.front_photo = "data:image/jpeg;base64,AQID";
+      return state;
+    },
+    async applyState(state) { calls.push(["apply", state.values.item1.front_photo]); },
+  });
+  await restore.restore(ROW);
+  assert.deepEqual(calls, [
+    "snapshot",
+    ["hydrate", ROW, 1],
+    ["apply", "data:image/jpeg;base64,AQID"],
+  ]);
+});
+
+test("legacy cloud records without a photo manifest restore with an empty manifest", async () => {
+  const h = harness();
+  let hydrated;
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    async hydrateState(state, metadata, manifest) { hydrated = manifest; return state; },
+    async applyState() {},
+  });
+  await restore.restore(ROW);
+  assert.deepEqual(hydrated, []);
+});
