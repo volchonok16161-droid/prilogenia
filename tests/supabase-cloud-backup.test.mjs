@@ -151,3 +151,17 @@ test("photo exclusion recurses through nested objects and arrays without mutatin
   assert.equal(h.state.values.nested[0].side_photo, "data:image/jpeg;base64,BBBB");
   assert.equal(h.state.values.nested[1].child.detail_photo, "local-photo");
 });
+
+
+test("createSnapshot creates a separate immutable cloud copy without changing the current reference", async () => {
+  const h = makeHarness();
+  const snapshot = await h.backup.createSnapshot({ label: "Before restore" });
+  assert.equal(snapshot.row.id, ROW);
+  assert.equal(snapshot.photosExcluded, 1);
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.calls[0].action, "create");
+  assert.match(h.calls[0].input.title, /^Before restore/);
+  assert.equal("front_photo" in h.calls[0].input.payload.state.values.item1, false);
+  assert.equal(h.values.has("checklist_complex::user:" + USER + "::cloud-ref"), false);
+  assert.equal(h.state.values.item1.front_photo, "data:image/jpeg;base64,AAAA");
+});
