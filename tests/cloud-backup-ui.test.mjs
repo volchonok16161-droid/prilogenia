@@ -26,7 +26,7 @@ test("cloud backup is explicit and never runs automatically during checklist sta
   assert.match(html, /button\.addEventListener\('click',async function\(\)/);
   assert.ok(html.includes("window.confirm('Сохранить текущий чек-лист в облако?"));
   assert.match(html, /const result=await backup\.saveCurrent\(\)/);
-  assert.equal(count(html, "backup.saveCurrent()"), 1);
+  assert.equal(count(html, "backup.saveCurrent()"), 2, "native and embedded checklists each have one explicit save handler");
   assert.match(html, /button\.disabled=true/);
   assert.match(html, /button\.disabled=false/);
 });
