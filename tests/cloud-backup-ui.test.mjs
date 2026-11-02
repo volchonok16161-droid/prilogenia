@@ -1,0 +1,41 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+
+function count(source, token) {
+  return source.split(token).length - 1;
+}
+
+test("the explicit cloud backup button is injected into embedded checklist footbars", () => {
+  assert.equal(count(html, "function __tmhAttachCloudBackup(source)"), 1);
+  assert.match(html, /id="tmhCloudBackupBtn" type="button">☁️ Сохранить в облако/);
+  assert.match(html, /source\.replace\(footbar,footbar\+/);
+  assert.equal(count(html, "frame.srcdoc=__tmhAttachCloudBackup(getEmbeddedSource(mode));"), 2);
+});
+
+test("the embedded bridge exposes live checklist state and the scoped storage key", () => {
+  assert.match(html, /window\.__TMH_GET_CLOUD_BACKUP_CONTEXT=function\(\)/);
+  assert.match(html, /return \{state:STATE,mode:\(typeof MODE==='undefined'\?'unknown':MODE\),storageKey:LS_KEY\}/);
+  assert.match(html, /getStorageKey:function\(\)\{return getContext\(\)\.storageKey;\}/);
+  assert.match(html, /authApi:api/);
+});
+
+test("cloud backup is explicit and never runs automatically during checklist startup", () => {
+  assert.match(html, /button\.addEventListener\('click',async function\(\)/);
+  assert.match(html, /const result=await backup\.saveCurrent\(\)/);
+  assert.equal(count(html, "backup.saveCurrent()"), 1);
+  assert.match(html, /button\.disabled=true/);
+  assert.match(html, /button\.disabled=false/);
+});
+
+test("the injected bridge closes both scripts safely inside the parent template", () => {
+  const start = html.indexOf("function __tmhAttachCloudBackup(source)");
+  const end = html.indexOf("function getEmbeddedSource(mode)", start);
+  const bridge = html.slice(start, end);
+  assert.equal(count(bridge, "<\\/script>"), 2);
+  assert.equal(count(bridge, "type=\"module\""), 1);
+  assert.match(bridge, /createChecklistCloudBackup/);
+  assert.match(bridge, /prototype\/supabase-cloud-backup\.js/);
+});
