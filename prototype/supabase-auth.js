@@ -18,6 +18,18 @@ const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 
 const ALLOWED_ROLES = new Set(["employee", "admin", "developer"]);
 
+async function getProfileWithRetry(user, attempts = 2) {
+  let result;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    result = await getProfileForUser(user);
+    if (!result.error || result.reason !== "profile_query_failed" || attempt + 1 >= attempts) {
+      return result;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+  return result;
+}
+
 async function getProfileForUser(user) {
   if (!user?.id) return { profile: null, error: new Error("Сессия не найдена"), reason: "missing_user" };
 
@@ -39,7 +51,7 @@ async function getCurrentIdentity() {
   const { data, error } = await client.auth.getUser();
   if (error || !data?.user) return { user: null, profile: null, error: error || null };
 
-  const result = await getProfileForUser(data.user);
+  const result = await getProfileWithRetry(data.user);
   if (result.error) {
     // Keep the Auth session on transient profile-query failures; revoke only when
     // the profile is confirmed missing or its role is not allowed.
