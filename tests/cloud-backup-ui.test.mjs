@@ -40,3 +40,12 @@ test("the injected bridge closes both scripts safely inside the parent template"
   assert.match(bridge, /createChecklistCloudBackup/);
   assert.match(bridge, /prototype\/supabase-cloud-backup\.js/);
 });
+
+
+test("the primary checklist screen exposes its own explicit cloud backup action", () => {
+  assert.match(html, /id="tmhNativeCloudBackupBtn" type="button">☁️ Сохранить в облако/);
+  assert.match(html, /window\.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function\(\)/);
+  assert.match(html, /const button=document\.getElementById\('tmhNativeCloudBackupBtn'\)/);
+  assert.match(html, /window\.confirm\('Сохранить текущий чек-лист в облако\?/);
+  assert.match(html, /import \{ createChecklistCloudBackup \} from '\.\/prototype\/supabase-cloud-backup\.js'/);
+});
