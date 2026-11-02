@@ -6,10 +6,12 @@ export function createChecklistCloudRestore({
   getMode,
   applyState,
   beforeApply,
+  hydrateState,
 } = {}) {
   if (!authApi || typeof authApi.getCurrentIdentity !== "function" ||
       typeof getMode !== "function" || typeof applyState !== "function" ||
-      (beforeApply !== undefined && typeof beforeApply !== "function")) {
+      (beforeApply !== undefined && typeof beforeApply !== "function") ||
+      (hydrateState !== undefined && typeof hydrateState !== "function")) {
     throw new Error("Для восстановления нужны Auth, режим и функция безопасного применения состояния");
   }
 
@@ -62,12 +64,17 @@ export function createChecklistCloudRestore({
 
     // The UI must explicitly decide how to apply data. This module never writes
     // LocalStorage/IndexedDB and never touches the photo fields stored locally.
-    await applyState(structuredClone(payload.state), Object.freeze({
+    const metadata = Object.freeze({
       id: row.id,
       revision: row.revision,
       title: row.title,
       updatedAt: row.updated_at,
-    }));
+    });
+    const clonedState = structuredClone(payload.state);
+    const hydratedState = hydrateState
+      ? await hydrateState(clonedState, metadata, Array.isArray(payload.photos) ? payload.photos : [])
+      : clonedState;
+    await applyState(hydratedState, metadata);
 
     return Object.freeze({
       id: row.id,
