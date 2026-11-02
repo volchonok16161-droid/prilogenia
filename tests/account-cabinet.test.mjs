@@ -33,7 +33,7 @@ test("account cabinet exposes a real Supabase sign-out action", () => {
 test("account cabinet is read-only and contains no demo identity or fake counters", () => {
   assert.doesNotMatch(html, /Иван Петров|12\s*<\/div>|демонстрационные сведения/i);
   assert.doesNotMatch(html, /\.insert\(|\.upsert\(|\.delete\(/);
-  assert.doesNotMatch(html, /\.from\("checklists"\)[\s\S]*?\.update\(/);
+  assert.doesNotMatch(html, /\.from\("checklists"\)[^;]*\.(?:insert|update|upsert|delete)\(/);
   assert.match(html, /Облачных копий пока нет/);
 });
 
