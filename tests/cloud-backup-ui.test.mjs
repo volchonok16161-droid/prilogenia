@@ -59,3 +59,14 @@ test("all embedded modes pass their active mode into the backup bridge", () => {
     assert.ok(html.includes(mode + ":'"), "mode name is registered: " + mode);
   }
 });
+
+
+test("native checklist offers explicit restore and snapshots local state before overwrite", () => {
+  assert.match(html, /id="tmhNativeCloudRestoreBtn" type="button">☁️ Восстановить из облака/);
+  assert.match(html, /createChecklistCloudRestore/);
+  assert.match(html, /beforeApply:async function\(\)\{await backup\.createSnapshot/);
+  assert.match(html, /Фотографии с этого устройства сохранятся/);
+  assert.match(html, /applyState:async function\(incoming\)/);
+  assert.match(html, /_photo\$\/i\.test\(key\)/);
+  assert.match(html, /await __PS\.chain/);
+});
