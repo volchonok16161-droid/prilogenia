@@ -2776,7 +2776,9 @@ function __tmhInstallAuthWatcher(api) {
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
       var activeUid = window.__TMH_STORAGE_UID || null;
-      if (!activeUid || activeUid !== session.user.id) {
+      // Embedded runtimes can observe the parent's SIGNED_IN event before
+      // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
+      if (activeUid && activeUid !== session.user.id) {
         window.__TMH_STORAGE_LOCKED = true;
         window.location.reload();
       }
@@ -6399,7 +6401,9 @@ function __tmhInstallAuthWatcher(api) {
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
       var activeUid = window.__TMH_STORAGE_UID || null;
-      if (!activeUid || activeUid !== session.user.id) {
+      // Embedded runtimes can observe the parent's SIGNED_IN event before
+      // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
+      if (activeUid && activeUid !== session.user.id) {
         window.__TMH_STORAGE_LOCKED = true;
         window.location.reload();
       }
@@ -9621,7 +9625,9 @@ function __tmhInstallAuthWatcher(api) {
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
       var activeUid = window.__TMH_STORAGE_UID || null;
-      if (!activeUid || activeUid !== session.user.id) {
+      // Embedded runtimes can observe the parent's SIGNED_IN event before
+      // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
+      if (activeUid && activeUid !== session.user.id) {
         window.__TMH_STORAGE_LOCKED = true;
         window.location.reload();
       }
@@ -14191,7 +14197,9 @@ function __tmhInstallAuthWatcher(api) {
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
       var activeUid = window.__TMH_STORAGE_UID || null;
-      if (!activeUid || activeUid !== session.user.id) {
+      // Embedded runtimes can observe the parent's SIGNED_IN event before
+      // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
+      if (activeUid && activeUid !== session.user.id) {
         window.__TMH_STORAGE_LOCKED = true;
         window.location.reload();
       }
@@ -16394,7 +16402,9 @@ function __tmhInstallAuthWatcher(api) {
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
       var activeUid = window.__TMH_STORAGE_UID || null;
-      if (!activeUid || activeUid !== session.user.id) {
+      // Embedded runtimes can observe the parent's SIGNED_IN event before
+      // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
+      if (activeUid && activeUid !== session.user.id) {
         window.__TMH_STORAGE_LOCKED = true;
         window.location.reload();
       }
