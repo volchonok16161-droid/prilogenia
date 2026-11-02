@@ -12,12 +12,12 @@ test("the explicit cloud backup button is injected into embedded checklist footb
   assert.equal(count(html, "function __tmhAttachCloudBackup(source, mode)"), 1);
   assert.match(html, /id="tmhCloudBackupBtn" type="button">☁️ Сохранить в облако/);
   assert.match(html, /source\.replace\(footbar,footbar\+/);
-  assert.equal(count(html, "frame.srcdoc=__tmhAttachCloudBackup(getEmbeddedSource(mode));"), 2);
+  assert.equal(count(html, "frame.srcdoc=__tmhAttachCloudBackup(getEmbeddedSource(mode),mode);"), 2);
 });
 
 test("the embedded bridge exposes live checklist state and the scoped storage key", () => {
   assert.match(html, /window\.__TMH_GET_CLOUD_BACKUP_CONTEXT=function\(\)/);
-  assert.match(html, /return \{state:STATE,mode:\(typeof MODE==='undefined'\?'unknown':MODE\),storageKey:LS_KEY\}/);
+  assert.match(html, /return \\{state:STATE,mode:\\$\\{JSON\\.stringify\\(mode\\|\\|\\(\\(typeof MODE==='undefined'\\)\\?'unknown':MODE\\)\\)\\},storageKey:LS_KEY\\}/);
   assert.match(html, /getStorageKey:function\(\)\{return getContext\(\)\.storageKey;\}/);
   assert.match(html, /authApi:api/);
 });
@@ -32,7 +32,7 @@ test("cloud backup is explicit and never runs automatically during checklist sta
 });
 
 test("the injected bridge closes both scripts safely inside the parent template", () => {
-  const start = html.indexOf("function __tmhAttachCloudBackup(source)");
+  const start = html.indexOf("function __tmhAttachCloudBackup(source, mode)");
   const end = html.indexOf("function getEmbeddedSource(mode)", start);
   const bridge = html.slice(start, end);
   assert.equal(count(bridge, "<\\/script>"), 2);
