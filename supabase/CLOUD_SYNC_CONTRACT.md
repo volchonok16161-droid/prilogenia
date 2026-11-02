@@ -83,3 +83,36 @@ const records = await cloud.list();
 - Security Advisor: остаётся предупреждение Leaked Password Protection Disabled; к синхронизации напрямую не относится, но требует отдельного решения по Auth.
 - В таблице найдены четыре записи, похожие на тестовые/QA, включая маркеры пользователей A/B. Данные не изменялись и не удалялись.
 - Проверка метаданных не является полноценным браузерным E2E или проверкой Storage.
+
+
+## Явное восстановление из облака
+
+Добавлен модуль `prototype/supabase-cloud-restore.js`:
+
+- `listAvailable()` возвращает только безопасные метаданные доступных текущему пользователю записей, без payload;
+- `restore(id)` повторно проверяет сессию и получает запись по id через owner-scoped `cloud.get()`;
+- payload проверяется, а режим должен совпадать с открытой формой;
+- состояние клонируется и передаётся в явно переданную UI-функцию `applyState(state, metadata)`;
+- модуль сам не пишет в LocalStorage/IndexedDB и не меняет локальные фотографии.
+
+Пример подключения в UI:
+
+```js
+import { createChecklistCloudRestore } from "./prototype/supabase-cloud-restore.js";
+
+const restore = createChecklistCloudRestore({
+  authApi: window.TMHAuth,
+  getMode: () => currentMode,
+  applyState: async (state) => {
+    // Здесь UI должен сначала показать подтверждение,
+    // сохранить текущую локальную копию и только затем применить state.
+    applyChecklistState(state);
+  },
+});
+
+const backups = await restore.listAvailable();
+// По явному выбору пользователя:
+await restore.restore(backups[0].id);
+```
+
+**Важно:** это готовый библиотечный слой, не включённая в интерфейс кнопка. Подключение к пяти runtime-формам требует отдельно реализовать подтверждение перезаписи, безопасное обновление состояния без удаления IndexedDB-фотографий, сохранение локальной версии и browser E2E. Не считать восстановление доступным пользователям до этих работ.
