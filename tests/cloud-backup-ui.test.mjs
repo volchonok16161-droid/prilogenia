@@ -66,7 +66,7 @@ test("native checklist offers explicit restore and snapshots local state before 
   assert.match(html, /createChecklistCloudRestore/);
   assert.match(html, /beforeApply:async function\(\)\{await backup\.createSnapshot/);
   assert.match(html, /Фотографии с этого устройства сохранятся/);
-  assert.match(html, /applyState:async function\(incoming\)/);
+  assert.match(html, /applyState:async function\(incoming,metadata\)/);
   assert.match(html, /_photo\$\/i\.test\(key\)/);
   assert.match(html, /await __PS\.chain/);
 });
