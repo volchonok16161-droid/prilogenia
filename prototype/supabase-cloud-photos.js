@@ -130,6 +130,25 @@ export function createChecklistPhotoSync({
     return Object.freeze({ manifest: Object.freeze(manifest), uploaded: manifest.length });
   }
 
+  async function removeManifest(manifest = []) {
+    if (!Array.isArray(manifest)) fail("INVALID_MANIFEST", "Некорректный список фотографий для очистки");
+    if (!manifest.length) return 0;
+    const userId = await getUserId(authApi);
+    const paths = manifest.map((entry) => {
+      if (!entry || typeof entry.path !== "string") fail("INVALID_MANIFEST", "Некорректный путь фотографии");
+      const parts = entry.path.split("/");
+      if (parts.length !== 5 || parts[0] !== userId ||
+          !/^[0-9a-f-]{36}$/i.test(parts[1]) ||
+          !/^[1-9][0-9]*$/.test(parts[2])) {
+        fail("INVALID_MANIFEST", "Нельзя удалить файл вне папки текущего пользователя");
+      }
+      return entry.path;
+    });
+    const result = await storageApi.from(BUCKET).remove(paths);
+    storageError(result, "очистка незавершённой загрузки");
+    return paths.length;
+  }
+
   async function restoreState({ state, checklistId, manifest } = {}) {
     const userId = await getUserId(authApi);
     const rowId = uuid(checklistId, "checklistId");
@@ -144,8 +163,13 @@ export function createChecklistPhotoSync({
           !ALLOWED_TYPES.has(entry.contentType)) {
         fail("INVALID_MANIFEST", "Некорректная запись фотографии в манифесте");
       }
-      const prefix = userId + "/" + rowId + "/";
-      if (!entry.path.startsWith(prefix) || entry.path.includes("..") || entry.path.includes("\\\\")) {
+      const parts = entry.path.split("/");
+      const expectedItem = encodeURIComponent(segment(entry.itemId, "itemId"));
+      const expectedFieldPrefix = encodeURIComponent(segment(entry.field, "photo field")) + "-";
+      if (parts.length !== 5 || parts[0] !== userId || parts[1] !== rowId ||
+          !/^[1-9][0-9]*$/.test(parts[2]) || parts[3] !== expectedItem ||
+          !parts[4].startsWith(expectedFieldPrefix) ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parts[4].slice(expectedFieldPrefix.length))) {
         fail("INVALID_MANIFEST", "Путь фотографии не принадлежит текущему пользователю и чек-листу");
       }
       const result = await storageApi.from(BUCKET).download(entry.path);
@@ -159,5 +183,5 @@ export function createChecklistPhotoSync({
     return Object.freeze({ state: restored, restored: manifest.length });
   }
 
-  return Object.freeze({ uploadState, restoreState });
+  return Object.freeze({ uploadState, restoreState, removeManifest });
 }
