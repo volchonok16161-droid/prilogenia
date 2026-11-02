@@ -5,9 +5,11 @@ export function createChecklistCloudRestore({
   cloudApi: injectedCloudApi,
   getMode,
   applyState,
+  beforeApply,
 } = {}) {
   if (!authApi || typeof authApi.getCurrentIdentity !== "function" ||
-      typeof getMode !== "function" || typeof applyState !== "function") {
+      typeof getMode !== "function" || typeof applyState !== "function" ||
+      (beforeApply !== undefined && typeof beforeApply !== "function")) {
     throw new Error("Для восстановления нужны Auth, режим и функция безопасного применения состояния");
   }
 
@@ -54,6 +56,9 @@ export function createChecklistCloudRestore({
       error.code = "MODE_MISMATCH";
       throw error;
     }
+
+    // Optional caller hook can create an immutable safety snapshot before overwrite.
+    if (beforeApply) await beforeApply(Object.freeze({ id: row.id, revision: row.revision }));
 
     // The UI must explicitly decide how to apply data. This module never writes
     // LocalStorage/IndexedDB and never touches the photo fields stored locally.
