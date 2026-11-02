@@ -7,7 +7,7 @@ const ROW = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 function makeHarness({ reference = null, updateError = null } = {}) {
   const values = new Map();
-  if (reference) values.set("checklist::user:" + USER + "::cloud-ref", JSON.stringify(reference));
+  if (reference) values.set("checklist_complex::user:" + USER + "::cloud-ref", JSON.stringify(reference));
   const calls = [];
   const storage = {
     getItem(key) { return values.get(key) ?? null; },
@@ -49,7 +49,7 @@ test("explicit backup creates a cloud record and excludes local photos", async (
   assert.equal("front_photo" in h.calls[0].input.payload.state.values.item1, false);
   assert.equal(result.photosExcluded, 1);
   assert.equal(result.created, true);
-  assert.deepEqual(JSON.parse(h.values.get("checklist::user:" + USER + "::cloud-ref")), {
+  assert.deepEqual(JSON.parse(h.values.get("checklist_complex::user:" + USER + "::cloud-ref")), {
     id: ROW, revision: 1,
   });
   assert.equal(h.state.values.item1.front_photo, "data:image/jpeg;base64,AAAA");
@@ -62,7 +62,7 @@ test("next explicit backup updates the same cloud row with compare-and-swap revi
   assert.equal(h.calls[0].input.id, ROW);
   assert.equal(h.calls[0].input.expectedRevision, 4);
   assert.equal(result.created, false);
-  assert.equal(JSON.parse(h.values.get("checklist::user:" + USER + "::cloud-ref")).revision, 5);
+  assert.equal(JSON.parse(h.values.get("checklist_complex::user:" + USER + "::cloud-ref")).revision, 5);
 });
 
 test("a mismatched local namespace is rejected before cloud writes", async () => {
@@ -82,12 +82,12 @@ test("a stale cloud revision is surfaced and the local reference is not advanced
   const conflict = Object.assign(new Error("conflict"), { code: "REVISION_CONFLICT" });
   const h = makeHarness({ reference: { id: ROW, revision: 4 }, updateError: conflict });
   await assert.rejects(h.backup.saveCurrent(), (error) => error.code === "REVISION_CONFLICT");
-  assert.equal(JSON.parse(h.values.get("checklist::user:" + USER + "::cloud-ref")).revision, 4);
+  assert.equal(JSON.parse(h.values.get("checklist_complex::user:" + USER + "::cloud-ref")).revision, 4);
 });
 
 test("an invalid saved cloud reference does not silently create a duplicate", async () => {
   const h = makeHarness();
-  h.values.set("checklist::user:" + USER + "::cloud-ref", "{broken");
+  h.values.set("checklist_complex::user:" + USER + "::cloud-ref", "{broken");
   await assert.rejects(h.backup.saveCurrent(), (error) => error.code === "INVALID_CLOUD_REFERENCE");
   assert.equal(h.calls.length, 0);
 });
