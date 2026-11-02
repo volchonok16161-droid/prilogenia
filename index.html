@@ -15426,18 +15426,67 @@ function __tmhAttachCloudBackup(source, mode){
 if(typeof source!=='string'||!source||source.indexOf('id="tmhCloudBackupBtn"')!==-1)return source;
 var footbar='<div class="footbar">';
 if(source.indexOf(footbar)===-1)return source;
-source=source.replace(footbar,footbar+'\n<button class="btn" id="tmhCloudBackupBtn" type="button">☁️ Сохранить в облако</button>');
+source=source.replace(footbar,footbar+'\n<button class="btn" id="tmhCloudBackupBtn" type="button">☁️ Сохранить в облако</button>\n<button class="btn" id="tmhCloudRestoreBtn" type="button">☁️ Восстановить из облака</button>');
 var bridge=`<script>
 (function(){
   try {
     window.__TMH_GET_CLOUD_BACKUP_CONTEXT=function(){
-      return {state:STATE,mode:${JSON.stringify(mode||((typeof MODE==='undefined')?'unknown':MODE))},storageKey:LS_KEY};
+      return {
+        state:STATE,mode:${JSON.stringify(mode||((typeof MODE==='undefined')?'unknown':MODE))},storageKey:LS_KEY,
+        applyState:async function(incoming,metadata){
+          if(!metadata||typeof metadata.id!=='string'||!Number.isSafeInteger(metadata.revision)||metadata.revision<1)throw new Error('Некорректная версия облачной записи');
+          await __psReady();
+          var current=STATE||{},next=structuredClone(incoming);
+          var oldValues=current.values||{},newValues=next.values||(next.values={});
+          Object.keys(oldValues).forEach(function(iid){
+            var oldItem=oldValues[iid]||{},newItem=newValues[iid]||(newValues[iid]={});
+            Object.keys(oldItem).forEach(function(key){if(/_photo$/i.test(key)&&oldItem[key]&&!newItem[key])newItem[key]=oldItem[key];});
+          });
+          STATE=next;
+          var saved=saveState(true);
+          if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
+          if(typeof __PS!=='undefined'&&__PS.chain)await __PS.chain;
+          await __psReady();
+          localStorage.setItem(LS_KEY+'::cloud-ref',JSON.stringify({id:metadata.id,revision:metadata.revision}));
+          if(typeof buildEquipment==='function')buildEquipment(STATE.general&&STATE.general.type||'');
+          if(typeof renderGeneral==='function')renderGeneral();if(typeof renderPicker==='function')renderPicker();if(typeof renderEquip==='function')renderEquip();if(typeof updateStats==='function')updateStats();
+          return true;
+        }
+      };
     };
   } catch(e) { window.__TMH_CLOUD_BACKUP_CONTEXT_ERROR=String(e&&e.message||e); }
 })();
 <\/script>
 <script type="module">
 import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js';
+import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.js';
+const restoreButton=document.getElementById('tmhCloudRestoreBtn');
+if(restoreButton){
+  restoreButton.addEventListener('click',async function(){
+    if(restoreButton.disabled)return;
+    if(!window.confirm('Открыть список облачных копий для режима '+${JSON.stringify(mode)}+'?'))return;
+    restoreButton.disabled=true;const oldText=restoreButton.textContent;restoreButton.textContent='⏳ Загружаю список…';
+    try{
+      const getContext=window.__TMH_GET_CLOUD_BACKUP_CONTEXT;
+      if(typeof getContext!=='function')throw new Error('Не удалось получить состояние встроенного чек-листа');
+      const context=getContext(),api=window.parent&&window.parent.TMHAuth;
+      if(!api)throw new Error('Авторизация Supabase недоступна');
+      const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;}});
+      const restore=createChecklistCloudRestore({authApi:api,getMode:function(){return context.mode;},beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},applyState:context.applyState});
+      const items=await restore.listAvailable(),matching=items.filter(function(item){return item.mode===context.mode;});
+      if(!matching.length){if(typeof showToast==='function')showToast('Для этого режима облачных копий пока нет');return;}
+      const lines=matching.map(function(item,index){return (index+1)+'. '+(item.title||'Без названия')+' · версия '+item.revision+' · '+(item.updatedAt||'дата неизвестна');});
+      const choice=window.prompt('Режим: '+context.mode+'\\nВыберите облачную копию по номеру:\\n\\n'+lines.join('\\n')+'\\n\\nВведите номер:');
+      if(choice===null)return;const selectedIndex=Number(choice)-1;
+      if(!Number.isInteger(selectedIndex)||selectedIndex<0||selectedIndex>=matching.length)throw new Error('Неверный номер облачной копии');
+      const selected=matching[selectedIndex];
+      if(!window.confirm('Восстановить «'+selected.title+'»? Текущая локальная версия сначала будет сохранена в облако. Локальные фотографии останутся на устройстве.'))return;
+      restoreButton.textContent='⏳ Создаю копию и восстанавливаю…';await restore.restore(selected.id);
+      if(typeof showToast==='function')showToast('Чек-лист восстановлен. Локальные фотографии сохранены.');else window.alert('Чек-лист восстановлен. Локальные фотографии сохранены.');
+    }catch(error){console.error('Embedded cloud restore failed',error);const message=String(error&&error.message||'Не удалось восстановить чек-лист');if(typeof showToast==='function')showToast(message);else window.alert(message);}
+    finally{restoreButton.disabled=false;restoreButton.textContent=oldText;}
+  });
+}
 const button=document.getElementById('tmhCloudBackupBtn');
 if(button){
   button.addEventListener('click',async function(){
