@@ -1048,8 +1048,10 @@ if(restoreButton){
     try{
       const getContext=window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT;
       if(typeof getContext!=='function')throw new Error('Не удалось получить состояние чек-листа');
-      const context=getContext(),api=window.TMHAuth;
+      const api=window.TMHAuth;
       if(!api)throw new Error('Авторизация Supabase недоступна');
+      await __psReady();if(__PS.chain)await __PS.chain;
+      const context=getContext();
       const photoSync=createChecklistPhotoSync({authApi:api});
       const backup=createChecklistCloudBackup({
         authApi:api,storage:window.localStorage,photoSync,
@@ -1102,6 +1104,7 @@ if(button){
       if(typeof getContext!=='function')throw new Error('Не удалось получить данные открытого чек-листа');
       const api=window.TMHAuth;
       if(!api)throw new Error('Авторизация Supabase недоступна');
+      await __psReady();if(__PS.chain)await __PS.chain;
       const photoSync=createChecklistPhotoSync({authApi:api});
       const backup=createChecklistCloudBackup({
         authApi:api,
@@ -15475,8 +15478,10 @@ if(restoreButton){
     try{
       const getContext=window.__TMH_GET_CLOUD_BACKUP_CONTEXT;
       if(typeof getContext!=='function')throw new Error('Не удалось получить состояние встроенного чек-листа');
-      const context=getContext(),api=window.parent&&window.parent.TMHAuth;
+      const api=window.parent&&window.parent.TMHAuth;
       if(!api)throw new Error('Авторизация Supabase недоступна');
+      await __psReady();if(__PS.chain)await __PS.chain;
+      const context=getContext();
       const photoSync=createChecklistPhotoSync({authApi:api});
       const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,photoSync,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;}});
       const restore=createChecklistCloudRestore({authApi:api,getMode:function(){return context.mode;},beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},hydrateState:async function(state,metadata,manifest){return (await photoSync.restoreState({state,checklistId:metadata.id,manifest})).state;},applyState:context.applyState});
@@ -15507,6 +15512,7 @@ if(button){
       if(typeof getContext!=='function')throw new Error('Не удалось получить данные открытого чек-листа');
       const api=window.parent&&window.parent.TMHAuth;
       if(!api)throw new Error('Авторизация Supabase недоступна');
+      await __psReady();if(__PS.chain)await __PS.chain;
       const photoSync=createChecklistPhotoSync({authApi:api});
       const backup=createChecklistCloudBackup({
         authApi:api,
