@@ -88,3 +88,16 @@ test("email confirmation resend uses Supabase Auth signup flow and rate-limits r
   assert.match(html, /Письмо отправлено\. Проверьте входящие и папку «Спам»\./);
   assert.match(html, /identity\.user\.email_confirmed_at/);
 });
+
+test("email confirmation callback refreshes profile status without a manual reload", () => {
+  assert.match(html, /onAuthStateChange\(\(event, session\) => \{/);
+  assert.match(html, /\["SIGNED_IN", "USER_UPDATED", "TOKEN_REFRESHED"\]\.includes\(event\)/);
+  assert.match(html, /session\.user\.email_confirmed_at/);
+  assert.match(html, /Адрес электронной почты успешно подтверждён\./);
+  assert.match(html, /classList\.toggle\("hidden", confirmed\)/);
+});
+
+test("initial profile render clears stale confirmation status and hides resend after confirmation", () => {
+  assert.match(html, /const emailConfirmed = Boolean\(user\.email_confirmed_at\)/);
+  assert.match(html, /emailConfirmStatus"\)\.textContent = emailConfirmed \? "Адрес электронной почты подтверждён\."/);
+});
