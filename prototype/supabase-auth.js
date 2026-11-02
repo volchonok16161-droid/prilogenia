@@ -19,7 +19,7 @@ const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
 const ALLOWED_ROLES = new Set(["employee", "admin", "developer"]);
 
 async function getProfileForUser(user) {
-  if (!user?.id) return { profile: null, error: new Error("Сессия не найдена") };
+  if (!user?.id) return { profile: null, error: new Error("Сессия не найдена"), reason: "missing_user" };
 
   const { data, error } = await client
     .from("profiles")
@@ -27,9 +27,9 @@ async function getProfileForUser(user) {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (error) return { profile: null, error };
+  if (error) return { profile: null, error, reason: "profile_query_failed" };
   if (!data || !ALLOWED_ROLES.has(data.role)) {
-    return { profile: null, error: new Error("Для аккаунта не назначена допустимая роль") };
+    return { profile: null, error: new Error("Для аккаунта не назначена допустимая роль"), reason: "profile_not_authorized" };
   }
 
   return { profile: data, error: null };
@@ -41,9 +41,13 @@ async function getCurrentIdentity() {
 
   const result = await getProfileForUser(data.user);
   if (result.error) {
-    // A valid Auth session without an authorized profile must not enter the app.
-    await client.auth.signOut({ scope: "local" });
-    return { user: null, profile: null, error: result.error };
+    // Keep the Auth session on transient profile-query failures; revoke only when
+    // the profile is confirmed missing or its role is not allowed.
+    if (result.reason === "profile_not_authorized") {
+      await client.auth.signOut({ scope: "local" });
+      return { user: null, profile: null, error: result.error };
+    }
+    return { user: data.user, profile: null, error: result.error };
   }
 
   return { user: data.user, profile: result.profile, error: null };
@@ -66,8 +70,13 @@ async function signIn(email, password) {
 
   const result = await getProfileForUser(data.user);
   if (result.error) {
-    await client.auth.signOut({ scope: "local" });
-    return { user: null, profile: null, error: result.error };
+    if (result.reason === "profile_not_authorized") {
+      await client.auth.signOut({ scope: "local" });
+      return { user: null, profile: null, error: result.error };
+    }
+    // signIn succeeded; preserve the session so a transient profile lookup
+    // failure can be retried without asking the user to enter credentials again.
+    return { user: data.user, profile: null, error: result.error };
   }
 
   return { user: data.user, profile: result.profile, error: null };
