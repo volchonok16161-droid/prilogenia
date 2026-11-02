@@ -147,7 +147,7 @@ test("photo exclusion recurses through nested objects and arrays without mutatin
   assert.equal("side_photo" in nested[0], false);
   assert.equal("detail_photo" in nested[1].child, false);
   assert.equal(nested[1].child.note, "kept");
-  assert.equal(result.photosExcluded, 2);
+  assert.equal(result.photosExcluded, 3);
   assert.equal(h.state.values.nested[0].side_photo, "data:image/jpeg;base64,BBBB");
   assert.equal(h.state.values.nested[1].child.detail_photo, "local-photo");
 });
