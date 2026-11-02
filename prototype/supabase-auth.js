@@ -80,7 +80,7 @@ async function signIn(email, password) {
     return { user: null, profile: null, error: error || new Error("Не удалось выполнить вход") };
   }
 
-  const result = await getProfileForUser(data.user);
+  const result = await getProfileWithRetry(data.user);
   if (result.error) {
     if (result.reason === "profile_not_authorized") {
       await client.auth.signOut({ scope: "local" });
