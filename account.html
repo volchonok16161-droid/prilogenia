@@ -210,7 +210,11 @@ $("resendConfirmBtn").addEventListener("click", async () => {
     }
     const { error } = await api.client.auth.resend({
       type: "signup",
-      email: identity.user.email
+      email: identity.user.email,
+      options: {
+        // Return to this same page: the shared Auth client consumes the PKCE callback.
+        emailRedirectTo: `${location.origin}${location.pathname}`
+      }
     });
     if (error) throw error;
     confirmResendUntil = Date.now() + 60000;
