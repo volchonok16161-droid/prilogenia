@@ -31,7 +31,9 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
    <div class="field"><span>Email</span><strong id="email">—</strong></div>
    <div class="field"><span>Идентификатор аккаунта</span><strong id="userId">—</strong></div>
    <div class="field"><span>Роль</span><strong id="roleProfileValue">—</strong></div>
-   <div class="field"><span>Статус</span><strong>Авторизован</strong></div>
+   <div class="field"><span>Статус email</span><strong id="emailStatus">—</strong></div>
+   <div class="field"><span>Дата регистрации</span><strong id="createdAt">—</strong></div>
+   <div class="field"><span>Последний вход</span><strong id="lastSignIn">—</strong></div>
   </div>
   <form id="profileForm" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:16px">
    <label style="display:grid;gap:6px;flex:1;min-width:220px"><span class="muted">Отображаемое имя</span><input id="displayNameInput" name="display_name" type="text" maxlength="80" autocomplete="name" required style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink)"></label>
@@ -96,6 +98,9 @@ async function loadCabinet() {
   $("displayNameInput").value = profile.display_name || "";
   $("email").textContent = user.email || "—";
   $("userId").textContent = user.id;
+  $("emailStatus").textContent = user.email_confirmed_at ? "Подтверждён" : "Не подтверждён";
+  $("createdAt").textContent = formatDate(user.created_at);
+  $("lastSignIn").textContent = formatDate(user.last_sign_in_at);
   $("roleValue").textContent = roleLabels[profile.role] || profile.role;
   $("roleProfileValue").textContent = roleLabels[profile.role] || profile.role;
   $("checklistCount").textContent = String(rows.length);
