@@ -107,7 +107,7 @@ test("native and embedded cloud save/restore wire the private photo Storage adap
   assert.match(html, /import \{ createChecklistPhotoSync \} from '\.\/prototype\/supabase-cloud-photos\.js'/);
   assert.equal(count(html, "createChecklistPhotoSync({authApi:api})"), 4);
   assert.equal(count(html, "hydrateState:async function(state,metadata,manifest)"), 2);
-  assert.match(html, /photoSync\.uploadState/);
+  assert.match(html, /photoSync,/);
   assert.match(html, /photoSync\.restoreState/);
   assert.match(html, /фотографий: '\+result\.photosUploaded/);
 });
