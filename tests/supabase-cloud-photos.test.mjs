@@ -9,6 +9,7 @@ const PHOTO = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 function harness({ userId = USER } = {}) {
   const files = new Map();
   const calls = [];
+  const removed = [];
   const storageApi = {
     from(bucket) {
       assert.equal(bucket, "checklist-photos");
@@ -26,6 +27,12 @@ function harness({ userId = USER } = {}) {
             ? { data: blob, error: null }
             : { data: null, error: new Error("not found") };
         },
+        async remove(paths) {
+          removed.push(...paths);
+          paths.forEach((path) => files.delete(path));
+          calls.push({ action: "remove", paths });
+          return { data: paths.map((name) => ({ name })), error: null };
+        },
       };
     },
   };
@@ -38,7 +45,7 @@ function harness({ userId = USER } = {}) {
     storageApi,
     idFactory: () => PHOTO,
   });
-  return { sync, files, calls };
+  return { sync, files, calls, removed };
 }
 
 test("uploads checklist photos to private user/checklist/revision paths and returns a manifest", async () => {
@@ -127,4 +134,64 @@ test("requires an authenticated Supabase identity", async () => {
     }),
     (error) => error.code === "AUTH_REQUIRED",
   );
+});
+
+
+test("removes only validated objects under the authenticated user's checklist folder", async () => {
+  const h = harness();
+  const uploaded = await h.sync.uploadState({
+    state: { values: { item1: { front_photo: "data:image/jpeg;base64,AQID" } } },
+    checklistId: ROW,
+    revision: 1,
+  });
+  assert.equal(await h.sync.removeManifest(uploaded.manifest), 1);
+  assert.equal(h.files.size, 0);
+  assert.equal(h.removed.length, 1);
+  await assert.rejects(
+    h.sync.removeManifest([{
+      path: "22222222-2222-4222-8222-222222222222/" + ROW + "/1/item1/front_photo-" + PHOTO,
+    }]),
+    (error) => error.code === "INVALID_MANIFEST",
+  );
+});
+
+test("partial photo upload failure removes files already uploaded in the same batch", async () => {
+  const files = new Map();
+  const calls = [];
+  let count = 0;
+  const storageApi = {
+    from() {
+      return {
+        async upload(path, blob) {
+          count += 1;
+          if (count === 2) return { data: null, error: new Error("second upload failed") };
+          files.set(path, blob);
+          return { data: { path }, error: null };
+        },
+        async remove(paths) {
+          calls.push(["remove", paths.length]);
+          paths.forEach((path) => files.delete(path));
+          return { data: [], error: null };
+        },
+      };
+    },
+  };
+  const sync = createChecklistPhotoSync({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storageApi,
+    idFactory: () => PHOTO,
+  });
+  await assert.rejects(
+    sync.uploadState({
+      state: { values: { item1: {
+        front_photo: "data:image/jpeg;base64,AQID",
+        rear_photo: "data:image/jpeg;base64,BAUG",
+      } } },
+      checklistId: ROW,
+      revision: 2,
+    }),
+    (error) => error.code === "STORAGE_REQUEST_FAILED",
+  );
+  assert.equal(files.size, 0);
+  assert.deepEqual(calls, [["remove", 1]]);
 });
