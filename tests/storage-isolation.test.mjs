@@ -133,7 +133,7 @@ test("account switching triggers reload before a different user's checklist can 
   const end = html.indexOf("\n}\n", start);
   const watcher = html.slice(start, end + 2);
   assert.match(watcher, /event === 'SIGNED_OUT'[\s\S]*?__TMH_STORAGE_LOCKED = true[\s\S]*?__TMH_STORAGE_UID = null[\s\S]*?location\.reload\(\)/);
-  assert.match(watcher, /event === 'SIGNED_IN'[\\s\\S]*?activeUid && activeUid !== session\\.user\\.id[\\s\\S]*?__TMH_STORAGE_LOCKED = true[\\s\\S]*?location\\.reload\\(\\)/);
+  assert.match(watcher, /event === 'SIGNED_IN'[\s\S]*?activeUid && activeUid !== session\.user\.id[\s\S]*?__TMH_STORAGE_LOCKED = true[\s\S]*?location\.reload\(\)/);
 
   let onChange;
   let reloads = 0;
