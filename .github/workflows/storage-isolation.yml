@@ -1,0 +1,19 @@
+name: Storage isolation regression checks
+
+on:
+  push:
+    branches:
+      - development/account-system
+  pull_request:
+    branches:
+      - development/account-system
+
+jobs:
+  storage-isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tests/storage-isolation.test.mjs
