@@ -115,6 +115,7 @@ export function createCloudSync(authApi) {
   async function create(input = {}) {
     const ownerId = await getOwnerId();
     const row = {
+      ...(input.id ? { id: validateUuid(input.id, "id") } : {}),
       owner_id: ownerId,
       title: validateText(input.title, "title", 200, "Новый чек-лист"),
       equipment_type: validateText(input.equipmentType, "equipment_type", 120),
