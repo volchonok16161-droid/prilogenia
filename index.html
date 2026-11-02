@@ -2754,6 +2754,8 @@ async function doLogout() {
   try {
     if (typeof saveState === 'function') saveState(true);
     if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
+    if (typeof _photoMigrationPromise !== 'undefined' && _photoMigrationPromise) await _photoMigrationPromise;
+    if (typeof _photoWriteChain !== 'undefined' && _photoWriteChain) await _photoWriteChain;
   } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
   window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
@@ -6368,6 +6370,8 @@ async function doLogout() {
   try {
     if (typeof saveState === 'function') saveState(true);
     if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
+    if (typeof _photoMigrationPromise !== 'undefined' && _photoMigrationPromise) await _photoMigrationPromise;
+    if (typeof _photoWriteChain !== 'undefined' && _photoWriteChain) await _photoWriteChain;
   } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
   window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
@@ -9581,6 +9585,8 @@ async function doLogout() {
   try {
     if (typeof saveState === 'function') saveState(true);
     if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
+    if (typeof _photoMigrationPromise !== 'undefined' && _photoMigrationPromise) await _photoMigrationPromise;
+    if (typeof _photoWriteChain !== 'undefined' && _photoWriteChain) await _photoWriteChain;
   } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
   window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
@@ -14142,6 +14148,8 @@ async function doLogout() {
   try {
     if (typeof saveState === 'function') saveState(true);
     if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
+    if (typeof _photoMigrationPromise !== 'undefined' && _photoMigrationPromise) await _photoMigrationPromise;
+    if (typeof _photoWriteChain !== 'undefined' && _photoWriteChain) await _photoWriteChain;
   } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
   window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
@@ -16198,6 +16206,8 @@ async function doLogout() {
   try {
     if (typeof saveState === 'function') saveState(true);
     if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
+    if (typeof _photoMigrationPromise !== 'undefined' && _photoMigrationPromise) await _photoMigrationPromise;
+    if (typeof _photoWriteChain !== 'undefined' && _photoWriteChain) await _photoWriteChain;
   } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
   window.__TMH_STORAGE_LOCKED = true;
   const api = __getTMHAuthApi();
@@ -16376,6 +16386,7 @@ function refreshAllPhotoPreviews(){
         }
     });
 }
+let _photoWriteChain=Promise.resolve();
 let _photoMigrationPromise=null;
 function migrateExistingPhotosToIndexedDB(){
     const tasks=[];
@@ -16525,7 +16536,7 @@ function getGroupsForPart(part){return PART_TO_GROUPS[part]||[];}
 
 function instId(eqId,inst,idx){if(eqId==='housings')return[eqId,inst.section,inst.housingId||'',idx].join('|');return[eqId,inst.section,inst.group||'',inst.block||'',inst.sub||'',idx].join('|');}
 function getVal(iid,key){return(STATE.values[iid]&&STATE.values[iid][key])||'';}
-function setVal(iid,key,val){if(!STATE.values[iid])STATE.values[iid]={};STATE.values[iid][key]=val;if(key.endsWith('_photo')){if(val){idbPutPhoto(LS_KEY,iid,key,val);}else{idbDeletePhoto(LS_KEY,iid,key);}}try{if(!Array.isArray(STATE.changeLog))STATE.changeLog=[];STATE.changeLog.push({t:Date.now(),user:(typeof currentUser!=='undefined'?currentUser:''),iid,key,val:key.endsWith('_photo')?(val?'[фото]':'[фото удалено]'):val});if(STATE.changeLog.length>500)STATE.changeLog.splice(0,STATE.changeLog.length-500);}catch(e){}saveState(true);updateStats();}
+function setVal(iid,key,val){if(!STATE.values[iid])STATE.values[iid]={};STATE.values[iid][key]=val;if(key.endsWith('_photo')){_photoWriteChain=_photoWriteChain.then(function(){return val?idbPutPhoto(LS_KEY,iid,key,val):idbDeletePhoto(LS_KEY,iid,key);});}try{if(!Array.isArray(STATE.changeLog))STATE.changeLog=[];STATE.changeLog.push({t:Date.now(),user:(typeof currentUser!=='undefined'?currentUser:''),iid,key,val:key.endsWith('_photo')?(val?'[фото]':'[фото удалено]'):val});if(STATE.changeLog.length>500)STATE.changeLog.splice(0,STATE.changeLog.length-500);}catch(e){}saveState(true);updateStats();}
 function addNotRequiredOption(select){if(select.querySelector('option[value="не требуется"]'))return;const notReq=document.createElement('option');notReq.value='не требуется';notReq.textContent='не требуется';if(select.options.length>0)select.insertBefore(notReq,select.options[1]);else select.appendChild(notReq);}
 function removeNotRequiredOption(select){const opt=select.querySelector('option[value="не требуется"]');if(opt)opt.remove();}
 function isMk84(iid){const zavVal=getVal(iid,'zav')||'';const n=zavVal.trim().toUpperCase();return(n==='МК-84'||n==='MK-84'||n==='МК84'||n==='MK84');}
