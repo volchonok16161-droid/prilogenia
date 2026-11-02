@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { createCloudSync, CloudSyncError } from "../prototype/supabase-cloud-sync.js";
 
 const USER_A = "11111111-1111-4111-8111-111111111111";
@@ -96,4 +97,17 @@ test("invalid UUIDs and inline base64 photos are rejected before upload", async 
 test("Supabase errors are surfaced without pretending a write succeeded", async () => {
   const { sync } = makeSync({ responses: [{ data: null, error: { message: "denied" } }] });
   await assert.rejects(sync.create({ payload: {} }), (error) => error.code === "CLOUD_REQUEST_FAILED");
+});
+
+
+test("database migration makes checklist ownership immutable and revision monotonic", async () => {
+  const sql = await readFile(
+    new URL("../supabase/migrations/20261102093000_checklist_revision_guard.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(sql, /new\.owner_id is distinct from old\.owner_id/);
+  assert.match(sql, /new\.revision is distinct from old\.revision \+ 1/);
+  assert.match(sql, /new\.updated_at := pg_catalog\.now\(\)/);
+  assert.match(sql, /before insert or update on public\.checklists/i);
+  assert.match(sql, /for each row execute function public\.enforce_checklist_revision\(\)/i);
 });
