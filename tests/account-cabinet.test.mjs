@@ -69,7 +69,7 @@ test("profile shows live email confirmation, registration and last sign-in metad
   assert.match(html, /id="emailStatus"/);
   assert.match(html, /id="createdAt"/);
   assert.match(html, /id="lastSignIn"/);
-  assert.match(html, /user\.email_confirmed_at \? "Подтверждён" : "Не подтверждён"/);
+  assert.match(html, /const emailConfirmed = Boolean\(user\.email_confirmed_at\)/);
   assert.match(html, /formatDate\(user\.created_at\)/);
   assert.match(html, /formatDate\(user\.last_sign_in_at\)/);
   assert.doesNotMatch(html, /<strong>Авторизован<\/strong>/);
@@ -77,8 +77,8 @@ test("profile shows live email confirmation, registration and last sign-in metad
 
 test("unconfirmed email exposes resend action and confirmed email hides it", () => {
   assert.match(html, /id="resendConfirmBtn"/);
-  assert.match(html, /user\.email_confirmed_at \? "Подтверждён" : "Не подтверждён"/);
-  assert.match(html, /classList\.toggle\("hidden", Boolean\(user\.email_confirmed_at\)\)/);
+  assert.match(html, /const emailConfirmed = Boolean\(user\.email_confirmed_at\)/);
+  assert.match(html, /classList\.toggle\("hidden", emailConfirmed\)/);
 });
 
 test("email confirmation resend uses Supabase Auth signup flow and rate-limits repeats", () => {
