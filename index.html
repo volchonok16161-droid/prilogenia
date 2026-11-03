@@ -17569,7 +17569,10 @@ if(restoreButton){
     }catch(error){console.error('Embedded cloud restore failed',error);const message=String(error&&error.message||'Не удалось восстановить чек-лист');if(typeof showToast==='function')showToast(message);else window.alert(message);}
     finally{restoreButton.disabled=false;restoreButton.textContent=oldText;}
   });
-  if(__autoOpenChecklistId){Promise.resolve().then(function(){restoreButton.click();});}
+  // The parent page owns the native restore flow when available. Do not
+  // auto-restore the same URL from the embedded srcdoc as well.
+  const __parentOwnsCloudRestore=(function(){try{return typeof window.parent.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT==='function';}catch(e){return false;}})();
+  if(__autoOpenChecklistId&&!__parentOwnsCloudRestore){Promise.resolve().then(function(){restoreButton.click();});}
 }
 const button=document.getElementById('tmhCloudBackupBtn');
 if(button){
