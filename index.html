@@ -1041,7 +1041,8 @@ const restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');
 if(restoreButton){
   restoreButton.addEventListener('click',async function(){
     if(restoreButton.disabled)return;
-    if(!window.confirm('Загрузить список облачных копий? Текущие локальные данные будут сохранены в отдельную облачную копию перед восстановлением.'))return;
+    const requestedChecklistId=new URLSearchParams(window.location.search).get('openChecklist');
+    if(!requestedChecklistId&&!window.confirm('Загрузить список облачных копий? Текущие локальные данные будут сохранены в отдельную облачную копию перед восстановлением.'))return;
     restoreButton.disabled=true;
     const oldText=restoreButton.textContent;
     restoreButton.textContent='⏳ Загружаю список…';
@@ -1067,19 +1068,27 @@ if(restoreButton){
       });
       const items=await restore.listAvailable();
       if(!items.length){if(typeof showToast==='function')showToast('В облаке пока нет чек-листов');return;}
-      const lines=items.map(function(item,index){
-        return (index+1)+'. '+(item.title||'Без названия')+' · версия '+item.revision+' · '+(item.updatedAt||'дата неизвестна');
-      });
-      const choice=window.prompt('Выберите облачную копию по номеру:\n\n'+lines.join('\n')+'\n\nВведите номер из списка:');
-      if(choice===null)return;
-      const selectedIndex=Number(choice)-1;
-      if(!Number.isInteger(selectedIndex)||selectedIndex<0||selectedIndex>=items.length)throw new Error('Неверный номер облачной копии');
-      const selected=items[selectedIndex];
-      if(selected.mode!==context.mode)throw new Error('Эта копия относится к другому режиму чек-листа');
-      if(!window.confirm('Восстановить «'+selected.title+'»? Текущая локальная версия сначала будет сохранена в облако. Фотографии с этого устройства сохранятся.'))return;
+      let selected;
+      if(requestedChecklistId){
+        selected=items.find(function(item){return item.id===requestedChecklistId;});
+        if(!selected)throw new Error('Выбранный чек-лист не найден среди ваших облачных записей');
+        if(selected.mode!==context.mode)throw new Error('Выбранная запись относится к режиму «'+selected.mode+'», а открыт режим «'+context.mode+'». Вернитесь в личный кабинет и откройте запись ещё раз.');
+      }else{
+        const lines=items.map(function(item,index){
+          return (index+1)+'. '+(item.title||'Без названия')+' · версия '+item.revision+' · '+(item.updatedAt||'дата неизвестна');
+        });
+        const choice=window.prompt('Выберите облачную копию по номеру:\n\n'+lines.join('\n')+'\n\nВведите номер из списка:');
+        if(choice===null)return;
+        const selectedIndex=Number(choice)-1;
+        if(!Number.isInteger(selectedIndex)||selectedIndex<0||selectedIndex>=items.length)throw new Error('Неверный номер облачной копии');
+        selected=items[selectedIndex];
+        if(selected.mode!==context.mode)throw new Error('Эта копия относится к другому режиму чек-листа');
+        if(!window.confirm('Восстановить «'+selected.title+'»? Текущая локальная версия сначала будет сохранена в облако. Фотографии с этого устройства сохранятся.'))return;
+      }
       restoreButton.textContent='⏳ Создаю копию и восстанавливаю…';
       await restore.restore(selected.id);
-      if(typeof showToast==='function')showToast('Чек-лист восстановлен. Локальные фотографии сохранены.');
+      if(requestedChecklistId){try{const url=new URL(window.location.href);url.searchParams.delete('openChecklist');url.searchParams.delete('mode');window.history.replaceState(null,'',url.pathname+url.search+url.hash);}catch(e){}}
+      if(typeof showToast==='function')showToast('Чек-лист «'+(selected.title||'')+'» восстановлен. Локальные фотографии сохранены.');
       else window.alert('Чек-лист восстановлен. Локальные фотографии сохранены.');
     }catch(error){
       console.error('Cloud restore failed',error);
@@ -8772,7 +8781,8 @@ function saveState(silent){
                     error.classList.add('show'); return; }
                 if (await doLogin(login, password)) {
                     error.classList.remove('show');
-                    showContinueDialogOrStart();
+                    if(new URLSearchParams(window.location.search).get('openChecklist')){const __restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');if(__restoreButton)__restoreButton.click();else showToast('Кнопка восстановления облачной записи недоступна');}
+                    else showContinueDialogOrStart();
                 } else {
                     error.textContent = 'Неверный логин или пароль';
                     error.classList.add('show');
@@ -14405,7 +14415,7 @@ const ALL_MODES=['complex','housings','tt','bi','hydro'];
 const MODE_NAMES={complex:'Комплексный',housings:'Только Кожуха',tt:'ТТ',bi:'БИ',hydro:'Гидродемпферы'};
 const __openModeParam=new URLSearchParams(window.location.search).get('mode');
 let MODE=(__openModeParam||((typeof window.__MODE__!=='undefined')?window.__MODE__:'complex'));
-if(MODE!=='housings'&&!/^k_/.test(String(MODE)))MODE='complex';
+if(MODE!=='complex'&&MODE!=='housings'&&!/^k_/.test(String(MODE)))MODE='complex';
 let LS_KEY=(MODE==='housings')?LS_KEY_HOUSINGS:((MODE!=='complex')?('checklist_custom_'+MODE+'_v1'):LS_KEY_COMPLEX);
 try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}
 
@@ -17831,7 +17841,9 @@ async function init(){
     updateModeTitle();
     updateModePicker();
     const hasAuth = await checkAuth();
+    const __requestedChecklistId=new URLSearchParams(window.location.search).get('openChecklist');
     if(!hasAuth)document.getElementById('loginModal').style.display='flex';
+    else if(__requestedChecklistId){document.getElementById('continueDialog').style.display='none';const __restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');if(__restoreButton)__restoreButton.click();else showToast('Кнопка восстановления облачной записи недоступна');}
     else showContinueDialogOrStart();
     setupCommonHandlers();
 }
