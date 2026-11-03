@@ -37,5 +37,5 @@ test("account dashboard counters filter the cloud checklist list by status", () 
 test("account dashboard opens the selected cloud checklist in its matching mode", () => {
   assert.match(html, /openChecklist=/);
   assert.match(html, /&mode=/);
-  assert.match(html, />Открыть<\/a>/);
+  assert.match(html, /open\.textContent = "Открыть"/);
 });
