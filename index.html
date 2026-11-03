@@ -17525,7 +17525,8 @@ if(restoreButton){
     try{
       const getContext=window.__TMH_GET_CLOUD_BACKUP_CONTEXT;
       if(typeof getContext!=='function')throw new Error('Не удалось получить состояние встроенного чек-листа');
-      const api=window.parent&&window.parent.TMHAuth;
+      const parentWindow=window.parent;
+      const api=parentWindow&&(parentWindow.TMHAuthReady?await parentWindow.TMHAuthReady:parentWindow.TMHAuth);
       if(!api)throw new Error('Авторизация Supabase недоступна');
       await __psEnsureCloudReady();
       const context=getContext();
