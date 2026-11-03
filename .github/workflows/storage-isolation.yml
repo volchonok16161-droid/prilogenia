@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - development/account-system
+      - fix/auth-watcher-embedded-signin
 
 jobs:
   storage-isolation:
