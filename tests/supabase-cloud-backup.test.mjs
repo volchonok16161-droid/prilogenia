@@ -476,3 +476,31 @@ test("cleanup skips a photo manifest from a different cloud revision", async () 
   assert.equal(removed, false);
   assert.deepEqual(result.photosCleanup, { removed: 0, warning: false });
 });
+
+
+test("cleanup is all-or-nothing when a previous revision manifest mixes owned and foreign paths", async () => {
+  const h = makeHarness({ reference: { id: ROW, revision: 4 } });
+  let removed = false;
+  const mixedManifest = [
+    { itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/4/cccccccc-cccc-4ccc-8ccc-cccccccccccc" },
+    { itemId: "item2", field: "front_photo", path: USER + "/eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee/4/ffffffff-ffff-4fff-8fff-ffffffffffff" },
+  ];
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem: () => JSON.stringify({ id: ROW, revision: 4 }), setItem() {} },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    photoSync: {
+      async uploadState() { return { manifest: [], uploaded: 0 }; },
+      async removeManifest() { removed = true; },
+    },
+    cloudApi: {
+      async get(id) { return { id, revision: 4, payload: { photos: mixedManifest } }; },
+      async update() { return { id: ROW, revision: 5 }; },
+    },
+  });
+  const result = await backup.saveCurrent();
+  assert.equal(removed, false, "must not partially clean a mixed manifest");
+  assert.deepEqual(result.photosCleanup, { removed: 0, warning: false });
+});
