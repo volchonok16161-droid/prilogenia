@@ -22,6 +22,10 @@ function makeHarness({ reference = null, updateError = null } = {}) {
       currentRevision = 1;
       return { id: ROW, revision: currentRevision };
     },
+    async get(id) {
+      calls.push({ action: "get", id });
+      return { id, revision: currentRevision, payload: { photos: [] } };
+    },
     async update(input) {
       calls.push({ action: "update", input });
       if (updateError) throw updateError;
@@ -347,4 +351,100 @@ test("cloud backup prefers authoritative runtime checklist stats over generic fi
   assert.equal(stats.total, 15);
   assert.equal(stats.answered, 9);
   assert.equal(stats.filledGeneral, 4);
+});
+
+test("old revision photos are removed only after a successful CAS update", async () => {
+  const h = makeHarness({ reference: { id: ROW, revision: 4 } });
+  const oldManifest = [{ itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/4/cccccccc-cccc-4ccc-8ccc-cccccccccccc", contentType: "image/jpeg" }];
+  const calls = [];
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem: () => JSON.stringify({ id: ROW, revision: 4 }), setItem() {} },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    photoSync: {
+      async uploadState() { calls.push("upload"); return { manifest: [], uploaded: 0 }; },
+      async removeManifest(manifest) { calls.push("remove"); assert.deepEqual(manifest, oldManifest); return manifest.length; },
+    },
+    cloudApi: {
+      async get(id) { calls.push("get"); return { id, revision: 4, payload: { photos: oldManifest } }; },
+      async update(input) { calls.push("update"); assert.equal(input.expectedRevision, 4); return { id: ROW, revision: 5 }; },
+    },
+  });
+  const result = await backup.saveCurrent();
+  assert.deepEqual(calls, ["get", "update", "remove"]);
+  assert.deepEqual(result.photosCleanup, { removed: 1, warning: false });
+});
+
+test("failed CAS update leaves the previous revision photos untouched", async () => {
+  const h = makeHarness({ reference: { id: ROW, revision: 4 } });
+  const calls = [];
+  const oldManifest = [{ itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/4/cccccccc-cccc-4ccc-8ccc-cccccccccccc", contentType: "image/jpeg" }];
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem: () => JSON.stringify({ id: ROW, revision: 4 }), setItem() {} },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    photoSync: {
+      async uploadState() { return { manifest: [], uploaded: 0 }; },
+      async removeManifest() { calls.push("remove"); },
+    },
+    cloudApi: {
+      async get(id) { return { id, revision: 4, payload: { photos: oldManifest } }; },
+      async update() { calls.push("update"); throw Object.assign(new Error("conflict"), { code: "REVISION_CONFLICT" }); },
+    },
+  });
+  await assert.rejects(backup.saveCurrent(), (error) => error.code === "REVISION_CONFLICT");
+  assert.deepEqual(calls, ["update"]);
+});
+
+test("old photo cleanup failure does not undo a committed save", async () => {
+  const h = makeHarness({ reference: { id: ROW, revision: 4 } });
+  const oldManifest = [{ itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/4/cccccccc-cccc-4ccc-8ccc-cccccccccccc", contentType: "image/jpeg" }];
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem: () => JSON.stringify({ id: ROW, revision: 4 }), setItem() {} },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    photoSync: {
+      async uploadState() { return { manifest: [], uploaded: 0 }; },
+      async removeManifest() { throw new Error("storage unavailable"); },
+    },
+    cloudApi: {
+      async get(id) { return { id, revision: 4, payload: { photos: oldManifest } }; },
+      async update() { return { id: ROW, revision: 5 }; },
+    },
+  });
+  const result = await backup.saveCurrent();
+  assert.equal(result.row.revision, 5);
+  assert.deepEqual(result.photosCleanup, { removed: 0, warning: true });
+  assert.equal(JSON.parse(h.values.get(refKey)).revision, 5);
+});
+
+test("cleanup skips manifests with paths outside the saved checklist", async () => {
+  const h = makeHarness({ reference: { id: ROW, revision: 4 } });
+  let removed = false;
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem: () => JSON.stringify({ id: ROW, revision: 4 }), setItem() {} },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    photoSync: {
+      async uploadState() { return { manifest: [], uploaded: 0 }; },
+      async removeManifest() { removed = true; },
+    },
+    cloudApi: {
+      async get(id) { return { id, revision: 4, payload: { photos: [
+        { itemId: "item1", field: "front_photo", path: USER + "/dddddddd-dddd-4ddd-8ddd-dddddddddddd/4/cccccccc-cccc-4ccc-8ccc-cccccccccccc" },
+      ] } }; },
+      async update() { return { id: ROW, revision: 5 }; },
+    },
+  });
+  const result = await backup.saveCurrent();
+  assert.equal(removed, false);
+  assert.deepEqual(result.photosCleanup, { removed: 0, warning: false });
 });
