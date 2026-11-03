@@ -59,6 +59,7 @@ export function createChecklistCloudBackup({
   getMode,
   getStorageKey,
   getChecklistDefinitions = () => [],
+  getChecklistType = () => "",
   cloudApi: injectedCloudApi,
   photoSync,
   idFactory = () => crypto.randomUUID(),
@@ -112,6 +113,8 @@ export function createChecklistCloudBackup({
 
     const stats = { removed: 0 };
     const mode = String(getMode() || "unknown");
+    const modeLabels = { complex: "Комплексный чек-лист", housings: "КМБ", tt: "ТТ", bi: "БИ", hydro: "Гидродемпферы" };
+    const checklistType = String(getChecklistType() || modeLabels[mode] || mode).slice(0, 120);
     const checklistId = reference?.id || idFactory();
     const nextRevision = reference ? reference.revision + 1 : 1;
     let manifest = [];
@@ -124,6 +127,7 @@ export function createChecklistCloudBackup({
     const checklistStats = calculateChecklistStats(state, getChecklistDefinitions());
     const payload = {
       mode,
+      checklistType,
       state: cloneWithoutPhotos(state, stats),
       photos: manifest,
       stats: checklistStats,
