@@ -198,7 +198,9 @@ export function createChecklistCloudBackup({
         const belongsToChecklist = oldPhotos && oldPhotos.every((entry) => {
           if (!entry || typeof entry.path !== "string") return false;
           const parts = entry.path.split("/");
-          return parts[1] === reference.id;
+          // Only reclaim files belonging to the exact revision being replaced.
+          // A malformed or mixed manifest is left untouched for safety.
+          return parts[1] === reference.id && parts[2] === String(reference.revision);
         });
         if (belongsToChecklist && oldPhotos.length) previousManifest = oldPhotos;
       } catch {
