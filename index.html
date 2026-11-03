@@ -14403,7 +14403,8 @@ const LS_KEY_HOUSINGS='checklist_housings_v4';
 const EMBEDDED_MODES=[];
 const ALL_MODES=['complex','housings','tt','bi','hydro'];
 const MODE_NAMES={complex:'Комплексный',housings:'Только Кожуха',tt:'ТТ',bi:'БИ',hydro:'Гидродемпферы'};
-let MODE=(typeof window.__MODE__!=='undefined')?window.__MODE__:'complex';
+const __openModeParam=new URLSearchParams(window.location.search).get('mode');
+let MODE=(__openModeParam||((typeof window.__MODE__!=='undefined')?window.__MODE__:'complex'));
 if(MODE!=='housings'&&!/^k_/.test(String(MODE)))MODE='complex';
 let LS_KEY=(MODE==='housings')?LS_KEY_HOUSINGS:((MODE!=='complex')?('checklist_custom_'+MODE+'_v1'):LS_KEY_COMPLEX);
 try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}
@@ -17518,6 +17519,13 @@ if(restoreButton){
       const photoSync=createChecklistPhotoSync({authApi:api});
       const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,photoSync,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;}});
       const restore=createChecklistCloudRestore({authApi:api,getMode:function(){return context.mode;},beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},hydrateState:async function(state,metadata,manifest){return (await photoSync.restoreState({state,checklistId:metadata.id,manifest})).state;},applyState:context.applyState});
+      const __openId=(function(){try{return new URLSearchParams(window.parent.location.search).get('openChecklist');}catch(e){return null;}})();
+      if(__openId){
+        await restore.restore(__openId);
+        try{window.parent.history.replaceState(null,'',window.parent.location.pathname+window.parent.location.hash);}catch(e){}
+        if(typeof showToast==='function')showToast('Чек-лист открыт из личного кабинета');
+        return;
+      }
       const items=await restore.listAvailable(),matching=items.filter(function(item){return item.mode===context.mode;});
       if(!matching.length){if(typeof showToast==='function')showToast('Для этого режима облачных копий пока нет');return;}
       const lines=matching.map(function(item,index){return (index+1)+'. '+(item.title||'Без названия')+' · версия '+item.revision+' · '+(item.updatedAt||'дата неизвестна');});
