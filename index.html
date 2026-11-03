@@ -17557,7 +17557,7 @@ if(button){
       const result=await backup.saveCurrent();
       const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
       if(typeof showToast==='function')showToast(message+' · фотографий: '+result.photosUploaded);
-      else window.alert(message+'\nЗагружено фотографий: '+result.photosUploaded);
+      else window.alert(message+'\\nЗагружено фотографий: '+result.photosUploaded);
     }catch(error){
       console.error('Cloud backup failed',error);
       const message=error&&error.code==='REVISION_CONFLICT'
