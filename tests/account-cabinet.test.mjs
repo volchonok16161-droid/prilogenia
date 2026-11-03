@@ -14,7 +14,7 @@ test("account cabinet uses the shared Supabase Auth module", () => {
 test("account cabinet loads only the signed-in user's cloud checklists", () => {
   assert.match(html, /\.from\("checklists"\)/);
   assert.match(html, /\.eq\("owner_id", user\.id\)/);
-  assert.match(html, /\.select\("id,title,equipment_type,revision,created_at,updated_at"\)/);
+  assert.match(html, /\.select\("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode"\)/);
   assert.match(html, /\.limit\(50\)/);
 });
 
