@@ -1062,6 +1062,7 @@ if(restoreButton){
       });
       const restore=createChecklistCloudRestore({
         authApi:api,getMode:function(){return context.mode;},
+        getCurrentState:function(){return context.state;},
         beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},
         hydrateState:async function(state,metadata,manifest){return (await photoSync.restoreState({state,checklistId:metadata.id,manifest})).state;},
         applyState:context.applyState
@@ -17547,7 +17548,7 @@ if(restoreButton){
       const context=getContext();
       const photoSync=createChecklistPhotoSync({authApi:api});
       const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,photoSync,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;},persistState:function(){return context.persistState();},getChecklistDefinitions:function(){return context.definitions;},getChecklistType:function(){return context.checklistType;}});
-      const restore=createChecklistCloudRestore({authApi:api,getMode:function(){return context.mode;},beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},hydrateState:async function(state,metadata,manifest){return (await photoSync.restoreState({state,checklistId:metadata.id,manifest})).state;},applyState:context.applyState});
+      const restore=createChecklistCloudRestore({authApi:api,getMode:function(){return context.mode;},getCurrentState:function(){return context.state;},beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},hydrateState:async function(state,metadata,manifest){return (await photoSync.restoreState({state,checklistId:metadata.id,manifest})).state;},applyState:context.applyState});
       const __openId=(function(){try{return new URLSearchParams(window.parent.location.search).get('openChecklist');}catch(e){return null;}})();
       if(__openId){
         await restore.restore(__openId);
