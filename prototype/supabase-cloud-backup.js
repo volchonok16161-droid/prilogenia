@@ -58,6 +58,7 @@ export function createChecklistCloudBackup({
   getState,
   getMode,
   getStorageKey,
+  getChecklistDefinitions = () => [],
   cloudApi: injectedCloudApi,
   photoSync,
   idFactory = () => crypto.randomUUID(),
