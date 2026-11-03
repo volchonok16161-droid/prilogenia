@@ -14444,11 +14444,12 @@ window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
           if(/_photo$/i.test(key)&&oldItem[key]&&!newItem[key])newItem[key]=oldItem[key];
         });
       });
+      next.__cloudChecklistId=crypto.randomUUID();
       STATE=next;
       var saved=saveState(true);
       if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
       await __psEnsureCloudReady();
-      localStorage.setItem(LS_KEY+'::cloud-ref',JSON.stringify({id:metadata.id,revision:metadata.revision}));
+      localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId,JSON.stringify({id:metadata.id,revision:metadata.revision}));
       buildEquipment(STATE.general&&STATE.general.type||'');
       renderGeneral();renderPicker();renderEquip();updateStats();
       return true;
@@ -17506,11 +17507,12 @@ var bridge=`<script>
             var oldItem=oldValues[iid]||{},newItem=newValues[iid]||(newValues[iid]={});
             Object.keys(oldItem).forEach(function(key){if(/_photo$/i.test(key)&&oldItem[key]&&!newItem[key])newItem[key]=oldItem[key];});
           });
+          next.__cloudChecklistId=crypto.randomUUID();
           STATE=next;
           var saved=saveState(true);
           if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
           await __psEnsureCloudReady();
-          localStorage.setItem(LS_KEY+'::cloud-ref',JSON.stringify({id:metadata.id,revision:metadata.revision}));
+          localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId,JSON.stringify({id:metadata.id,revision:metadata.revision}));
           if(typeof buildEquipment==='function')buildEquipment(STATE.general&&STATE.general.type||'');
           if(typeof renderGeneral==='function')renderGeneral();if(typeof renderPicker==='function')renderPicker();if(typeof renderEquip==='function')renderEquip();if(typeof updateStats==='function')updateStats();
           return true;
