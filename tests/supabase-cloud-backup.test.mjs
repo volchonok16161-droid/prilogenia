@@ -218,3 +218,18 @@ test("photo uploads are rolled back when the cloud revision write fails", async 
   await assert.rejects(backup.saveCurrent(), (error) => error.code === "REVISION_CONFLICT");
   assert.deepEqual(calls, [["upload", 5], ["update"], ["remove", 1]]);
 });
+
+test("cloud save calculates completion and deviation stats", async () => {
+  const h = makeHarness();
+  h.state.values = {
+    a: { status: "Да" },
+    b: { status: "Нет" },
+    c: { status: "" },
+    d: { status: null },
+  };
+  const result = await h.backup.saveCurrent();
+  assert.deepEqual(result.checklistStats, {
+    total: 4, answered: 2, completionPercent: 50, deviations: 1,
+  });
+  assert.deepEqual(h.calls[0].input.payload.stats, result.checklistStats);
+});
