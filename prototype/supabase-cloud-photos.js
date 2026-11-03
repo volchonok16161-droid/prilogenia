@@ -79,7 +79,15 @@ async function getUserId(authApi) {
 }
 
 function storageError(result, operation) {
-  if (result?.error) fail("STORAGE_REQUEST_FAILED", "Supabase Storage: " + operation, result.error);
+  if (result?.error) {
+    const cause = result.error;
+    const detail = String(cause?.message || cause?.error || cause || "неизвестная ошибка")
+      .replace(/[\\r\\n\\t]+/g, " ")
+      .slice(0, 240);
+    const code = cause?.code ? " (код: " + String(cause.code).slice(0, 80) + ")" : "";
+    const status = cause?.statusCode ? " (HTTP " + String(cause.statusCode).slice(0, 16) + ")" : "";
+    fail("STORAGE_REQUEST_FAILED", "Supabase Storage: " + operation + " — " + detail + code + status, cause);
+  }
   return result?.data;
 }
 
