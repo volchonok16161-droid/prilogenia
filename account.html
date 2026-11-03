@@ -60,7 +60,7 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
    </div>
    <div id="employeeList" style="margin-top:12px"><div class="empty">Загрузка списка сотрудников…</div></div>
   </section>
-  <div class="notice">Здесь отображаются только облачные копии текущего аккаунта. Локальные данные и фотографии на устройстве не изменяются. Список доступен только для просмотра.</div>
+  <div class="notice">Здесь отображаются облачные копии текущего аккаунта. Удаление убирает только выбранную облачную запись; локальные данные и фотографии на устройстве не изменяются.</div>
  </div>
  <div id="error" class="panel error hidden" role="alert"></div>
 </main>
@@ -216,15 +216,48 @@ async function loadCabinet() {
       const revision = document.createElement("span");
       revision.className = "revision";
       revision.textContent = "Версия " + String(row.revision ?? "—");
+      const actions = document.createElement("div");
+      actions.style.display = "flex";
+      actions.style.gap = "8px";
+      actions.style.flex = "none";
       const open = document.createElement("a");
       open.className = "btn";
       open.textContent = "Открыть";
       const mode = typeof row.mode === "string" ? row.mode : "";
       open.href = "./index.html?openChecklist=" + encodeURIComponent(row.id) + (mode ? "&mode=" + encodeURIComponent(mode) : "");
-      open.style.flex = "none";
       open.style.padding = "8px 12px";
       open.style.fontSize = "13px";
-      item.append(icon, info, revision, open);
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "btn secondary";
+      remove.textContent = "Удалить";
+      remove.style.padding = "8px 12px";
+      remove.style.fontSize = "13px";
+      remove.setAttribute("aria-label", "Удалить чек-лист «" + (row.title || "Чек-лист") + "»");
+      remove.addEventListener("click", async () => {
+        const checklistTitle = row.title || "Чек-лист";
+        if (!window.confirm("Удалить облачный чек-лист «" + checklistTitle + "»? Это действие нельзя отменить. Локальные данные и фотографии на устройстве не будут затронуты.")) return;
+        remove.disabled = true;
+        remove.textContent = "Удаление…";
+        try {
+          const { data: deleted, error: deleteError } = await api.client
+            .from("checklists")
+            .delete()
+            .eq("id", row.id)
+            .eq("owner_id", user.id)
+            .select("id")
+            .maybeSingle();
+          if (deleteError) throw deleteError;
+          if (!deleted?.id) throw new Error("Чек-лист не удалён: запись не найдена или нет прав.");
+          await loadCabinet();
+        } catch (error) {
+          remove.disabled = false;
+          remove.textContent = "Удалить";
+          window.alert(error?.message || "Не удалось удалить облачный чек-лист.");
+        }
+      });
+      actions.append(open, remove);
+      item.append(icon, info, revision, actions);
       list.append(item);
     }
   }
