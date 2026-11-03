@@ -222,6 +222,57 @@ test("photo uploads are rolled back when the cloud revision write fails", async 
   assert.deepEqual(calls, [["upload", 5], ["update"], ["remove", 1]]);
 });
 
+
+test("new local checklist in the same mode gets its own cloud row and does not reuse the previous reference", async () => {
+  const values = new Map();
+  const calls = [];
+  const userStorageKey = "checklist_complex::user:" + USER;
+  const states = [
+    { general: { type: "ВЛ80", number: "old" }, values: {} },
+    { general: { type: "ВЛ80", number: "new" }, values: {} },
+  ];
+  let activeState = states[0];
+  let identityIndex = 0;
+  const identities = [
+    "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+  ];
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: {
+      getItem(key) { return values.get(key) ?? null; },
+      setItem(key, value) { values.set(key, String(value)); },
+    },
+    getState: () => activeState,
+    getMode: () => "complex",
+    getStorageKey: () => userStorageKey,
+    identityFactory: () => identities[identityIndex++],
+    cloudApi: {
+      async create(input) {
+        calls.push({ action: "create", id: input.id, title: input.title });
+        return { id: input.id, revision: 1 };
+      },
+      async update(input) {
+        calls.push({ action: "update", id: input.id, expectedRevision: input.expectedRevision });
+        return { id: input.id, revision: input.expectedRevision + 1 };
+      },
+    },
+  });
+
+  const first = await backup.saveCurrent();
+  activeState = states[1];
+  const second = await backup.saveCurrent();
+  const secondAgain = await backup.saveCurrent();
+
+  assert.equal(first.created, true);
+  assert.equal(second.created, true);
+  assert.equal(secondAgain.created, false);
+  assert.deepEqual(calls.map((call) => call.action), ["create", "create", "update"]);
+  assert.notEqual(calls[0].id, calls[1].id);
+  assert.equal(calls[2].id, calls[1].id);
+  assert.equal(calls[2].expectedRevision, 1);
+});
+
 test("cloud save calculates completion and deviations from configured field ok-values", async () => {
   const h = makeHarness();
   h.state.values = {
