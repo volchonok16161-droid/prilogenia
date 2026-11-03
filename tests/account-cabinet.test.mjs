@@ -139,4 +139,6 @@ test("account cabinet displays saved checklist completion and deviation metrics"
   assert.match(html, /Заполнение: /);
   assert.match(html, /Несоответствия: /);
   assert.match(html, /progress-fill/);
+  assert.match(html, /checklist_type:payload->>checklistType/);
+  assert.match(html, /row\.checklist_type \|\| categoryByMode\[row\.mode\]/);
 });
