@@ -17,7 +17,7 @@ test("the explicit cloud backup button is injected into embedded checklist footb
 
 test("the embedded bridge exposes live checklist state and the scoped storage key", () => {
   assert.match(html, /window\.__TMH_GET_CLOUD_BACKUP_CONTEXT=function\(\)/);
-  assert.match(html, /state:STATE,mode:\$\{JSON\.stringify\(mode\|\|\(\(typeof MODE==='undefined'\)\?'unknown':MODE\)\)\},storageKey:LS_KEY,/);
+  assert.match(html, /state:STATE,persistState:function(){return saveState(true);},definitions:/);
   assert.match(html, /getStorageKey:function\(\)\{return getContext\(\)\.storageKey;\}/);
   assert.match(html, /authApi:api/);
 });
@@ -73,7 +73,7 @@ test("native checklist offers explicit restore and snapshots local state before 
 
 test("restored native checklist is linked to the restored cloud row revision", () => {
   assert.match(html, /applyState:async function\(incoming,metadata\)/);
-  assert.match(html, /localStorage\.setItem\(LS_KEY\+'::cloud-ref',JSON\.stringify\(\{id:metadata\.id,revision:metadata\.revision\}\)\)/);
+  assert.match(html, /localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId,JSON.stringify({id:metadata.id,revision:metadata.revision}))/);
 });
 
 
@@ -86,7 +86,7 @@ test("embedded TT, BI and hydro checklists expose a mode-isolated cloud restore 
   assert.match(bridge, /items\.filter\(function\(item\)\{return item\.mode===context\.mode;\}\)/);
   assert.match(bridge, /beforeApply:async function\(\)\{await backup\.createSnapshot/);
   assert.match(bridge, /applyState:context\.applyState/);
-  assert.match(bridge, /localStorage\.setItem\(LS_KEY\+'::cloud-ref'/);
+  assert.match(bridge, /localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId/);
   assert.match(bridge, /_photo\$\/i\.test\(key\)/);
   assert.match(bridge, /window\.parent&&window\.parent\.TMHAuth/);
   assert.match(bridge, /Восстановить «'\+selected\.title/);
