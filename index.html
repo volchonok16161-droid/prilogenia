@@ -17572,7 +17572,9 @@ if(button){
   });
 }
 <\/script>`;
-return source.replace('</body>',bridge+'</body>');
+var bodyCloseIndex=source.lastIndexOf('</body>');
+if(bodyCloseIndex===-1)return source;
+return source.slice(0,bodyCloseIndex)+bridge+'</body>'+source.slice(bodyCloseIndex+'</body>'.length);
 }
 
 window.__tmhAttachCloudBackup = __tmhAttachCloudBackup;
