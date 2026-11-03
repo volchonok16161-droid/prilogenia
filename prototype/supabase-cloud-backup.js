@@ -19,28 +19,29 @@ function cloneWithoutPhotos(value, stats = { removed: 0 }) {
 
 function calculateChecklistStats(state, definitions = []) {
   const counters = { total: 0, answered: 0, deviations: 0 };
-  const byEquipment = new Map();
   for (const equipment of definitions || []) {
-    if (!equipment || typeof equipment.id !== "string" || !Array.isArray(equipment.fields)) continue;
-    byEquipment.set(equipment.id, equipment.fields.filter((field) => field && field.calc !== false));
-  }
-
-  for (const [instanceId, values] of Object.entries(state.values ?? {})) {
-    if (!values || typeof values !== "object" || Array.isArray(values)) continue;
-    const separator = instanceId.indexOf("|");
-    const equipmentId = separator < 0 ? instanceId : instanceId.slice(0, separator);
-    const fields = byEquipment.get(equipmentId);
-    if (!fields) continue;
-    for (const field of fields) {
-      if (field.type === "select" && Array.isArray(field.ok) && field.ok.length === 0) continue;
-      counters.total += 1;
-      const raw = values[field.key];
-      if (raw === null || raw === undefined || String(raw).trim() === "") continue;
-      counters.answered += 1;
-      if (raw === "Не требуется") continue;
-      if (Array.isArray(field.ok) && field.ok.length > 0 &&
-          !field.ok.some((accepted) => String(accepted).trim().toLowerCase() === String(raw).trim().toLowerCase())) {
-        counters.deviations += 1;
+    if (!equipment || typeof equipment.id !== "string") continue;
+    const fields = Array.isArray(equipment.fields) ? equipment.fields : [];
+    const instances = Array.isArray(equipment.instances) && equipment.instances.length
+      ? equipment.instances
+      : Object.keys(state.values ?? {})
+          .filter((id) => id.startsWith(equipment.id + "|"))
+          .map((id) => ({ id }));
+    for (const instance of instances) {
+      const instanceId = instance.id || [equipment.id, instance.section].join("|");
+      const values = state.values?.[instanceId] ?? {};
+      for (const field of (Array.isArray(instance.fields) ? instance.fields : fields)) {
+        if (!field || field.calc === false) continue;
+        if (field.type === "select" && Array.isArray(field.ok) && field.ok.length === 0) continue;
+        counters.total += 1;
+        const raw = values[field.key];
+        if (raw === null || raw === undefined || String(raw).trim() === "") continue;
+        counters.answered += 1;
+        if (String(raw).trim().toLowerCase() === "не требуется") continue;
+        if (Array.isArray(field.ok) && field.ok.length > 0 &&
+            !field.ok.some((accepted) => String(accepted).trim().toLowerCase() === String(raw).trim().toLowerCase())) {
+          counters.deviations += 1;
+        }
       }
     }
   }
