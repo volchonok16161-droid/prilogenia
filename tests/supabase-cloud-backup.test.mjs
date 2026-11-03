@@ -236,6 +236,7 @@ test("new local checklist in the same mode gets its own cloud row and does not r
   ];
   let activeState = states[0];
   let identityIndex = 0;
+  let persistedIdentities = 0;
   const identities = [
     "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
@@ -250,6 +251,7 @@ test("new local checklist in the same mode gets its own cloud row and does not r
     getMode: () => "complex",
     getStorageKey: () => userStorageKey,
     identityFactory: () => identities[identityIndex++],
+    persistState: () => { persistedIdentities += 1; return true; },
     cloudApi: {
       async create(input) {
         calls.push({ action: "create", id: input.id, title: input.title });
@@ -274,6 +276,7 @@ test("new local checklist in the same mode gets its own cloud row and does not r
   assert.notEqual(calls[0].id, calls[1].id);
   assert.equal(calls[2].id, calls[1].id);
   assert.equal(calls[2].expectedRevision, 1);
+  assert.equal(persistedIdentities, 2, "each newly identified local checklist is persisted before cloud writes");
 });
 
 test("cloud save calculates completion and deviations from configured field ok-values", async () => {
