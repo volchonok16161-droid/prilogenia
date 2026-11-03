@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -1041,7 +1041,8 @@ const restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');
 if(restoreButton){
   restoreButton.addEventListener('click',async function(){
     if(restoreButton.disabled)return;
-    if(!window.confirm('Загрузить список облачных копий? Текущие локальные данные будут сохранены в отдельную облачную копию перед восстановлением.'))return;
+    const requestedChecklistId=new URLSearchParams(window.location.search).get('openChecklist');
+    if(!requestedChecklistId&&!window.confirm('Загрузить список облачных копий? Текущие локальные данные будут сохранены в отдельную облачную копию перед восстановлением.'))return;
     restoreButton.disabled=true;
     const oldText=restoreButton.textContent;
     restoreButton.textContent='⏳ Загружаю список…';
@@ -1067,19 +1068,27 @@ if(restoreButton){
       });
       const items=await restore.listAvailable();
       if(!items.length){if(typeof showToast==='function')showToast('В облаке пока нет чек-листов');return;}
-      const lines=items.map(function(item,index){
-        return (index+1)+'. '+(item.title||'Без названия')+' · версия '+item.revision+' · '+(item.updatedAt||'дата неизвестна');
-      });
-      const choice=window.prompt('Выберите облачную копию по номеру:\n\n'+lines.join('\n')+'\n\nВведите номер из списка:');
-      if(choice===null)return;
-      const selectedIndex=Number(choice)-1;
-      if(!Number.isInteger(selectedIndex)||selectedIndex<0||selectedIndex>=items.length)throw new Error('Неверный номер облачной копии');
-      const selected=items[selectedIndex];
-      if(selected.mode!==context.mode)throw new Error('Эта копия относится к другому режиму чек-листа');
-      if(!window.confirm('Восстановить «'+selected.title+'»? Текущая локальная версия сначала будет сохранена в облако. Фотографии с этого устройства сохранятся.'))return;
+      let selected;
+      if(requestedChecklistId){
+        selected=items.find(function(item){return item.id===requestedChecklistId;});
+        if(!selected)throw new Error('Выбранный чек-лист не найден среди ваших облачных записей');
+        if(selected.mode!==context.mode)throw new Error('Выбранная запись относится к режиму «'+selected.mode+'», а открыт режим «'+context.mode+'». Вернитесь в личный кабинет и откройте запись ещё раз.');
+      }else{
+        const lines=items.map(function(item,index){
+          return (index+1)+'. '+(item.title||'Без названия')+' · версия '+item.revision+' · '+(item.updatedAt||'дата неизвестна');
+        });
+        const choice=window.prompt('Выберите облачную копию по номеру:\n\n'+lines.join('\n')+'\n\nВведите номер из списка:');
+        if(choice===null)return;
+        const selectedIndex=Number(choice)-1;
+        if(!Number.isInteger(selectedIndex)||selectedIndex<0||selectedIndex>=items.length)throw new Error('Неверный номер облачной копии');
+        selected=items[selectedIndex];
+        if(selected.mode!==context.mode)throw new Error('Эта копия относится к другому режиму чек-листа');
+        if(!window.confirm('Восстановить «'+selected.title+'»? Текущая локальная версия сначала будет сохранена в облако. Фотографии с этого устройства сохранятся.'))return;
+      }
       restoreButton.textContent='⏳ Создаю копию и восстанавливаю…';
       await restore.restore(selected.id);
-      if(typeof showToast==='function')showToast('Чек-лист восстановлен. Локальные фотографии сохранены.');
+      if(requestedChecklistId){try{const url=new URL(window.location.href);url.searchParams.delete('openChecklist');url.searchParams.delete('mode');window.history.replaceState(null,'',url.pathname+url.search+url.hash);}catch(e){}}
+      if(typeof showToast==='function')showToast('Чек-лист «'+(selected.title||'')+'» восстановлен. Локальные фотографии сохранены.');
       else window.alert('Чек-лист восстановлен. Локальные фотографии сохранены.');
     }catch(error){
       console.error('Cloud restore failed',error);
@@ -1207,7 +1216,8 @@ if(button){
     <div id="iframeBar">
         <button class="btn primary" id="iframeBackBtn">🔄 Сменить чек-лист</button>
         <b id="iframeModeLabel"></b>
-        <button class="btn" id="riskBtnBar" type="button" style="margin-left:auto;" title="Справочник: локомотивы, приписки, места осмотра">📍 Зона риска</button>
+        <a class="btn" id="iframeAccountCabinetLink" href="./account.html" style="margin-left:auto;text-decoration:none;display:inline-flex;align-items:center;" aria-label="Личный кабинет">👤 Личный кабинет</a>
+        <button class="btn" id="riskBtnBar" type="button" title="Справочник: локомотивы, приписки, места осмотра">📍 Зона риска</button>
         <button class="btn" id="helpBtnBar" type="button">📖 Инструкция</button>
     </div>
     <iframe id="embeddedFrame" title="Встроенный чек-лист"></iframe>
@@ -2769,9 +2779,15 @@ function __tmhInstallAuthWatcher(api) {
   api.onAuthStateChange(function(event, session) {
     if (window.__TMH_AUTH_ACTION) return;
     if (event === 'SIGNED_OUT') {
+      // This runtime may be hosted in an about:srcdoc iframe. Do not reload
+      // that document: lock writes and return to the login UI in place.
       window.__TMH_STORAGE_LOCKED = true;
       window.__TMH_STORAGE_UID = null;
-      window.location.reload();
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      if (typeof updateUserUI === 'function') updateUserUI();
+      var loginModal = document.getElementById('loginModal');
+      if (loginModal) loginModal.style.display = 'flex';
       return;
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
@@ -2779,8 +2795,16 @@ function __tmhInstallAuthWatcher(api) {
       // Embedded runtimes can observe the parent's SIGNED_IN event before
       // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
       if (activeUid && activeUid !== session.user.id) {
+        // A srcdoc document must not reload on an account mismatch: lock it
+        // and return to login in place, without writing under the new account.
         window.__TMH_STORAGE_LOCKED = true;
-        window.location.reload();
+        window.__TMH_STORAGE_UID = null;
+        currentUser = null;
+        try { localStorage.removeItem('checklist_user'); } catch (e) {}
+        if (typeof updateUserUI === 'function') updateUserUI();
+        var loginModal = document.getElementById('loginModal');
+        if (loginModal) loginModal.style.display = 'flex';
+        return;
       }
     }
   });
@@ -2812,6 +2836,7 @@ async function checkAuth() {
     try {
       localStorage.setItem('checklist_user', JSON.stringify({
         login: identity.user.email || '',
+        displayName: identity.profile.display_name || '',
         role: currentUser,
         profileRole: role,
         dev: role === 'developer',
@@ -2842,6 +2867,7 @@ async function doLogin(login, password) {
   try {
     localStorage.setItem('checklist_user', JSON.stringify({
       login: result.user.email || '',
+      displayName: result.profile.display_name || '',
       role: currentUser,
       profileRole: role,
       dev: role === 'developer',
@@ -2892,11 +2918,11 @@ function updateUserUI() {
             if (currentUser) {
                 info.style.display = 'flex';
                 if (currentUser === 'admin') {
-                    name.textContent = 'Администратор';
+                    name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Администратор';
                     role.textContent = '(admin)';
                     role.classList.remove('dim');
                 } else {
-                    name.textContent = 'Пользователь';
+                    name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Пользователь';
                     role.textContent = '(user)';
                     role.classList.add('dim');
                 }
@@ -4610,7 +4636,7 @@ function saveState(silent){
                 const numberVal = STATE.general.number || 'без_номера';
                 const baseName = \`\${date}_\${typeVal}_\${numberVal}_Чек-лист_ТТ\`;
                 const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-                a.download = \`\${safeBase}.xlsx\`;
+                a.download = safeBase + '.xlsx';
 
                 a.href = url;
                 a.click();
@@ -4651,7 +4677,7 @@ function saveState(silent){
             const numberVal = STATE.general.number || 'без_номера';
             const baseName = \`\${date}_\${typeVal}_\${numberVal}_Чек-лист_ТТ\`;
             const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-            a.download = \`\${safeBase}.html\`;
+            a.download = safeBase + '.html';
 
             a.href = url;
             document.body.appendChild(a);
@@ -4756,7 +4782,7 @@ function saveState(silent){
             const nv = STATE.general.number || '';
             const baseName = tv + (nv ? '_' + nv : '') + '_ТТ' + (includePhotos ? '_с_фото' : '_без_фото');
             const sb = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-            a.download = \`\${sb}.json\`;
+            a.download = sb + '.json';
             a.href = url; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
             showToast('✅ JSON экспортирован' + (includePhotos ? ' (с фото)' : ' (компактный)'));
         }
@@ -6394,9 +6420,15 @@ function __tmhInstallAuthWatcher(api) {
   api.onAuthStateChange(function(event, session) {
     if (window.__TMH_AUTH_ACTION) return;
     if (event === 'SIGNED_OUT') {
+      // This runtime may be hosted in an about:srcdoc iframe. Do not reload
+      // that document: lock writes and return to the login UI in place.
       window.__TMH_STORAGE_LOCKED = true;
       window.__TMH_STORAGE_UID = null;
-      window.location.reload();
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      if (typeof updateUserUI === 'function') updateUserUI();
+      var loginModal = document.getElementById('loginModal');
+      if (loginModal) loginModal.style.display = 'flex';
       return;
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
@@ -6404,8 +6436,16 @@ function __tmhInstallAuthWatcher(api) {
       // Embedded runtimes can observe the parent's SIGNED_IN event before
       // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
       if (activeUid && activeUid !== session.user.id) {
+        // A srcdoc document must not reload on an account mismatch: lock it
+        // and return to login in place, without writing under the new account.
         window.__TMH_STORAGE_LOCKED = true;
-        window.location.reload();
+        window.__TMH_STORAGE_UID = null;
+        currentUser = null;
+        try { localStorage.removeItem('checklist_user'); } catch (e) {}
+        if (typeof updateUserUI === 'function') updateUserUI();
+        var loginModal = document.getElementById('loginModal');
+        if (loginModal) loginModal.style.display = 'flex';
+        return;
       }
     }
   });
@@ -6437,6 +6477,7 @@ async function checkAuth() {
     try {
       localStorage.setItem('checklist_user', JSON.stringify({
         login: identity.user.email || '',
+        displayName: identity.profile.display_name || '',
         role: currentUser,
         profileRole: role,
         dev: role === 'developer',
@@ -6467,6 +6508,7 @@ async function doLogin(login, password) {
   try {
     localStorage.setItem('checklist_user', JSON.stringify({
       login: result.user.email || '',
+      displayName: result.profile.display_name || '',
       role: currentUser,
       profileRole: role,
       dev: role === 'developer',
@@ -6517,11 +6559,11 @@ function updateUserUI() {
             if (currentUser) {
                 info.style.display = 'flex';
                 if (currentUser === 'admin') {
-                    name.textContent = 'Администратор';
+                    name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Администратор';
                     role.textContent = '(admin)';
                     role.classList.remove('dim');
                 } else {
-                    name.textContent = 'Пользователь';
+                    name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Пользователь';
                     role.textContent = '(user)';
                     role.classList.add('dim');
                 }
@@ -8480,7 +8522,7 @@ function saveState(silent){
                 const numberVal = STATE.general.number || 'без_номера';
                 const baseName = \`\${date}_\${typeVal}_\${numberVal}_Чек-лист_МСУД-015\`;
                 const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-                a.download = \`\${safeBase}.xlsx\`;
+                a.download = safeBase + '.xlsx';
 
                 a.href = url;
                 a.click();
@@ -8521,7 +8563,7 @@ function saveState(silent){
             const numberVal = STATE.general.number || 'без_номера';
             const baseName = \`\${date}_\${typeVal}_\${numberVal}_Чек-лист_МСУД-015\`;
             const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-            a.download = \`\${safeBase}.html\`;
+            a.download = safeBase + '.html';
 
             a.href = url;
             document.body.appendChild(a);
@@ -8626,7 +8668,7 @@ function saveState(silent){
             const nv = STATE.general.number || '';
             const baseName = tv + (nv ? '_' + nv : '') + '_БИ' + (includePhotos ? '_с_фото' : '_без_фото');
             const sb = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-            a.download = \`\${sb}.json\`;
+            a.download = sb + '.json';
             a.href = url; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
             showToast('✅ JSON экспортирован' + (includePhotos ? ' (с фото)' : ' (компактный)'));
         }
@@ -8743,7 +8785,8 @@ function saveState(silent){
                     error.classList.add('show'); return; }
                 if (await doLogin(login, password)) {
                     error.classList.remove('show');
-                    showContinueDialogOrStart();
+                    if(new URLSearchParams(window.location.search).get('openChecklist')){const __restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');if(__restoreButton)__restoreButton.click();else showToast('Кнопка восстановления облачной записи недоступна');}
+                    else showContinueDialogOrStart();
                 } else {
                     error.textContent = 'Неверный логин или пароль';
                     error.classList.add('show');
@@ -9618,9 +9661,15 @@ function __tmhInstallAuthWatcher(api) {
   api.onAuthStateChange(function(event, session) {
     if (window.__TMH_AUTH_ACTION) return;
     if (event === 'SIGNED_OUT') {
+      // This runtime may be hosted in an about:srcdoc iframe. Do not reload
+      // that document: lock writes and return to the login UI in place.
       window.__TMH_STORAGE_LOCKED = true;
       window.__TMH_STORAGE_UID = null;
-      window.location.reload();
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      if (typeof updateUserUI === 'function') updateUserUI();
+      var loginModal = document.getElementById('loginModal');
+      if (loginModal) loginModal.style.display = 'flex';
       return;
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
@@ -9628,8 +9677,16 @@ function __tmhInstallAuthWatcher(api) {
       // Embedded runtimes can observe the parent's SIGNED_IN event before
       // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
       if (activeUid && activeUid !== session.user.id) {
+        // A srcdoc document must not reload on an account mismatch: lock it
+        // and return to login in place, without writing under the new account.
         window.__TMH_STORAGE_LOCKED = true;
-        window.location.reload();
+        window.__TMH_STORAGE_UID = null;
+        currentUser = null;
+        try { localStorage.removeItem('checklist_user'); } catch (e) {}
+        if (typeof updateUserUI === 'function') updateUserUI();
+        var loginModal = document.getElementById('loginModal');
+        if (loginModal) loginModal.style.display = 'flex';
+        return;
       }
     }
   });
@@ -9661,6 +9718,7 @@ async function checkAuth() {
     try {
       localStorage.setItem('checklist_user', JSON.stringify({
         login: identity.user.email || '',
+        displayName: identity.profile.display_name || '',
         role: currentUser,
         profileRole: role,
         dev: role === 'developer',
@@ -9691,6 +9749,7 @@ async function doLogin(login, password) {
   try {
     localStorage.setItem('checklist_user', JSON.stringify({
       login: result.user.email || '',
+      displayName: result.profile.display_name || '',
       role: currentUser,
       profileRole: role,
       dev: role === 'developer',
@@ -9741,11 +9800,11 @@ function updateUserUI() {
   if (currentUser) {
     info.style.display = 'flex';
     if (currentUser === 'admin') {
-      name.textContent = 'Администратор';
+      name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Администратор';
       role.textContent = '(admin)';
       role.classList.remove('dim');
     } else {
-      name.textContent = 'Пользователь';
+      name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Пользователь';
       role.textContent = '(user)';
       role.classList.add('dim');
     }
@@ -13063,7 +13122,7 @@ function exportJson() {
   const numberVal = STATE.general.number || '';
   const baseName = typeVal + (numberVal ? '_' + numberVal : '') + '_гидродемпферы';
   const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-  a.download = \`\${safeBase}.json\`;
+  a.download = safeBase + '.json';
   a.href = url;
   document.body.appendChild(a);
   a.click();
@@ -13411,7 +13470,7 @@ async function exportWithPhotos() { try{await __psReady();}catch(e){}
     const numberVal = STATE.general.number || 'без_номера';
     const baseName = \`\${date}_\${typeVal}_\${numberVal}_Чек-лист_Гидродемпферы\`;
     const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-    a.download = \`\${safeBase}.xlsx\`;
+    a.download = safeBase + '.xlsx';
     a.href = url;
     a.click();
     URL.revokeObjectURL(url);
@@ -13459,7 +13518,7 @@ function saveAsHtmlFile() {
   const numberVal = STATE.general.number || '';
   const baseName = typeVal + (numberVal ? '_' + numberVal : '');
   const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-  a.download = \`чек-лист_гидродемпферы_\${safeBase}.html\`;
+  a.download = 'чек-лист_гидродемпферы_' + safeBase + '.html';
   a.href = url;
   document.body.appendChild(a);
   a.click();
@@ -14190,9 +14249,15 @@ function __tmhInstallAuthWatcher(api) {
   api.onAuthStateChange(function(event, session) {
     if (window.__TMH_AUTH_ACTION) return;
     if (event === 'SIGNED_OUT') {
+      // This runtime may be hosted in an about:srcdoc iframe. Do not reload
+      // that document: lock writes and return to the login UI in place.
       window.__TMH_STORAGE_LOCKED = true;
       window.__TMH_STORAGE_UID = null;
-      window.location.reload();
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      if (typeof updateUserUI === 'function') updateUserUI();
+      var loginModal = document.getElementById('loginModal');
+      if (loginModal) loginModal.style.display = 'flex';
       return;
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
@@ -14200,8 +14265,16 @@ function __tmhInstallAuthWatcher(api) {
       // Embedded runtimes can observe the parent's SIGNED_IN event before
       // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
       if (activeUid && activeUid !== session.user.id) {
+        // A srcdoc document must not reload on an account mismatch: lock it
+        // and return to login in place, without writing under the new account.
         window.__TMH_STORAGE_LOCKED = true;
-        window.location.reload();
+        window.__TMH_STORAGE_UID = null;
+        currentUser = null;
+        try { localStorage.removeItem('checklist_user'); } catch (e) {}
+        if (typeof updateUserUI === 'function') updateUserUI();
+        var loginModal = document.getElementById('loginModal');
+        if (loginModal) loginModal.style.display = 'flex';
+        return;
       }
     }
   });
@@ -14233,6 +14306,7 @@ async function checkAuth() {
     try {
       localStorage.setItem('checklist_user', JSON.stringify({
         login: identity.user.email || '',
+        displayName: identity.profile.display_name || '',
         role: currentUser,
         profileRole: role,
         dev: role === 'developer',
@@ -14263,6 +14337,7 @@ async function doLogin(login, password) {
   try {
     localStorage.setItem('checklist_user', JSON.stringify({
       login: result.user.email || '',
+      displayName: result.profile.display_name || '',
       role: currentUser,
       profileRole: role,
       dev: role === 'developer',
@@ -14306,7 +14381,7 @@ async function doLogout() {
   }
 }
 
-function updateUserUI(){const info=document.getElementById('userInfo');const name=document.getElementById('userName');const role=document.getElementById('userRole');if(currentUser){info.style.display='flex';if(currentUser==='admin'){name.textContent='Администратор';role.textContent='(admin)';role.classList.remove('dim');}else{name.textContent='Пользователь';role.textContent='(user)';role.classList.add('dim');}}else{info.style.display='none';}}
+function updateUserUI(){const info=document.getElementById('userInfo');const name=document.getElementById('userName');const role=document.getElementById('userRole');if(currentUser){info.style.display='flex';if(currentUser==='admin'){name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Администратор';role.textContent='(admin)';role.classList.remove('dim');}else{name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Пользователь';role.textContent='(user)';role.classList.add('dim');}}else{info.style.display='none';}}
 
 /* ========================================================================
    ДАННЫЕ ИЗ КЖЦ
@@ -14346,8 +14421,9 @@ const LS_KEY_HOUSINGS='checklist_housings_v4';
 const EMBEDDED_MODES=[];
 const ALL_MODES=['complex','housings','tt','bi','hydro'];
 const MODE_NAMES={complex:'Комплексный',housings:'Только Кожуха',tt:'ТТ',bi:'БИ',hydro:'Гидродемпферы'};
-let MODE=(typeof window.__MODE__!=='undefined')?window.__MODE__:'complex';
-if(MODE!=='housings'&&!/^k_/.test(String(MODE)))MODE='complex';
+const __openModeParam=new URLSearchParams(window.location.search).get('mode');
+let MODE=(__openModeParam||((typeof window.__MODE__!=='undefined')?window.__MODE__:'complex'));
+if(MODE!=='complex'&&MODE!=='housings'&&!/^k_/.test(String(MODE)))MODE='complex';
 let LS_KEY=(MODE==='housings')?LS_KEY_HOUSINGS:((MODE!=='complex')?('checklist_custom_'+MODE+'_v1'):LS_KEY_COMPLEX);
 try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}
 
@@ -15424,7 +15500,7 @@ const nv=STATE.general.number||'';
 const modeName=__modeLabel();
 const baseName=tv+(nv?'_'+nv:'')+'_'+modeName+(includePhotos?'_с_фото':'_без_фото');
 const sb=baseName.replace(/[\\/\\\\:*?"<>|]/g,'_');
-a.download=\`\${sb}.json\`;
+a.download=sb+'.json';
 a.href=url;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 showToast('✅ JSON экспортирован'+(includePhotos?' (с фото)':' (компактный)'));
 }
@@ -15447,7 +15523,7 @@ const url=URL.createObjectURL(blob);const a=document.createElement('a');
 const tv=STATE.general.type||'без_серии';const nv=STATE.general.number||'';
 const modeName=__modeLabel();
 const baseName=tv+(nv?'_'+nv:'')+'_'+modeName;const sb=baseName.replace(/[\\/\\\\:*?"<>|]/g,'_');
-a.download=\`чек-лист_\${sb}.html\`;a.href=url;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showToast('✅ Файл сохранён');}
+a.download='чек-лист_'+sb+'.html';a.href=url;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showToast('✅ Файл сохранён');}
 
 // ========================================================================
 // ВЫБОР РЕЖИМА / ПЕРЕКЛЮЧЕНИЕ
@@ -15458,120 +15534,10 @@ function updateModeTitle(){const h1=document.getElementById('modeTitle');const s
    ВСТРАИВАЕМЫЕ ЧЕК-ЛИСТЫ (ТТ / БИ / Гидродемпфер) — изолированные iframe
    ======================================================================== */
 function b64ToUtf8(b64){const binary=atob(b64);const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return new TextDecoder('utf-8').decode(bytes);}
-function __tmhAttachCloudBackup(source, mode){
-if(typeof source!=='string'||!source||source.indexOf('id="tmhCloudBackupBtn"')!==-1)return source;
-var footbar='<div class="footbar">';
-if(source.indexOf(footbar)===-1)return source;
-source=source.replace(footbar,footbar+'\n<button class="btn" id="tmhCloudBackupBtn" type="button">☁️ Сохранить в облако</button>\n<button class="btn" id="tmhCloudRestoreBtn" type="button">☁️ Восстановить из облака</button>');
-var bridge=`<script>
-(function(){
-  try {
-    window.__TMH_GET_CLOUD_BACKUP_CONTEXT=function(){
-      return {
-        state:STATE,mode:${JSON.stringify(mode||((typeof MODE==='undefined')?'unknown':MODE))},storageKey:LS_KEY,
-        applyState:async function(incoming,metadata){
-          if(!metadata||typeof metadata.id!=='string'||!Number.isSafeInteger(metadata.revision)||metadata.revision<1)throw new Error('Некорректная версия облачной записи');
-          await __psEnsureCloudReady();
-          var current=STATE||{},next=structuredClone(incoming);
-          var oldValues=current.values||{},newValues=next.values||(next.values={});
-          Object.keys(oldValues).forEach(function(iid){
-            var oldItem=oldValues[iid]||{},newItem=newValues[iid]||(newValues[iid]={});
-            Object.keys(oldItem).forEach(function(key){if(/_photo$/i.test(key)&&oldItem[key]&&!newItem[key])newItem[key]=oldItem[key];});
-          });
-          STATE=next;
-          var saved=saveState(true);
-          if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
-          await __psEnsureCloudReady();
-          localStorage.setItem(LS_KEY+'::cloud-ref',JSON.stringify({id:metadata.id,revision:metadata.revision}));
-          if(typeof buildEquipment==='function')buildEquipment(STATE.general&&STATE.general.type||'');
-          if(typeof renderGeneral==='function')renderGeneral();if(typeof renderPicker==='function')renderPicker();if(typeof renderEquip==='function')renderEquip();if(typeof updateStats==='function')updateStats();
-          return true;
-        }
-      };
-    };
-  } catch(e) { window.__TMH_CLOUD_BACKUP_CONTEXT_ERROR=String(e&&e.message||e); }
-})();
-<\/script>
-<script type="module">
-import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js';
-import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.js';
-import { createChecklistPhotoSync } from './prototype/supabase-cloud-photos.js';
-const restoreButton=document.getElementById('tmhCloudRestoreBtn');
-if(restoreButton){
-  restoreButton.addEventListener('click',async function(){
-    if(restoreButton.disabled)return;
-    if(!window.confirm('Открыть список облачных копий для режима '+${JSON.stringify(mode)}+'?'))return;
-    restoreButton.disabled=true;const oldText=restoreButton.textContent;restoreButton.textContent='⏳ Загружаю список…';
-    try{
-      const getContext=window.__TMH_GET_CLOUD_BACKUP_CONTEXT;
-      if(typeof getContext!=='function')throw new Error('Не удалось получить состояние встроенного чек-листа');
-      const api=window.parent&&window.parent.TMHAuth;
-      if(!api)throw new Error('Авторизация Supabase недоступна');
-      await __psEnsureCloudReady();
-      const context=getContext();
-      const photoSync=createChecklistPhotoSync({authApi:api});
-      const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,photoSync,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;}});
-      const restore=createChecklistCloudRestore({authApi:api,getMode:function(){return context.mode;},beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},hydrateState:async function(state,metadata,manifest){return (await photoSync.restoreState({state,checklistId:metadata.id,manifest})).state;},applyState:context.applyState});
-      const items=await restore.listAvailable(),matching=items.filter(function(item){return item.mode===context.mode;});
-      if(!matching.length){if(typeof showToast==='function')showToast('Для этого режима облачных копий пока нет');return;}
-      const lines=matching.map(function(item,index){return (index+1)+'. '+(item.title||'Без названия')+' · версия '+item.revision+' · '+(item.updatedAt||'дата неизвестна');});
-      const choice=window.prompt('Режим: '+context.mode+'\\nВыберите облачную копию по номеру:\\n\\n'+lines.join('\\n')+'\\n\\nВведите номер:');
-      if(choice===null)return;const selectedIndex=Number(choice)-1;
-      if(!Number.isInteger(selectedIndex)||selectedIndex<0||selectedIndex>=matching.length)throw new Error('Неверный номер облачной копии');
-      const selected=matching[selectedIndex];
-      if(!window.confirm('Восстановить «'+selected.title+'»? Текущая локальная версия сначала будет сохранена в облако. Локальные фотографии останутся на устройстве.'))return;
-      restoreButton.textContent='⏳ Создаю копию и восстанавливаю…';await restore.restore(selected.id);
-      if(typeof showToast==='function')showToast('Чек-лист восстановлен. Локальные фотографии сохранены.');else window.alert('Чек-лист восстановлен. Локальные фотографии сохранены.');
-    }catch(error){console.error('Embedded cloud restore failed',error);const message=String(error&&error.message||'Не удалось восстановить чек-лист');if(typeof showToast==='function')showToast(message);else window.alert(message);}
-    finally{restoreButton.disabled=false;restoreButton.textContent=oldText;}
-  });
-}
-const button=document.getElementById('tmhCloudBackupBtn');
-if(button){
-  button.addEventListener('click',async function(){
-    if(button.disabled)return;
-    if(!window.confirm('Сохранить текущий чек-лист и фотографии в приватное облако?'))return;
-    button.disabled=true;
-    const oldText=button.textContent;
-    button.textContent='⏳ Сохраняю…';
-    try{
-      const getContext=window.__TMH_GET_CLOUD_BACKUP_CONTEXT;
-      if(typeof getContext!=='function')throw new Error('Не удалось получить данные открытого чек-листа');
-      const api=window.parent&&window.parent.TMHAuth;
-      if(!api)throw new Error('Авторизация Supabase недоступна');
-      await __psEnsureCloudReady();
-      const photoSync=createChecklistPhotoSync({authApi:api});
-      const backup=createChecklistCloudBackup({
-        authApi:api,
-        storage:window.localStorage,
-        photoSync,
-        getState:function(){return getContext().state;},
-        getMode:function(){return getContext().mode;},
-        getStorageKey:function(){return getContext().storageKey;}
-      });
-      const result=await backup.saveCurrent();
-      const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
-      if(typeof showToast==='function')showToast(message+' · фотографий: '+result.photosUploaded);
-      else window.alert(message+'\nЗагружено фотографий: '+result.photosUploaded);
-    }catch(error){
-      console.error('Cloud backup failed',error);
-      const message=error&&error.code==='REVISION_CONFLICT'
-        ?'Облачная запись изменена в другом месте. Обновите данные и повторите.'
-        :String(error&&error.message||'Не удалось сохранить копию в облаке');
-      if(typeof showToast==='function')showToast(message);
-      else window.alert(message);
-    }finally{
-      button.disabled=false;
-      button.textContent=oldText;
-    }
-  });
-}
-<\/script>`;
-return source.replace('</body>',bridge+'</body>');
-}
+/* Cloud backup bridge is injected by the parent shell. */
 function getEmbeddedSource(mode){
 if(typeof EMBED_TT_HTML==='undefined')return '';if(mode==='tt')return EMBED_TT_HTML;if(mode==='bi')return EMBED_BI_HTML;if(mode==='hydro')return EMBED_HYDRO_HTML;return'';}
-function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];frame.srcdoc=__tmhAttachCloudBackup(getEmbeddedSource(mode),mode);host.style.display='flex';}
+function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];frame.srcdoc=window.__tmhAttachCloudBackup(getEmbeddedSource(mode),mode);host.style.display='flex';}
 function hideEmbeddedApp(){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');if(host)host.style.display='none';if(frame)frame.srcdoc='about:blank';if(nativeApp)nativeApp.style.display='';}
 
 async function selectModeAndStart(mode){
@@ -15591,9 +15557,10 @@ async function selectModeAndStart(mode){
     try{localStorage.setItem(MODE_KEY,mode);}catch(e){}
     closeModeModal();
     if(EMBEDDED_MODES.indexOf(mode)!==-1){
+        // Keep the selected checklist visible before and after login; auth gates data writes, not the UI.
+        showEmbeddedApp(mode);
         const hasAuth = await checkAuth();
         if(!hasAuth){document.getElementById('loginModal').style.display='flex';updateModePicker();return;}
-        showEmbeddedApp(mode);
         updateModePicker();
         return;
     }
@@ -16395,9 +16362,15 @@ function __tmhInstallAuthWatcher(api) {
   api.onAuthStateChange(function(event, session) {
     if (window.__TMH_AUTH_ACTION) return;
     if (event === 'SIGNED_OUT') {
+      // This runtime may be hosted in an about:srcdoc iframe. Do not reload
+      // that document: lock writes and return to the login UI in place.
       window.__TMH_STORAGE_LOCKED = true;
       window.__TMH_STORAGE_UID = null;
-      window.location.reload();
+      currentUser = null;
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+      if (typeof updateUserUI === 'function') updateUserUI();
+      var loginModal = document.getElementById('loginModal');
+      if (loginModal) loginModal.style.display = 'flex';
       return;
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
@@ -16405,8 +16378,16 @@ function __tmhInstallAuthWatcher(api) {
       // Embedded runtimes can observe the parent's SIGNED_IN event before
       // their own checkAuth() assigns a storage UID. Let checkAuth() scope them.
       if (activeUid && activeUid !== session.user.id) {
+        // A srcdoc document must not reload on an account mismatch: lock it
+        // and return to login in place, without writing under the new account.
         window.__TMH_STORAGE_LOCKED = true;
-        window.location.reload();
+        window.__TMH_STORAGE_UID = null;
+        currentUser = null;
+        try { localStorage.removeItem('checklist_user'); } catch (e) {}
+        if (typeof updateUserUI === 'function') updateUserUI();
+        var loginModal = document.getElementById('loginModal');
+        if (loginModal) loginModal.style.display = 'flex';
+        return;
       }
     }
   });
@@ -16438,6 +16419,7 @@ async function checkAuth() {
     try {
       localStorage.setItem('checklist_user', JSON.stringify({
         login: identity.user.email || '',
+        displayName: identity.profile.display_name || '',
         role: currentUser,
         profileRole: role,
         dev: role === 'developer',
@@ -16468,6 +16450,7 @@ async function doLogin(login, password) {
   try {
     localStorage.setItem('checklist_user', JSON.stringify({
       login: result.user.email || '',
+      displayName: result.profile.display_name || '',
       role: currentUser,
       profileRole: role,
       dev: role === 'developer',
@@ -16511,7 +16494,7 @@ async function doLogout() {
   }
 }
 
-function updateUserUI(){const info=document.getElementById('userInfo');const name=document.getElementById('userName');const role=document.getElementById('userRole');if(currentUser){info.style.display='flex';if(currentUser==='admin'){const __d=(function(){try{return JSON.parse(localStorage.getItem('checklist_user')).dev===true;}catch(e){return false;}})();name.textContent=__d?'Разработчик':'Администратор';role.textContent=__d?'(developer)':'(admin)';role.classList.remove('dim');}else{name.textContent='Пользователь';role.textContent='(user)';role.classList.add('dim');}}else{info.style.display='none';}}
+function updateUserUI(){const info=document.getElementById('userInfo');const name=document.getElementById('userName');const role=document.getElementById('userRole');if(currentUser){info.style.display='flex';if(currentUser==='admin'){const __d=(function(){try{return JSON.parse(localStorage.getItem('checklist_user')).dev===true;}catch(e){return false;}})();name.textContent=(function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})()||(__d?'Разработчик':'Администратор');role.textContent=__d?'(developer)':'(admin)';role.classList.remove('dim');}else{name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Пользователь';role.textContent='(user)';role.classList.add('dim');}}else{info.style.display='none';}}
 
 /* ========================================================================
    ДАННЫЕ ИЗ КЖЦ
@@ -16555,6 +16538,7 @@ let MODE=null;
 let LS_KEY=LS_KEY_COMPLEX;
 if(typeof __EMBEDDED_MODE!=='undefined'&&__EMBEDDED_MODE){MODE=__EMBEDDED_MODE;const el=document.getElementById('__embedded_mode');if(el)el.parentNode.removeChild(el);}
 try{const sm=localStorage.getItem(MODE_KEY);if(ALL_MODES.indexOf(sm)!==-1)MODE=sm;}catch(e){}
+try{const __urlMode=new URLSearchParams(window.location.search).get('mode');if(__urlMode&&ALL_MODES.indexOf(__urlMode)!==-1)MODE=__urlMode;}catch(e){}
 if(MODE){try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}}
 if(MODE==='housings')LS_KEY=LS_KEY_HOUSINGS;
 
@@ -17502,6 +17486,135 @@ function b64ToUtf8(b64){const binary=atob(b64);const bytes=new Uint8Array(binary
 const NB514_OLD_JS = "instances(){const out=[];for(const section of sections){for(const blk of['M1','M2','M3','M4'])out.push({section,block:blk});}return out;}}";
 const NB514_NEW_JS = "instances(){const out=[];sections.forEach(section=>{const secNum=parseInt(String(section).replace(/[^\\d]/g,''),10)||1;for(let m=1;m<=4;m++){out.push({section,block:'M'+((secNum-1)*4+m)});}});return out;}}";
 
+function __tmhAttachCloudBackup(source, mode){
+if(typeof source!=='string'||!source||source.indexOf('id="tmhCloudBackupBtn"')!==-1)return source;
+var footbar='<div class="footbar">';
+if(source.indexOf(footbar)===-1)return source;
+source=source.replace(footbar,footbar+'\n<button class="btn" id="tmhCloudBackupBtn" type="button">☁️ Сохранить в облако</button>\n<button class="btn" id="tmhCloudRestoreBtn" type="button">☁️ Восстановить из облака</button>');
+var bridge=`<script>
+(function(){
+  try {
+    window.__TMH_GET_CLOUD_BACKUP_CONTEXT=function(){
+      return {
+        state:STATE,mode:${JSON.stringify(mode||((typeof MODE==='undefined')?'unknown':MODE))},storageKey:LS_KEY,
+        applyState:async function(incoming,metadata){
+          if(!metadata||typeof metadata.id!=='string'||!Number.isSafeInteger(metadata.revision)||metadata.revision<1)throw new Error('Некорректная версия облачной записи');
+          await __psEnsureCloudReady();
+          var current=STATE||{},next=structuredClone(incoming);
+          var oldValues=current.values||{},newValues=next.values||(next.values={});
+          Object.keys(oldValues).forEach(function(iid){
+            var oldItem=oldValues[iid]||{},newItem=newValues[iid]||(newValues[iid]={});
+            Object.keys(oldItem).forEach(function(key){if(/_photo$/i.test(key)&&oldItem[key]&&!newItem[key])newItem[key]=oldItem[key];});
+          });
+          STATE=next;
+          var saved=saveState(true);
+          if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
+          await __psEnsureCloudReady();
+          localStorage.setItem(LS_KEY+'::cloud-ref',JSON.stringify({id:metadata.id,revision:metadata.revision}));
+          if(typeof buildEquipment==='function')buildEquipment(STATE.general&&STATE.general.type||'');
+          if(typeof renderGeneral==='function')renderGeneral();if(typeof renderPicker==='function')renderPicker();if(typeof renderEquip==='function')renderEquip();if(typeof updateStats==='function')updateStats();
+          return true;
+        }
+      };
+    };
+  } catch(e) { window.__TMH_CLOUD_BACKUP_CONTEXT_ERROR=String(e&&e.message||e); }
+})();
+<\/script>
+<script type="module">
+import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js';
+import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.js';
+import { createChecklistPhotoSync } from './prototype/supabase-cloud-photos.js';
+const restoreButton=document.getElementById('tmhCloudRestoreBtn');
+const __autoOpenChecklistId=(function(){try{return new URLSearchParams(window.parent.location.search).get('openChecklist');}catch(e){return null;}})();
+if(restoreButton){
+  restoreButton.addEventListener('click',async function(){
+    if(restoreButton.disabled)return;
+    const requestedChecklistId=__autoOpenChecklistId;
+    if(!requestedChecklistId&&!window.confirm('Открыть список облачных копий для режима '+${JSON.stringify(mode)}+'?'))return;
+    restoreButton.disabled=true;const oldText=restoreButton.textContent;restoreButton.textContent='⏳ Загружаю список…';
+    try{
+      const getContext=window.__TMH_GET_CLOUD_BACKUP_CONTEXT;
+      if(typeof getContext!=='function')throw new Error('Не удалось получить состояние встроенного чек-листа');
+      const parentWindow=window.parent;
+      const api=parentWindow&&(parentWindow.TMHAuthReady?await parentWindow.TMHAuthReady:parentWindow.TMHAuth);
+      if(!api)throw new Error('Авторизация Supabase недоступна');
+      // The srcdoc module runs before DOMContentLoaded. Scope local storage to the
+      // signed-in user before the safety snapshot or cloud restore can run.
+      if(typeof checkAuth!=='function'||!(await checkAuth()))throw new Error('Сначала войдите в аккаунт Supabase');
+      await __psEnsureCloudReady();
+      const context=getContext();
+      const photoSync=createChecklistPhotoSync({authApi:api});
+      const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,photoSync,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;}});
+      const restore=createChecklistCloudRestore({authApi:api,getMode:function(){return context.mode;},beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},hydrateState:async function(state,metadata,manifest){return (await photoSync.restoreState({state,checklistId:metadata.id,manifest})).state;},applyState:context.applyState});
+      const __openId=(function(){try{return new URLSearchParams(window.parent.location.search).get('openChecklist');}catch(e){return null;}})();
+      if(__openId){
+        await restore.restore(__openId);
+        try{window.parent.history.replaceState(null,'',window.parent.location.pathname+window.parent.location.hash);}catch(e){}
+        if(typeof showToast==='function')showToast('Чек-лист открыт из личного кабинета');
+        return;
+      }
+      const items=await restore.listAvailable(),matching=items.filter(function(item){return item.mode===context.mode;});
+      if(!matching.length){if(typeof showToast==='function')showToast('Для этого режима облачных копий пока нет');return;}
+      const lines=matching.map(function(item,index){return (index+1)+'. '+(item.title||'Без названия')+' · версия '+item.revision+' · '+(item.updatedAt||'дата неизвестна');});
+      const choice=window.prompt('Режим: '+context.mode+'\\nВыберите облачную копию по номеру:\\n\\n'+lines.join('\\n')+'\\n\\nВведите номер:');
+      if(choice===null)return;const selectedIndex=Number(choice)-1;
+      if(!Number.isInteger(selectedIndex)||selectedIndex<0||selectedIndex>=matching.length)throw new Error('Неверный номер облачной копии');
+      const selected=matching[selectedIndex];
+      if(!window.confirm('Восстановить «'+selected.title+'»? Текущая локальная версия сначала будет сохранена в облако. Локальные фотографии останутся на устройстве.'))return;
+      restoreButton.textContent='⏳ Создаю копию и восстанавливаю…';await restore.restore(selected.id);
+      if(typeof showToast==='function')showToast('Чек-лист восстановлен. Локальные фотографии сохранены.');else window.alert('Чек-лист восстановлен. Локальные фотографии сохранены.');
+    }catch(error){console.error('Embedded cloud restore failed',error);const message=String(error&&error.message||'Не удалось восстановить чек-лист');if(typeof showToast==='function')showToast(message);else window.alert(message);}
+    finally{restoreButton.disabled=false;restoreButton.textContent=oldText;}
+  });
+  if(__autoOpenChecklistId){Promise.resolve().then(function(){restoreButton.click();});}
+}
+const button=document.getElementById('tmhCloudBackupBtn');
+if(button){
+  button.addEventListener('click',async function(){
+    if(button.disabled)return;
+    if(!window.confirm('Сохранить текущий чек-лист и фотографии в приватное облако?'))return;
+    button.disabled=true;
+    const oldText=button.textContent;
+    button.textContent='⏳ Сохраняю…';
+    try{
+      const getContext=window.__TMH_GET_CLOUD_BACKUP_CONTEXT;
+      if(typeof getContext!=='function')throw new Error('Не удалось получить данные открытого чек-листа');
+      const api=window.parent&&window.parent.TMHAuth;
+      if(!api)throw new Error('Авторизация Supabase недоступна');
+      await __psEnsureCloudReady();
+      const photoSync=createChecklistPhotoSync({authApi:api});
+      const backup=createChecklistCloudBackup({
+        authApi:api,
+        storage:window.localStorage,
+        photoSync,
+        getState:function(){return getContext().state;},
+        getMode:function(){return getContext().mode;},
+        getStorageKey:function(){return getContext().storageKey;}
+      });
+      const result=await backup.saveCurrent();
+      const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
+      if(typeof showToast==='function')showToast(message+' · фотографий: '+result.photosUploaded);
+      else window.alert(message+'\\nЗагружено фотографий: '+result.photosUploaded);
+    }catch(error){
+      console.error('Cloud backup failed',error);
+      const message=error&&error.code==='REVISION_CONFLICT'
+        ?'Облачная запись изменена в другом месте. Обновите данные и повторите.'
+        :String(error&&error.message||'Не удалось сохранить копию в облаке');
+      if(typeof showToast==='function')showToast(message);
+      else window.alert(message);
+    }finally{
+      button.disabled=false;
+      button.textContent=oldText;
+    }
+  });
+}
+<\/script>`;
+var bodyCloseIndex=source.lastIndexOf('</body>');
+if(bodyCloseIndex===-1)return source;
+return source.slice(0,bodyCloseIndex)+bridge+'</body>'+source.slice(bodyCloseIndex+'</body>'.length);
+}
+
+window.__tmhAttachCloudBackup = __tmhAttachCloudBackup;
 function getEmbeddedSource(mode){
     let html = '';
     if(mode==='tt')          html = EMBED_TT_HTML;
@@ -17521,7 +17634,7 @@ function getEmbeddedSource(mode){
     // справочник локомотивов/приписок/мест осмотра берём из zona_riska.xlsx (если файл прочитан)
     return (window.__RISK_CORE__ ? window.__RISK_CORE__.applyRegistry(html, mode) : html);
 }
-function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];host.style.display='flex';var __go=function(){if(host.style.display==='none')return;frame.srcdoc=__tmhAttachCloudBackup(getEmbeddedSource(mode),mode);};if(window.__RISK_CORE__)window.__RISK_CORE__.ready(2500).then(__go,__go);else __go();}
+function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];host.style.display='flex';var __go=function(){if(host.style.display==='none')return;frame.srcdoc=window.__tmhAttachCloudBackup(getEmbeddedSource(mode),mode);};if(window.__RISK_CORE__)window.__RISK_CORE__.ready(2500).then(__go,__go);else __go();}
 function hideEmbeddedApp(){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');if(host)host.style.display='none';if(frame)frame.srcdoc='about:blank';if(nativeApp)nativeApp.style.display='';}
 
 async function selectModeAndStart(mode){
@@ -17655,7 +17768,7 @@ function setupCommonHandlers(){
         const p=document.getElementById('passwordInput').value;
         const err=document.getElementById('loginError');
         if(!l||!p){err.textContent='Заполните все поля';err.classList.add('show');return;}
-        if (await doLogin(l,p)){err.classList.remove('show');showContinueDialogOrStart();}
+        if (await doLogin(l,p)){err.classList.remove('show');if(MODE&&EMBEDDED_MODES.indexOf(MODE)!==-1)showEmbeddedApp(MODE);else showContinueDialogOrStart();}
         else{err.textContent='Неверный логин или пароль';err.classList.add('show');}
     };
     document.getElementById('loginInput').onkeypress=function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();};
@@ -17733,9 +17846,10 @@ async function init(){
     }
 
     if(EMBEDDED_MODES.indexOf(MODE)!==-1){
+        // Render the same checklist immediately; authentication only unlocks its storage.
+        showEmbeddedApp(MODE);
         const hasAuth = await checkAuth();
         if(!hasAuth){document.getElementById('loginModal').style.display='flex';setupCommonHandlers();return;}
-        showEmbeddedApp(MODE);
         updateModePicker();
         setupCommonHandlers();
         return;
@@ -17744,7 +17858,9 @@ async function init(){
     updateModeTitle();
     updateModePicker();
     const hasAuth = await checkAuth();
+    const __requestedChecklistId=new URLSearchParams(window.location.search).get('openChecklist');
     if(!hasAuth)document.getElementById('loginModal').style.display='flex';
+    else if(__requestedChecklistId){document.getElementById('continueDialog').style.display='none';const __restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');if(__restoreButton)__restoreButton.click();else showToast('Кнопка восстановления облачной записи недоступна');}
     else showContinueDialogOrStart();
     setupCommonHandlers();
 }

@@ -17,3 +17,17 @@ test("cabinet link is navigation only and does not alter checklist save behavior
   assert.match(html, /id="tmhNativeCloudBackupBtn"/);
   assert.match(html, /id="btnSave"/);
 });
+
+
+test("authenticated checklist header uses the profile display name", () => {
+  assert.match(html, /displayName: identity\.profile\.display_name \|\| ''/);
+  assert.match(html, /displayName: result\.profile\.display_name \|\| ''/);
+  assert.match(html, /checklist_user'\)\|\|'\{\}'\)\.displayName/);
+});
+
+test("embedded checklist header provides direct navigation to the personal cabinet", () => {
+  const iframeBar = html.split('<div id="iframeBar">')[1]?.split("</div>")[0] || "";
+  assert.match(iframeBar, /id="iframeAccountCabinetLink" href="\.\/account\.html"/);
+  assert.match(iframeBar, /Личный кабинет/);
+  assert.ok(html.includes('id="accountCabinetLink" href="./account.html"'));
+});

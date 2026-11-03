@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - development/account-system
+      - fix/srcdoc-signed-out-no-reload
   pull_request:
     branches:
       - development/account-system
+      - fix/auth-watcher-embedded-signin
 
 jobs:
   storage-isolation:
