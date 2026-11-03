@@ -113,6 +113,11 @@ export function createChecklistCloudBackup({
         error.code = "CHECKLIST_IDENTITY_UNAVAILABLE";
         throw error;
       }
+      if (persistState() === false) {
+        const error = new Error("Не удалось сохранить идентификатор чек-листа локально");
+        error.code = "CHECKLIST_IDENTITY_UNAVAILABLE";
+        throw error;
+      }
     }
 
     const refKey = storageKey + "::cloud-ref::" + localChecklistId;
