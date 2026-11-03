@@ -17,6 +17,32 @@ function cloneWithoutPhotos(value, stats = { removed: 0 }) {
   return result;
 }
 
+function calculateChecklistStats(state) {
+  const counters = { total: 0, answered: 0, deviations: 0 };
+  const deviationValues = new Set(["no", "нет", "bad", "fail", "failed", "deviation", "несоответствие", "не соответствует", "false"]);
+  const visit = (value) => {
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (!value || typeof value !== "object") return;
+    if (Object.prototype.hasOwnProperty.call(value, "status")) {
+      counters.total += 1;
+      const raw = value.status;
+      if (raw !== null && raw !== undefined && String(raw).trim() !== "") {
+        counters.answered += 1;
+        const normalized = String(raw).trim().toLowerCase();
+        if (deviationValues.has(normalized)) counters.deviations += 1;
+      }
+    }
+    Object.values(value).forEach(visit);
+  };
+  visit(state.values ?? state);
+  return Object.freeze({
+    total: counters.total,
+    answered: counters.answered,
+    completionPercent: counters.total ? Math.round(counters.answered / counters.total * 100) : 0,
+    deviations: counters.deviations,
+  });
+}
+
 export function createChecklistCloudBackup({
   authApi,
   storage = globalThis.localStorage,
@@ -117,7 +143,7 @@ export function createChecklistCloudBackup({
     }
 
     storage.setItem(refKey, JSON.stringify({ id: row.id, revision: row.revision }));
-    return Object.freeze({ row, photosExcluded: stats.removed, photosUploaded: manifest.length, created: !reference });
+    return Object.freeze({ row, photosExcluded: stats.removed, photosUploaded: manifest.length, checklistStats, created: !reference });
   }
 
   async function createSnapshot({ label = "Перед восстановлением из облака" } = {}) {
