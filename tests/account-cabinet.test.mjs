@@ -30,10 +30,17 @@ test("account cabinet exposes a real Supabase sign-out action", () => {
   assert.match(html, /location\.replace\("\.\/index\.html"\)/);
 });
 
-test("account cabinet is read-only and contains no demo identity or fake counters", () => {
+test("account cabinet allows deleting only the selected cloud checklist owned by the current user", () => {
+  assert.match(html, /remove\.textContent = "Удалить"/);
+  assert.match(html, /window\.confirm\("Удалить облачный чек-лист/);
+  assert.match(html, /\.from\("checklists"\)[\s\S]*?\.delete\(\)[\s\S]*?\.eq\("id", row\.id\)[\s\S]*?\.eq\("owner_id", user\.id\)/);
+  assert.match(html, /\.select\("id"\)[\s\S]*?\.maybeSingle\(\)/);
+  assert.match(html, /if \(!deleted\?\.id\) throw new Error/);
+  assert.match(html, /await loadCabinet\(\)/);
+  assert.match(html, /Локальные данные и фотографии на устройстве не будут затронуты/);
+  assert.match(html, /Локальные данные и фотографии на устройстве не изменяются/);
   assert.doesNotMatch(html, /Иван Петров|12\s*<\/div>|демонстрационные сведения/i);
-  assert.doesNotMatch(html, /\.insert\(|\.upsert\(|\.delete\(/);
-  assert.doesNotMatch(html, /\.from\("checklists"\)[^;]*\.(?:insert|update|upsert|delete)\(/);
+  assert.doesNotMatch(html, /\.insert\(|\.upsert\(/);
   assert.match(html, /Облачных копий пока нет/);
 });
 
