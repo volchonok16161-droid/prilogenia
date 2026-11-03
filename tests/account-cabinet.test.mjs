@@ -133,3 +133,10 @@ test("initial profile render clears stale confirmation status and hides resend a
   assert.match(html, /const emailConfirmed = Boolean\(user\.email_confirmed_at\)/);
   assert.match(html, /emailConfirmStatus"\)\.textContent = emailConfirmed \? "Адрес электронной почты подтверждён\."/);
 });
+
+test("account cabinet displays saved checklist completion and deviation metrics", () => {
+  assert.match(html, /stats:payload->stats/);
+  assert.match(html, /Заполнение: /);
+  assert.match(html, /Несоответствия: /);
+  assert.match(html, /progress-fill/);
+});
