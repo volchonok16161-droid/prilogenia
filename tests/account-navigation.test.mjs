@@ -26,7 +26,7 @@ test("authenticated checklist header uses the profile display name", () => {
 });
 
 test("embedded checklist does not duplicate the cabinet link in a separate bar", () => {
-  const iframeBar = html.match(/<div id="iframeBar">([\\s\\S]*?)<\\/div>/)?.[1] || "";
-  assert.doesNotMatch(iframeBar, /account\\.html/);
-  assert.match(html, /id="accountCabinetLink" href="\\.\\/account\\.html"/);
+  const iframeBar = html.split('<div id="iframeBar">')[1]?.split("</div>")[0] || "";
+  assert.equal(iframeBar.includes("account.html"), false);
+  assert.ok(html.includes('id="accountCabinetLink" href="./account.html"'));
 });
