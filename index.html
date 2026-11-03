@@ -17538,6 +17538,9 @@ if(restoreButton){
       const parentWindow=window.parent;
       const api=parentWindow&&(parentWindow.TMHAuthReady?await parentWindow.TMHAuthReady:parentWindow.TMHAuth);
       if(!api)throw new Error('Авторизация Supabase недоступна');
+      // The srcdoc module runs before DOMContentLoaded. Scope local storage to the
+      // signed-in user before the safety snapshot or cloud restore can run.
+      if(typeof checkAuth!=='function'||!(await checkAuth()))throw new Error('Сначала войдите в аккаунт Supabase');
       await __psEnsureCloudReady();
       const context=getContext();
       const photoSync=createChecklistPhotoSync({authApi:api});
