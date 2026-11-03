@@ -229,9 +229,10 @@ test("cloud save calculates completion and deviations from configured field ok-v
     authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
     storage: { getItem: (key) => h.values.get(key) ?? null, setItem: (key, value) => h.values.set(key, String(value)) },
     getState: () => h.state,
-    getMode: () => "complex",
+    getMode: () => "housings",
     getStorageKey: () => "checklist_complex::user:" + USER,
-    getChecklistDefinitions: () => [{ id: "rt130", fields: [
+    getChecklistType: () => "КМБ",
+    getChecklistDefinitions: () => [{ id: "rt130", instances: [{ id: "rt130|section-1" }, { id: "rt130|section-2" }], fields: [
       { key: "f1", type: "select", ok: ["Да"], calc: true },
       { key: "f2", type: "select", ok: ["Да"], calc: true },
       { key: "f3", type: "select", ok: ["Да"], calc: true },
@@ -244,7 +245,7 @@ test("cloud save calculates completion and deviations from configured field ok-v
   });
   const result = await h.backup.saveCurrent();
   assert.deepEqual(result.checklistStats, {
-    total: 4, answered: 3, completionPercent: 75, deviations: 1,
+    total: 8, answered: 3, completionPercent: 38, deviations: 1,
   });
   assert.deepEqual(h.calls[0].input.payload.stats, result.checklistStats);
 });
