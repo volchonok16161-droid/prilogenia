@@ -240,6 +240,11 @@ async function loadCabinet() {
         remove.disabled = true;
         remove.textContent = "Удаление…";
         try {
+          const latestIdentity = await window.TMHAuth.getCurrentIdentity();
+          if (latestIdentity?.error) throw latestIdentity.error;
+          if (latestIdentity?.user?.id !== user.id) {
+            throw new Error("Сеанс пользователя изменился. Обновите кабинет и войдите снова.");
+          }
           const { data: deleted, error: deleteError } = await api.client
             .from("checklists")
             .delete()
