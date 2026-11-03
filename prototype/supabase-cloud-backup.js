@@ -19,20 +19,47 @@ function cloneWithoutPhotos(value, stats = { removed: 0 }) {
 
 function calculateChecklistStats(state) {
   const counters = { total: 0, answered: 0, deviations: 0 };
-  const deviationValues = new Set(["no", "нет", "bad", "fail", "failed", "deviation", "несоответствие", "не соответствует", "false"]);
-  const visit = (value) => {
-    if (Array.isArray(value)) { value.forEach(visit); return; }
+  const fallbackDeviationValues = new Set(["no", "нет", "bad", "fail", "failed", "deviation", "несоответствие", "не соответствует", "false"]);
+  const fieldDefinitions = new Map();
+
+  // Checklist schemas may be embedded in the state. Index their explicit
+  // "ok" values so deviations follow each field's own acceptance criteria.
+  const collectDefinitions = (value) => {
+    if (Array.isArray(value)) { value.forEach(collectDefinitions); return; }
     if (!value || typeof value !== "object") return;
-    if (Object.prototype.hasOwnProperty.call(value, "status")) {
+    if (Array.isArray(value.fields)) {
+      for (const field of value.fields) {
+        if (field && typeof field.key === "string" && Array.isArray(field.ok)) {
+          fieldDefinitions.set(field.key, {
+            ok: new Set(field.ok.map((item) => String(item).trim().toLowerCase())),
+            calc: field.calc,
+          });
+        }
+      }
+    }
+    Object.values(value).forEach(collectDefinitions);
+  };
+  collectDefinitions(state);
+
+  const visit = (value, parentKey = "") => {
+    if (Array.isArray(value)) { value.forEach((item) => visit(item)); return; }
+    if (!value || typeof value !== "object") return;
+
+    const fieldKey = value.fieldKey ?? value.field_key ?? value.key ?? parentKey;
+    const definition = typeof fieldKey === "string" ? fieldDefinitions.get(fieldKey) : null;
+    if (Object.prototype.hasOwnProperty.call(value, "status") && definition?.calc !== false) {
       counters.total += 1;
       const raw = value.status;
       if (raw !== null && raw !== undefined && String(raw).trim() !== "") {
         counters.answered += 1;
         const normalized = String(raw).trim().toLowerCase();
-        if (deviationValues.has(normalized)) counters.deviations += 1;
+        const isDeviation = definition
+          ? !definition.ok.has(normalized)
+          : fallbackDeviationValues.has(normalized);
+        if (isDeviation) counters.deviations += 1;
       }
     }
-    Object.values(value).forEach(visit);
+    for (const [key, item] of Object.entries(value)) visit(item, key);
   };
   visit(state.values ?? state);
   return Object.freeze({
