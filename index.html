@@ -15625,9 +15625,10 @@ if(button){
 <\/script>`;
 return source.replace('</body>',bridge+'</body>');
 }
+window.__tmhAttachCloudBackup = __tmhAttachCloudBackup;
 function getEmbeddedSource(mode){
 if(typeof EMBED_TT_HTML==='undefined')return '';if(mode==='tt')return EMBED_TT_HTML;if(mode==='bi')return EMBED_BI_HTML;if(mode==='hydro')return EMBED_HYDRO_HTML;return'';}
-function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];frame.srcdoc=__tmhAttachCloudBackup(getEmbeddedSource(mode),mode);host.style.display='flex';}
+function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];frame.srcdoc=window.__tmhAttachCloudBackup(getEmbeddedSource(mode),mode);host.style.display='flex';}
 function hideEmbeddedApp(){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');if(host)host.style.display='none';if(frame)frame.srcdoc='about:blank';if(nativeApp)nativeApp.style.display='';}
 
 async function selectModeAndStart(mode){
@@ -15647,9 +15648,10 @@ async function selectModeAndStart(mode){
     try{localStorage.setItem(MODE_KEY,mode);}catch(e){}
     closeModeModal();
     if(EMBEDDED_MODES.indexOf(mode)!==-1){
+        // Keep the selected checklist visible before and after login; auth gates data writes, not the UI.
+        showEmbeddedApp(mode);
         const hasAuth = await checkAuth();
         if(!hasAuth){document.getElementById('loginModal').style.display='flex';updateModePicker();return;}
-        showEmbeddedApp(mode);
         updateModePicker();
         return;
     }
@@ -17725,7 +17727,7 @@ function setupCommonHandlers(){
         const p=document.getElementById('passwordInput').value;
         const err=document.getElementById('loginError');
         if(!l||!p){err.textContent='Заполните все поля';err.classList.add('show');return;}
-        if (await doLogin(l,p)){err.classList.remove('show');showContinueDialogOrStart();}
+        if (await doLogin(l,p)){err.classList.remove('show');if(MODE&&EMBEDDED_MODES.indexOf(MODE)!==-1)showEmbeddedApp(MODE);else showContinueDialogOrStart();}
         else{err.textContent='Неверный логин или пароль';err.classList.add('show');}
     };
     document.getElementById('loginInput').onkeypress=function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();};
@@ -17803,9 +17805,10 @@ async function init(){
     }
 
     if(EMBEDDED_MODES.indexOf(MODE)!==-1){
+        // Render the same checklist immediately; authentication only unlocks its storage.
+        showEmbeddedApp(MODE);
         const hasAuth = await checkAuth();
         if(!hasAuth){document.getElementById('loginModal').style.display='flex';setupCommonHandlers();return;}
-        showEmbeddedApp(MODE);
         updateModePicker();
         setupCommonHandlers();
         return;
