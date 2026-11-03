@@ -177,15 +177,24 @@ export function createChecklistPhotoSync({
       fail("INVALID_MANIFEST", "Некорректные данные восстановления фотографий");
     }
 
-    const restored = structuredClone(state);
-    for (const entry of manifest) {
+    const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    const targets = new Set();
+    // Validate the entire manifest and all destination fields before any Storage reads.
+    const validated = manifest.map((entry) => {
       if (!entry || typeof entry.path !== "string" ||
           typeof entry.itemId !== "string" || typeof entry.field !== "string" ||
-          !ALLOWED_TYPES.has(entry.contentType)) {
+          !/_photo$/i.test(entry.field) || !ALLOWED_TYPES.has(entry.contentType)) {
         fail("INVALID_MANIFEST", "Некорректная запись фотографии в манифесте");
       }
+      const target = state.values?.[entry.itemId];
+      if (!target || typeof target !== "object" || Array.isArray(target)) {
+        fail("INVALID_MANIFEST", "Манифест фотографии не соответствует структуре чек-листа");
+      }
+      const targetKey = JSON.stringify([entry.itemId, entry.field]);
+      if (targets.has(targetKey)) fail("INVALID_MANIFEST", "В манифесте повторяется поле фотографии");
+      targets.add(targetKey);
+
       const parts = entry.path.split("/");
-      const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
       const validNewPath = parts.length === 4 && isUuid(parts[3]);
       const expectedFieldPrefix = segment(entry.field, "photo field") + "-";
       const validLegacyPath = parts.length === 5 &&
@@ -196,6 +205,11 @@ export function createChecklistPhotoSync({
           !/^[1-9][0-9]*$/.test(parts[2]) || (!validNewPath && !validLegacyPath)) {
         fail("INVALID_MANIFEST", "Путь фотографии не принадлежит текущему пользователю и чек-листу");
       }
+      return entry;
+    });
+
+    const restored = structuredClone(state);
+    for (const entry of validated) {
       const result = await storageApi.from(BUCKET).download(entry.path);
       const blob = storageError(result, "загрузка фотографии");
       if (!blob || typeof blob.arrayBuffer !== "function") fail("INVALID_PHOTO", "Supabase Storage вернул некорректный файл");
