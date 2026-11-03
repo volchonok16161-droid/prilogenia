@@ -248,4 +248,5 @@ test("cloud save calculates completion and deviations from configured field ok-v
     total: 8, answered: 3, completionPercent: 38, deviations: 1,
   });
   assert.deepEqual(h.calls[0].input.payload.stats, result.checklistStats);
+  assert.equal(h.calls[0].input.payload.checklistType, "КМБ");
 });
