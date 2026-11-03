@@ -4624,7 +4624,7 @@ function saveState(silent){
                 const numberVal = STATE.general.number || 'без_номера';
                 const baseName = \`\${date}_\${typeVal}_\${numberVal}_Чек-лист_ТТ\`;
                 const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-                a.download = \`\${safeBase}.xlsx\`;
+                a.download = safeBase + '.xlsx';
 
                 a.href = url;
                 a.click();
@@ -4665,7 +4665,7 @@ function saveState(silent){
             const numberVal = STATE.general.number || 'без_номера';
             const baseName = \`\${date}_\${typeVal}_\${numberVal}_Чек-лист_ТТ\`;
             const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-            a.download = \`\${safeBase}.html\`;
+            a.download = safeBase + '.html';
 
             a.href = url;
             document.body.appendChild(a);
@@ -4770,7 +4770,7 @@ function saveState(silent){
             const nv = STATE.general.number || '';
             const baseName = tv + (nv ? '_' + nv : '') + '_ТТ' + (includePhotos ? '_с_фото' : '_без_фото');
             const sb = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-            a.download = \`\${sb}.json\`;
+            a.download = sb + '.json';
             a.href = url; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
             showToast('✅ JSON экспортирован' + (includePhotos ? ' (с фото)' : ' (компактный)'));
         }
@@ -8508,7 +8508,7 @@ function saveState(silent){
                 const numberVal = STATE.general.number || 'без_номера';
                 const baseName = \`\${date}_\${typeVal}_\${numberVal}_Чек-лист_МСУД-015\`;
                 const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-                a.download = \`\${safeBase}.xlsx\`;
+                a.download = safeBase + '.xlsx';
 
                 a.href = url;
                 a.click();
@@ -8549,7 +8549,7 @@ function saveState(silent){
             const numberVal = STATE.general.number || 'без_номера';
             const baseName = \`\${date}_\${typeVal}_\${numberVal}_Чек-лист_МСУД-015\`;
             const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-            a.download = \`\${safeBase}.html\`;
+            a.download = safeBase + '.html';
 
             a.href = url;
             document.body.appendChild(a);
@@ -8654,7 +8654,7 @@ function saveState(silent){
             const nv = STATE.general.number || '';
             const baseName = tv + (nv ? '_' + nv : '') + '_БИ' + (includePhotos ? '_с_фото' : '_без_фото');
             const sb = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-            a.download = \`\${sb}.json\`;
+            a.download = sb + '.json';
             a.href = url; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
             showToast('✅ JSON экспортирован' + (includePhotos ? ' (с фото)' : ' (компактный)'));
         }
@@ -13105,7 +13105,7 @@ function exportJson() {
   const numberVal = STATE.general.number || '';
   const baseName = typeVal + (numberVal ? '_' + numberVal : '') + '_гидродемпферы';
   const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-  a.download = \`\${safeBase}.json\`;
+  a.download = safeBase + '.json';
   a.href = url;
   document.body.appendChild(a);
   a.click();
@@ -13453,7 +13453,7 @@ async function exportWithPhotos() { try{await __psReady();}catch(e){}
     const numberVal = STATE.general.number || 'без_номера';
     const baseName = \`\${date}_\${typeVal}_\${numberVal}_Чек-лист_Гидродемпферы\`;
     const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-    a.download = \`\${safeBase}.xlsx\`;
+    a.download = safeBase + '.xlsx';
     a.href = url;
     a.click();
     URL.revokeObjectURL(url);
@@ -13501,7 +13501,7 @@ function saveAsHtmlFile() {
   const numberVal = STATE.general.number || '';
   const baseName = typeVal + (numberVal ? '_' + numberVal : '');
   const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
-  a.download = \`чек-лист_гидродемпферы_\${safeBase}.html\`;
+  a.download = 'чек-лист_гидродемпферы_' + safeBase + '.html';
   a.href = url;
   document.body.appendChild(a);
   a.click();
@@ -15480,7 +15480,7 @@ const nv=STATE.general.number||'';
 const modeName=__modeLabel();
 const baseName=tv+(nv?'_'+nv:'')+'_'+modeName+(includePhotos?'_с_фото':'_без_фото');
 const sb=baseName.replace(/[\\/\\\\:*?"<>|]/g,'_');
-a.download=\`\${sb}.json\`;
+a.download=sb+'.json';
 a.href=url;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 showToast('✅ JSON экспортирован'+(includePhotos?' (с фото)':' (компактный)'));
 }
@@ -15503,7 +15503,7 @@ const url=URL.createObjectURL(blob);const a=document.createElement('a');
 const tv=STATE.general.type||'без_серии';const nv=STATE.general.number||'';
 const modeName=__modeLabel();
 const baseName=tv+(nv?'_'+nv:'')+'_'+modeName;const sb=baseName.replace(/[\\/\\\\:*?"<>|]/g,'_');
-a.download=\`чек-лист_\${sb}.html\`;a.href=url;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showToast('✅ Файл сохранён');}
+a.download='чек-лист_'+sb+'.html';a.href=url;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showToast('✅ Файл сохранён');}
 
 // ========================================================================
 // ВЫБОР РЕЖИМА / ПЕРЕКЛЮЧЕНИЕ
