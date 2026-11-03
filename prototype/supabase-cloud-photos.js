@@ -82,7 +82,7 @@ function storageError(result, operation) {
   if (result?.error) {
     const cause = result.error;
     const detail = String(cause?.message || cause?.error || cause || "неизвестная ошибка")
-      .replace(/[\r\n\t]+/g, " ")
+      .replace(/[\r\n\t]+/g, " ").replace(/\\[rnt]/g, " ")
       .slice(0, 240);
     const code = cause?.code ? " (код: " + String(cause.code).slice(0, 80) + ")" : "";
     const status = cause?.statusCode ? " (HTTP " + String(cause.statusCode).slice(0, 16) + ")" : "";
