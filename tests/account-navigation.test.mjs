@@ -25,8 +25,9 @@ test("authenticated checklist header uses the profile display name", () => {
   assert.match(html, /checklist_user'\)\|\|'\{\}'\)\.displayName/);
 });
 
-test("embedded checklist does not duplicate the cabinet link in a separate bar", () => {
+test("embedded checklist header provides direct navigation to the personal cabinet", () => {
   const iframeBar = html.split('<div id="iframeBar">')[1]?.split("</div>")[0] || "";
-  assert.equal(iframeBar.includes("account.html"), false);
+  assert.match(iframeBar, /id="iframeAccountCabinetLink" href="\.\/account\.html"/);
+  assert.match(iframeBar, /Личный кабинет/);
   assert.ok(html.includes('id="accountCabinetLink" href="./account.html"'));
 });
