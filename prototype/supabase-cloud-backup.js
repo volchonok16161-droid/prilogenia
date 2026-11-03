@@ -111,10 +111,12 @@ export function createChecklistCloudBackup({
       manifest = result.manifest;
       uploaded = manifest.length > 0;
     }
+    const checklistStats = calculateChecklistStats(state);
     const payload = {
       mode,
       state: cloneWithoutPhotos(state, stats),
       photos: manifest,
+      stats: checklistStats,
     };
     const title = [
       "Чек-лист",
