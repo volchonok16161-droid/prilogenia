@@ -219,17 +219,32 @@ test("photo uploads are rolled back when the cloud revision write fails", async 
   assert.deepEqual(calls, [["upload", 5], ["update"], ["remove", 1]]);
 });
 
-test("cloud save calculates completion and deviation stats", async () => {
+test("cloud save calculates completion and deviations from configured field ok-values", async () => {
   const h = makeHarness();
   h.state.values = {
-    a: { status: "Да" },
-    b: { status: "Нет" },
-    c: { status: "" },
-    d: { status: null },
+    "rt130|section-1": { f1: "Да", f2: "Нет", f3: "", f4: "Не требуется", ignored: "Нет" },
+    "other|section-1": { f1: "Нет" },
   };
+  h.backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem: (key) => h.values.get(key) ?? null, setItem: (key, value) => h.values.set(key, String(value)) },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    getChecklistDefinitions: () => [{ id: "rt130", fields: [
+      { key: "f1", type: "select", ok: ["Да"], calc: true },
+      { key: "f2", type: "select", ok: ["Да"], calc: true },
+      { key: "f3", type: "select", ok: ["Да"], calc: true },
+      { key: "f4", type: "select", ok: ["Да"], calc: true },
+      { key: "meta", type: "text", ok: [], calc: false },
+    ] }],
+    cloudApi: {
+      async create(input) { h.calls.push({ action: "create", input }); return { id: ROW, revision: 1 }; },
+    },
+  });
   const result = await h.backup.saveCurrent();
   assert.deepEqual(result.checklistStats, {
-    total: 4, answered: 2, completionPercent: 50, deviations: 1,
+    total: 4, answered: 3, completionPercent: 75, deviations: 1,
   });
   assert.deepEqual(h.calls[0].input.payload.stats, result.checklistStats);
 });
