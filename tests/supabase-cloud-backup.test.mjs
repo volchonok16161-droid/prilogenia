@@ -310,3 +310,41 @@ test("cloud save calculates completion and deviations from configured field ok-v
   assert.deepEqual(h.calls[0].input.payload.stats, result.checklistStats);
   assert.equal(h.calls[0].input.payload.checklistType, "КМБ");
 });
+
+
+test("cloud backup prefers authoritative runtime checklist stats over generic field heuristics", async () => {
+  const h = makeHarness();
+  h.backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem: (key) => h.values.get(key) ?? null, setItem: (key, value) => h.values.set(key, String(value)) },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    getChecklistDefinitions: () => [{ id: "legacy", fields: [{ key: "x", ok: ["Да"] }], instances: [{ id: "legacy|one" }] }],
+    getChecklistStats: () => ({
+      totalInstances: 7,
+      okInstances: 3,
+      badInstances: 2,
+      allFieldsCount: 9,
+      filledFieldsCount: 5,
+      filledGeneral: 4,
+      totalFields: 15,
+      filledTotal: 9,
+      percent: 60,
+    }),
+    cloudApi: {
+      async create(input) { h.calls.push({ action: "create", input }); return { id: ROW, revision: 1 }; },
+    },
+  });
+
+  await h.backup.saveCurrent();
+  const stats = h.calls[0].input.payload.stats;
+  assert.equal(stats.completionPercent, 60);
+  assert.equal(stats.deviations, 2);
+  assert.equal(stats.totalInstances, 7);
+  assert.equal(stats.okInstances, 3);
+  assert.equal(stats.badInstances, 2);
+  assert.equal(stats.total, 15);
+  assert.equal(stats.answered, 9);
+  assert.equal(stats.filledGeneral, 4);
+});
