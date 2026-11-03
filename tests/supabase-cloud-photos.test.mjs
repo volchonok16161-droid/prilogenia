@@ -294,3 +294,53 @@ test("removes legacy photo paths only when encoded item and field match the mani
   );
   assert.deepEqual(h.removed, [legacyPath], "invalid legacy manifest must not reach Storage");
 });
+
+
+test("validates every restore manifest entry before downloading any photo", async () => {
+  const h = harness();
+  const validPath = USER + "/" + ROW + "/3/" + PHOTO;
+  const malformedPath = USER + "/" + ROW + "/3/not-a-uuid";
+  await assert.rejects(
+    h.sync.restoreState({
+      state: { values: { item1: {}, item2: {} } },
+      checklistId: ROW,
+      manifest: [
+        { itemId: "item1", field: "front_photo", path: validPath, contentType: "image/jpeg" },
+        { itemId: "item2", field: "rear_photo", path: malformedPath, contentType: "image/jpeg" },
+      ],
+    }),
+    (error) => error.code === "INVALID_MANIFEST",
+  );
+  assert.equal(h.calls.filter((call) => call.action === "download").length, 0);
+});
+
+test("rejects duplicate photo destinations before downloading", async () => {
+  const h = harness();
+  await assert.rejects(
+    h.sync.restoreState({
+      state: { values: { item1: {} } },
+      checklistId: ROW,
+      manifest: [
+        { itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/1/" + PHOTO, contentType: "image/jpeg" },
+        { itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/2/" + PHOTO, contentType: "image/jpeg" },
+      ],
+    }),
+    (error) => error.code === "INVALID_MANIFEST",
+  );
+  assert.equal(h.calls.filter((call) => call.action === "download").length, 0);
+});
+
+test("rejects a missing destination item before any photo download", async () => {
+  const h = harness();
+  await assert.rejects(
+    h.sync.restoreState({
+      state: { values: { item1: {} } },
+      checklistId: ROW,
+      manifest: [
+        { itemId: "missing-item", field: "front_photo", path: USER + "/" + ROW + "/1/" + PHOTO, contentType: "image/jpeg" },
+      ],
+    }),
+    (error) => error.code === "INVALID_MANIFEST",
+  );
+  assert.equal(h.calls.filter((call) => call.action === "download").length, 0);
+});
