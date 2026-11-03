@@ -185,6 +185,27 @@ export function createChecklistCloudBackup({
     ].filter(Boolean).join(" — ").slice(0, 200);
     const equipmentType = String(state.general?.type || "").slice(0, 120);
 
+    // Read the exact previous revision's manifest before attempting the CAS write.
+    // Cleanup is best-effort: inability to inspect old metadata must never block saving.
+    let previousManifest = null;
+    if (reference && photoSync && typeof cloud.get === "function") {
+      try {
+        const previousRow = await cloud.get(reference.id);
+        const oldPhotos = previousRow?.revision === reference.revision &&
+          Array.isArray(previousRow?.payload?.photos)
+          ? previousRow.payload.photos
+          : null;
+        const belongsToChecklist = oldPhotos && oldPhotos.every((entry) => {
+          if (!entry || typeof entry.path !== "string") return false;
+          const parts = entry.path.split("/");
+          return parts[1] === reference.id;
+        });
+        if (belongsToChecklist && oldPhotos.length) previousManifest = oldPhotos;
+      } catch {
+        previousManifest = null;
+      }
+    }
+
     let row;
     try {
       row = reference
@@ -205,7 +226,17 @@ export function createChecklistCloudBackup({
     }
 
     storage.setItem(refKey, JSON.stringify({ id: row.id, revision: row.revision }));
-    return Object.freeze({ row, photosExcluded: stats.removed, photosUploaded: manifest.length, checklistStats, created: !reference });
+    let photosCleanup = Object.freeze({ removed: 0, warning: false });
+    if (previousManifest?.length) {
+      try {
+        const removed = await photoSync.removeManifest(previousManifest);
+        photosCleanup = Object.freeze({ removed: Number(removed) || 0, warning: false });
+      } catch {
+        // The new revision is already committed; report cleanup trouble without failing the save.
+        photosCleanup = Object.freeze({ removed: 0, warning: true });
+      }
+    }
+    return Object.freeze({ row, photosExcluded: stats.removed, photosUploaded: manifest.length, checklistStats, created: !reference, photosCleanup });
   }
 
   async function createSnapshot({ label = "Перед восстановлением из облака" } = {}) {
