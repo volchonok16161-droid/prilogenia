@@ -18,6 +18,7 @@ test("the explicit cloud backup button is injected into embedded checklist footb
 test("the embedded bridge exposes live checklist state and the scoped storage key", () => {
   assert.match(html, /window\.__TMH_GET_CLOUD_BACKUP_CONTEXT=function\(\)/);
   assert.match(html, /state:STATE,persistState:function\(\){return saveState\(true\);},definitions:/);
+  assert.match(html, /state:STATE,stats:\(typeof computeStats===.function.\?computeStats\(\):null\),persistState:/);
   assert.match(html, /getStorageKey:function\(\)\{return getContext\(\)\.storageKey;\}/);
   assert.match(html, /authApi:api/);
 });
