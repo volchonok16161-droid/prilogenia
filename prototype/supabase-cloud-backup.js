@@ -64,6 +64,7 @@ export function createChecklistCloudBackup({
   getMode,
   getStorageKey,
   getChecklistDefinitions = () => [],
+  getChecklistStats = () => null,
   getChecklistType = () => "",
   cloudApi: injectedCloudApi,
   photoSync,
@@ -153,7 +154,23 @@ export function createChecklistCloudBackup({
       manifest = result.manifest;
       uploaded = manifest.length > 0;
     }
-    const checklistStats = calculateChecklistStats(state, getChecklistDefinitions());
+    const authoritativeStats = getChecklistStats();
+    const checklistStats = authoritativeStats && Number.isFinite(Number(authoritativeStats.percent))
+      ? Object.freeze({
+          total: Number(authoritativeStats.totalFields) || 0,
+          answered: Number(authoritativeStats.filledTotal) || 0,
+          completionPercent: Math.max(0, Math.min(100, Math.floor(Number(authoritativeStats.percent)))),
+          deviations: Math.max(0, Number(authoritativeStats.badInstances) || 0),
+          totalInstances: Number(authoritativeStats.totalInstances) || 0,
+          okInstances: Number(authoritativeStats.okInstances) || 0,
+          badInstances: Number(authoritativeStats.badInstances) || 0,
+          allFieldsCount: Number(authoritativeStats.allFieldsCount) || 0,
+          filledFieldsCount: Number(authoritativeStats.filledFieldsCount) || 0,
+          filledGeneral: Number(authoritativeStats.filledGeneral) || 0,
+          totalFields: Number(authoritativeStats.totalFields) || 0,
+          filledTotal: Number(authoritativeStats.filledTotal) || 0,
+        })
+      : calculateChecklistStats(state, getChecklistDefinitions());
     const payload = {
       mode,
       checklistType,
