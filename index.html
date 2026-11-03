@@ -1058,7 +1058,7 @@ if(restoreButton){
         authApi:api,storage:window.localStorage,photoSync,
         getState:function(){return context.state;},
         getMode:function(){return context.mode;},
-        getStorageKey:function(){return context.storageKey;}
+        getStorageKey:function(){return context.storageKey;},getChecklistDefinitions:function(){return context.definitions;}
       });
       const restore=createChecklistCloudRestore({
         authApi:api,getMode:function(){return context.mode;},
@@ -1121,7 +1121,7 @@ if(button){
         photoSync,
         getState:function(){return getContext().state;},
         getMode:function(){return getContext().mode;},
-        getStorageKey:function(){return getContext().storageKey;}
+        getStorageKey:function(){return getContext().storageKey;},getChecklistDefinitions:function(){return getContext().definitions;}
       });
       const result=await backup.saveCurrent();
       const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
@@ -14430,7 +14430,7 @@ try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}
 let STATE={general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[],changeLog:[]};
 window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
   return {
-    state:STATE,mode:MODE,storageKey:LS_KEY,
+    state:STATE,definitions:(typeof EQUIPMENT!=='undefined'?EQUIPMENT:[]).map(function(eq){return {id:eq.id,fields:typeof eq.getFields==='function'?eq.getFields({}):(eq.fields||[])};}),mode:MODE,storageKey:LS_KEY,
     applyState:async function(incoming,metadata){
       if(!metadata||typeof metadata.id!=='string'||!Number.isSafeInteger(metadata.revision)||metadata.revision<1)throw new Error('Некорректная версия облачной записи');
       await __psEnsureCloudReady();
@@ -17496,7 +17496,7 @@ var bridge=`<script>
   try {
     window.__TMH_GET_CLOUD_BACKUP_CONTEXT=function(){
       return {
-        state:STATE,mode:${JSON.stringify(mode||((typeof MODE==='undefined')?'unknown':MODE))},storageKey:LS_KEY,
+        state:STATE,definitions:(typeof EQUIPMENT!=='undefined'?EQUIPMENT:[]).map(function(eq){return {id:eq.id,fields:typeof eq.getFields==='function'?eq.getFields({}):(eq.fields||[])};}),mode:${JSON.stringify(mode||((typeof MODE==='undefined')?'unknown':MODE))},storageKey:LS_KEY,
         applyState:async function(incoming,metadata){
           if(!metadata||typeof metadata.id!=='string'||!Number.isSafeInteger(metadata.revision)||metadata.revision<1)throw new Error('Некорректная версия облачной записи');
           await __psEnsureCloudReady();
@@ -17544,7 +17544,7 @@ if(restoreButton){
       await __psEnsureCloudReady();
       const context=getContext();
       const photoSync=createChecklistPhotoSync({authApi:api});
-      const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,photoSync,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;}});
+      const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,photoSync,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;},getChecklistDefinitions:function(){return context.definitions;}});
       const restore=createChecklistCloudRestore({authApi:api,getMode:function(){return context.mode;},beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},hydrateState:async function(state,metadata,manifest){return (await photoSync.restoreState({state,checklistId:metadata.id,manifest})).state;},applyState:context.applyState});
       const __openId=(function(){try{return new URLSearchParams(window.parent.location.search).get('openChecklist');}catch(e){return null;}})();
       if(__openId){
@@ -17589,7 +17589,7 @@ if(button){
         photoSync,
         getState:function(){return getContext().state;},
         getMode:function(){return getContext().mode;},
-        getStorageKey:function(){return getContext().storageKey;}
+        getStorageKey:function(){return getContext().storageKey;},getChecklistDefinitions:function(){return getContext().definitions;}
       });
       const result=await backup.saveCurrent();
       const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
