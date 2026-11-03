@@ -5,6 +5,7 @@ on:
     branches:
       - development/account-system
       - fix/srcdoc-signed-out-no-reload
+      - feat/cloud-checklist-progress
   pull_request:
     branches:
       - development/account-system
