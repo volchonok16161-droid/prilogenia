@@ -48,7 +48,7 @@ function harness({ userId = USER } = {}) {
   return { sync, files, calls, removed };
 }
 
-test("uploads checklist photos to private user/checklist/revision paths and returns a manifest", async () => {
+test("uploads checklist photos to UUID-only private user/checklist/revision paths and returns a manifest", async () => {
   const h = harness();
   const state = { general: { type: "TT" }, values: { item1: {
     front_photo: "data:image/jpeg;base64,AQID",
@@ -59,7 +59,7 @@ test("uploads checklist photos to private user/checklist/revision paths and retu
   assert.equal(result.manifest.length, 1);
   assert.equal(result.manifest[0].itemId, "item1");
   assert.equal(result.manifest[0].field, "front_photo");
-  assert.match(result.manifest[0].path, new RegExp("^" + USER + "/" + ROW + "/4/item1/front_photo-"));
+  assert.match(result.manifest[0].path, new RegExp("^" + USER + "/" + ROW + "/4/" + PHOTO + "$"));
   assert.equal(h.files.size, 1);
   assert.deepEqual([...new Uint8Array(await [...h.files.values()][0].arrayBuffer())], [1, 2, 3]);
   assert.equal(state.values.item1.front_photo, "data:image/jpeg;base64,AQID");
@@ -229,4 +229,18 @@ test("surfaces actionable Supabase Storage error details without losing the orig
       return true;
     },
   );
+});
+
+test("uploads photos when checklist item identifiers contain localized punctuation and newlines", async () => {
+  const h = harness();
+  const itemId = "rassekatel\\nСекция №1||U2||1";
+  const result = await h.sync.uploadState({
+    state: { values: { [itemId]: { install_photo: "data:image/jpeg;base64,AQID" } } },
+    checklistId: ROW,
+    revision: 13,
+  });
+  assert.equal(result.uploaded, 1);
+  assert.equal(result.manifest[0].itemId, itemId);
+  assert.equal(result.manifest[0].field, "install_photo");
+  assert.equal(result.manifest[0].path, USER + "/" + ROW + "/13/" + PHOTO);
 });
