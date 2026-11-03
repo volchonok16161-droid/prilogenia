@@ -141,7 +141,7 @@ export function createChecklistCloudBackup({
       state.general?.type || getMode(),
       state.general?.number || "",
     ].filter(Boolean).join(" — ").slice(0, 200);
-    const equipmentType = mode.slice(0, 120);
+    const equipmentType = String(state.general?.type || "").slice(0, 120);
 
     let row;
     try {
