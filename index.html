@@ -16518,6 +16518,7 @@ let MODE=null;
 let LS_KEY=LS_KEY_COMPLEX;
 if(typeof __EMBEDDED_MODE!=='undefined'&&__EMBEDDED_MODE){MODE=__EMBEDDED_MODE;const el=document.getElementById('__embedded_mode');if(el)el.parentNode.removeChild(el);}
 try{const sm=localStorage.getItem(MODE_KEY);if(ALL_MODES.indexOf(sm)!==-1)MODE=sm;}catch(e){}
+try{const __urlMode=new URLSearchParams(window.location.search).get('mode');if(__urlMode&&ALL_MODES.indexOf(__urlMode)!==-1)MODE=__urlMode;}catch(e){}
 if(MODE){try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}}
 if(MODE==='housings')LS_KEY=LS_KEY_HOUSINGS;
 
