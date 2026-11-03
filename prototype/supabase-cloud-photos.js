@@ -116,13 +116,9 @@ export function createChecklistPhotoSync({
         if (!ALLOWED_TYPES.has(contentType)) fail("INVALID_PHOTO", "Формат фотографии не поддерживается");
         const bytes = decodeBase64(match[2]);
         const fileId = uuid(idFactory(), "photo id");
-        const path = [
-          userId,
-          rowId,
-          String(revision),
-          segment(photo.itemId, "itemId"),
-          segment(photo.field, "photo field") + "-" + fileId,
-        ].join("/");
+        // Storage keys contain only UUIDs and a numeric revision. Checklist item
+        // identifiers and field names may contain arbitrary localized text.
+        const path = [userId, rowId, String(revision), fileId].join("/");
         const result = await storageApi.from(BUCKET).upload(path, new Blob([bytes], { type: contentType }), {
           contentType,
           upsert: false,
@@ -153,16 +149,18 @@ export function createChecklistPhotoSync({
     const paths = manifest.map((entry) => {
       if (!entry || typeof entry.path !== "string") fail("INVALID_MANIFEST", "Некорректный путь фотографии");
       const parts = entry.path.split("/");
-      if (parts.length !== 5 || parts[0] !== userId ||
-          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parts[1]) ||
+      const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+      if (parts[0] !== userId || !isUuid(parts[1]) ||
           !/^[1-9][0-9]*$/.test(parts[2]) ||
           typeof entry.itemId !== "string" || typeof entry.field !== "string") {
         fail("INVALID_MANIFEST", "Нельзя удалить файл вне папки текущего пользователя");
       }
+      const validNewPath = parts.length === 4 && isUuid(parts[3]);
       const fieldPrefix = segment(entry.field, "photo field") + "-";
-      if (parts[3] !== segment(entry.itemId, "itemId") ||
-          !parts[4].startsWith(fieldPrefix) ||
-          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parts[4].slice(fieldPrefix.length))) {
+      const validLegacyPath = parts.length === 5 &&
+        parts[3] === segment(entry.itemId, "itemId") &&
+        parts[4].startsWith(fieldPrefix) && isUuid(parts[4].slice(fieldPrefix.length));
+      if (!validNewPath && !validLegacyPath) {
         fail("INVALID_MANIFEST", "Путь файла не соответствует манифесту фотографии");
       }
       return entry.path;
@@ -187,12 +185,15 @@ export function createChecklistPhotoSync({
         fail("INVALID_MANIFEST", "Некорректная запись фотографии в манифесте");
       }
       const parts = entry.path.split("/");
-      const expectedItem = segment(entry.itemId, "itemId");
+      const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+      const validNewPath = parts.length === 4 && isUuid(parts[3]);
       const expectedFieldPrefix = segment(entry.field, "photo field") + "-";
-      if (parts.length !== 5 || parts[0] !== userId || parts[1] !== rowId ||
-          !/^[1-9][0-9]*$/.test(parts[2]) || parts[3] !== expectedItem ||
-          !parts[4].startsWith(expectedFieldPrefix) ||
-          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parts[4].slice(expectedFieldPrefix.length))) {
+      const validLegacyPath = parts.length === 5 &&
+        parts[3] === segment(entry.itemId, "itemId") &&
+        parts[4].startsWith(expectedFieldPrefix) &&
+        isUuid(parts[4].slice(expectedFieldPrefix.length));
+      if (parts[0] !== userId || parts[1] !== rowId ||
+          !/^[1-9][0-9]*$/.test(parts[2]) || (!validNewPath && !validLegacyPath)) {
         fail("INVALID_MANIFEST", "Путь фотографии не принадлежит текущему пользователю и чек-листу");
       }
       const result = await storageApi.from(BUCKET).download(entry.path);
