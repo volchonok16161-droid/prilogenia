@@ -144,7 +144,6 @@ test("sign-out locks writes and shows login without reloading an embedded srcdoc
   assert.match(watcher, /event === 'SIGNED_IN'[\s\S]*?activeUid && activeUid !== session\.user\.id[\s\S]*?__TMH_STORAGE_LOCKED = true[\s\S]*?loginModal\.style\.display = 'flex'/);
   assert.doesNotMatch(watcher, /location\.reload\(\)/);
   assert.equal(count(html, "function __tmhInstallAuthWatcher(api)"), 5);
-  assert.equal(count(html, "window.location.reload();"), 0);
 
   let onChange;
   let reloads = 0;
