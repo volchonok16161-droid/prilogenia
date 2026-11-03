@@ -14,14 +14,14 @@ test("account cabinet uses the shared Supabase Auth module", () => {
 test("account cabinet loads only the signed-in user's cloud checklists", () => {
   assert.match(html, /\.from\("checklists"\)/);
   assert.match(html, /\.eq\("owner_id", user\.id\)/);
-  assert.match(html, /\.select\("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode,stats:payload->stats"\)/);
+  assert.match(html, /\.select\("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode,checklist_type:payload->>checklistType,stats:payload->stats"\)/);
   assert.match(html, /\.limit\(50\)/);
 });
 
 test("account cabinet renders database content as text, not injected HTML", () => {
   assert.match(html, /title\.textContent = row\.title/);
   assert.match(html, /meta\.textContent =/);
-  assert.match(html, /info\.append\(title, meta\)/);
+  assert.match(html, /info\.append\(title, category, meta\)/);
   assert.doesNotMatch(html, /innerHTML\s*=/);
 });
 
