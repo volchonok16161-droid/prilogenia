@@ -23,7 +23,6 @@ function makeHarness({ reference = null, updateError = null } = {}) {
       return { id: ROW, revision: currentRevision };
     },
     async get(id) {
-      calls.push({ action: "get", id });
       return { id, revision: currentRevision, payload: { photos: [] } };
     },
     async update(input) {
