@@ -133,7 +133,7 @@ test("sign-out locks writes and shows login without reloading an embedded srcdoc
   const end = html.indexOf("\n}\n", start);
   const watcher = html.slice(start, end + 2);
   const signedOutStart = watcher.indexOf("if (event === 'SIGNED_OUT')");
-  const signedInStart = watcher.indexOf("if (event === 'SIGNED_IN')");
+  const signedInStart = watcher.indexOf("if (event === 'SIGNED_IN'");
   assert.notEqual(signedOutStart, -1);
   assert.notEqual(signedInStart, -1);
   const signedOut = watcher.slice(signedOutStart, signedInStart);
