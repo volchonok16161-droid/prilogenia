@@ -447,3 +447,32 @@ test("cleanup skips manifests with paths outside the saved checklist", async () 
   assert.equal(removed, false);
   assert.deepEqual(result.photosCleanup, { removed: 0, warning: false });
 });
+
+
+test("cleanup skips a photo manifest from a different cloud revision", async () => {
+  const h = makeHarness({ reference: { id: ROW, revision: 4 } });
+  let removed = false;
+  const staleManifest = [{
+    itemId: "item1", field: "front_photo",
+    path: USER + "/" + ROW + "/3/cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    contentType: "image/jpeg",
+  }];
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem: () => JSON.stringify({ id: ROW, revision: 4 }), setItem() {} },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    photoSync: {
+      async uploadState() { return { manifest: [], uploaded: 0 }; },
+      async removeManifest() { removed = true; },
+    },
+    cloudApi: {
+      async get(id) { return { id, revision: 4, payload: { photos: staleManifest } }; },
+      async update() { return { id: ROW, revision: 5 }; },
+    },
+  });
+  const result = await backup.saveCurrent();
+  assert.equal(removed, false);
+  assert.deepEqual(result.photosCleanup, { removed: 0, warning: false });
+});
