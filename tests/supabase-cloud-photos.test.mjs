@@ -244,3 +244,53 @@ test("uploads photos when checklist item identifiers contain localized punctuati
   assert.equal(result.manifest[0].field, "install_photo");
   assert.equal(result.manifest[0].path, USER + "/" + ROW + "/13/" + PHOTO);
 });
+
+
+test("restores legacy photo paths with encoded item and field segments", async () => {
+  const h = harness();
+  const itemId = "секция №1|узел";
+  const field = "front_photo";
+  const legacyPath = USER + "/" + ROW + "/7/" +
+    encodeURIComponent(itemId) + "/" + encodeURIComponent(field) + "-" + PHOTO;
+  h.files.set(legacyPath, new Blob([new Uint8Array([7, 8, 9])], { type: "image/jpeg" }));
+
+  const result = await h.sync.restoreState({
+    state: { values: { [itemId]: { status: "ok" } } },
+    checklistId: ROW,
+    manifest: [{
+      itemId,
+      field,
+      path: legacyPath,
+      contentType: "image/jpeg",
+    }],
+  });
+
+  assert.equal(result.restored, 1);
+  assert.equal(
+    result.state.values[itemId][field],
+    "data:image/jpeg;base64,BwgJ",
+  );
+  assert.equal(result.state.values[itemId].status, "ok");
+  assert.equal(h.calls.filter((call) => call.action === "download").length, 1);
+});
+
+test("removes legacy photo paths only when encoded item and field match the manifest", async () => {
+  const h = harness();
+  const itemId = "секция №1|узел";
+  const field = "front_photo";
+  const legacyPath = USER + "/" + ROW + "/7/" +
+    encodeURIComponent(itemId) + "/" + encodeURIComponent(field) + "-" + PHOTO;
+
+  assert.equal(await h.sync.removeManifest([{ itemId, field, path: legacyPath }]), 1);
+  assert.deepEqual(h.removed, [legacyPath]);
+
+  await assert.rejects(
+    h.sync.removeManifest([{
+      itemId,
+      field: "rear_photo",
+      path: legacyPath,
+    }]),
+    (error) => error.code === "INVALID_MANIFEST",
+  );
+  assert.deepEqual(h.removed, [legacyPath], "invalid legacy manifest must not reach Storage");
+});
