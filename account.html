@@ -168,7 +168,7 @@ async function loadCabinet() {
   const { user, profile } = identity;
   const { data, error } = await api.client
     .from("checklists")
-    .select("id,title,equipment_type,revision,created_at,updated_at")
+    .select("id,title,equipment_type,revision,created_at,updated_at,payload")
     .eq("owner_id", user.id)
     .order("updated_at", { ascending: false })
     .limit(50);
@@ -216,7 +216,15 @@ async function loadCabinet() {
       const revision = document.createElement("span");
       revision.className = "revision";
       revision.textContent = "Версия " + String(row.revision ?? "—");
-      item.append(icon, info, revision);
+      const open = document.createElement("a");
+      open.className = "btn";
+      open.textContent = "Открыть";
+      const mode = typeof row.payload?.mode === "string" ? row.payload.mode : "";
+      open.href = "./index.html?openChecklist=" + encodeURIComponent(row.id) + (mode ? "&mode=" + encodeURIComponent(mode) : "");
+      open.style.flex = "none";
+      open.style.padding = "8px 12px";
+      open.style.fontSize = "13px";
+      item.append(icon, info, revision, open);
       list.append(item);
     }
   }
