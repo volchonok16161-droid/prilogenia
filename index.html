@@ -1216,7 +1216,7 @@ if(button){
     <div id="iframeBar">
         <button class="btn primary" id="iframeBackBtn">🔄 Сменить чек-лист</button>
         <b id="iframeModeLabel"></b>
-        <a class="btn" href="./account.html" style="margin-left:auto;text-decoration:none;white-space:nowrap;">👤 Личный кабинет</a>
+        
         <button class="btn" id="riskBtnBar" type="button" style="margin-left:auto;" title="Справочник: локомотивы, приписки, места осмотра">📍 Зона риска</button>
         <button class="btn" id="helpBtnBar" type="button">📖 Инструкция</button>
     </div>
@@ -2836,6 +2836,7 @@ async function checkAuth() {
     try {
       localStorage.setItem('checklist_user', JSON.stringify({
         login: identity.user.email || '',
+        displayName: identity.profile.display_name || '',
         role: currentUser,
         profileRole: role,
         dev: role === 'developer',
@@ -2866,6 +2867,7 @@ async function doLogin(login, password) {
   try {
     localStorage.setItem('checklist_user', JSON.stringify({
       login: result.user.email || '',
+      displayName: result.profile.display_name || '',
       role: currentUser,
       profileRole: role,
       dev: role === 'developer',
@@ -2916,11 +2918,11 @@ function updateUserUI() {
             if (currentUser) {
                 info.style.display = 'flex';
                 if (currentUser === 'admin') {
-                    name.textContent = 'Администратор';
+                    name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Администратор';
                     role.textContent = '(admin)';
                     role.classList.remove('dim');
                 } else {
-                    name.textContent = 'Пользователь';
+                    name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Пользователь';
                     role.textContent = '(user)';
                     role.classList.add('dim');
                 }
@@ -6475,6 +6477,7 @@ async function checkAuth() {
     try {
       localStorage.setItem('checklist_user', JSON.stringify({
         login: identity.user.email || '',
+        displayName: identity.profile.display_name || '',
         role: currentUser,
         profileRole: role,
         dev: role === 'developer',
@@ -6505,6 +6508,7 @@ async function doLogin(login, password) {
   try {
     localStorage.setItem('checklist_user', JSON.stringify({
       login: result.user.email || '',
+      displayName: result.profile.display_name || '',
       role: currentUser,
       profileRole: role,
       dev: role === 'developer',
@@ -6555,11 +6559,11 @@ function updateUserUI() {
             if (currentUser) {
                 info.style.display = 'flex';
                 if (currentUser === 'admin') {
-                    name.textContent = 'Администратор';
+                    name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Администратор';
                     role.textContent = '(admin)';
                     role.classList.remove('dim');
                 } else {
-                    name.textContent = 'Пользователь';
+                    name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Пользователь';
                     role.textContent = '(user)';
                     role.classList.add('dim');
                 }
@@ -9714,6 +9718,7 @@ async function checkAuth() {
     try {
       localStorage.setItem('checklist_user', JSON.stringify({
         login: identity.user.email || '',
+        displayName: identity.profile.display_name || '',
         role: currentUser,
         profileRole: role,
         dev: role === 'developer',
@@ -9744,6 +9749,7 @@ async function doLogin(login, password) {
   try {
     localStorage.setItem('checklist_user', JSON.stringify({
       login: result.user.email || '',
+      displayName: result.profile.display_name || '',
       role: currentUser,
       profileRole: role,
       dev: role === 'developer',
@@ -9794,11 +9800,11 @@ function updateUserUI() {
   if (currentUser) {
     info.style.display = 'flex';
     if (currentUser === 'admin') {
-      name.textContent = 'Администратор';
+      name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Администратор';
       role.textContent = '(admin)';
       role.classList.remove('dim');
     } else {
-      name.textContent = 'Пользователь';
+      name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Пользователь';
       role.textContent = '(user)';
       role.classList.add('dim');
     }
@@ -14300,6 +14306,7 @@ async function checkAuth() {
     try {
       localStorage.setItem('checklist_user', JSON.stringify({
         login: identity.user.email || '',
+        displayName: identity.profile.display_name || '',
         role: currentUser,
         profileRole: role,
         dev: role === 'developer',
@@ -14330,6 +14337,7 @@ async function doLogin(login, password) {
   try {
     localStorage.setItem('checklist_user', JSON.stringify({
       login: result.user.email || '',
+      displayName: result.profile.display_name || '',
       role: currentUser,
       profileRole: role,
       dev: role === 'developer',
@@ -14373,7 +14381,7 @@ async function doLogout() {
   }
 }
 
-function updateUserUI(){const info=document.getElementById('userInfo');const name=document.getElementById('userName');const role=document.getElementById('userRole');if(currentUser){info.style.display='flex';if(currentUser==='admin'){name.textContent='Администратор';role.textContent='(admin)';role.classList.remove('dim');}else{name.textContent='Пользователь';role.textContent='(user)';role.classList.add('dim');}}else{info.style.display='none';}}
+function updateUserUI(){const info=document.getElementById('userInfo');const name=document.getElementById('userName');const role=document.getElementById('userRole');if(currentUser){info.style.display='flex';if(currentUser==='admin'){name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Администратор';role.textContent='(admin)';role.classList.remove('dim');}else{name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Пользователь';role.textContent='(user)';role.classList.add('dim');}}else{info.style.display='none';}}
 
 /* ========================================================================
    ДАННЫЕ ИЗ КЖЦ
@@ -16411,6 +16419,7 @@ async function checkAuth() {
     try {
       localStorage.setItem('checklist_user', JSON.stringify({
         login: identity.user.email || '',
+        displayName: identity.profile.display_name || '',
         role: currentUser,
         profileRole: role,
         dev: role === 'developer',
@@ -16441,6 +16450,7 @@ async function doLogin(login, password) {
   try {
     localStorage.setItem('checklist_user', JSON.stringify({
       login: result.user.email || '',
+      displayName: result.profile.display_name || '',
       role: currentUser,
       profileRole: role,
       dev: role === 'developer',
@@ -16484,7 +16494,7 @@ async function doLogout() {
   }
 }
 
-function updateUserUI(){const info=document.getElementById('userInfo');const name=document.getElementById('userName');const role=document.getElementById('userRole');if(currentUser){info.style.display='flex';if(currentUser==='admin'){const __d=(function(){try{return JSON.parse(localStorage.getItem('checklist_user')).dev===true;}catch(e){return false;}})();name.textContent=__d?'Разработчик':'Администратор';role.textContent=__d?'(developer)':'(admin)';role.classList.remove('dim');}else{name.textContent='Пользователь';role.textContent='(user)';role.classList.add('dim');}}else{info.style.display='none';}}
+function updateUserUI(){const info=document.getElementById('userInfo');const name=document.getElementById('userName');const role=document.getElementById('userRole');if(currentUser){info.style.display='flex';if(currentUser==='admin'){const __d=(function(){try{return JSON.parse(localStorage.getItem('checklist_user')).dev===true;}catch(e){return false;}})();name.textContent=(function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})()||(__d?'Разработчик':'Администратор');role.textContent=__d?'(developer)':'(admin)';role.classList.remove('dim');}else{name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Пользователь';role.textContent='(user)';role.classList.add('dim');}}else{info.style.display='none';}}
 
 /* ========================================================================
    ДАННЫЕ ИЗ КЖЦ
