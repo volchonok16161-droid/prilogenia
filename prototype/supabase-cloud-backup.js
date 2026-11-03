@@ -8,6 +8,7 @@ function cloneWithoutPhotos(value, stats = { removed: 0 }) {
 
   const result = {};
   for (const [key, item] of Object.entries(value)) {
+    if (key === "__cloudChecklistId") continue;
     if (/_photo$/i.test(key)) {
       if (item) stats.removed += 1;
       continue;
@@ -97,7 +98,24 @@ export function createChecklistCloudBackup({
       throw new Error("Нет данных чек-листа для облачной копии");
     }
 
-    const refKey = storageKey + "::cloud-ref";
+    // Cloud references are scoped to one local checklist instance, not the whole mode/account.
+    let localChecklistId = state.__cloudChecklistId;
+    if (typeof localChecklistId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(localChecklistId)) {
+      localChecklistId = identityFactory();
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(localChecklistId)) {
+        const error = new Error("Не удалось создать идентификатор локального чек-листа");
+        error.code = "INVALID_CHECKLIST_IDENTITY";
+        throw error;
+      }
+      try { state.__cloudChecklistId = localChecklistId; }
+      catch {
+        const error = new Error("Не удалось сохранить идентификатор локального чек-листа");
+        error.code = "CHECKLIST_IDENTITY_UNAVAILABLE";
+        throw error;
+      }
+    }
+
+    const refKey = storageKey + "::cloud-ref::" + localChecklistId;
     let reference = null;
     const stored = storage.getItem(refKey);
     if (stored) {
