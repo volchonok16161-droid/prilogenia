@@ -27,8 +27,11 @@ function calculateChecklistStats(state, definitions = []) {
       : Object.keys(state.values ?? {})
           .filter((id) => id.startsWith(equipment.id + "|"))
           .map((id) => ({ id }));
+    const seenInstances = new Set();
     for (const instance of instances) {
       const instanceId = instance.id || [equipment.id, instance.section].join("|");
+      if (seenInstances.has(instanceId)) continue;
+      seenInstances.add(instanceId);
       const values = state.values?.[instanceId] ?? {};
       for (const field of (Array.isArray(instance.fields) ? instance.fields : fields)) {
         if (!field || field.calc === false) continue;
