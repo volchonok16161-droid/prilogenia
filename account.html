@@ -8,7 +8,7 @@
 <style>
 :root{color-scheme:light;--bg:#f4f6fa;--card:#fff;--ink:#172033;--muted:#718096;--line:#e6eaf0;--blue:#315efb;--green:#16845b;--red:#b42318}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.brand{display:flex;align-items:center;gap:12px;font-weight:750}.logo{width:42px;height:42px;border-radius:13px;background:#172b57;color:#fff;display:grid;place-items:center}.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;padding:10px 14px;background:var(--blue);color:white;text-decoration:none;font-weight:650;cursor:pointer}.btn.secondary{background:#e9edf5;color:#344054}.btn:disabled{opacity:.55;cursor:wait}.welcome,.panel,.stat{background:var(--card);border:1px solid var(--line);border-radius:17px}.welcome{padding:23px 25px;margin-bottom:16px}.welcome h1{margin:0 0 5px;font-size:25px}.muted{color:var(--muted)}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:16px}.stat{padding:17px 19px}.stat-label{font-size:13px;color:var(--muted)}.stat-value{font-size:28px;font-weight:780;margin-top:4px}.panel{padding:20px 21px;margin-bottom:16px}.panel h2{font-size:17px;margin:0 0 14px}.profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.field{border:1px solid var(--line);border-radius:11px;padding:12px 13px;min-width:0}.field span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.field strong{overflow-wrap:anywhere}.item{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}.item-icon{width:37px;height:37px;border-radius:10px;background:#f0f3f8;display:grid;place-items:center;flex:none}.item-info{flex:1;min-width:0}.item-info strong{display:block;overflow-wrap:anywhere}.item-info small{color:var(--muted)}.progress-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:13px}.progress-track{height:6px;background:#edf0f5;border-radius:99px;overflow:hidden;margin-top:5px;max-width:240px}.progress-fill{height:100%;background:var(--green);border-radius:99px}.deviation-count{color:var(--red);font-weight:650}.status-pill{display:inline-flex;align-items:center;margin:5px 0 0 8px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;vertical-align:middle}.status-pill.done{background:#e8f7ef;color:#14744e}.status-pill.progress{background:#fff4df;color:#8a5a00}.revision{font-size:12px;color:var(--muted);white-space:nowrap}.notice{padding:12px 14px;background:#fff8e7;border:1px solid #f4e5b8;border-radius:11px;color:#795b16;font-size:13px}.error{color:var(--red)}.empty{padding:20px 0;color:var(--muted);text-align:center}.loading{color:var(--muted)}.hidden{display:none!important}
+button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.brand{display:flex;align-items:center;gap:12px;font-weight:750}.logo{width:42px;height:42px;border-radius:13px;background:#172b57;color:#fff;display:grid;place-items:center}.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;padding:10px 14px;background:var(--blue);color:white;text-decoration:none;font-weight:650;cursor:pointer}.btn.secondary{background:#e9edf5;color:#344054}.btn:disabled{opacity:.55;cursor:wait}.welcome,.panel,.stat{background:var(--card);border:1px solid var(--line);border-radius:17px}.welcome{padding:23px 25px;margin-bottom:16px}.welcome h1{margin:0 0 5px;font-size:25px}.muted{color:var(--muted)}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:16px}.stat{padding:17px 19px}.stat-filter{cursor:pointer;transition:border-color .15s,box-shadow .15s}.stat-filter:hover,.stat-filter:focus-visible{border-color:var(--blue);outline:none}.stat-filter[aria-pressed="true"]{border-color:var(--blue);box-shadow:0 0 0 2px #315efb20}.stat-label{font-size:13px;color:var(--muted)}.stat-value{font-size:28px;font-weight:780;margin-top:4px}.panel{padding:20px 21px;margin-bottom:16px}.panel h2{font-size:17px;margin:0 0 14px}.profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.field{border:1px solid var(--line);border-radius:11px;padding:12px 13px;min-width:0}.field span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.field strong{overflow-wrap:anywhere}.item{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}.item-icon{width:37px;height:37px;border-radius:10px;background:#f0f3f8;display:grid;place-items:center;flex:none}.item-info{flex:1;min-width:0}.item-info strong{display:block;overflow-wrap:anywhere}.item-info small{color:var(--muted)}.progress-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:13px}.progress-track{height:6px;background:#edf0f5;border-radius:99px;overflow:hidden;margin-top:5px;max-width:240px}.progress-fill{height:100%;background:var(--green);border-radius:99px}.deviation-count{color:var(--red);font-weight:650}.status-pill{display:inline-flex;align-items:center;margin:5px 0 0 8px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;vertical-align:middle}.status-pill.done{background:#e8f7ef;color:#14744e}.status-pill.progress{background:#fff4df;color:#8a5a00}.revision{font-size:12px;color:var(--muted);white-space:nowrap}.notice{padding:12px 14px;background:#fff8e7;border:1px solid #f4e5b8;border-radius:11px;color:#795b16;font-size:13px}.error{color:var(--red)}.empty{padding:20px 0;color:var(--muted);text-align:center}.loading{color:var(--muted)}.hidden{display:none!important}
 .admin-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.admin-row:first-child{border-top:0}.admin-info{flex:1;min-width:0}.admin-info strong{display:block;overflow-wrap:anywhere}.admin-meta{font-size:12px;color:var(--muted);overflow-wrap:anywhere}.admin-pill{display:inline-block;margin-top:4px;padding:3px 8px;border-radius:20px;background:#e8f7ef;color:#14744e;font-size:12px}.admin-pill.off{background:#fff0ee;color:#a33b30}.admin-row button{flex:none}@media(max-width:620px){.app{padding:16px 12px 34px}.top{align-items:flex-start}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.stat{padding:13px 11px}.stat-value{font-size:23px}.welcome{padding:19px}.welcome h1{font-size:22px}.panel{padding:16px 14px}.profile{grid-template-columns:1fr}.revision{display:none}.actions{justify-content:flex-end}}
 </style>
 </head>
@@ -23,9 +23,9 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
  <div id="loading" class="panel loading">Проверяем сессию и загружаем ваши данные…</div>
  <div id="content" class="hidden">
   <section class="stats" aria-label="Статистика чек-листов">
-   <div class="stat"><div class="stat-label">Всего чек-листов</div><div class="stat-value" id="checklistCount">—</div></div>
-   <div class="stat"><div class="stat-label">Выполнено</div><div class="stat-value" id="completedCount">—</div></div>
-   <div class="stat"><div class="stat-label">В работе</div><div class="stat-value" id="inProgressCount">—</div></div>
+   <div class="stat stat-filter" data-filter="all" role="button" tabindex="0" aria-pressed="true"><div class="stat-label">Всего чек-листов</div><div class="stat-value" id="checklistCount">—</div></div>
+   <div class="stat stat-filter" data-filter="completed" role="button" tabindex="0" aria-pressed="false"><div class="stat-label">Выполнено</div><div class="stat-value" id="completedCount">—</div></div>
+   <div class="stat stat-filter" data-filter="inProgress" role="button" tabindex="0" aria-pressed="false"><div class="stat-label">В работе</div><div class="stat-value" id="inProgressCount">—</div></div>
    <div class="stat"><div class="stat-label">Последнее сохранение</div><div class="stat-value" id="lastSaved" style="font-size:17px">—</div></div>
   </section>
   <section class="panel"><h2>Профиль</h2><div class="profile">
@@ -76,6 +76,7 @@ const formatDate = (value) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(date);
 };
+let activeChecklistFilter = "all";
 function showError(message) {
   $("loading").classList.add("hidden");
   $("content").classList.add("hidden");
@@ -205,13 +206,21 @@ async function loadCabinet() {
   $("lastSaved").textContent = rows.length ? formatDate(rows[0].updated_at) : "Пока нет";
   const list = $("checklists");
   list.replaceChildren();
+  const visibleRows = rows.filter((row) => activeChecklistFilter === "all" ||
+    (activeChecklistFilter === "completed" ? isChecklistComplete(row.stats) : !isChecklistComplete(row.stats)));
+  document.querySelectorAll(".stat-filter").forEach((card) => card.setAttribute("aria-pressed", String(card.dataset.filter === activeChecklistFilter)));
   if (!rows.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
     empty.textContent = "Облачных копий пока нет. Откройте чек-лист и нажмите «Сохранить в облако».";
     list.append(empty);
+  } else if (!visibleRows.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = activeChecklistFilter === "completed" ? "Выполненных чек-листов пока нет." : "Чек-листов в работе пока нет.";
+    list.append(empty);
   } else {
-    for (const row of rows) {
+    for (const row of visibleRows) {
       const item = document.createElement("article");
       item.className = "item";
       const icon = document.createElement("div");
@@ -262,7 +271,7 @@ async function loadCabinet() {
       actions.style.flex = "none";
       const open = document.createElement("a");
       open.className = "btn";
-      open.textContent = "Открыть";
+      open.textContent = "Открыть и продолжить";
       const mode = typeof row.mode === "string" ? row.mode : "";
       open.href = "./index.html?openChecklist=" + encodeURIComponent(row.id) + (mode ? "&mode=" + encodeURIComponent(mode) : "");
       open.style.padding = "8px 12px";
@@ -310,6 +319,16 @@ async function loadCabinet() {
   $("error").classList.add("hidden");
   $("content").classList.remove("hidden");
 }
+document.querySelectorAll(".stat-filter").forEach((card) => {
+  const activate = () => {
+    activeChecklistFilter = card.dataset.filter || "all";
+    loadCabinet().catch((error) => showError(error?.message || "Не удалось обновить список чек-листов."));
+  };
+  card.addEventListener("click", activate);
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(); }
+  });
+});
 $("refreshEmployeesBtn").addEventListener("click", async () => {
   const button = $("refreshEmployeesBtn");
   button.disabled = true;
