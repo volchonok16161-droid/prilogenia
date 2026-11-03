@@ -73,7 +73,7 @@ test("native checklist offers explicit restore and snapshots local state before 
 
 test("restored native checklist is linked to the restored cloud row revision", () => {
   assert.match(html, /applyState:async function\(incoming,metadata\)/);
-  assert.match(html, /localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId,JSON.stringify({id:metadata.id,revision:metadata.revision}))/);
+  assert.match(html, /localStorage\.setItem\(LS_KEY\+'::cloud-ref::'\+STATE\.__cloudChecklistId,JSON\.stringify\(\{id:metadata\.id,revision:metadata\.revision\}\)\)/);
 });
 
 
@@ -86,7 +86,7 @@ test("embedded TT, BI and hydro checklists expose a mode-isolated cloud restore 
   assert.match(bridge, /items\.filter\(function\(item\)\{return item\.mode===context\.mode;\}\)/);
   assert.match(bridge, /beforeApply:async function\(\)\{await backup\.createSnapshot/);
   assert.match(bridge, /applyState:context\.applyState/);
-  assert.match(bridge, /localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId/);
+  assert.match(bridge, /localStorage\.setItem\(LS_KEY\+'::cloud-ref::'\+STATE\.__cloudChecklistId/);
   assert.match(bridge, /_photo\$\/i\.test\(key\)/);
   assert.match(bridge, /window\.parent&&window\.parent\.TMHAuth/);
   assert.match(bridge, /Восстановить «'\+selected\.title/);
