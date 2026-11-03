@@ -17515,10 +17515,11 @@ import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js
 import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.js';
 import { createChecklistPhotoSync } from './prototype/supabase-cloud-photos.js';
 const restoreButton=document.getElementById('tmhCloudRestoreBtn');
+const __autoOpenChecklistId=(function(){try{return new URLSearchParams(window.parent.location.search).get('openChecklist');}catch(e){return null;}})();
 if(restoreButton){
   restoreButton.addEventListener('click',async function(){
     if(restoreButton.disabled)return;
-    const requestedChecklistId=(function(){try{return new URLSearchParams(window.parent.location.search).get('openChecklist');}catch(e){return null;}})();
+    const requestedChecklistId=__autoOpenChecklistId;
     if(!requestedChecklistId&&!window.confirm('Открыть список облачных копий для режима '+${JSON.stringify(mode)}+'?'))return;
     restoreButton.disabled=true;const oldText=restoreButton.textContent;restoreButton.textContent='⏳ Загружаю список…';
     try{
@@ -17551,7 +17552,7 @@ if(restoreButton){
     }catch(error){console.error('Embedded cloud restore failed',error);const message=String(error&&error.message||'Не удалось восстановить чек-лист');if(typeof showToast==='function')showToast(message);else window.alert(message);}
     finally{restoreButton.disabled=false;restoreButton.textContent=oldText;}
   });
-  if(requestedChecklistId){Promise.resolve().then(function(){restoreButton.click();});}
+  if(__autoOpenChecklistId){Promise.resolve().then(function(){restoreButton.click();});}
 }
 const button=document.getElementById('tmhCloudBackupBtn');
 if(button){
