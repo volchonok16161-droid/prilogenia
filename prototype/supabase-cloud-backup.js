@@ -68,6 +68,8 @@ export function createChecklistCloudBackup({
   cloudApi: injectedCloudApi,
   photoSync,
   idFactory = () => crypto.randomUUID(),
+  identityFactory = () => crypto.randomUUID(),
+  persistState = () => true,
 } = {}) {
   if (!authApi || !storage || typeof getState !== "function" ||
       typeof getMode !== "function" || typeof getStorageKey !== "function") {
