@@ -10,8 +10,8 @@ export function isChecklistComplete(stats) {
 
   const total = Number(stats.totalFields ?? stats.total);
   const filled = Number(stats.filledTotal ?? stats.answered);
-  if (Number.isFinite(total) && total > 0 && Number.isFinite(filled)) {
-    return filled >= total;
+  if (Number.isFinite(total)) {
+    if (total <= 0 || !Number.isFinite(filled) || filled < total) return false;
   }
   return true;
 }
