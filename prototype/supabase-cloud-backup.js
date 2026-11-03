@@ -17,51 +17,33 @@ function cloneWithoutPhotos(value, stats = { removed: 0 }) {
   return result;
 }
 
-function calculateChecklistStats(state) {
+function calculateChecklistStats(state, definitions = []) {
   const counters = { total: 0, answered: 0, deviations: 0 };
-  const fallbackDeviationValues = new Set(["no", "нет", "bad", "fail", "failed", "deviation", "несоответствие", "не соответствует", "false"]);
-  const fieldDefinitions = new Map();
+  const byEquipment = new Map();
+  for (const equipment of definitions || []) {
+    if (!equipment || typeof equipment.id !== "string" || !Array.isArray(equipment.fields)) continue;
+    byEquipment.set(equipment.id, equipment.fields.filter((field) => field && field.calc !== false));
+  }
 
-  // Checklist schemas may be embedded in the state. Index their explicit
-  // "ok" values so deviations follow each field's own acceptance criteria.
-  const collectDefinitions = (value) => {
-    if (Array.isArray(value)) { value.forEach(collectDefinitions); return; }
-    if (!value || typeof value !== "object") return;
-    if (Array.isArray(value.fields)) {
-      for (const field of value.fields) {
-        if (field && typeof field.key === "string" && Array.isArray(field.ok)) {
-          fieldDefinitions.set(field.key, {
-            ok: new Set(field.ok.map((item) => String(item).trim().toLowerCase())),
-            calc: field.calc,
-          });
-        }
-      }
-    }
-    Object.values(value).forEach(collectDefinitions);
-  };
-  collectDefinitions(state);
-
-  const visit = (value, parentKey = "") => {
-    if (Array.isArray(value)) { value.forEach((item) => visit(item)); return; }
-    if (!value || typeof value !== "object") return;
-
-    const fieldKey = value.fieldKey ?? value.field_key ?? value.key ?? parentKey;
-    const definition = typeof fieldKey === "string" ? fieldDefinitions.get(fieldKey) : null;
-    if (Object.prototype.hasOwnProperty.call(value, "status") && definition?.calc !== false) {
+  for (const [instanceId, values] of Object.entries(state.values ?? {})) {
+    if (!values || typeof values !== "object" || Array.isArray(values)) continue;
+    const separator = instanceId.indexOf("|");
+    const equipmentId = separator < 0 ? instanceId : instanceId.slice(0, separator);
+    const fields = byEquipment.get(equipmentId);
+    if (!fields) continue;
+    for (const field of fields) {
+      if (field.type === "select" && Array.isArray(field.ok) && field.ok.length === 0) continue;
       counters.total += 1;
-      const raw = value.status;
-      if (raw !== null && raw !== undefined && String(raw).trim() !== "") {
-        counters.answered += 1;
-        const normalized = String(raw).trim().toLowerCase();
-        const isDeviation = definition
-          ? !definition.ok.has(normalized)
-          : fallbackDeviationValues.has(normalized);
-        if (isDeviation) counters.deviations += 1;
+      const raw = values[field.key];
+      if (raw === null || raw === undefined || String(raw).trim() === "") continue;
+      counters.answered += 1;
+      if (raw === "Не требуется") continue;
+      if (Array.isArray(field.ok) && field.ok.length > 0 &&
+          !field.ok.some((accepted) => String(accepted).trim().toLowerCase() === String(raw).trim().toLowerCase())) {
+        counters.deviations += 1;
       }
     }
-    for (const [key, item] of Object.entries(value)) visit(item, key);
-  };
-  visit(state.values ?? state);
+  }
   return Object.freeze({
     total: counters.total,
     answered: counters.answered,
@@ -138,7 +120,7 @@ export function createChecklistCloudBackup({
       manifest = result.manifest;
       uploaded = manifest.length > 0;
     }
-    const checklistStats = calculateChecklistStats(state);
+    const checklistStats = calculateChecklistStats(state, getChecklistDefinitions());
     const payload = {
       mode,
       state: cloneWithoutPhotos(state, stats),
