@@ -168,7 +168,7 @@ async function loadCabinet() {
   const { user, profile } = identity;
   const { data, error } = await api.client
     .from("checklists")
-    .select("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode,stats:payload->stats")
+    .select("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode,checklist_type:payload->>checklistType,stats:payload->stats")
     .eq("owner_id", user.id)
     .order("updated_at", { ascending: false })
     .limit(50);
@@ -210,9 +210,13 @@ async function loadCabinet() {
       info.className = "item-info";
       const title = document.createElement("strong");
       title.textContent = row.title || "Чек-лист";
+      const category = document.createElement("small");
+      const categoryByMode = { complex: "Комплексный чек-лист", housings: "КМБ", tt: "ТТ", bi: "БИ", hydro: "Гидродемпферы" };
+      category.textContent = row.checklist_type || categoryByMode[row.mode] || (String(row.mode || "").startsWith("k_") ? "Пользовательский чек-лист" : "Тип чек-листа не указан");
+      category.className = "checklist-category";
       const meta = document.createElement("small");
-      meta.textContent = (row.equipment_type || "Тип не указан") + " · Обновлён " + formatDate(row.updated_at);
-      info.append(title, meta);
+      meta.textContent = (row.equipment_type || "Оборудование не указано") + " · Обновлён " + formatDate(row.updated_at);
+      info.append(title, category, meta);
       const stats = row.stats && typeof row.stats === "object" ? row.stats : null;
       const progress = document.createElement("div");
       progress.className = "progress-meta";
