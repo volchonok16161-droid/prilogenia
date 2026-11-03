@@ -53,10 +53,13 @@ function makeHarness({ reference = null, updateError = null } = {}) {
 
 test("explicit backup creates a cloud record and excludes local photos", async () => {
   const h = makeHarness();
+  // A legacy mode-wide reference must not be reused for this checklist instance.
+  h.values.set("checklist_complex::user:" + USER + "::cloud-ref", JSON.stringify({ id: ROW, revision: 99 }));
   const result = await h.backup.saveCurrent();
   assert.equal(h.calls.length, 1);
   assert.equal(h.calls[0].action, "create");
   assert.equal(h.calls[0].input.payload.state.values.item1.status, "ok");
+  assert.equal("__cloudChecklistId" in h.calls[0].input.payload.state, false);
   assert.equal("front_photo" in h.calls[0].input.payload.state.values.item1, false);
   assert.equal(result.photosExcluded, 1);
   assert.equal(result.created, true);
