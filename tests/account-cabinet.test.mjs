@@ -38,7 +38,7 @@ test("account cabinet allows deleting only the selected cloud checklist owned by
   assert.match(html, /if \(!deleted\?\.id\) throw new Error/);
   assert.match(html, /await loadCabinet\(\)/);
   assert.match(html, /Локальные данные и фотографии на устройстве не будут затронуты/);
-  assert.match(html, /локальные данные и фотографии на устройстве не затрагиваются/);
+  assert.match(html, /локальные данные и фотографии на устройстве не изменяются/);
   assert.doesNotMatch(html, /Иван Петров|12\s*<\/div>|демонстрационные сведения/i);
   assert.doesNotMatch(html, /\.insert\(|\.upsert\(/);
   assert.match(html, /Облачных копий пока нет/);
