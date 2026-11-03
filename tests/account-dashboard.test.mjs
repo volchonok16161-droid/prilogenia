@@ -15,8 +15,7 @@ test("account dashboard labels each cloud checklist using saved authoritative st
   assert.match(html, /isChecklistComplete\(row\.stats\)/);
   assert.match(html, /✓ Выполнен/);
   assert.match(html, /В работе/);
-  assert.match(html, /status-pill done/);
-  assert.match(html, /status-pill progress/);
+  assert.match(html, /status\.className = "status-pill " \+ \(completed \? "done" : "progress"\)/);
 });
 
 test("account dashboard paginates all owned cloud checklists for accurate totals", () => {
