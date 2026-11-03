@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -17520,7 +17520,7 @@ if(restoreButton){
       const items=await restore.listAvailable(),matching=items.filter(function(item){return item.mode===context.mode;});
       if(!matching.length){if(typeof showToast==='function')showToast('Для этого режима облачных копий пока нет');return;}
       const lines=matching.map(function(item,index){return (index+1)+'. '+(item.title||'Без названия')+' · версия '+item.revision+' · '+(item.updatedAt||'дата неизвестна');});
-      const choice=window.prompt('Режим: '+context.mode+'\\nВыберите облачную копию по номеру:\\n\\n'+lines.join('\\n')+'\\n\\nВведите номер:');
+      const choice=window.prompt('Режим: '+context.mode+'\\\nВыберите облачную копию по номеру:\\\n\\\n'+lines.join('\\\n')+'\\\n\\\nВведите номер:');
       if(choice===null)return;const selectedIndex=Number(choice)-1;
       if(!Number.isInteger(selectedIndex)||selectedIndex<0||selectedIndex>=matching.length)throw new Error('Неверный номер облачной копии');
       const selected=matching[selectedIndex];
@@ -17557,7 +17557,7 @@ if(button){
       const result=await backup.saveCurrent();
       const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
       if(typeof showToast==='function')showToast(message+' · фотографий: '+result.photosUploaded);
-      else window.alert(message+'\\nЗагружено фотографий: '+result.photosUploaded);
+      else window.alert(message+'\\\nЗагружено фотографий: '+result.photosUploaded);
     }catch(error){
       console.error('Cloud backup failed',error);
       const message=error&&error.code==='REVISION_CONFLICT'
