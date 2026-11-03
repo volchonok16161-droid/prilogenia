@@ -128,7 +128,6 @@ export function createChecklistCloudBackup({
     const payload = {
       mode,
       checklistType,
-      stats: checklistStats,
       state: cloneWithoutPhotos(state, stats),
       photos: manifest,
       stats: checklistStats,
