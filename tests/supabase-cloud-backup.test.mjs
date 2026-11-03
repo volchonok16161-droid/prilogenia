@@ -4,10 +4,12 @@ import { createChecklistCloudBackup } from "../prototype/supabase-cloud-backup.j
 
 const USER = "11111111-1111-4111-8111-111111111111";
 const ROW = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const LOCAL = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const refKey = "checklist_complex::user:" + USER + "::cloud-ref::" + LOCAL;
 
 function makeHarness({ reference = null, updateError = null } = {}) {
   const values = new Map();
-  if (reference) values.set("checklist_complex::user:" + USER + "::cloud-ref", JSON.stringify(reference));
+  if (reference) values.set(refKey, JSON.stringify(reference));
   const calls = [];
   const storage = {
     getItem(key) { return values.get(key) ?? null; },
@@ -34,6 +36,7 @@ function makeHarness({ reference = null, updateError = null } = {}) {
     async getCurrentIdentity() { return { user: { id: USER }, profile: { role: "employee" }, error: null }; },
   };
   const state = {
+    __cloudChecklistId: LOCAL,
     general: { type: "ВЛ80", number: "123", notes: "ok" },
     values: { item1: { status: "ok", front_photo: "data:image/jpeg;base64,AAAA" } },
   };
@@ -57,7 +60,7 @@ test("explicit backup creates a cloud record and excludes local photos", async (
   assert.equal("front_photo" in h.calls[0].input.payload.state.values.item1, false);
   assert.equal(result.photosExcluded, 1);
   assert.equal(result.created, true);
-  assert.deepEqual(JSON.parse(h.values.get("checklist_complex::user:" + USER + "::cloud-ref")), {
+  assert.deepEqual(JSON.parse(h.values.get(refKey)), {
     id: ROW, revision: 1,
   });
   assert.equal(h.state.values.item1.front_photo, "data:image/jpeg;base64,AAAA");
@@ -70,7 +73,7 @@ test("next explicit backup updates the same cloud row with compare-and-swap revi
   assert.equal(h.calls[0].input.id, ROW);
   assert.equal(h.calls[0].input.expectedRevision, 4);
   assert.equal(result.created, false);
-  assert.equal(JSON.parse(h.values.get("checklist_complex::user:" + USER + "::cloud-ref")).revision, 5);
+  assert.equal(JSON.parse(h.values.get(refKey)).revision, 5);
 });
 
 test("a mismatched local namespace is rejected before cloud writes", async () => {
@@ -90,12 +93,12 @@ test("a stale cloud revision is surfaced and the local reference is not advanced
   const conflict = Object.assign(new Error("conflict"), { code: "REVISION_CONFLICT" });
   const h = makeHarness({ reference: { id: ROW, revision: 4 }, updateError: conflict });
   await assert.rejects(h.backup.saveCurrent(), (error) => error.code === "REVISION_CONFLICT");
-  assert.equal(JSON.parse(h.values.get("checklist_complex::user:" + USER + "::cloud-ref")).revision, 4);
+  assert.equal(JSON.parse(h.values.get(refKey)).revision, 4);
 });
 
 test("an invalid saved cloud reference does not silently create a duplicate", async () => {
   const h = makeHarness();
-  h.values.set("checklist_complex::user:" + USER + "::cloud-ref", "{broken");
+  h.values.set(refKey, "{broken");
   await assert.rejects(h.backup.saveCurrent(), (error) => error.code === "INVALID_CLOUD_REFERENCE");
   assert.equal(h.calls.length, 0);
 });
@@ -110,7 +113,7 @@ test("create followed by a second explicit save updates the same row", async () 
   assert.deepEqual(h.calls.map((call) => call.action), ["create", "update"]);
   assert.equal(h.calls[1].input.id, ROW);
   assert.equal(h.calls[1].input.expectedRevision, 1);
-  assert.deepEqual(JSON.parse(h.values.get("checklist_complex::user:" + USER + "::cloud-ref")), {
+  assert.deepEqual(JSON.parse(h.values.get(refKey)), {
     id: ROW,
     revision: 2,
   });
@@ -133,7 +136,7 @@ test("a failed first cloud create does not store a reference or pretend success"
     },
   });
   await assert.rejects(h.backup.saveCurrent(), (error) => error.code === "CLOUD_REQUEST_FAILED");
-  assert.equal(h.values.has("checklist_complex::user:" + USER + "::cloud-ref"), false);
+  assert.equal(h.values.has(refKey), false);
 });
 
 test("photo exclusion recurses through nested objects and arrays without mutating local state", async () => {
@@ -162,7 +165,7 @@ test("createSnapshot creates a separate immutable cloud copy without changing th
   assert.equal(h.calls[0].action, "create");
   assert.match(h.calls[0].input.title, /^Before restore/);
   assert.equal("front_photo" in h.calls[0].input.payload.state.values.item1, false);
-  assert.equal(h.values.has("checklist_complex::user:" + USER + "::cloud-ref"), false);
+  assert.equal(h.values.has(refKey), false);
   assert.equal(h.state.values.item1.front_photo, "data:image/jpeg;base64,AAAA");
 });
 
