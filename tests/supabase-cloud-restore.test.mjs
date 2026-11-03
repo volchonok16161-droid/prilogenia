@@ -69,6 +69,7 @@ test("restore creates a safety snapshot before applying incoming state", async (
     authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
     cloudApi: { async list() { return [h.row]; }, async get(id) { calls.push("get"); return h.row; } },
     getMode: () => "complex",
+    getCurrentState: () => ({ general: { number: "old" } }),
     async beforeApply(meta) { calls.push(["snapshot", meta.revision]); },
     async applyState() { calls.push("apply"); },
   });
@@ -114,8 +115,8 @@ test("restore hydrates private photo manifest before applying the checklist stat
   });
   await restore.restore(ROW);
   assert.deepEqual(calls, [
-    "snapshot",
     ["hydrate", ROW, 1],
+    "snapshot",
     ["apply", "data:image/jpeg;base64,AQID"],
   ]);
 });
@@ -132,4 +133,36 @@ test("legacy cloud records without a photo manifest restore with an empty manife
   });
   await restore.restore(ROW);
   assert.deepEqual(hydrated, []);
+});
+
+
+test("restoring an identical state skips redundant safety snapshots", async () => {
+  const h = harness();
+  let snapshots = 0;
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    getCurrentState: () => ({ general: { number: "42" }, __cloudChecklistId: "local-only-id" }),
+    async beforeApply() { snapshots += 1; },
+    async applyState() {},
+  });
+  await restore.restore(ROW);
+  assert.equal(snapshots, 0);
+});
+
+test("photo hydration failure happens before a safety snapshot is created", async () => {
+  const h = harness();
+  let snapshots = 0;
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    getCurrentState: () => ({ general: { number: "old" } }),
+    async hydrateState() { throw new Error("photo restore failed"); },
+    async beforeApply() { snapshots += 1; },
+    async applyState() {},
+  });
+  await assert.rejects(restore.restore(ROW), /photo restore failed/);
+  assert.equal(snapshots, 0);
 });
