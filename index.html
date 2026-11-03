@@ -17591,7 +17591,7 @@ if(button){
         photoSync,
         getState:function(){return getContext().state;},
         getMode:function(){return getContext().mode;},
-        getStorageKey:function(){return getContext().storageKey;},persistState:function(){return getContext().persistState();},getChecklistDefinitions:function(){return getContext().definitions;}
+        getStorageKey:function(){return getContext().storageKey;},persistState:function(){return getContext().persistState();},getChecklistDefinitions:function(){return getContext().definitions;},getChecklistStats:function(){return getContext().stats;}
       });
       const result=await backup.saveCurrent();
       const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
