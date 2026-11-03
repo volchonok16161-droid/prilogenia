@@ -271,7 +271,7 @@ async function loadCabinet() {
       actions.style.flex = "none";
       const open = document.createElement("a");
       open.className = "btn";
-      open.textContent = "Открыть и продолжить";
+      open.textContent = "Открыть";
       const mode = typeof row.mode === "string" ? row.mode : "";
       open.href = "./index.html?openChecklist=" + encodeURIComponent(row.id) + (mode ? "&mode=" + encodeURIComponent(mode) : "");
       open.style.padding = "8px 12px";
