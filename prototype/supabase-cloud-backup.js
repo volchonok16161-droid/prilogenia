@@ -195,12 +195,23 @@ export function createChecklistCloudBackup({
           Array.isArray(previousRow?.payload?.photos)
           ? previousRow.payload.photos
           : null;
-        const belongsToChecklist = oldPhotos && oldPhotos.every((entry) => {
-          if (!entry || typeof entry.path !== "string") return false;
+        const isUuid = (value) => typeof value === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+        const belongsToChecklist = isUuid(reference.id) && oldPhotos && oldPhotos.every((entry) => {
+          if (!entry || typeof entry.path !== "string" ||
+              typeof entry.itemId !== "string" || typeof entry.field !== "string" ||
+              !entry.itemId || !entry.field) return false;
           const parts = entry.path.split("/");
-          // Only reclaim files belonging to the exact revision being replaced.
-          // A malformed or mixed manifest is left untouched for safety.
-          return parts[1] === reference.id && parts[2] === String(reference.revision);
+          const isNewPath = parts.length === 4 && isUuid(parts[3]);
+          const encodedItemId = encodeURIComponent(entry.itemId);
+          const fieldPrefix = encodeURIComponent(entry.field) + "-";
+          const isLegacyPath = parts.length === 5 &&
+            parts[3] === encodedItemId && parts[4].startsWith(fieldPrefix) &&
+            isUuid(parts[4].slice(fieldPrefix.length));
+          // Validate the full owner/checklist/revision path before any deletion.
+          // A malformed or mixed manifest is left untouched as a whole.
+          return parts[0] === userId && parts[1] === reference.id &&
+            parts[2] === String(reference.revision) && (isNewPath || isLegacyPath);
         });
         if (belongsToChecklist && oldPhotos.length) previousManifest = oldPhotos;
       } catch {
