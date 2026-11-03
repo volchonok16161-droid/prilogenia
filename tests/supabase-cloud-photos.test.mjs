@@ -195,3 +195,38 @@ test("partial photo upload failure removes files already uploaded in the same ba
   assert.equal(files.size, 0);
   assert.deepEqual(calls, [["remove", 1]]);
 });
+
+
+test("surfaces actionable Supabase Storage error details without losing the original cause", async () => {
+  const cause = Object.assign(new Error("new row violates row-level security\\npolicy"), {
+    code: "42501",
+    statusCode: "403",
+  });
+  const storageApi = {
+    from() {
+      return {
+        async upload() { return { data: null, error: cause }; },
+      };
+    },
+  };
+  const sync = createChecklistPhotoSync({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storageApi,
+    idFactory: () => PHOTO,
+  });
+  await assert.rejects(
+    sync.uploadState({
+      state: { values: { item1: { front_photo: "data:image/jpeg;base64,AQID" } } },
+      checklistId: ROW,
+      revision: 1,
+    }),
+    (error) => {
+      assert.equal(error.code, "STORAGE_REQUEST_FAILED");
+      assert.match(error.message, /row-level security policy/);
+      assert.match(error.message, /42501/);
+      assert.match(error.message, /403/);
+      assert.equal(error.cause, cause);
+      return true;
+    },
+  );
+});
