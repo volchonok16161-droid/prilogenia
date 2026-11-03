@@ -344,3 +344,29 @@ test("rejects a missing destination item before any photo download", async () =>
   );
   assert.equal(h.calls.filter((call) => call.action === "download").length, 0);
 });
+
+
+test("a Storage download failure midway through restore never mutates the caller's state", async () => {
+  const h = harness();
+  const state = { values: { item1: { status: "ok" }, item2: { status: "checked" } } };
+  const firstPath = USER + "/" + ROW + "/3/" + PHOTO;
+  const missingPhoto = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  h.files.set(firstPath, new Blob([new Uint8Array([1, 2, 3])], { type: "image/jpeg" }));
+
+  await assert.rejects(
+    h.sync.restoreState({
+      state,
+      checklistId: ROW,
+      manifest: [
+        { itemId: "item1", field: "front_photo", path: firstPath, contentType: "image/jpeg" },
+        { itemId: "item2", field: "rear_photo", path: USER + "/" + ROW + "/3/" + missingPhoto, contentType: "image/jpeg" },
+      ],
+    }),
+    (error) => error.code === "STORAGE_REQUEST_FAILED",
+  );
+
+  assert.deepEqual(state, {
+    values: { item1: { status: "ok" }, item2: { status: "checked" } },
+  });
+  assert.equal(h.calls.filter((call) => call.action === "download").length, 2);
+});
