@@ -120,3 +120,13 @@ test("cloud photo actions fail closed when IndexedDB photo hydration or its queu
   assert.match(html, /if\(ok===false\)throw new Error\('Не удалось завершить очередь фотографий IndexedDB/);
   assert.equal(count(html, "await __psReady();if(__PS.chain)await __PS.chain;"), 0);
 });
+
+test("the embedded bridge escapes alert newlines before assigning the generated srcdoc", () => {
+  const start = html.indexOf("function __tmhAttachCloudBackup(source, mode)");
+  const end = html.indexOf("function getEmbeddedSource(mode)", start);
+  const bridge = html.slice(start, end);
+  assert.ok(
+    bridge.includes("else window.alert(message+'\\\\nЗагружено фотографий: '+result.photosUploaded);"),
+    "the nested srcdoc script must receive a literal \\n escape, not a raw line break",
+  );
+});
