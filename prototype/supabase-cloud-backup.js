@@ -32,7 +32,7 @@ function calculateChecklistStats(state, definitions = []) {
       const values = state.values?.[instanceId] ?? {};
       for (const field of (Array.isArray(instance.fields) ? instance.fields : fields)) {
         if (!field || field.calc === false) continue;
-        if (field.type === "select" && Array.isArray(field.ok) && field.ok.length === 0) continue;
+        if ((field.type === "select" || Array.isArray(field.options)) && Array.isArray(field.ok) && field.ok.length === 0) continue;
         counters.total += 1;
         const raw = values[field.key];
         if (raw === null || raw === undefined || String(raw).trim() === "") continue;
