@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#172b57"><title>Офлайн-режим — интерактивный стенд</title>
+<style>
+:root{font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#172033;background:#f3f5f9}
+*{box-sizing:border-box}body{margin:0;padding:18px}.wrap{max-width:860px;margin:auto}
+.card{background:white;border:1px solid #e1e7ef;border-radius:16px;padding:20px;margin-bottom:14px}
+h1{font-size:23px;margin:0 0 8px}h2{font-size:17px;margin:0 0 12px}.muted{color:#64748b;font-size:13px}
+.notice{background:#fff5df;border-radius:10px;padding:12px;margin:12px 0;color:#7a5100}
+label{display:grid;gap:5px;margin:10px 0}input,select,textarea{font:inherit;padding:10px;border:1px solid #d9e0ea;border-radius:9px;width:100%}
+textarea{min-height:100px;resize:vertical}button{font:inherit;font-weight:650;border:0;border-radius:10px;padding:11px 15px;background:#315efb;color:white;cursor:pointer}
+button.secondary{background:#e9edf5;color:#344054}button:disabled{opacity:.55}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row>*{flex:1}.status{padding:11px;border-radius:10px;background:#eef2f7;margin:10px 0;overflow-wrap:anywhere}.ok{background:#e9f8ef;color:#176b43}.warn{background:#fff5df;color:#805600}.hidden{display:none!important}.log{background:#101827;color:#dce7f5;border-radius:10px;padding:12px;white-space:pre-wrap;font:12px/1.5 ui-monospace;min-height:75px}
+@media(max-width:560px){body{padding:10px}.card{padding:15px}}
+</style>
+</head>
+<body><main class="wrap">
+<section class="card">
+<h1>Интерактивный офлайн-стенд · 5 режимов</h1>
+<p class="muted">Тестовый контур на отдельной IndexedDB. Проверяет реальное шифрование WebCrypto, PIN-разблокировку, сохранение полей/фото и восстановление после перезагрузки. Не подключается к Supabase и не использует данные сотрудников.</p>
+<div class="notice">«Онлайн-вход» ниже — только демонстрационная кнопка создания локального PIN. Авторизация и облачная синхронизация здесь имитируются.</div>
+<div id="status" class="status">Стенд загружается…</div>
+<div class="row"><button id="setup">Создать PIN стенда</button><button id="unlock" class="secondary">Разблокировать PIN</button></div>
+<div class="row"><label>PIN (6–12 цифр)<input id="pin" inputmode="numeric" type="password" maxlength="12" placeholder="Введите PIN"></label><label>Режим<select id="mode"><option value="complex">Комплексный</option><option value="housings">КМБ</option><option value="tt">ТТ</option><option value="bi">БИ</option><option value="hydro">Гидродемпферы</option></select></label></div>
+</section>
+<section class="card">
+<h2>Тестовый чек-лист</h2>
+<label>Название / объект<input id="title" value="Тестовый осмотр"></label>
+<label><input id="checked" type="checkbox" style="width:auto"> Отметка выполнена</label>
+<label>Комментарий<textarea id="comment" placeholder="Комментарий сохранится в зашифрованной записи"></textarea></label>
+<label>Фото (необязательно)<input id="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
+<div class="row"><button id="save" disabled>Сохранить офлайн</button><button id="load" class="secondary" disabled>Загрузить из IndexedDB</button></div>
+<div id="photoInfo" class="muted"></div>
+</section>
+<section class="card"><h2>Проверка перезапуска</h2><p class="muted">После сохранения обновите страницу, снова разблокируйте PIN и нажмите «Загрузить из IndexedDB». Запись привязана к выбранному режиму стенда.</p><button id="reload" class="secondary">Перезагрузить страницу</button></section>
+<section class="card"><h2>Журнал</h2><div id="log" class="log">Ожидание…</div></section>
+</main>
+<script type="module">
+import { createOfflineVaultCrypto } from "./offline-vault-crypto.js";
+import { createOfflineVaultDatabase } from "./offline-vault-db.js";
+const DB_NAME="tmh-offline-five-mode-demo-v1", USER="11111111-1111-4111-8111-111111111111";
+const $=id=>document.getElementById(id), modes=["complex","housings","tt","bi","hydro"];
+const cryptoVault=createOfflineVaultCrypto(), db=createOfflineVaultDatabase({dbName:DB_NAME});
+let deviceId, vault=null, photoData=null;
+const logLines=[];
+function log(t){logLines.push(new Date().toLocaleTimeString("ru-RU")+" · "+t);$("log").textContent=logLines.slice(-14).join("\n");}
+function status(t,k=""){ $("status").className="status "+k; $("status").textContent=t; }
+function keyId(){return "demo-checklist:"+$("mode").value;}
+async function init(){
+ deviceId=await db.getMeta("demo-device-id");
+ if(!deviceId){deviceId=crypto.randomUUID();await db.setMeta("demo-device-id",deviceId);}
+ const descriptor=await db.getMeta("demo-pin-descriptor");
+ $("setup").disabled=Boolean(descriptor);
+ status(descriptor?"PIN уже создан на этом стенде. Разблокируйте его.":"Сначала создайте PIN стенда.","warn");
+ log("IndexedDB открыта; режимы: "+modes.join(", "));
+}
+$("setup").onclick=async()=>{
+ try{
+  const pin=$("pin").value;if(!/^\d{6,12}$/.test(pin))throw new Error("PIN должен состоять из 6–12 цифр.");
+  const descriptor=await cryptoVault.createDescriptor({pin,userId:USER,deviceId});
+  await db.setMeta("demo-pin-descriptor",descriptor);vault=await cryptoVault.unlock({pin,descriptor,userId:USER,deviceId});
+  $("save").disabled=$("load").disabled=false;$("setup").disabled=true;
+  $("pin").value="";status("PIN стенда создан, vault разблокирован.","ok");log("Создан PIN; ключ в IndexedDB не сохраняется.");
+ }catch(e){status(e.message,"warn");log("Ошибка PIN: "+e.message);}
+};
+$("unlock").onclick=async()=>{
+ try{
+  const descriptor=await db.getMeta("demo-pin-descriptor");if(!descriptor)throw new Error("Сначала создайте PIN.");
+  vault=await cryptoVault.unlock({pin:$("pin").value,descriptor,userId:USER,deviceId});
+  $("pin").value="";$("save").disabled=$("load").disabled=false;status("PIN принят. Локальный vault разблокирован.","ok");log("PIN unlock успешен.");
+ }catch(e){status("Не удалось разблокировать: "+e.message,"warn");log("Ошибка unlock: "+e.message);}
+};
+$("photo").onchange=async()=>{
+ const file=$("photo").files?.[0];photoData=null;
+ if(!file){$("photoInfo").textContent="";return;}
+ if(!/^image\/(jpeg|png|webp)$/.test(file.type)||file.size>10*1024*1024){$("photoInfo").textContent="Нужен JPEG/PNG/WebP до 10 МБ.";return;}
+ photoData=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});
+ $("photoInfo").textContent="Фото подготовлено ("+Math.round(file.size/1024)+" КБ); сохранится внутри зашифрованного снимка.";
+};
+$("save").onclick=async()=>{
+ try{if(!vault)throw new Error("Разблокируйте PIN.");
+  const value={mode:$("mode").value,title:$("title").value,checked:$("checked").checked,comment:$("comment").value,photo:photoData,updatedAt:new Date().toISOString()};
+  const encrypted=await vault.encrypt(value),roundtrip=await vault.decrypt(encrypted);
+  if(JSON.stringify(roundtrip)!==JSON.stringify(value))throw new Error("Проверка расшифровки не совпала.");
+  await db.putRecord({id:keyId(),userId:USER,kind:"demo-checklist",encrypted,updatedAt:value.updatedAt});
+  status("Сохранено локально и зашифровано AES-GCM. Облачная отправка не выполнялась.","ok");log("Снимок "+$("mode").value+" сохранён (шифрование + round-trip).");
+ }catch(e){status(e.message,"warn");log("Save error: "+e.message);}
+};
+$("load").onclick=async()=>{
+ try{if(!vault)throw new Error("Разблокируйте PIN.");
+  const row=await db.getRecord(keyId(),USER);if(!row)throw new Error("Для этого режима пока нет сохранённого снимка.");
+  const value=await vault.decrypt(row.encrypted);
+  $("title").value=value.title||"";$("checked").checked=Boolean(value.checked);$("comment").value=value.comment||"";photoData=value.photo||null;
+  $("photoInfo").textContent=photoData?"Фото восстановлено из зашифрованного снимка.":"Фото в записи отсутствует.";
+  status("Запись восстановлена из IndexedDB: "+value.mode+".","ok");log("Загружен снимок "+value.mode+" после возможного перезапуска.");
+ }catch(e){status(e.message,"warn");log("Load error: "+e.message);}
+};
+$("reload").onclick=()=>location.reload();
+await init();
+</script></body></html>
