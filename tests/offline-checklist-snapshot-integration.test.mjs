@@ -8,9 +8,9 @@ test("complex checklist marks local PIN sessions separately from Supabase sessio
   assert.equal((html.match(/window\.__TMH_OFFLINE_MODE = identity\.mode === 'offline-local-unlock'/g) || []).length, 1);
 });
 
-test("complex checklist saves full snapshots through the encrypted vault during offline use", () => {
-  assert.equal((html.match(/var __tmhOriginalSaveState = saveState/g) || []).length, 1);
-  assert.equal((html.match(/api\.saveOfflineChecklist\(LS_KEY, snapshot\)/g) || []).length, 2);
+test("all five checklist runtimes save full snapshots through the encrypted vault during offline use", () => {
+  assert.equal((html.match(/var __tmhOriginalSaveState = saveState/g) || []).length, 5);
+  assert.equal((html.match(/api\.saveOfflineChecklist\(LS_KEY, snapshot\)/g) || []).length, 10);
   assert.match(html, /Сохранено в зашифрованном офлайн-хранилище/);
   assert.match(html, /await __tmhOfflineSaveChain/);
 });
