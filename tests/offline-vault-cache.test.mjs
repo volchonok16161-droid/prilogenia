@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 const source = await readFile(new URL("../sw.js", import.meta.url), "utf8");
 
 test("offline vault modules are part of the app shell cache", () => {
-  assert.match(source, /checklist-cache-v40/);
+  assert.match(source, /checklist-cache-v41/);
   assert.match(source, /\.\/prototype\/offline-vault-crypto\.js/);
   assert.match(source, /\.\/prototype\/offline-vault-db\.js/);
   assert.match(source, /\.\/prototype\/offline-sync-runner\.js/);
@@ -13,7 +13,7 @@ test("offline vault modules are part of the app shell cache", () => {
   assert.match(source, /\.\/prototype\/offline-checklist-schema\.js/);
   assert.match(source, /\.\/prototype\/supabase-auth\.js/);
   assert.match(source, /\.\/prototype\/supabase-cloud-sync\.js/);
-  assert.match(source, /\.\/prototype\/supabase-cloud-photos\.js/);
+  assert.match(source, /\.\/prototype\/supabase-cloud-photos\.js/);\n  assert.match(source, /\.\/prototype\/offline-five-mode-demo\.html/);
 });
 
 test("service worker keeps GET-only cache behavior and does not cache auth writes", () => {
