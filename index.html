@@ -2833,10 +2833,9 @@ async function checkAuth() {
   __tmhInstallAuthWatcher(api);
   try {
     __tmhBindOfflinePinControls();
-    let identity = await api.getCurrentIdentity();
-    if (!identity || !identity.user || !identity.profile) {
-      const offlineIdentity = await api.getOfflineIdentity();
-      if (offlineIdentity?.user && offlineIdentity?.profile) identity = offlineIdentity;
+    let identity = await api.getOfflineIdentity();
+    if (!identity?.user || !identity?.profile) {
+      identity = await api.getCurrentIdentity();
     }
     if (!identity || !identity.user || !identity.profile) {
       currentUser = null;
@@ -6526,10 +6525,9 @@ async function checkAuth() {
   __tmhInstallAuthWatcher(api);
   try {
     __tmhBindOfflinePinControls();
-    let identity = await api.getCurrentIdentity();
-    if (!identity || !identity.user || !identity.profile) {
-      const offlineIdentity = await api.getOfflineIdentity();
-      if (offlineIdentity?.user && offlineIdentity?.profile) identity = offlineIdentity;
+    let identity = await api.getOfflineIdentity();
+    if (!identity?.user || !identity?.profile) {
+      identity = await api.getCurrentIdentity();
     }
     if (!identity || !identity.user || !identity.profile) {
       currentUser = null;
@@ -9819,10 +9817,9 @@ async function checkAuth() {
   __tmhInstallAuthWatcher(api);
   try {
     __tmhBindOfflinePinControls();
-    let identity = await api.getCurrentIdentity();
-    if (!identity || !identity.user || !identity.profile) {
-      const offlineIdentity = await api.getOfflineIdentity();
-      if (offlineIdentity?.user && offlineIdentity?.profile) identity = offlineIdentity;
+    let identity = await api.getOfflineIdentity();
+    if (!identity?.user || !identity?.profile) {
+      identity = await api.getCurrentIdentity();
     }
     if (!identity || !identity.user || !identity.profile) {
       currentUser = null;
@@ -14459,10 +14456,9 @@ async function checkAuth() {
   __tmhInstallAuthWatcher(api);
   try {
     __tmhBindOfflinePinControls();
-    let identity = await api.getCurrentIdentity();
-    if (!identity || !identity.user || !identity.profile) {
-      const offlineIdentity = await api.getOfflineIdentity();
-      if (offlineIdentity?.user && offlineIdentity?.profile) identity = offlineIdentity;
+    let identity = await api.getOfflineIdentity();
+    if (!identity?.user || !identity?.profile) {
+      identity = await api.getCurrentIdentity();
     }
     if (!identity || !identity.user || !identity.profile) {
       currentUser = null;
@@ -16621,10 +16617,9 @@ async function checkAuth() {
   __tmhInstallAuthWatcher(api);
   try {
     __tmhBindOfflinePinControls();
-    let identity = await api.getCurrentIdentity();
-    if (!identity || !identity.user || !identity.profile) {
-      const offlineIdentity = await api.getOfflineIdentity();
-      if (offlineIdentity?.user && offlineIdentity?.profile) identity = offlineIdentity;
+    let identity = await api.getOfflineIdentity();
+    if (!identity?.user || !identity?.profile) {
+      identity = await api.getCurrentIdentity();
     }
     if (!identity || !identity.user || !identity.profile) {
       currentUser = null;
