@@ -59,13 +59,15 @@ export function createOfflineSyncRunner({
 
     for (const operation of pending) {
       let claimed = false;
+      let claimId = null;
       try {
         if (!isOnline()) break;
         assertVerifiedIdentity(await authApi.getCurrentIdentity(), uid);
         const claimedAt = now();
         const leaseUntil = new Date(Date.parse(claimedAt) + 5 * 60 * 1000).toISOString();
+        claimId = claimIdFactory();
         claimed = await database.claimQueueOperation(
-          operation.opId, uid, claimIdFactory(), claimedAt, leaseUntil,
+          operation.opId, uid, claimId, claimedAt, leaseUntil,
         );
         if (!claimed) continue;
         if (operation.userId !== uid || typeof operation.opId !== "string" ||
@@ -78,15 +80,17 @@ export function createOfflineSyncRunner({
           throw new TypeError("mapOperation must return create, update, or remove");
         }
 
-        await database.updateQueueOperation(operation.opId, uid, {
+        const updated = await database.updateQueueOperation(operation.opId, uid, {
           attempts: (Number(operation.attempts) || 0) + 1,
           lastAttemptAt: now(),
           lastError: null,
-        });
+        }, claimId);
+        if (!updated) throw new Error("Sync queue lease was lost before sending");
 
         try {
           await cloudSync[request.method](request.method === "remove" ? request.id : request.input);
-          await database.markSynced(operation.opId, uid);
+          const removed = await database.markSynced(operation.opId, uid, undefined, claimId);
+          if (!removed) throw new Error("Sync queue lease expired before acknowledgement");
           synced += 1;
         } catch (error) {
           if (error?.code !== "REVISION_CONFLICT" || request.method !== "update") throw error;
@@ -102,12 +106,13 @@ export function createOfflineSyncRunner({
             remoteEncrypted,
             createdAt: now(),
           });
-          await database.updateQueueOperation(operation.opId, uid, {
+          const conflictMarked = await database.updateQueueOperation(operation.opId, uid, {
             status: "conflict",
             leaseClaimId: null,
             leaseUntil: null,
             lastError: "REVISION_CONFLICT",
-          });
+          }, claimId);
+          if (!conflictMarked) throw new Error("Sync queue lease expired while saving conflict");
           conflicts += 1;
         }
       } catch (error) {
@@ -120,7 +125,7 @@ export function createOfflineSyncRunner({
             leaseClaimId: null,
             leaseUntil: null,
             lastError: String(error?.code || error?.message || "SYNC_FAILED").slice(0, 240),
-          });
+          }, claimId);
         }
         if (error?.code === "AUTH_REQUIRED" || !isOnline()) break;
       }
