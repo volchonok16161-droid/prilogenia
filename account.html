@@ -77,6 +77,27 @@ const formatDate = (value) => {
   return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(date);
 };
 let activeChecklistFilter = "all";
+let cabinetLoadSequence = 0;
+let activeCabinetUserId = null;
+function clearCabinet() {
+  cabinetLoadSequence += 1;
+  activeCabinetUserId = null;
+  $("content").classList.add("hidden");
+  $("loading").classList.remove("hidden");
+  $("error").classList.add("hidden");
+  $("greeting").textContent = "Личный кабинет";
+  $("subtitle").textContent = "Сессия завершена. Данные предыдущего аккаунта очищены.";
+  for (const id of ["email", "userId", "roleProfileValue", "emailStatus", "createdAt", "lastSignIn", "checklistCount", "completedCount", "inProgressCount", "lastSaved"]) {
+    $(id).textContent = "—";
+  }
+  $("displayNameInput").value = "";
+  $("emailConfirmStatus").textContent = "";
+  $("profileStatus").textContent = "";
+  $("passwordStatus").textContent = "";
+  $("checklists").replaceChildren();
+  $("employeeList").replaceChildren();
+  $("adminPanel").classList.add("hidden");
+}
 function showError(message) {
   $("loading").classList.add("hidden");
   $("content").classList.add("hidden");
@@ -89,7 +110,7 @@ async function callAdmin(api, body) {
   if (data?.error) throw new Error(data.error);
   return data;
 }
-async function loadEmployees(api) {
+async function loadEmployees(api, requestId = cabinetLoadSequence) {
   const host = $("employeeList");
   const status = $("adminStatus");
   host.replaceChildren();
@@ -100,6 +121,7 @@ async function loadEmployees(api) {
   status.textContent = "";
   try {
     const result = await callAdmin(api, { action: "list_employees" });
+    if (requestId !== cabinetLoadSequence) return;
     const employees = Array.isArray(result?.employees) ? result.employees : [];
     host.replaceChildren();
     if (!employees.length) {
@@ -146,6 +168,7 @@ async function loadEmployees(api) {
       host.append(row);
     }
   } catch (error) {
+    if (requestId !== cabinetLoadSequence) return;
     host.replaceChildren();
     const message = document.createElement("div");
     message.className = "empty error";
@@ -156,19 +179,23 @@ async function loadEmployees(api) {
   }
 }
 async function loadCabinet() {
+  const requestId = ++cabinetLoadSequence;
   $("loading").classList.remove("hidden");
   $("error").classList.add("hidden");
   $("content").classList.add("hidden");
   await window.TMHAuthReady;
+  if (requestId !== cabinetLoadSequence) return;
   const api = window.TMHAuth;
   if (!api) throw new Error("Модуль авторизации не загрузился. Откройте страницу через основной сайт.");
   const identity = await api.getCurrentIdentity();
+  if (requestId !== cabinetLoadSequence) return;
   if (identity?.error) throw identity.error;
   if (!identity?.user || !identity?.profile) {
     location.replace("./index.html");
     return;
   }
   const { user, profile } = identity;
+  activeCabinetUserId = user.id;
   const rows = [];
   const pageSize = 500;
   for (let offset = 0; ; offset += pageSize) {
@@ -179,10 +206,19 @@ async function loadCabinet() {
       .order("updated_at", { ascending: false })
       .order("id", { ascending: true })
       .range(offset, offset + pageSize - 1);
+    if (requestId !== cabinetLoadSequence) return;
     if (error) throw error;
     const page = Array.isArray(data) ? data : [];
     rows.push(...page);
     if (page.length < pageSize) break;
+  }
+  const latestIdentity = await api.getCurrentIdentity();
+  if (requestId !== cabinetLoadSequence) return;
+  if (latestIdentity?.error) throw latestIdentity.error;
+  if (latestIdentity?.user?.id !== user.id) {
+    clearCabinet();
+    location.replace("./index.html");
+    return;
   }
   $("greeting").textContent = profile.display_name ? "Здравствуйте, " + profile.display_name + "!" : "Личный кабинет";
   $("subtitle").textContent = "Ваш профиль и облачные копии чек-листов";
@@ -198,7 +234,8 @@ async function loadCabinet() {
   $("roleProfileValue").textContent = roleLabels[profile.role] || profile.role;
   const canManageEmployees = ["developer", "admin"].includes(profile.role);
   $("adminPanel").classList.toggle("hidden", !canManageEmployees);
-  if (canManageEmployees) await loadEmployees(api);
+  if (canManageEmployees) await loadEmployees(api, requestId);
+  if (requestId !== cabinetLoadSequence) return;
   const checklistSummary = summarizeChecklistStatuses(rows);
   $("checklistCount").textContent = String(checklistSummary.total);
   $("completedCount").textContent = String(checklistSummary.completed);
@@ -387,7 +424,21 @@ $("profileForm").addEventListener("submit", async (event) => {
 });
 await window.TMHAuthReady;
 window.TMHAuth.onAuthStateChange((event, session) => {
-  if (!["SIGNED_IN", "USER_UPDATED", "TOKEN_REFRESHED"].includes(event) || !session?.user) return;
+  if (event === "SIGNED_OUT") {
+    clearCabinet();
+    location.replace("./index.html");
+    return;
+  }
+  if (!session?.user || !["SIGNED_IN", "USER_UPDATED", "TOKEN_REFRESHED"].includes(event)) return;
+  if (activeCabinetUserId && activeCabinetUserId !== session.user.id) {
+    clearCabinet();
+    void loadCabinet().catch((error) => showError(error?.message || "Не удалось загрузить данные нового аккаунта."));
+    return;
+  }
+  if (!activeCabinetUserId && event === "SIGNED_IN") {
+    void loadCabinet().catch((error) => showError(error?.message || "Не удалось загрузить данные аккаунта."));
+    return;
+  }
   const confirmed = Boolean(session.user.email_confirmed_at);
   $("emailStatus").textContent = confirmed ? "Подтверждён" : "Не подтверждён";
   $("resendConfirmBtn").classList.toggle("hidden", confirmed);
