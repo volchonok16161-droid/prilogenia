@@ -35,6 +35,7 @@ function fixture() {
         if (current.operation === "create" && value.operation === "delete") throw new Error("A pending create must be resolved before deleting the entity");
         if (current.operation === "update" && value.operation === "create") throw new Error("Cannot create an entity that already has a pending update");
         if (!(current.operation === "delete" && value.operation === "create")) {
+          records.set(value.id, { id: value.id, userId: value.userId, kind: value.kind, encrypted: value.encrypted, updatedAt: value.updatedAt });
           current.operation = current.operation === "create" ? "create" : value.operation;
           current.encrypted = value.encrypted;
           current.updatedAt = value.updatedAt;
