@@ -6634,6 +6634,7 @@ async function checkAuth() {
       return false;
     }
     __tmhApplyUserStorageScope(identity.user.id);
+    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock';
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
     if (identity.mode === 'offline-local-unlock') {
@@ -9958,6 +9959,7 @@ async function checkAuth() {
       return false;
     }
     __tmhApplyUserStorageScope(identity.user.id);
+    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock';
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
     if (identity.mode === 'offline-local-unlock') {
@@ -14629,6 +14631,7 @@ async function checkAuth() {
       return false;
     }
     __tmhApplyUserStorageScope(identity.user.id);
+    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock';
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
     if (identity.mode === 'offline-local-unlock') {
@@ -16822,6 +16825,7 @@ async function checkAuth() {
       return false;
     }
     __tmhApplyUserStorageScope(identity.user.id);
+    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock';
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
     if (identity.mode === 'offline-local-unlock') {
