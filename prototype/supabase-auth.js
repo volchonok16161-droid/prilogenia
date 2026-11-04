@@ -133,6 +133,11 @@ async function resolveLoginEmail(identifier) {
 
 async function signIn(email, password) {
   activeOfflineIdentity = null;
+  activeOfflineVault = null;
+  activeOfflineUserId = null;
+  offlineChecklistStore = null;
+  offlineSyncCoordinator?.stop();
+  offlineSyncCoordinator = null;
   const normalizedEmail = await resolveLoginEmail(email);
   if (!normalizedEmail || !password) {
     return { user: null, profile: null, error: new Error("Введите логин/email и пароль") };
@@ -210,6 +215,8 @@ async function unlockOffline(userId, pin) {
     mode: "offline-local-unlock",
     supabaseAuthenticated: false,
   });
+  ensureOfflineSync();
+  void offlineSyncCoordinator.start();
   return activeOfflineIdentity;
 }
 
@@ -234,6 +241,9 @@ async function saveOfflineChecklist(id, snapshot) {
     id, value: envelope, operation: cloudState?.revision ? "update" : "create",
     entityId: cloudId, kind: "checklist-snapshot",
   });
+  if (globalThis.navigator?.onLine !== false && offlineSyncCoordinator) {
+    void offlineSyncCoordinator.syncNow();
+  }
   return { saved: true, encrypted: true, queued: true, userId: activeOfflineUserId, id, cloudId, ...result };
 }
 
@@ -267,11 +277,17 @@ async function signOut() {
     activeOfflineIdentity = null;
     activeOfflineVault = null;
     activeOfflineUserId = null;
+    offlineChecklistStore = null;
+    offlineSyncCoordinator?.stop();
+    offlineSyncCoordinator = null;
     return { error: null, offline: true };
   }
   activeOfflineIdentity = null;
   activeOfflineVault = null;
   activeOfflineUserId = null;
+  offlineChecklistStore = null;
+  offlineSyncCoordinator?.stop();
+  offlineSyncCoordinator = null;
   const { error } = await client.auth.signOut();
   return { error: error || null };
 }
@@ -287,6 +303,8 @@ const api = Object.freeze({
   loadOfflineChecklist,
   hasOfflineChecklist,
   getLastOfflineUserId,
+  getOfflineSyncStatus() { return offlineSyncStatus; },
+  syncOfflineNow() { return offlineSyncCoordinator ? offlineSyncCoordinator.syncNow() : Promise.resolve({ status: "locked" }); },
   storageKey: STORAGE_KEY,
   getCurrentIdentity,
   signIn,
