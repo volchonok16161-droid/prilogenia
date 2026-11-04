@@ -153,5 +153,5 @@ test("account cabinet invalidates stale loads and clears prior-account content o
   assert.match(html, /if \(event === "SIGNED_OUT"\)/);
   assert.match(html, /activeCabinetUserId !== session\.user\.id/);
   assert.match(html, /latestIdentity\?\.user\?\.id !== user\.id/);
-  assert.match(html, /$("checklists")\.replaceChildren\(\)/);
+  assert.match(html, /\$\("checklists"\)\.replaceChildren\(\)/);
 });
