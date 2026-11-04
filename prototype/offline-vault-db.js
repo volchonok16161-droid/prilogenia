@@ -184,8 +184,8 @@ export function createOfflineVaultDatabase({
       if (current) {
         // Never merge photo uploads into checklist mutations: they have
         // different idempotency and completion semantics.
-        if (current.operation === "delete" && operation === "update") {
-          throw new Error("Cannot update an entity while its deletion is pending");
+        if (current.operation === "delete" && (operation === "update" || operation === "create")) {
+          throw new Error("Cannot modify an entity while its deletion is pending");
         }
         if (current.operation === "create" && operation === "delete") {
           throw new Error("A pending create must be resolved before deleting the entity");
@@ -273,6 +273,10 @@ export function createOfflineVaultDatabase({
       if (!row || row.userId !== userId) return false;
       const leaseExpired = typeof row.leaseUntil !== "string" || row.leaseUntil <= nowIso;
       if (row.status !== "pending" && !(row.status === "processing" && leaseExpired)) return false;
+      // Preserve per-entity order: a newer operation cannot overtake an older
+      // in-flight (or expired-but-unreclaimed) operation in another tab.
+      const processing = await requestResult(store.index("byUserStatus").getAll([userId, "processing"]));
+      if (processing.some((item) => item.opId !== opId && item.entityId === row.entityId)) return false;
       await requestResult(store.put({
         ...row,
         status: "processing",
