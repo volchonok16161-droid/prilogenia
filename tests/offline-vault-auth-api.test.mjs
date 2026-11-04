@@ -18,3 +18,13 @@ test("offline unlock API remains separate from Supabase sign-in", () => {
   assert.match(auth, /  unlockOffline,/);
   assert.match(auth, /  hasOfflineSetup,/);
 });
+
+test("cloud sync is opt-in and existing local snapshots are not queued automatically", () => {
+  assert.match(auth, /offline:cloud-sync-enabled:/);
+  assert.match(auth, /cloudEnabled !== true/);
+  assert.match(auth, /database\.putRecord\(/);
+  assert.match(auth, /queued: false, status: "local-only"/);
+  assert.match(auth, /async function enableOfflineCloudSync\(\)/);
+  assert.match(auth, /await getCurrentIdentity\(\)/);
+  assert.match(auth, /enableOfflineCloudSync,/);
+});
