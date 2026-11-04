@@ -48,3 +48,12 @@ test("PIN and PBKDF2 configuration are validated", async () => {
   assert.throws(() => createOfflineVaultCrypto({ cryptoImpl: webcrypto, iterations: 1000 }), /iterations/);
   await assert.rejects(vault.createDescriptor({ pin: "123456", userId: "not-a-uuid", deviceId: deviceA }), /userId/);
 });
+
+test("binary photo bytes can be encrypted without data URLs or plaintext", async () => {
+  const descriptor = await vault.createDescriptor({ pin: "123456", userId: userA, deviceId: deviceA });
+  const session = await vault.unlock({ pin: "123456", descriptor, userId: userA, deviceId: deviceA });
+  const bytes = new Uint8Array([0, 1, 2, 255, 128, 64]);
+  const encrypted = await session.encryptBytes(bytes);
+  assert.equal(JSON.stringify(encrypted).includes("255"), false);
+  assert.deepEqual(await session.decryptBytes(encrypted), bytes);
+});
