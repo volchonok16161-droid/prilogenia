@@ -1032,24 +1032,35 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     vertical-align:middle;
 }
 
-/* Account cabinet navigation: a visible, touch-friendly button on every layout. */
+/* Account cabinet: high-contrast primary action, distinct from utility/logout controls. */
 .user-info{flex-wrap:wrap;min-width:0;}
-.user-info .account-cabinet-btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  min-height:36px;padding:7px 12px;border:1px solid var(--amber);
-  border-radius:8px;background:var(--amber);color:#fff!important;
-  font-size:12px;font-weight:700;line-height:1.2;text-decoration:none;
-  white-space:nowrap;cursor:pointer;
+.user-info .account-cabinet-btn,
+#iframeBar .iframe-account-cabinet-btn{
+  display:inline-flex!important;align-items:center;justify-content:center;gap:9px;
+  min-height:44px;padding:10px 16px;border:2px solid #f5c542!important;
+  border-radius:12px;background:#0757c9!important;color:#fff!important;
+  box-shadow:0 3px 0 #063b86,0 0 0 2px rgba(7,87,201,.16);
+  font-size:14px;font-weight:800;line-height:1.2;letter-spacing:.01em;
+  text-decoration:none!important;white-space:nowrap;cursor:pointer;
 }
-.user-info .account-cabinet-btn:hover{background:var(--amber-dim);border-color:var(--amber-dim);color:#fff!important;}
-.user-info .account-cabinet-btn:focus-visible,#iframeBar .account-cabinet-btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px;}
-#iframeBar .iframe-account-cabinet-btn{margin-left:auto;min-height:40px;white-space:nowrap;text-decoration:none;}
+.user-info .account-cabinet-btn:hover,
+#iframeBar .iframe-account-cabinet-btn:hover{
+  background:#06449e!important;border-color:#ffd85e!important;
+  box-shadow:0 4px 0 #042f70,0 0 0 3px rgba(7,87,201,.22);
+  transform:translateY(-1px);
+}
+.user-info .account-cabinet-btn:focus-visible,
+#iframeBar .account-cabinet-btn:focus-visible{outline:3px solid #f5c542;outline-offset:3px;}
+#iframeBar .iframe-account-cabinet-btn{margin-left:auto;}
+.user-info .account-cabinet-btn span:first-child,
+#iframeBar .iframe-account-cabinet-btn{font-size:15px;}
 @media(max-width:640px){
-  .user-info{gap:6px;padding-left:0;border-left:0;flex-wrap:wrap;}
-  .user-info .account-cabinet-btn{min-height:40px;padding:8px 11px;font-size:12px;}
-  #iframeBar{gap:7px;padding-left:10px;padding-right:10px;flex-wrap:wrap;}
+  .user-info{gap:8px;padding-left:0;border-left:0;flex-wrap:wrap;}
+  .user-info .account-cabinet-btn,
+  #iframeBar .iframe-account-cabinet-btn{min-height:46px;padding:10px 14px;font-size:14px;}
+  #iframeBar{gap:8px;padding-left:10px;padding-right:10px;flex-wrap:wrap;}
   #iframeModeLabel{flex:1 1 100%;order:3;min-width:0;overflow-wrap:anywhere;}
-  #iframeBar .iframe-account-cabinet-btn{margin-left:auto;min-height:42px;padding:8px 11px;}
+  #iframeBar .iframe-account-cabinet-btn{margin-left:auto;}
 }
 </style>
 <script type="module" src="prototype/supabase-auth.js"></script>
