@@ -201,7 +201,7 @@ test("photo cleanup survives a failure and retries without resending the checkli
   const authApi = { async getCurrentIdentity() { return { user: { id: UID }, profile: { id: UID, role: "employee" } }; } };
   const vault = { async decrypt() { return { title: "local" }; }, async encrypt(value) { return { version: 1, iv: "iv", ciphertext: JSON.stringify(value) }; } };
   const cloudSync = {
-    async create() {}, async remove() {}, async get() { return {}; },
+    async create() {}, async remove() {}, async get() { return { payload: { photoManifest: newManifest } }; },
     async update() { updateCalls += 1; return { id: OP.entityId, revision: 2 }; },
   };
   const mapper = async () => ({
