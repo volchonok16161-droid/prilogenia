@@ -7700,6 +7700,37 @@ function saveState(silent){
   return true;
 }
 
+var __tmhOriginalSaveState = saveState;
+var __tmhOfflineSaveChain = Promise.resolve(true);
+saveState = function(silent) {
+  if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
+  var api = __getTMHAuthApi();
+  if (window.__TMH_OFFLINE_MODE) {
+    if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
+    var snapshot = structuredClone(STATE);
+    __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      return api.saveOfflineChecklist(LS_KEY, snapshot);
+    }).then(function() {
+      if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
+      return true;
+    }).catch(function(error) {
+      console.error('Encrypted offline save failed', error);
+      if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
+      return false;
+    });
+    return true;
+  }
+  var result = __tmhOriginalSaveState.apply(this, arguments);
+  if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
+    var snapshot = structuredClone(STATE);
+    __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+    });
+  }
+  return result;
+};
+
+
 
         function fullClearState() { __psClear();
             localStorage.removeItem(LS_KEY);
@@ -12204,6 +12235,37 @@ function saveState(silent){
   return true;
 }
 
+var __tmhOriginalSaveState = saveState;
+var __tmhOfflineSaveChain = Promise.resolve(true);
+saveState = function(silent) {
+  if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
+  var api = __getTMHAuthApi();
+  if (window.__TMH_OFFLINE_MODE) {
+    if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
+    var snapshot = structuredClone(STATE);
+    __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      return api.saveOfflineChecklist(LS_KEY, snapshot);
+    }).then(function() {
+      if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
+      return true;
+    }).catch(function(error) {
+      console.error('Encrypted offline save failed', error);
+      if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
+      return false;
+    });
+    return true;
+  }
+  var result = __tmhOriginalSaveState.apply(this, arguments);
+  if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
+    var snapshot = structuredClone(STATE);
+    __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+    });
+  }
+  return result;
+};
+
+
 
 function fullClearState() { __psClear();
   localStorage.removeItem(LS_KEY);
@@ -16128,6 +16190,37 @@ function saveState(silent){
   return true;
 }
 
+var __tmhOriginalSaveState = saveState;
+var __tmhOfflineSaveChain = Promise.resolve(true);
+saveState = function(silent) {
+  if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
+  var api = __getTMHAuthApi();
+  if (window.__TMH_OFFLINE_MODE) {
+    if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
+    var snapshot = structuredClone(STATE);
+    __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      return api.saveOfflineChecklist(LS_KEY, snapshot);
+    }).then(function() {
+      if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
+      return true;
+    }).catch(function(error) {
+      console.error('Encrypted offline save failed', error);
+      if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
+      return false;
+    });
+    return true;
+  }
+  var result = __tmhOriginalSaveState.apply(this, arguments);
+  if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
+    var snapshot = structuredClone(STATE);
+    __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+    });
+  }
+  return result;
+};
+
+
 async function init(){
     initPhotoModal();
     updateModeTitle();
@@ -18182,6 +18275,37 @@ function saveState(silent){
     }
     if(!silent)showToast('Сохранено в браузере');
 }
+
+var __tmhOriginalSaveState = saveState;
+var __tmhOfflineSaveChain = Promise.resolve(true);
+saveState = function(silent) {
+  if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
+  var api = __getTMHAuthApi();
+  if (window.__TMH_OFFLINE_MODE) {
+    if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
+    var snapshot = structuredClone(STATE);
+    __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      return api.saveOfflineChecklist(LS_KEY, snapshot);
+    }).then(function() {
+      if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
+      return true;
+    }).catch(function(error) {
+      console.error('Encrypted offline save failed', error);
+      if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
+      return false;
+    });
+    return true;
+  }
+  var result = __tmhOriginalSaveState.apply(this, arguments);
+  if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
+    var snapshot = structuredClone(STATE);
+    __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+    });
+  }
+  return result;
+};
+
 async function init(){
     initPhotoModal();
     updateModePicker();
