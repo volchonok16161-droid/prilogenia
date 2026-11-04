@@ -1,0 +1,122 @@
+// Explicit, owner-scoped drain of the encrypted offline queue.
+// This runner never treats a local PIN unlock as a Supabase session. Call it
+// only after connectivity returns; each operation revalidates the server identity.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ROLES = new Set(["employee", "admin", "developer"]);
+
+function assertDependencies({ authApi, database, vault, cloudSync, mapOperation }) {
+  if (typeof authApi?.getCurrentIdentity !== "function" ||
+      typeof database?.listPending !== "function" ||
+      typeof database?.updateQueueOperation !== "function" ||
+      typeof database?.markSynced !== "function" ||
+      typeof database?.saveConflict !== "function" ||
+      typeof vault?.decrypt !== "function" || typeof vault?.encrypt !== "function" ||
+      typeof mapOperation !== "function" ||
+      !["create", "update", "remove", "get"].every((key) => typeof cloudSync?.[key] === "function")) {
+    throw new TypeError("Offline sync runner dependencies are incomplete");
+  }
+}
+
+function assertVerifiedIdentity(identity, expectedUserId) {
+  const id = identity?.user?.id;
+  if (identity?.error || !id || !UUID_RE.test(id) || id.toLowerCase() !== expectedUserId ||
+      identity?.profile?.id !== id || !ROLES.has(identity?.profile?.role)) {
+    const error = new Error("Для синхронизации требуется действующая сессия и разрешённый профиль сотрудника");
+    error.code = "AUTH_REQUIRED";
+    throw error;
+  }
+  return id.toLowerCase();
+}
+
+export function createOfflineSyncRunner({
+  authApi, database, vault, cloudSync, mapOperation,
+  isOnline = () => globalThis.navigator?.onLine !== false,
+  now = () => new Date().toISOString(),
+}) {
+  assertDependencies({ authApi, database, vault, cloudSync, mapOperation });
+
+  async function syncPending({ userId, limit = 25 } = {}) {
+    if (typeof userId !== "string" || !UUID_RE.test(userId)) {
+      throw new TypeError("A valid account UUID is required");
+    }
+    const uid = userId.toLowerCase();
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+      throw new TypeError("Sync batch limit must be between 1 and 100");
+    }
+    if (!isOnline()) {
+      return Object.freeze({ status: "offline", processed: 0, synced: 0, conflicts: 0, remaining: null });
+    }
+
+    // Verify the server-side Auth user AND profiles row before reading or sending
+    // any queue item. Revalidate before every item to catch revoked accounts.
+    assertVerifiedIdentity(await authApi.getCurrentIdentity(), uid);
+    const pending = (await database.listPending(uid)).slice(0, limit);
+    let synced = 0;
+    let conflicts = 0;
+    let failed = 0;
+
+    for (const operation of pending) {
+      try {
+        if (!isOnline()) break;
+        assertVerifiedIdentity(await authApi.getCurrentIdentity(), uid);
+        if (operation.userId !== uid || typeof operation.opId !== "string" ||
+            typeof operation.entityId !== "string") {
+          throw new Error("Очередь содержит некорректную операцию владельца");
+        }
+        const localValue = await vault.decrypt(operation.encrypted);
+        const request = await mapOperation(operation, localValue);
+        if (!request || !["create", "update", "remove"].includes(request.method)) {
+          throw new TypeError("mapOperation must return create, update, or remove");
+        }
+
+        await database.updateQueueOperation(operation.opId, uid, {
+          attempts: (Number(operation.attempts) || 0) + 1,
+          lastAttemptAt: now(),
+          lastError: null,
+        });
+
+        try {
+          await cloudSync[request.method](request.method === "remove" ? request.id : request.input);
+          await database.markSynced(operation.opId, uid);
+          synced += 1;
+        } catch (error) {
+          if (error?.code !== "REVISION_CONFLICT" || request.method !== "update") throw error;
+          // Keep both versions encrypted and move the operation out of pending;
+          // never choose a winner or overwrite either side automatically.
+          const remote = await cloudSync.get(request.id || request.input?.id);
+          const remoteEncrypted = await vault.encrypt(remote);
+          await database.saveConflict({
+            conflictId: operation.opId,
+            userId: uid,
+            entityId: operation.entityId,
+            localEncrypted: operation.encrypted,
+            remoteEncrypted,
+            createdAt: now(),
+          });
+          await database.updateQueueOperation(operation.opId, uid, {
+            status: "conflict",
+            lastError: "REVISION_CONFLICT",
+          });
+          conflicts += 1;
+        }
+      } catch (error) {
+        failed += 1;
+        // Keep retryable failures pending and preserve the encrypted payload.
+        await database.updateQueueOperation(operation.opId, uid, {
+          status: "pending",
+          lastError: String(error?.code || error?.message || "SYNC_FAILED").slice(0, 240),
+        });
+        if (error?.code === "AUTH_REQUIRED" || !isOnline()) break;
+      }
+    }
+
+    const remaining = (await database.listPending(uid)).length;
+    return Object.freeze({
+      status: conflicts ? "conflict" : failed ? "error" : remaining ? "pending-sync" : "synced",
+      processed: synced + conflicts + failed,
+      synced, conflicts, failed, remaining,
+    });
+  }
+
+  return Object.freeze({ syncPending });
+}
