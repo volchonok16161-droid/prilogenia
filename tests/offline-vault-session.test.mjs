@@ -20,7 +20,8 @@ function fakeCryptoVault() {
       return { ...descriptor, pinForTest: pin, userId, deviceId };
     },
     async unlock({ pin, descriptor: saved, userId, deviceId }) {
-      if (pin !== saved.pinForTest || userId !== saved.userId || deviceId !== saved.deviceId) throw new Error("Invalid PIN");
+      if (saved.userId !== userId || saved.deviceId !== deviceId) throw new Error("Offline vault belongs to another account or device");
+      if (pin !== saved.pinForTest) throw new Error("Invalid PIN");
       return { async encrypt(value) { return value; } };
     },
   };
