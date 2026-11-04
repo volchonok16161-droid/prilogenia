@@ -25,3 +25,11 @@ test("upgrading to compound-key stores uses a new database version and preserves
   assert.match(source, /queueByOwner/);
   assert.match(source, /conflictsByOwner/);
 });
+
+test("pending operations are coalesced atomically by owner and entity without replacing processing leases", () => {
+  assert.match(source, /async function putRecordAndCoalesceQueue/);
+  assert.match(source, /index\.getAll\(\[userId, "pending"\]\)/);
+  assert.match(source, /row\.entityId === entityId/);
+  assert.match(source, /current\.operation === "create" && operation === "update"/);
+  assert.match(source, /status: "pending", attempts: 0/);
+});
