@@ -149,3 +149,82 @@ test("a stale lease owner cannot acknowledge or release a newer claim", async()=
  assert.equal(row.leaseClaimId,"new-owner");
  assert.ok(runner);
 });
+
+test("photo cleanup survives a failure and retries without resending the checklist", async () => {
+  const oldManifest = [{ itemId: "item", field: "photo_photo", path: "old-photo" }];
+  const newManifest = [{ itemId: "item", field: "photo_photo", path: "new-photo" }];
+  const queue = [{ ...OP }];
+  const jobs = [];
+  let cloudState = { revision: 1, photoManifest: oldManifest };
+  let updateCalls = 0;
+  let removeCalls = 0;
+  const database = {
+    async listPending(uid) { return queue.filter(row => row.userId === uid && row.status === "pending").map(row => ({ ...row })); },
+    async claimQueueOperation(id, uid, claim, _now, until) {
+      const row = queue.find(x => x.opId === id && x.userId === uid);
+      if (!row || row.status !== "pending") return false;
+      Object.assign(row, { status: "processing", leaseClaimId: claim, leaseUntil: until });
+      return true;
+    },
+    async updateQueueOperation(id, uid, changes, claim) {
+      const row = queue.find(x => x.opId === id && x.userId === uid);
+      if (!row || row.leaseClaimId !== claim) return false;
+      Object.assign(row, changes); return true;
+    },
+    async getCloudState() { return cloudState; },
+    async markSynced(id, uid, revision, claim, nextState, cleanup) {
+      const index = queue.findIndex(x => x.opId === id && x.userId === uid && x.leaseClaimId === claim);
+      if (index < 0) return false;
+      queue.splice(index, 1);
+      cloudState = nextState;
+      if (cleanup) jobs.push({ ...cleanup, userId: uid, entityId: OP.entityId, status: "pending", attempts: 0 });
+      return { opId: id, serverRevision: revision };
+    },
+    async listPhotoCleanups(uid) { return jobs.filter(x => x.userId === uid && x.status === "pending").map(x => ({ ...x })); },
+    async claimPhotoCleanup(id, uid, claim) {
+      const job = jobs.find(x => x.cleanupId === id && x.userId === uid);
+      if (!job || job.status !== "pending") return false;
+      Object.assign(job, { status: "processing", leaseClaimId: claim }); return true;
+    },
+    async updatePhotoCleanup(id, uid, changes, claim) {
+      const job = jobs.find(x => x.cleanupId === id && x.userId === uid);
+      if (!job || job.leaseClaimId !== claim) return false;
+      Object.assign(job, changes); return true;
+    },
+    async completePhotoCleanup(id, uid, claim) {
+      const index = jobs.findIndex(x => x.cleanupId === id && x.userId === uid && x.leaseClaimId === claim);
+      if (index < 0) return false;
+      jobs.splice(index, 1); return true;
+    },
+    async saveConflict() {},
+  };
+  const authApi = { async getCurrentIdentity() { return { user: { id: UID }, profile: { id: UID, role: "employee" } }; } };
+  const vault = { async decrypt() { return { title: "local" }; }, async encrypt(value) { return { version: 1, iv: "iv", ciphertext: JSON.stringify(value) }; } };
+  const cloudSync = {
+    async create() {}, async remove() {}, async get() { return {}; },
+    async update() { updateCalls += 1; return { id: OP.entityId, revision: 2 }; },
+  };
+  const mapper = async () => ({
+    method: "update", id: OP.entityId,
+    input: { id: OP.entityId, expectedRevision: 1, payload: { photoManifest: newManifest } },
+    cleanupManifest: oldManifest,
+  });
+  mapper.removePhotoManifest = async (manifest) => {
+    removeCalls += 1;
+    assert.deepEqual(manifest.map(x => x.path), ["old-photo"]);
+    if (removeCalls === 1) throw new Error("temporary Storage outage");
+  };
+  const runner = createOfflineSyncRunner({ authApi, database, vault, cloudSync, mapOperation: mapper, isOnline: () => true });
+  const first = await runner.syncPending({ userId: UID });
+  assert.equal(first.synced, 1);
+  assert.equal(first.cleanupFailed, 1);
+  assert.equal(first.cleanupRemaining, 1);
+  assert.equal(queue.length, 0);
+  assert.equal(jobs.length, 1);
+  const second = await runner.syncPending({ userId: UID });
+  assert.equal(second.synced, 0);
+  assert.equal(second.cleanupProcessed, 1);
+  assert.equal(second.cleanupRemaining, 0);
+  assert.equal(updateCalls, 1);
+  assert.equal(removeCalls, 2);
+});
