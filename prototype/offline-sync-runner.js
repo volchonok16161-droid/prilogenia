@@ -88,7 +88,17 @@ export function createOfflineSyncRunner({
         if (!updated) throw new Error("Sync queue lease was lost before sending");
 
         try {
-          await cloudSync[request.method](request.method === "remove" ? request.id : request.input);
+          try {
+            await cloudSync[request.method](request.method === "remove" ? request.id : request.input);
+          } catch (cloudError) {
+            // Photo objects are uploaded before the checklist row. If the row
+            // write fails or conflicts, remove only this operation's uploads.
+            if (typeof request.rollback === "function") {
+              try { await request.rollback(); }
+              catch (cleanupError) { cloudError.cleanupError = cleanupError; }
+            }
+            throw cloudError;
+          }
           const removed = await database.markSynced(operation.opId, uid, undefined, claimId);
           if (!removed) throw new Error("Sync queue lease expired before acknowledgement");
           synced += 1;
