@@ -167,6 +167,10 @@ async function hasOfflineSetup(userId) {
 }
 
 async function signOut() {
+  if (activeOfflineIdentity) {
+    activeOfflineIdentity = null;
+    return { error: null, offline: true };
+  }
   activeOfflineIdentity = null;
   const { error } = await client.auth.signOut();
   return { error: error || null };
