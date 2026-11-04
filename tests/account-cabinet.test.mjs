@@ -144,3 +144,14 @@ test("account cabinet displays saved checklist completion and deviation metrics"
   assert.match(html, /checklist_type:payload->>checklistType/);
   assert.match(html, /row\.checklist_type \|\| categoryByMode\[row\.mode\]/);
 });
+
+test("account cabinet invalidates stale loads and clears prior-account content on auth changes", () => {
+  assert.match(html, /let cabinetLoadSequence = 0/);
+  assert.match(html, /const requestId = \+\+cabinetLoadSequence/);
+  assert.match(html, /requestId !== cabinetLoadSequence/);
+  assert.match(html, /function clearCabinet\(\)/);
+  assert.match(html, /if \(event === "SIGNED_OUT"\)/);
+  assert.match(html, /activeCabinetUserId !== session\.user\.id/);
+  assert.match(html, /latestIdentity\?\.user\?\.id !== user\.id/);
+  assert.match(html, /$("checklists")\.replaceChildren\(\)/);
+});
