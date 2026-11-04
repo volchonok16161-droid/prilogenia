@@ -54,9 +54,9 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
   <section class="panel"><h2>Мои облачные чек-листы</h2><div id="checklists"><div class="empty">Загрузка списка…</div></div></section>
   <section class="panel hidden" id="adminPanel" aria-labelledby="adminHeading">
    <h2 id="adminHeading">Управление сотрудниками</h2>
-   <p class="muted" style="margin:0 0 12px">Доступно администраторам и разработчикам. Создавайте два штатных аккаунта и управляйте доступом сотрудников прямо из личного кабинета.</p>
+   <p class="muted" style="margin:0 0 12px">Доступно администраторам и разработчикам. Создавайте аккаунты с любыми логинами и управляйте доступом сотрудников прямо из личного кабинета.</p>
    <form id="createEmployeeForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;align-items:end;padding:14px;background:#f8faff;border:1px solid var(--line);border-radius:12px;margin-bottom:14px">
-    <label style="display:grid;gap:6px"><span class="muted">Аккаунт сотрудника</span><select id="employeeUsername" required style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink);background:#fff"><option value="ЦГиСПЛ-Карасук">ЦГиСПЛ-Карасук</option><option value="ЦГиСПЛ-Тимашевск">ЦГиСПЛ-Тимашевск</option></select></label>
+    <label style="display:grid;gap:6px"><span class="muted">Логин сотрудника</span><input id="employeeUsername" type="text" minlength="1" maxlength="64" autocomplete="off" required placeholder="Например, ЦГиСПЛ-Карасук" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink);background:#fff"></label>
     <label style="display:grid;gap:6px"><span class="muted">Пароль (от 8 символов)</span><input id="employeePassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink);background:#fff"></label>
     <button class="btn" id="createEmployeeBtn" type="submit">Создать аккаунт</button>
     <span id="createEmployeeStatus" class="muted" role="status" aria-live="polite" style="grid-column:1/-1"></span>
