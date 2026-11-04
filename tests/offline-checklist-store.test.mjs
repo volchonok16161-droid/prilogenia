@@ -34,9 +34,11 @@ function fixture() {
         current.operation = current.operation === "create" && value.operation === "update" ? "create" : value.operation;
         current.encrypted = value.encrypted;
         current.updatedAt = value.updatedAt;
+        calls.push("atomic-coalesce");
         return { id: value.id, opId: current.opId, coalesced: true };
       }
       queue.push({ opId: value.opId, userId: value.userId, entityId: value.entityId, operation: value.operation, encrypted: value.encrypted, createdAt: value.createdAt, updatedAt: value.updatedAt, status: "pending", attempts: 0 });
+      calls.push("atomic-write");
       return { id: value.id, opId: value.opId, coalesced: false };
     },
     async getRecord(id, userId) {
