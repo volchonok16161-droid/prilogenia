@@ -128,6 +128,7 @@ async function setupOfflinePin(pin) {
   };
   const encryptedIdentity = await unlocked.vault.encrypt(safeIdentity);
   await offlineVault.database.setMeta("offline:identity:" + identity.user.id, encryptedIdentity);
+  await offlineVault.database.setMeta("offline:last-user-id", identity.user.id);
   activeOfflineIdentity = null;
   return enrollment;
 }
@@ -156,6 +157,10 @@ async function getOfflineIdentity() {
   return activeOfflineIdentity;
 }
 
+async function getLastOfflineUserId() {
+  return offlineVault.database.getMeta("offline:last-user-id");
+}
+
 async function hasOfflineSetup(userId) {
   return offlineVault.session.hasOfflineSetup(userId);
 }
@@ -172,6 +177,7 @@ const api = Object.freeze({
   unlockOffline,
   hasOfflineSetup,
   getOfflineIdentity,
+  getLastOfflineUserId,
   storageKey: STORAGE_KEY,
   getCurrentIdentity,
   signIn,
