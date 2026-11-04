@@ -96,10 +96,19 @@ export function createOfflineChecklistStore({ database, vault, userId, idFactory
   async function migrateLegacySnapshot({ id, legacyValue, confirmed = false, kind = "checklist" }) {
     if (confirmed !== true) throw new Error("Explicit confirmation is required before importing legacy data");
     if (typeof id !== "string" || !id) throw new TypeError("Legacy checklist id is required");
-    // The database's add() path makes the existence check and queue creation
-    // one atomic transaction, so concurrent imports cannot overwrite each other.
-    // The old LocalStorage / IndexedDB entry is intentionally left untouched.
-    return saveChecklist({ id, value: legacyValue, operation: "create", entityId: id, kind, onlyIfAbsent: true });
+    if (typeof database.putRecordIfAbsent !== "function") {
+      throw new Error("Atomic local-only import is not supported by this offline database");
+    }
+    // Encrypt and verify before an atomic add. No sync queue is created here:
+    // importing old local data must not silently publish it to the cloud.
+    const serialized = JSON.stringify(legacyValue);
+    if (typeof serialized !== "string") throw new TypeError("Legacy snapshot must be JSON-serializable");
+    const encrypted = await vault.encrypt(legacyValue);
+    const verified = await vault.decrypt(encrypted);
+    if (JSON.stringify(verified) !== serialized) throw new Error("Imported snapshot failed encryption verification");
+    const stamp = now();
+    await database.putRecordIfAbsent({ id, userId: uid, kind, encrypted, updatedAt: stamp });
+    return { id, status: "local-only", queued: false, imported: true, updatedAt: stamp };
   }
 
   return Object.freeze({
