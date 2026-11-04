@@ -155,3 +155,19 @@ test("account cabinet invalidates stale loads and clears prior-account content o
   assert.match(html, /latestIdentity\?\.user\?\.id !== user\.id/);
   assert.match(html, /\$\("checklists"\)\.replaceChildren\(\)/);
 });
+
+test("account cabinet entry is a visible responsive button in the main and embedded navigation", async () => {
+  const main = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(main, /class="logout-btn account-cabinet-btn" id="accountCabinetLink"/);
+  assert.match(main, /class="btn account-cabinet-btn iframe-account-cabinet-btn" id="iframeAccountCabinetLink"/);
+  assert.match(main, /\.user-info \.account-cabinet-btn[\s\S]*?min-height:36px/);
+  assert.match(main, /#iframeBar \.iframe-account-cabinet-btn[\s\S]*?margin-left:auto/);
+  assert.match(main, /@media\(max-width:640px\)[\s\S]*?#iframeBar[\s\S]*?flex-wrap:wrap/);
+});
+
+test("account cabinet list and actions adapt to narrow screens", () => {
+  assert.match(html, /@media\(max-width:620px\)/);
+  assert.match(html, /\.top>\.actions\{width:100%/);
+  assert.match(html, /\.item\{display:grid;grid-template-columns:37px minmax\(0,1fr\)/);
+  assert.match(html, /\.item>div:last-child \.btn\{flex:1 1 110px/);
+});
