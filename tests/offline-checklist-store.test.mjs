@@ -76,3 +76,36 @@ test("store rejects a missing or invalid user identity and a locked vault", () =
   assert.equal(store.userId, uid);
   assert.throws(() => createOfflineChecklistStore({ database: {}, vault: {}, userId: "not-a-uuid" }), /database|UUID|vault/i);
 });
+
+test("snapshot is not queued when encrypted round-trip verification fails", async () => {
+  const { store, queue } = fixture();
+  const brokenVault = {
+    async encrypt(value) { return { version: 1, iv: "iv", ciphertext: "opaque" }; },
+    async decrypt() { return { checks: ["tampered"] }; },
+  };
+  const isolated = createOfflineChecklistStore({
+    database: {
+      async putRecordAndEnqueue(value) { queue.push(value); },
+      async getRecord() { return null; },
+      async listRecords() { return []; },
+      async listPending() { return []; },
+      async listConflicts() { return []; },
+    },
+    vault: brokenVault,
+    userId: uid,
+  });
+  await assert.rejects(
+    isolated.saveChecklist({ id: "bad-snapshot", value: { checks: [true] } }),
+    /round-trip verification/,
+  );
+  assert.equal(queue.length, 0);
+  assert.equal((await store.getSyncStatus()).pendingCount, 0);
+});
+
+test("snapshot store rejects values that cannot be serialized as JSON", async () => {
+  const { store } = fixture();
+  await assert.rejects(
+    store.saveChecklist({ id: "undefined-snapshot", value: undefined }),
+    /JSON-serializable/,
+  );
+});
