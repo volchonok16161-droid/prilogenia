@@ -130,6 +130,22 @@ export function createOfflineVaultCrypto({
     return Object.freeze({
       encrypt: (value) => encryptJson(key, value, uid, did),
       decrypt: (record) => decryptJson(key, record, uid, did),
+      encryptBytes: async (bytes) => {
+        if (!(bytes instanceof ArrayBuffer) && !ArrayBuffer.isView(bytes)) {
+          throw new TypeError("Binary data must be an ArrayBuffer or typed array");
+        }
+        const view = bytes instanceof ArrayBuffer
+          ? new Uint8Array(bytes)
+          : new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        return Object.freeze({
+          version: VERSION,
+          ...(await encryptBytes(key, view, aadFor(uid, did))),
+        });
+      },
+      decryptBytes: async (record) => {
+        if (record?.version !== VERSION) throw new Error("Unsupported encrypted record version");
+        return decryptBytes(key, record, aadFor(uid, did));
+      },
     });
   }
 
