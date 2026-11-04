@@ -9,7 +9,6 @@ import { mapOfflineChecklistOperation, createOfflineChecklistOperationMapper } f
 import { createCloudSync } from "./supabase-cloud-sync.js";
 import { createChecklistPhotoSync } from "./supabase-cloud-photos.js";
 import { createOfflineSyncCoordinator } from "./offline-sync-coordinator.js";
-import "./offline-legacy-migration-ui.js";
 
 const SUPABASE_URL = "https://fecigiwjtbtabnsfsdym.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_j-bQu5o4dgj13X-8_7maOA_7KvkLuqH";
