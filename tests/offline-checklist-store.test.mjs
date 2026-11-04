@@ -27,8 +27,8 @@ function fixture() {
     async listConflicts(userId) { return conflicts.filter(row => row.userId === userId); },
   };
   const vault = {
-    async encrypt(value) { return { version: 1, iv: "iv", ciphertext: "cipher:" + JSON.stringify(value) }; },
-    async decrypt(record) { return JSON.parse(record.ciphertext.slice(7)); },
+    async encrypt(value) { return { version: 1, iv: "iv", ciphertext: Buffer.from(JSON.stringify(value)).toString("base64") }; },
+    async decrypt(record) { return JSON.parse(Buffer.from(record.ciphertext, "base64").toString("utf8")); },
   };
   const store = createOfflineChecklistStore({ database, vault, userId: uid, idFactory: () => "op-1", now: () => "2026-11-04T10:00:00.000Z" });
   return { store, records, queue, calls };
