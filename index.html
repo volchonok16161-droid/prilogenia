@@ -1276,7 +1276,6 @@ if(button){
         <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
         <div class="field"><label>PIN этого устройства (6–12 цифр)</label><input type="password" inputmode="numeric" autocomplete="off" id="offlinePinInput" placeholder="PIN устройства"></div>
         <div class="btn-row">
-            <button class="btn" type="button" id="setupOfflinePinBtn">Создать PIN</button>
             <button class="btn" type="button" id="unlockOfflineBtn">Войти офлайн</button>
         </div>
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
@@ -2731,7 +2730,6 @@ const EMBED_TT_HTML=`<!DOCTYPE html>
             <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
         <div class="field"><label>PIN этого устройства (6–12 цифр)</label><input type="password" inputmode="numeric" autocomplete="off" id="offlinePinInput" placeholder="PIN устройства"></div>
         <div class="btn-row">
-            <button class="btn" type="button" id="setupOfflinePinBtn">Создать PIN</button>
             <button class="btn" type="button" id="unlockOfflineBtn">Войти офлайн</button>
         </div>
             <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
@@ -2895,6 +2893,18 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
+  if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
+      window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
+    const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
+    if (offlinePin !== null) {
+      try {
+        await api.setupOfflinePin(offlinePin);
+        showToast('Офлайн-PIN создан для этого устройства');
+      } catch (error) {
+        showToast(error?.message || 'Не удалось создать офлайн-PIN');
+      }
+    }
+  }
   updateUserUI();
   const modal = document.getElementById('loginModal');
   if (modal) modal.style.display = 'none';
@@ -2904,23 +2914,9 @@ async function doLogin(login, password) {
 function __tmhBindOfflinePinControls() {
   const api = __getTMHAuthApi();
   const pinInput = document.getElementById('offlinePinInput');
-  const setupButton = document.getElementById('setupOfflinePinBtn');
   const unlockButton = document.getElementById('unlockOfflineBtn');
-  if (!api || !pinInput || !setupButton || !unlockButton || setupButton.dataset.bound === '1') return;
-  setupButton.dataset.bound = '1';
+  if (!api || !pinInput || !unlockButton || unlockButton.dataset.bound === '1') return;
   unlockButton.dataset.bound = '1';
-  setupButton.onclick = async function() {
-    const pin = String(pinInput.value || '');
-    if (!/^\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
-    setupButton.disabled = true;
-    try {
-      await api.setupOfflinePin(pin);
-      pinInput.value = '';
-      showToast('Офлайн-PIN создан для этого устройства');
-    } catch (error) {
-      showToast(error?.message || 'Не удалось создать офлайн-PIN');
-    } finally { setupButton.disabled = false; }
-  };
   unlockButton.onclick = async function() {
     const pin = String(pinInput.value || '');
     if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
@@ -6426,7 +6422,6 @@ const EMBED_BI_HTML=`<!DOCTYPE html>
             <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
         <div class="field"><label>PIN этого устройства (6–12 цифр)</label><input type="password" inputmode="numeric" autocomplete="off" id="offlinePinInput" placeholder="PIN устройства"></div>
         <div class="btn-row">
-            <button class="btn" type="button" id="setupOfflinePinBtn">Создать PIN</button>
             <button class="btn" type="button" id="unlockOfflineBtn">Войти офлайн</button>
         </div>
             <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
@@ -6591,6 +6586,18 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
+  if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
+      window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
+    const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
+    if (offlinePin !== null) {
+      try {
+        await api.setupOfflinePin(offlinePin);
+        showToast('Офлайн-PIN создан для этого устройства');
+      } catch (error) {
+        showToast(error?.message || 'Не удалось создать офлайн-PIN');
+      }
+    }
+  }
   updateUserUI();
   const modal = document.getElementById('loginModal');
   if (modal) modal.style.display = 'none';
@@ -6600,23 +6607,9 @@ async function doLogin(login, password) {
 function __tmhBindOfflinePinControls() {
   const api = __getTMHAuthApi();
   const pinInput = document.getElementById('offlinePinInput');
-  const setupButton = document.getElementById('setupOfflinePinBtn');
   const unlockButton = document.getElementById('unlockOfflineBtn');
-  if (!api || !pinInput || !setupButton || !unlockButton || setupButton.dataset.bound === '1') return;
-  setupButton.dataset.bound = '1';
+  if (!api || !pinInput || !unlockButton || unlockButton.dataset.bound === '1') return;
   unlockButton.dataset.bound = '1';
-  setupButton.onclick = async function() {
-    const pin = String(pinInput.value || '');
-    if (!/^\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
-    setupButton.disabled = true;
-    try {
-      await api.setupOfflinePin(pin);
-      pinInput.value = '';
-      showToast('Офлайн-PIN создан для этого устройства');
-    } catch (error) {
-      showToast(error?.message || 'Не удалось создать офлайн-PIN');
-    } finally { setupButton.disabled = false; }
-  };
   unlockButton.onclick = async function() {
     const pin = String(pinInput.value || '');
     if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
@@ -9723,7 +9716,6 @@ html[data-theme="dark"] .frow.unfilled-highlight,html[data-theme="dark"] .field.
     <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
         <div class="field"><label>PIN этого устройства (6–12 цифр)</label><input type="password" inputmode="numeric" autocomplete="off" id="offlinePinInput" placeholder="PIN устройства"></div>
         <div class="btn-row">
-            <button class="btn" type="button" id="setupOfflinePinBtn">Создать PIN</button>
             <button class="btn" type="button" id="unlockOfflineBtn">Войти офлайн</button>
         </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
@@ -9887,6 +9879,18 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
+  if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
+      window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
+    const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
+    if (offlinePin !== null) {
+      try {
+        await api.setupOfflinePin(offlinePin);
+        showToast('Офлайн-PIN создан для этого устройства');
+      } catch (error) {
+        showToast(error?.message || 'Не удалось создать офлайн-PIN');
+      }
+    }
+  }
   updateUserUI();
   const modal = document.getElementById('loginModal');
   if (modal) modal.style.display = 'none';
@@ -9896,23 +9900,9 @@ async function doLogin(login, password) {
 function __tmhBindOfflinePinControls() {
   const api = __getTMHAuthApi();
   const pinInput = document.getElementById('offlinePinInput');
-  const setupButton = document.getElementById('setupOfflinePinBtn');
   const unlockButton = document.getElementById('unlockOfflineBtn');
-  if (!api || !pinInput || !setupButton || !unlockButton || setupButton.dataset.bound === '1') return;
-  setupButton.dataset.bound = '1';
+  if (!api || !pinInput || !unlockButton || unlockButton.dataset.bound === '1') return;
   unlockButton.dataset.bound = '1';
-  setupButton.onclick = async function() {
-    const pin = String(pinInput.value || '');
-    if (!/^\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
-    setupButton.disabled = true;
-    try {
-      await api.setupOfflinePin(pin);
-      pinInput.value = '';
-      showToast('Офлайн-PIN создан для этого устройства');
-    } catch (error) {
-      showToast(error?.message || 'Не удалось создать офлайн-PIN');
-    } finally { setupButton.disabled = false; }
-  };
   unlockButton.onclick = async function() {
     const pin = String(pinInput.value || '');
     if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
@@ -14366,7 +14356,6 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
         <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
         <div class="field"><label>PIN этого устройства (6–12 цифр)</label><input type="password" inputmode="numeric" autocomplete="off" id="offlinePinInput" placeholder="PIN устройства"></div>
         <div class="btn-row">
-            <button class="btn" type="button" id="setupOfflinePinBtn">Создать PIN</button>
             <button class="btn" type="button" id="unlockOfflineBtn">Войти офлайн</button>
         </div>
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
@@ -14530,6 +14519,18 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
+  if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
+      window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
+    const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
+    if (offlinePin !== null) {
+      try {
+        await api.setupOfflinePin(offlinePin);
+        showToast('Офлайн-PIN создан для этого устройства');
+      } catch (error) {
+        showToast(error?.message || 'Не удалось создать офлайн-PIN');
+      }
+    }
+  }
   updateUserUI();
   const modal = document.getElementById('loginModal');
   if (modal) modal.style.display = 'none';
@@ -14539,23 +14540,9 @@ async function doLogin(login, password) {
 function __tmhBindOfflinePinControls() {
   const api = __getTMHAuthApi();
   const pinInput = document.getElementById('offlinePinInput');
-  const setupButton = document.getElementById('setupOfflinePinBtn');
   const unlockButton = document.getElementById('unlockOfflineBtn');
-  if (!api || !pinInput || !setupButton || !unlockButton || setupButton.dataset.bound === '1') return;
-  setupButton.dataset.bound = '1';
+  if (!api || !pinInput || !unlockButton || unlockButton.dataset.bound === '1') return;
   unlockButton.dataset.bound = '1';
-  setupButton.onclick = async function() {
-    const pin = String(pinInput.value || '');
-    if (!/^\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
-    setupButton.disabled = true;
-    try {
-      await api.setupOfflinePin(pin);
-      pinInput.value = '';
-      showToast('Офлайн-PIN создан для этого устройства');
-    } catch (error) {
-      showToast(error?.message || 'Не удалось создать офлайн-PIN');
-    } finally { setupButton.disabled = false; }
-  };
   unlockButton.onclick = async function() {
     const pin = String(pinInput.value || '');
     if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
@@ -16694,6 +16681,18 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
+  if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
+      window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
+    const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
+    if (offlinePin !== null) {
+      try {
+        await api.setupOfflinePin(offlinePin);
+        showToast('Офлайн-PIN создан для этого устройства');
+      } catch (error) {
+        showToast(error?.message || 'Не удалось создать офлайн-PIN');
+      }
+    }
+  }
   updateUserUI();
   const modal = document.getElementById('loginModal');
   if (modal) modal.style.display = 'none';
@@ -16703,23 +16702,9 @@ async function doLogin(login, password) {
 function __tmhBindOfflinePinControls() {
   const api = __getTMHAuthApi();
   const pinInput = document.getElementById('offlinePinInput');
-  const setupButton = document.getElementById('setupOfflinePinBtn');
   const unlockButton = document.getElementById('unlockOfflineBtn');
-  if (!api || !pinInput || !setupButton || !unlockButton || setupButton.dataset.bound === '1') return;
-  setupButton.dataset.bound = '1';
+  if (!api || !pinInput || !unlockButton || unlockButton.dataset.bound === '1') return;
   unlockButton.dataset.bound = '1';
-  setupButton.onclick = async function() {
-    const pin = String(pinInput.value || '');
-    if (!/^\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
-    setupButton.disabled = true;
-    try {
-      await api.setupOfflinePin(pin);
-      pinInput.value = '';
-      showToast('Офлайн-PIN создан для этого устройства');
-    } catch (error) {
-      showToast(error?.message || 'Не удалось создать офлайн-PIN');
-    } finally { setupButton.disabled = false; }
-  };
   unlockButton.onclick = async function() {
     const pin = String(pinInput.value || '');
     if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
