@@ -166,3 +166,56 @@ test("photo hydration failure happens before a safety snapshot is created", asyn
   await assert.rejects(restore.restore(ROW), /photo restore failed/);
   assert.equal(snapshots, 0);
 });
+
+test("restore hydrates the photoManifest emitted by offline cloud sync", async () => {
+  const manifest = [{
+    itemId: "item1",
+    field: "front_photo",
+    path: USER + "/" + ROW + "/4/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    contentType: "image/jpeg",
+  }];
+  const h = harness({
+    payload: {
+      mode: "complex",
+      state: { values: { item1: { status: "ok" } } },
+      photoManifest: manifest,
+    },
+  });
+  let received;
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    async hydrateState(state, metadata, photos) {
+      received = photos;
+      state.values.item1.front_photo = "data:image/jpeg;base64,AQID";
+      return state;
+    },
+    async applyState(state) { assert.equal(state.values.item1.front_photo, "data:image/jpeg;base64,AQID"); },
+  });
+  await restore.restore(ROW);
+  assert.deepEqual(received, manifest);
+});
+
+test("photoManifest takes precedence over legacy photos when both are present", async () => {
+  const current = [{ itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/5/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", contentType: "image/jpeg" }];
+  const legacy = [{ itemId: "item1", field: "rear_photo", path: USER + "/" + ROW + "/4/cccccccc-cccc-4ccc-8ccc-cccccccccccc", contentType: "image/jpeg" }];
+  const h = harness({
+    payload: {
+      mode: "complex",
+      state: { values: { item1: { status: "ok" } } },
+      photoManifest: current,
+      photos: legacy,
+    },
+  });
+  let received;
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    async hydrateState(state, metadata, photos) { received = photos; return state; },
+    async applyState() {},
+  });
+  await restore.restore(ROW);
+  assert.deepEqual(received, current);
+});
