@@ -3669,12 +3669,21 @@ function saveState(silent){
         
 var __tmhOriginalSaveState = saveState;
 var __tmhOfflineSaveChain = Promise.resolve(true);
+var __tmhOfflinePendingWrites = 0;
+window.addEventListener('beforeunload', function(event) {
+  if (__tmhOfflinePendingWrites > 0) {
+    event.preventDefault();
+    event.returnValue = '';
+    return '';
+  }
+});
 saveState = function(silent) {
   if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
   var api = __getTMHAuthApi();
   if (window.__TMH_OFFLINE_MODE) {
     if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
     var snapshot = structuredClone(STATE);
+    __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       return api.saveOfflineChecklist(LS_KEY, snapshot);
     }).then(function() {
@@ -3684,14 +3693,19 @@ saveState = function(silent) {
       console.error('Encrypted offline save failed', error);
       if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
       return false;
+    }).finally(function() {
+      __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
     return true;
   }
   var result = __tmhOriginalSaveState.apply(this, arguments);
   if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
     var snapshot = structuredClone(STATE);
+    __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+    }).finally(function() {
+      __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
   }
   return result;
@@ -7724,12 +7738,21 @@ function saveState(silent){
 
 var __tmhOriginalSaveState = saveState;
 var __tmhOfflineSaveChain = Promise.resolve(true);
+var __tmhOfflinePendingWrites = 0;
+window.addEventListener('beforeunload', function(event) {
+  if (__tmhOfflinePendingWrites > 0) {
+    event.preventDefault();
+    event.returnValue = '';
+    return '';
+  }
+});
 saveState = function(silent) {
   if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
   var api = __getTMHAuthApi();
   if (window.__TMH_OFFLINE_MODE) {
     if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
     var snapshot = structuredClone(STATE);
+    __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       return api.saveOfflineChecklist(LS_KEY, snapshot);
     }).then(function() {
@@ -7739,14 +7762,19 @@ saveState = function(silent) {
       console.error('Encrypted offline save failed', error);
       if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
       return false;
+    }).finally(function() {
+      __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
     return true;
   }
   var result = __tmhOriginalSaveState.apply(this, arguments);
   if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
     var snapshot = structuredClone(STATE);
+    __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+    }).finally(function() {
+      __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
   }
   return result;
@@ -12261,12 +12289,21 @@ function saveState(silent){
 
 var __tmhOriginalSaveState = saveState;
 var __tmhOfflineSaveChain = Promise.resolve(true);
+var __tmhOfflinePendingWrites = 0;
+window.addEventListener('beforeunload', function(event) {
+  if (__tmhOfflinePendingWrites > 0) {
+    event.preventDefault();
+    event.returnValue = '';
+    return '';
+  }
+});
 saveState = function(silent) {
   if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
   var api = __getTMHAuthApi();
   if (window.__TMH_OFFLINE_MODE) {
     if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
     var snapshot = structuredClone(STATE);
+    __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       return api.saveOfflineChecklist(LS_KEY, snapshot);
     }).then(function() {
@@ -12276,14 +12313,19 @@ saveState = function(silent) {
       console.error('Encrypted offline save failed', error);
       if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
       return false;
+    }).finally(function() {
+      __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
     return true;
   }
   var result = __tmhOriginalSaveState.apply(this, arguments);
   if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
     var snapshot = structuredClone(STATE);
+    __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+    }).finally(function() {
+      __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
   }
   return result;
@@ -16218,12 +16260,21 @@ function saveState(silent){
 
 var __tmhOriginalSaveState = saveState;
 var __tmhOfflineSaveChain = Promise.resolve(true);
+var __tmhOfflinePendingWrites = 0;
+window.addEventListener('beforeunload', function(event) {
+  if (__tmhOfflinePendingWrites > 0) {
+    event.preventDefault();
+    event.returnValue = '';
+    return '';
+  }
+});
 saveState = function(silent) {
   if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
   var api = __getTMHAuthApi();
   if (window.__TMH_OFFLINE_MODE) {
     if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
     var snapshot = structuredClone(STATE);
+    __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       return api.saveOfflineChecklist(LS_KEY, snapshot);
     }).then(function() {
@@ -16233,14 +16284,19 @@ saveState = function(silent) {
       console.error('Encrypted offline save failed', error);
       if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
       return false;
+    }).finally(function() {
+      __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
     return true;
   }
   var result = __tmhOriginalSaveState.apply(this, arguments);
   if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
     var snapshot = structuredClone(STATE);
+    __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+    }).finally(function() {
+      __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
   }
   return result;
@@ -18306,12 +18362,21 @@ function saveState(silent){
 
 var __tmhOriginalSaveState = saveState;
 var __tmhOfflineSaveChain = Promise.resolve(true);
+var __tmhOfflinePendingWrites = 0;
+window.addEventListener('beforeunload', function(event) {
+  if (__tmhOfflinePendingWrites > 0) {
+    event.preventDefault();
+    event.returnValue = '';
+    return '';
+  }
+});
 saveState = function(silent) {
   if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
   var api = __getTMHAuthApi();
   if (window.__TMH_OFFLINE_MODE) {
     if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
     var snapshot = structuredClone(STATE);
+    __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       return api.saveOfflineChecklist(LS_KEY, snapshot);
     }).then(function() {
@@ -18321,14 +18386,19 @@ saveState = function(silent) {
       console.error('Encrypted offline save failed', error);
       if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
       return false;
+    }).finally(function() {
+      __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
     return true;
   }
   var result = __tmhOriginalSaveState.apply(this, arguments);
   if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
     var snapshot = structuredClone(STATE);
+    __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+    }).finally(function() {
+      __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
   }
   return result;
