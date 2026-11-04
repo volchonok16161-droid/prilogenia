@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createOfflineSyncRunner } from "../prototype/offline-sync-runner.js";
 
 const UID = "11111111-1111-4111-8111-111111111111";
-const OP = { opId:"op-1", userId:UID, entityId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", operation:"update", encrypted:{version:1,iv:"iv",ciphertext:"cipher"}, attempts:0 };
+const OP = { opId:"op-1", userId:UID, entityId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", operation:"update", encrypted:{version:1,iv:"iv",ciphertext:"cipher"}, status:"pending", attempts:0 };
 
 function fixture({ identity, online=true, cloud={} } = {}) {
   const queue=[{...OP}]; const conflicts=[]; const calls=[];
