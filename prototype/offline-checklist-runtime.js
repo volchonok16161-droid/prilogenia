@@ -1,5 +1,5 @@
 // Shared offline runtime wiring. This factory is deliberately opt-in:
- // no local records are imported, no PIN is stored, and no background sync
+// no local records are imported, no PIN is stored, and no background sync
  // starts until the caller has unlocked this device's vault and calls start().
 import { createCloudSync } from "./supabase-cloud-sync.js";
 import { createChecklistPhotoSync } from "./supabase-cloud-photos.js";
