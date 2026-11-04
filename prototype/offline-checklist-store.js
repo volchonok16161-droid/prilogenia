@@ -25,7 +25,18 @@ export function createOfflineChecklistStore({ database, vault, userId, idFactory
     if (typeof id !== "string" || !id || typeof entityId !== "string" || !entityId) {
       throw new TypeError("Checklist id and entity id are required");
     }
+    // Refuse non-JSON snapshots and verify the ciphertext can be decrypted
+    // back to the exact serialized payload before committing it to IndexedDB.
+    // This catches key/session mismatches before a durable queue item is created.
+    const serialized = JSON.stringify(value);
+    if (typeof serialized !== "string") {
+      throw new TypeError("Checklist snapshot must be JSON-serializable");
+    }
     const encrypted = await vault.encrypt(value);
+    const verified = await vault.decrypt(encrypted);
+    if (JSON.stringify(verified) !== serialized) {
+      throw new Error("Encrypted checklist snapshot failed round-trip verification");
+    }
     const stamp = now();
     const opId = idFactory();
     await database.putRecordAndEnqueue({
