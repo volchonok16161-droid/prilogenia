@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
-test("all five login surfaces expose device PIN setup and offline unlock controls", () => {
+test("all five login surfaces expose offline PIN unlock controls", () => {
   assert.equal((html.match(/id="setupOfflinePinBtn"/g) || []).length, 0);
   assert.equal((html.match(/id="unlockOfflineBtn"/g) || []).length, 5);
   assert.equal((html.match(/id="offlinePinInput"/g) || []).length, 5);
