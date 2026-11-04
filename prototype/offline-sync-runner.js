@@ -111,18 +111,20 @@ export function createOfflineSyncRunner({
         try {
           try {
             const cloudResult = await cloudSync[request.method](request.method === "remove" ? request.id : request.input);
+          let acknowledgement;
           if (request.method === "remove") {
-            await database.markSynced(operation.opId, uid, undefined, claimId, null);
+            acknowledgement = await database.markSynced(operation.opId, uid, undefined, claimId, null);
           } else {
             const revision = Number(cloudResult?.revision);
             if (!Number.isSafeInteger(revision) || revision < 1) {
               throw new Error("Cloud API did not return a valid checklist revision");
             }
-            await database.markSynced(operation.opId, uid, revision, claimId, {
+            acknowledgement = await database.markSynced(operation.opId, uid, revision, claimId, {
               revision,
               photoManifest: request.input?.payload?.photoManifest || [],
             });
           }
+          if (!acknowledgement) throw new Error("Sync queue lease expired before acknowledgement");
           } catch (cloudError) {
             // Photo objects are uploaded before the checklist row. If the row
             // write fails or conflicts, remove only this operation's uploads.
