@@ -14,6 +14,7 @@ test("auth runtimes prefer explicitly PIN-unlocked identity", () => {
   assert.ok((html.match(/let identity = await api\.getOfflineIdentity\(\)/g) || []).length >= 5);
   assert.ok((html.match(/identity = await api\.getCurrentIdentity\(\)/g) || []).length >= 5);
   assert.ok((html.match(/identity\.mode === 'offline-local-unlock'/g) || []).length >= 5);
+  assert.equal((html.match(/window\.__TMH_OFFLINE_MODE = identity\.mode === 'offline-local-unlock'/g) || []).length, 5);
   assert.ok((html.match(/__tmhBindOfflinePinControls\(\);/g) || []).length >= 5);
 });
 
