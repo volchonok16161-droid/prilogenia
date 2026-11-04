@@ -177,19 +177,34 @@ export function createOfflineVaultDatabase({
       const matching = pending
         .filter((row) => row.entityId === entityId)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      if (matching.length) {
-        const current = matching[0];
-        // A not-yet-synced create remains a create even as its snapshot changes.
-        const nextOperation = current.operation === "create" && operation === "update"
-          ? "create"
-          : operation;
-        await requestResult(queue.put({
-          ...current,
-          operation: nextOperation,
-          encrypted,
-          updatedAt,
-        }));
-        return { id, opId: current.opId, coalesced: true };
+      const current = matching.find((row) =>
+        ["create", "update", "delete"].includes(row.operation) &&
+        ["create", "update", "delete"].includes(operation)
+      );
+      if (current) {
+        // Never merge photo uploads into checklist mutations: they have
+        // different idempotency and completion semantics.
+        if (current.operation === "delete" && operation === "update") {
+          throw new Error("Cannot update an entity while its deletion is pending");
+        }
+        if (current.operation === "create" && operation === "delete") {
+          throw new Error("A pending create must be resolved before deleting the entity");
+        }
+        if (current.operation === "update" && operation === "create") {
+          throw new Error("Cannot create an entity that already has a pending update");
+        }
+        // A queued delete followed by a create is a distinct later operation:
+        // preserve ordering rather than accidentally turning the delete into a create.
+        if (!(current.operation === "delete" && operation === "create")) {
+          const nextOperation = current.operation === "create" ? "create" : operation;
+          await requestResult(queue.put({
+            ...current,
+            operation: nextOperation,
+            encrypted,
+            updatedAt,
+          }));
+          return { id, opId: current.opId, coalesced: true };
+        }
       }
       await requestResult(queue.add({
         opId, userId, entityId, operation, encrypted, createdAt, updatedAt,
