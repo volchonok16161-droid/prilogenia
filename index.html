@@ -2892,17 +2892,18 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
-  if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
-      window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
-    const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
-    if (offlinePin !== null) {
-      try {
+  try {
+    if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
+        window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
+      const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
+      if (offlinePin !== null) {
         await api.setupOfflinePin(offlinePin);
         showToast('Офлайн-PIN создан для этого устройства');
-      } catch (error) {
-        showToast(error?.message || 'Не удалось создать офлайн-PIN');
       }
     }
+  } catch (error) {
+    // Offline storage is optional; never block a successful online login.
+    showToast(error?.message || 'Не удалось настроить офлайн-PIN');
   }
   updateUserUI();
   const modal = document.getElementById('loginModal');
@@ -6584,17 +6585,18 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
-  if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
-      window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
-    const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
-    if (offlinePin !== null) {
-      try {
+  try {
+    if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
+        window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
+      const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
+      if (offlinePin !== null) {
         await api.setupOfflinePin(offlinePin);
         showToast('Офлайн-PIN создан для этого устройства');
-      } catch (error) {
-        showToast(error?.message || 'Не удалось создать офлайн-PIN');
       }
     }
+  } catch (error) {
+    // Offline storage is optional; never block a successful online login.
+    showToast(error?.message || 'Не удалось настроить офлайн-PIN');
   }
   updateUserUI();
   const modal = document.getElementById('loginModal');
@@ -9876,17 +9878,18 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
-  if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
-      window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
-    const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
-    if (offlinePin !== null) {
-      try {
+  try {
+    if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
+        window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
+      const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
+      if (offlinePin !== null) {
         await api.setupOfflinePin(offlinePin);
         showToast('Офлайн-PIN создан для этого устройства');
-      } catch (error) {
-        showToast(error?.message || 'Не удалось создать офлайн-PIN');
       }
     }
+  } catch (error) {
+    // Offline storage is optional; never block a successful online login.
+    showToast(error?.message || 'Не удалось настроить офлайн-PIN');
   }
   updateUserUI();
   const modal = document.getElementById('loginModal');
@@ -14515,17 +14518,18 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
-  if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
-      window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
-    const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
-    if (offlinePin !== null) {
-      try {
+  try {
+    if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
+        window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
+      const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
+      if (offlinePin !== null) {
         await api.setupOfflinePin(offlinePin);
         showToast('Офлайн-PIN создан для этого устройства');
-      } catch (error) {
-        showToast(error?.message || 'Не удалось создать офлайн-PIN');
       }
     }
+  } catch (error) {
+    // Offline storage is optional; never block a successful online login.
+    showToast(error?.message || 'Не удалось настроить офлайн-PIN');
   }
   updateUserUI();
   const modal = document.getElementById('loginModal');
@@ -16676,17 +16680,18 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
-  if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
-      window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
-    const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
-    if (offlinePin !== null) {
-      try {
+  try {
+    if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
+        window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
+      const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
+      if (offlinePin !== null) {
         await api.setupOfflinePin(offlinePin);
         showToast('Офлайн-PIN создан для этого устройства');
-      } catch (error) {
-        showToast(error?.message || 'Не удалось создать офлайн-PIN');
       }
     }
+  } catch (error) {
+    // Offline storage is optional; never block a successful online login.
+    showToast(error?.message || 'Не удалось настроить офлайн-PIN');
   }
   updateUserUI();
   const modal = document.getElementById('loginModal');
