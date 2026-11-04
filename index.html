@@ -3021,6 +3021,11 @@ async function doLogout() {
     if (typeof saveState === 'function') saveState(true);
     if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
     if (typeof __tmhOfflineSaveChain !== 'undefined' && __tmhOfflineSaveChain) await __tmhOfflineSaveChain;
+    if (typeof __tmhOfflineSaveError !== 'undefined' && __tmhOfflineSaveError) {
+      window.__TMH_STORAGE_LOCKED = false;
+      showToast('Не удалось сохранить изменения на устройстве. Выход отменён — повторите попытку.');
+      return;
+    }
     if (typeof _photoMigrationPromise !== 'undefined' && _photoMigrationPromise) await _photoMigrationPromise;
     if (typeof _photoWriteChain !== 'undefined' && _photoWriteChain) await _photoWriteChain;
   } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
@@ -3681,6 +3686,7 @@ function saveState(silent){
 var __tmhOriginalSaveState = saveState;
 var __tmhOfflineSaveChain = Promise.resolve(true);
 var __tmhOfflinePendingWrites = 0;
+var __tmhOfflineSaveError = null;
 window.addEventListener('beforeunload', function(event) {
   if (__tmhOfflinePendingWrites > 0) {
     event.preventDefault();
@@ -3696,6 +3702,7 @@ saveState = function(silent) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      __tmhOfflineSaveError = null;
       return api.saveOfflineChecklist(LS_KEY, snapshot);
     }).then(function() {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
@@ -3714,7 +3721,13 @@ saveState = function(silent) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
-      return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+      __tmhOfflineSaveError = null;
+      return api.saveOfflineChecklist(LS_KEY, snapshot);
+    }).catch(function(error) {
+      __tmhOfflineSaveError = error;
+      console.error('Encrypted offline save failed', error);
+      if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
+      return false;
     }).finally(function() {
       __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
@@ -6778,6 +6791,11 @@ async function doLogout() {
     if (typeof saveState === 'function') saveState(true);
     if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
     if (typeof __tmhOfflineSaveChain !== 'undefined' && __tmhOfflineSaveChain) await __tmhOfflineSaveChain;
+    if (typeof __tmhOfflineSaveError !== 'undefined' && __tmhOfflineSaveError) {
+      window.__TMH_STORAGE_LOCKED = false;
+      showToast('Не удалось сохранить изменения на устройстве. Выход отменён — повторите попытку.');
+      return;
+    }
     if (typeof _photoMigrationPromise !== 'undefined' && _photoMigrationPromise) await _photoMigrationPromise;
     if (typeof _photoWriteChain !== 'undefined' && _photoWriteChain) await _photoWriteChain;
   } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
@@ -7750,6 +7768,7 @@ function saveState(silent){
 var __tmhOriginalSaveState = saveState;
 var __tmhOfflineSaveChain = Promise.resolve(true);
 var __tmhOfflinePendingWrites = 0;
+var __tmhOfflineSaveError = null;
 window.addEventListener('beforeunload', function(event) {
   if (__tmhOfflinePendingWrites > 0) {
     event.preventDefault();
@@ -7765,6 +7784,7 @@ saveState = function(silent) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      __tmhOfflineSaveError = null;
       return api.saveOfflineChecklist(LS_KEY, snapshot);
     }).then(function() {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
@@ -7783,7 +7803,13 @@ saveState = function(silent) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
-      return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+      __tmhOfflineSaveError = null;
+      return api.saveOfflineChecklist(LS_KEY, snapshot);
+    }).catch(function(error) {
+      __tmhOfflineSaveError = error;
+      console.error('Encrypted offline save failed', error);
+      if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
+      return false;
     }).finally(function() {
       __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
@@ -10118,6 +10144,11 @@ async function doLogout() {
     if (typeof saveState === 'function') saveState(true);
     if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
     if (typeof __tmhOfflineSaveChain !== 'undefined' && __tmhOfflineSaveChain) await __tmhOfflineSaveChain;
+    if (typeof __tmhOfflineSaveError !== 'undefined' && __tmhOfflineSaveError) {
+      window.__TMH_STORAGE_LOCKED = false;
+      showToast('Не удалось сохранить изменения на устройстве. Выход отменён — повторите попытку.');
+      return;
+    }
     if (typeof _photoMigrationPromise !== 'undefined' && _photoMigrationPromise) await _photoMigrationPromise;
     if (typeof _photoWriteChain !== 'undefined' && _photoWriteChain) await _photoWriteChain;
   } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
@@ -12301,6 +12332,7 @@ function saveState(silent){
 var __tmhOriginalSaveState = saveState;
 var __tmhOfflineSaveChain = Promise.resolve(true);
 var __tmhOfflinePendingWrites = 0;
+var __tmhOfflineSaveError = null;
 window.addEventListener('beforeunload', function(event) {
   if (__tmhOfflinePendingWrites > 0) {
     event.preventDefault();
@@ -12316,6 +12348,7 @@ saveState = function(silent) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      __tmhOfflineSaveError = null;
       return api.saveOfflineChecklist(LS_KEY, snapshot);
     }).then(function() {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
@@ -12334,7 +12367,13 @@ saveState = function(silent) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
-      return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+      __tmhOfflineSaveError = null;
+      return api.saveOfflineChecklist(LS_KEY, snapshot);
+    }).catch(function(error) {
+      __tmhOfflineSaveError = error;
+      console.error('Encrypted offline save failed', error);
+      if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
+      return false;
     }).finally(function() {
       __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
@@ -14805,6 +14844,11 @@ async function doLogout() {
     if (typeof saveState === 'function') saveState(true);
     if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
     if (typeof __tmhOfflineSaveChain !== 'undefined' && __tmhOfflineSaveChain) await __tmhOfflineSaveChain;
+    if (typeof __tmhOfflineSaveError !== 'undefined' && __tmhOfflineSaveError) {
+      window.__TMH_STORAGE_LOCKED = false;
+      showToast('Не удалось сохранить изменения на устройстве. Выход отменён — повторите попытку.');
+      return;
+    }
     if (typeof _photoMigrationPromise !== 'undefined' && _photoMigrationPromise) await _photoMigrationPromise;
     if (typeof _photoWriteChain !== 'undefined' && _photoWriteChain) await _photoWriteChain;
   } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
@@ -16272,6 +16316,7 @@ function saveState(silent){
 var __tmhOriginalSaveState = saveState;
 var __tmhOfflineSaveChain = Promise.resolve(true);
 var __tmhOfflinePendingWrites = 0;
+var __tmhOfflineSaveError = null;
 window.addEventListener('beforeunload', function(event) {
   if (__tmhOfflinePendingWrites > 0) {
     event.preventDefault();
@@ -16287,6 +16332,7 @@ saveState = function(silent) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      __tmhOfflineSaveError = null;
       return api.saveOfflineChecklist(LS_KEY, snapshot);
     }).then(function() {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
@@ -16305,7 +16351,13 @@ saveState = function(silent) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
-      return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+      __tmhOfflineSaveError = null;
+      return api.saveOfflineChecklist(LS_KEY, snapshot);
+    }).catch(function(error) {
+      __tmhOfflineSaveError = error;
+      console.error('Encrypted offline save failed', error);
+      if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
+      return false;
     }).finally(function() {
       __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
@@ -17014,6 +17066,11 @@ async function doLogout() {
     if (typeof saveState === 'function') saveState(true);
     if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
     if (typeof __tmhOfflineSaveChain !== 'undefined' && __tmhOfflineSaveChain) await __tmhOfflineSaveChain;
+    if (typeof __tmhOfflineSaveError !== 'undefined' && __tmhOfflineSaveError) {
+      window.__TMH_STORAGE_LOCKED = false;
+      showToast('Не удалось сохранить изменения на устройстве. Выход отменён — повторите попытку.');
+      return;
+    }
     if (typeof _photoMigrationPromise !== 'undefined' && _photoMigrationPromise) await _photoMigrationPromise;
     if (typeof _photoWriteChain !== 'undefined' && _photoWriteChain) await _photoWriteChain;
   } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
@@ -18374,6 +18431,7 @@ function saveState(silent){
 var __tmhOriginalSaveState = saveState;
 var __tmhOfflineSaveChain = Promise.resolve(true);
 var __tmhOfflinePendingWrites = 0;
+var __tmhOfflineSaveError = null;
 window.addEventListener('beforeunload', function(event) {
   if (__tmhOfflinePendingWrites > 0) {
     event.preventDefault();
@@ -18389,6 +18447,7 @@ saveState = function(silent) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      __tmhOfflineSaveError = null;
       return api.saveOfflineChecklist(LS_KEY, snapshot);
     }).then(function() {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
@@ -18407,7 +18466,13 @@ saveState = function(silent) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
-      return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+      __tmhOfflineSaveError = null;
+      return api.saveOfflineChecklist(LS_KEY, snapshot);
+    }).catch(function(error) {
+      __tmhOfflineSaveError = error;
+      console.error('Encrypted offline save failed', error);
+      if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
+      return false;
     }).finally(function() {
       __tmhOfflinePendingWrites = Math.max(0, __tmhOfflinePendingWrites - 1);
     });
