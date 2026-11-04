@@ -67,7 +67,6 @@ async function getCurrentIdentity() {
 
 async function resolveLoginEmail(identifier) {
   const normalized = String(identifier || "").trim().normalize("NFC").toLowerCase();
-  if (USERNAME_EMAILS[normalized]) return USERNAME_EMAILS[normalized];
   if (normalized.includes("@")) return normalized;
   if (!normalized) return "";
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalized));
