@@ -16,6 +16,7 @@ function fixture({ mode = "hydro", operation = "create", identity = true, cloudE
   });
   const queue = [{ opId: "op-1", userId: UID, entityId: ID, operation, encrypted, status: "pending", attempts: 0 }];
   const conflicts = [], calls = [];
+  let cloudState = null;
   const database = {
     async listPending(uid) { return queue.filter(row => row.userId === uid && row.status === "pending").map(row => ({ ...row })); },
     async claimQueueOperation(opId, uid, claimId, _at, until) {
@@ -28,10 +29,13 @@ function fixture({ mode = "hydro", operation = "create", identity = true, cloudE
       if (!row || row.leaseClaimId !== claimId) return false;
       Object.assign(row, changes); return true;
     },
-    async markSynced(opId, uid, _revision, claimId) {
+    async getCloudState(uid, entityId) { return uid === UID && entityId === ID ? cloudState : null; },
+    async markSynced(opId, uid, _revision, claimId, nextCloudState) {
       const i = queue.findIndex(row => row.opId === opId && row.userId === uid && row.leaseClaimId === claimId);
       if (i < 0) return false;
-      queue.splice(i, 1); return true;
+      queue.splice(i, 1);
+      cloudState = nextCloudState === null ? null : (nextCloudState || cloudState);
+      return { opId, serverRevision: _revision ?? null };
     },
     async saveConflict(value) { conflicts.push(value); },
   };
@@ -53,7 +57,7 @@ function fixture({ mode = "hydro", operation = "create", identity = true, cloudE
     now: () => "2026-11-04T12:00:00.000Z",
     claimIdFactory: () => "claim-1",
   });
-  return { runner, queue, conflicts, calls, envelope };
+  return { runner, queue, conflicts, calls, envelope, get cloudState() { return cloudState; } };
 }
 
 test("create sync sends a full schema-versioned snapshot for a supported mode", async () => {
@@ -61,6 +65,7 @@ test("create sync sends a full schema-versioned snapshot for a supported mode", 
   const result = await f.runner.syncPending({ userId: UID });
   assert.equal(result.synced, 1);
   assert.equal(f.queue.length, 0);
+  assert.equal(f.cloudState.revision, 1);
   assert.equal(f.calls[0][0], "create");
   assert.deepEqual(f.calls[0][1].payload.state, STATE);
   assert.equal(f.calls[0][1].payload.schemaVersion, 1);
@@ -72,6 +77,7 @@ test("update sync uses an explicit last-confirmed revision", async () => {
   assert.equal(result.synced, 1);
   assert.equal(f.calls[0][0], "update");
   assert.equal(f.calls[0][1].expectedRevision, 4);
+  assert.equal(f.cloudState.revision, 5);
 });
 
 test("auth failure prevents every cloud write and leaves the queue intact", async () => {
@@ -107,4 +113,12 @@ test("all five mode adapters produce cloud envelopes without dropping checklist 
     assert.equal(result.synced, 1, mode);
     assert.deepEqual(f.calls[0][1].payload.state, STATE, mode);
   }
+});
+
+test("successful create stores server revision and photo manifest before queue acknowledgement", async () => {
+  const f = fixture();
+  const result = await f.runner.syncPending({ userId: UID });
+  assert.equal(result.synced, 1);
+  assert.equal(f.cloudState.revision, 1);
+  assert.deepEqual(f.cloudState.photoManifest, []);
 });
