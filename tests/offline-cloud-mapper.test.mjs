@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mapOfflineChecklistOperation } from "../prototype/offline-cloud-mapper.js";
+import { mapOfflineChecklistOperation, createOfflineChecklistOperationMapper } from "../prototype/offline-cloud-mapper.js";
 import { buildOfflineCloudEnvelope } from "../prototype/offline-checklist-schema.js";
 
 const ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -34,4 +34,28 @@ test("rejects mismatched ids, unknown operations and unconfirmed revisions", () 
   assert.throws(() => mapOfflineChecklistOperation({ entityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", operation: "create" }, value), /не совпадает/);
   assert.throws(() => mapOfflineChecklistOperation({ entityId: ID, operation: "update" }, value), /revision/);
   assert.throws(() => mapOfflineChecklistOperation({ entityId: ID, operation: "photo-upload" }, value), /not a checklist CRUD/);
+});
+
+test("photo mapper uploads inline photos to private Storage and stores a manifest", async () => {
+  const stateWithPhoto = structuredClone(state);
+  stateWithPhoto.values.motor.photo_photo = "data:image/jpeg;base64,AA==";
+  const uploaded = [];
+  const mapper = createOfflineChecklistOperationMapper({
+    photoSync: {
+      async uploadState(args) {
+        uploaded.push(args);
+        return { uploaded: 1, manifest: [{ itemId: "motor", field: "photo_photo", path: "user/checklist/1/photo", contentType: "image/jpeg" }] };
+      },
+      async removeManifest(manifest) { uploaded.push({ removed: manifest }); },
+    },
+  });
+  const envelope = buildOfflineCloudEnvelope({ mode: "tt", state: stateWithPhoto, cloudId: ID });
+  const request = await mapper({ entityId: ID, operation: "create" }, envelope);
+  assert.equal(uploaded.length, 1);
+  assert.equal(uploaded[0].revision, 1);
+  assert.equal(request.input.payload.photoManifest.length, 1);
+  assert.equal(request.input.payload.state.values.motor.photo_photo, undefined);
+  assert.equal(stateWithPhoto.values.motor.photo_photo, "data:image/jpeg;base64,AA==");
+  await request.rollback();
+  assert.equal(uploaded.length, 2);
 });
