@@ -223,11 +223,12 @@ export function createOfflineVaultDatabase({
     });
   }
 
-  async function updateQueueOperation(opId, userId, changes) {
+  async function updateQueueOperation(opId, userId, changes, expectedLeaseClaimId) {
     return run([STORES.QUEUE], "readwrite", async (tx) => {
       const store = tx.objectStore(STORES.QUEUE);
       const row = await requestResult(store.get([userId, opId]));
       if (!row || row.userId !== userId) return false;
+      if (expectedLeaseClaimId !== undefined && row.leaseClaimId !== expectedLeaseClaimId) return false;
       const next = { ...row, ...changes, opId, userId };
       if (next.encrypted) assertEncrypted(next.encrypted, "Queued payload");
       await requestResult(store.put(next));
@@ -235,11 +236,12 @@ export function createOfflineVaultDatabase({
     });
   }
 
-  async function markSynced(opId, userId, serverRevision) {
+  async function markSynced(opId, userId, serverRevision, expectedLeaseClaimId) {
     return run([STORES.QUEUE], "readwrite", async (tx) => {
       const store = tx.objectStore(STORES.QUEUE);
       const row = await requestResult(store.get([userId, opId]));
       if (!row || row.userId !== userId) return false;
+      if (expectedLeaseClaimId !== undefined && row.leaseClaimId !== expectedLeaseClaimId) return false;
       await requestResult(store.delete([userId, opId]));
       return { opId, serverRevision: serverRevision ?? null };
     });
