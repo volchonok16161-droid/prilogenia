@@ -59,3 +59,29 @@ test("photo mapper uploads inline photos to private Storage and stores a manifes
   await request.rollback();
   assert.equal(uploaded.length, 2);
 });
+
+test("update schedules only superseded photo objects for cleanup", async () => {
+  const previous = { photoManifest: [
+    { itemId: "item", field: "old_photo", path: "old-object" },
+    { itemId: "item", field: "same_photo", path: "kept-object" },
+  ] };
+  const mapper = createOfflineChecklistOperationMapper({
+    photoSync: {
+      async uploadState() {
+        return { uploaded: 1, manifest: [{ itemId: "item", field: "same_photo", path: "kept-object", contentType: "image/jpeg" }] };
+      },
+      async removeManifest() {},
+    },
+  });
+  const value = buildOfflineCloudEnvelope({ mode: "tt", state, cloudId: ID, expectedRevision: 4 });
+  const request = await mapper({ entityId: ID, operation: "update" }, value, previous);
+  assert.deepEqual(request.cleanupManifest.map((entry) => entry.path), ["old-object"]);
+});
+
+test("delete carries the last confirmed photo manifest for post-delete cleanup", () => {
+  const manifest = [{ itemId: "item", field: "photo_photo", path: "old-object" }];
+  const request = mapOfflineChecklistOperation(
+    { entityId: ID, operation: "delete" }, null, { photoManifest: manifest },
+  );
+  assert.deepEqual(request.cleanupManifest, manifest);
+});
