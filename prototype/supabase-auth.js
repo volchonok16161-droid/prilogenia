@@ -58,7 +58,12 @@ function ensureOfflineSync() {
     });
     offlineSyncCoordinator = createOfflineSyncCoordinator({
       authApi: api, syncRunner: runner,
-      onStatus(status) { offlineSyncStatus = Object.freeze({ ...status }); },
+      onStatus(status) {
+        offlineSyncStatus = Object.freeze({ ...status });
+        try {
+          window.dispatchEvent(new CustomEvent("tmh-offline-sync-status", { detail: offlineSyncStatus }));
+        } catch {}
+      },
     });
   }
   return offlineChecklistStore;
