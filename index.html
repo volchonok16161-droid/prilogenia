@@ -2844,6 +2844,7 @@ async function checkAuth() {
       return false;
     }
     __tmhApplyUserStorageScope(identity.user.id);
+    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock';
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
     if (identity.mode === 'offline-local-unlock') {
@@ -2941,6 +2942,7 @@ async function doLogout() {
   try {
     if (typeof saveState === 'function') saveState(true);
     if (typeof __PS !== 'undefined' && __PS.chain) await __PS.chain;
+    if (typeof __tmhOfflineSaveChain !== 'undefined' && __tmhOfflineSaveChain) await __tmhOfflineSaveChain;
     if (typeof _photoMigrationPromise !== 'undefined' && _photoMigrationPromise) await _photoMigrationPromise;
     if (typeof _photoWriteChain !== 'undefined' && _photoWriteChain) await _photoWriteChain;
   } catch (e) { console.warn('Не удалось завершить локальное сохранение перед выходом', e); }
@@ -3597,7 +3599,37 @@ function saveState(silent){
 }
 
 
-        function fullClearState() { __psClear();
+        
+var __tmhOriginalSaveState = saveState;
+var __tmhOfflineSaveChain = Promise.resolve(true);
+saveState = function(silent) {
+  if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
+  var api = __getTMHAuthApi();
+  if (window.__TMH_OFFLINE_MODE) {
+    if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
+    var snapshot = structuredClone(STATE);
+    __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      return api.saveOfflineChecklist(LS_KEY, snapshot);
+    }).then(function() {
+      if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
+      return true;
+    }).catch(function(error) {
+      console.error('Encrypted offline save failed', error);
+      if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
+      return false;
+    });
+    return true;
+  }
+  var result = __tmhOriginalSaveState.apply(this, arguments);
+  if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
+    var snapshot = structuredClone(STATE);
+    __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
+      return api.saveOfflineChecklist(LS_KEY, snapshot).catch(function() { return false; });
+    });
+  }
+  return result;
+};
+function fullClearState() { __psClear();
             localStorage.removeItem(LS_KEY);
             STATE = {
                 general: { type: '', number: '', date: '', depot: '', place: '', mileage: '' },
@@ -4749,10 +4781,16 @@ function saveState(silent){
            ======================================================================== */
         let dialogShown = false;
 
-        function showContinueDialogOrStart() {
+        async function showContinueDialogOrStart() {
             if (!window.__TMH_STORAGE_UID) { document.getElementById('loginModal').style.display = 'flex'; return; }
             if (dialogShown) return;
-            const hasSaved = localStorage.getItem(LS_KEY) !== null;
+            let hasSaved = localStorage.getItem(LS_KEY) !== null;
+            if (window.__TMH_OFFLINE_MODE) {
+                const api = __getTMHAuthApi();
+                if (api && typeof api.hasOfflineChecklist === 'function') {
+                    hasSaved = hasSaved || await api.hasOfflineChecklist(LS_KEY);
+                }
+            }
             if (typeof __EMBEDDED_STATE !== 'undefined' && __EMBEDDED_STATE) {
                 startApp(false);
                 return;
@@ -4765,14 +4803,26 @@ function saveState(silent){
             }
         }
 
-        function startApp(useNew) {
+        async function startApp(useNew) {
             if (useNew) {
                 fullClearState();
             } else {
-                if (!STATE.general.type && !localStorage.getItem(LS_KEY)) {
-                    fullClearState();
-                } else {
-                    loadState();
+                let restoredEncrypted = false;
+                if (window.__TMH_OFFLINE_MODE) {
+                    const api = __getTMHAuthApi();
+                    if (api && typeof api.hasOfflineChecklist === 'function' &&
+                        await api.hasOfflineChecklist(LS_KEY)) {
+                        const encryptedState = await api.loadOfflineChecklist(LS_KEY);
+                        if (!encryptedState || typeof encryptedState !== 'object' || !encryptedState.general) {
+                            throw new Error('Зашифрованная копия чек-листа повреждена');
+                        }
+                        STATE = encryptedState;
+                        restoredEncrypted = true;
+                    }
+                }
+                if (!restoredEncrypted) {
+                    if (!STATE.general.type && !localStorage.getItem(LS_KEY)) fullClearState();
+                    else loadState();
                 }
             }
             const type = STATE.general.type || '';
