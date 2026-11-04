@@ -127,7 +127,7 @@ export function createOfflineSyncRunner({
           }
           let acknowledgement;
           if (request.method === "remove") {
-            acknowledgement = await database.markSynced(operation.opId, uid, undefined, claimId, null, request.cleanupManifest?.length ? { cleanupId: operation.opId + ':photo-cleanup', manifest: request.cleanupManifest, createdAt: now() } : null);
+            acknowledgement = await database.markSynced(operation.opId, uid, undefined, claimId, null, request.cleanupManifest?.length ? { cleanupId: operation.opId + ':photo-cleanup', manifest: request.cleanupManifest, reason: 'delete', createdAt: now() } : null);
           } else {
             const revision = Number(cloudResult?.revision);
             if (!Number.isSafeInteger(revision) || revision < 1) {
@@ -137,7 +137,7 @@ export function createOfflineSyncRunner({
               revision,
               photoManifest: request.input?.payload?.photoManifest || [],
             }, request.cleanupManifest?.length ? {
-              cleanupId: operation.opId + ':photo-cleanup', manifest: request.cleanupManifest, reason: 'delete', createdAt: now(),
+              cleanupId: operation.opId + ':photo-cleanup', manifest: request.cleanupManifest, reason: 'replace', createdAt: now(),
             } : null);
           }
           if (!acknowledgement) throw new Error("Sync queue lease expired before acknowledgement");
