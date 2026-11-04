@@ -22,8 +22,8 @@ test("offline profile is not copied into plaintext checklist_user localStorage",
 });
 
 test("PIN controls validate numeric PIN length before calling auth API", () => {
-  assert.equal(html.split("!/^\\d{6,12}$/.test(pin)").length - 1, 10);
-  assert.equal((html.match(/api\.setupOfflinePin\(pin\)/g) || []).length, 5);
+  assert.equal(html.split("!/^\\d{6,12}$/.test(pin)").length - 1, 5);
+  assert.equal((html.match(/api\.setupOfflinePin\(offlinePin\)/g) || []).length, 5);
 });
 
 test("PIN enrollment is offered only after successful online login", () => {
