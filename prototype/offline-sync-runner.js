@@ -7,6 +7,7 @@ const ROLES = new Set(["employee", "admin", "developer"]);
 function assertDependencies({ authApi, database, vault, cloudSync, mapOperation }) {
   if (typeof authApi?.getCurrentIdentity !== "function" ||
       typeof database?.listPending !== "function" ||
+      typeof database?.claimQueueOperation !== "function" ||
       typeof database?.updateQueueOperation !== "function" ||
       typeof database?.markSynced !== "function" ||
       typeof database?.saveConflict !== "function" ||
@@ -32,6 +33,7 @@ export function createOfflineSyncRunner({
   authApi, database, vault, cloudSync, mapOperation,
   isOnline = () => globalThis.navigator?.onLine !== false,
   now = () => new Date().toISOString(),
+  claimIdFactory = () => globalThis.crypto.randomUUID(),
 }) {
   assertDependencies({ authApi, database, vault, cloudSync, mapOperation });
 
@@ -50,15 +52,22 @@ export function createOfflineSyncRunner({
     // Verify the server-side Auth user AND profiles row before reading or sending
     // any queue item. Revalidate before every item to catch revoked accounts.
     assertVerifiedIdentity(await authApi.getCurrentIdentity(), uid);
-    const pending = (await database.listPending(uid)).slice(0, limit);
+    const pending = (await database.listPending(uid, now())).slice(0, limit);
     let synced = 0;
     let conflicts = 0;
     let failed = 0;
 
     for (const operation of pending) {
+      let claimed = false;
       try {
         if (!isOnline()) break;
         assertVerifiedIdentity(await authApi.getCurrentIdentity(), uid);
+        const claimedAt = now();
+        const leaseUntil = new Date(Date.parse(claimedAt) + 5 * 60 * 1000).toISOString();
+        claimed = await database.claimQueueOperation(
+          operation.opId, uid, claimIdFactory(), claimedAt, leaseUntil,
+        );
+        if (!claimed) continue;
         if (operation.userId !== uid || typeof operation.opId !== "string" ||
             typeof operation.entityId !== "string") {
           throw new Error("Очередь содержит некорректную операцию владельца");
@@ -95,22 +104,29 @@ export function createOfflineSyncRunner({
           });
           await database.updateQueueOperation(operation.opId, uid, {
             status: "conflict",
+            leaseClaimId: null,
+            leaseUntil: null,
             lastError: "REVISION_CONFLICT",
           });
           conflicts += 1;
         }
       } catch (error) {
         failed += 1;
-        // Keep retryable failures pending and preserve the encrypted payload.
-        await database.updateQueueOperation(operation.opId, uid, {
-          status: "pending",
-          lastError: String(error?.code || error?.message || "SYNC_FAILED").slice(0, 240),
-        });
+        // Release only a lease this runner actually acquired. The encrypted
+        // payload remains intact and can be retried by this or another tab.
+        if (claimed) {
+          await database.updateQueueOperation(operation.opId, uid, {
+            status: "pending",
+            leaseClaimId: null,
+            leaseUntil: null,
+            lastError: String(error?.code || error?.message || "SYNC_FAILED").slice(0, 240),
+          });
+        }
         if (error?.code === "AUTH_REQUIRED" || !isOnline()) break;
       }
     }
 
-    const remaining = (await database.listPending(uid)).length;
+    const remaining = (await database.listPending(uid, now())).length;
     return Object.freeze({
       status: conflicts ? "conflict" : failed ? "error" : remaining ? "pending-sync" : "synced",
       processed: synced + conflicts + failed,
