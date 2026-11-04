@@ -29,13 +29,18 @@ function fixture() {
       }
       records.set(value.id, { id: value.id, userId: value.userId, kind: value.kind, encrypted: value.encrypted, updatedAt: value.updatedAt });
       const matching = queue.filter(row => row.userId === value.userId && row.entityId === value.entityId && row.status === "pending");
-      if (matching.length) {
-        const current = matching[0];
-        current.operation = current.operation === "create" && value.operation === "update" ? "create" : value.operation;
-        current.encrypted = value.encrypted;
-        current.updatedAt = value.updatedAt;
-        calls.push("atomic-coalesce");
-        return { id: value.id, opId: current.opId, coalesced: true };
+      const current = matching.find(row => ["create","update","delete"].includes(row.operation) && ["create","update","delete"].includes(value.operation));
+      if (current) {
+        if (current.operation === "delete" && value.operation === "update") throw new Error("Cannot update an entity while its deletion is pending");
+        if (current.operation === "create" && value.operation === "delete") throw new Error("A pending create must be resolved before deleting the entity");
+        if (current.operation === "update" && value.operation === "create") throw new Error("Cannot create an entity that already has a pending update");
+        if (!(current.operation === "delete" && value.operation === "create")) {
+          current.operation = current.operation === "create" ? "create" : value.operation;
+          current.encrypted = value.encrypted;
+          current.updatedAt = value.updatedAt;
+          calls.push("atomic-coalesce");
+          return { id: value.id, opId: current.opId, coalesced: true };
+        }
       }
       queue.push({ opId: value.opId, userId: value.userId, entityId: value.entityId, operation: value.operation, encrypted: value.encrypted, createdAt: value.createdAt, updatedAt: value.updatedAt, status: "pending", attempts: 0 });
       calls.push("atomic-write");
@@ -174,4 +179,39 @@ test("a save during an in-flight operation creates a follow-up queue item instea
   assert.equal(queue[1].opId, second.opId);
   assert.equal(queue[1].status, "pending");
   assert.equal(queue[1].operation, "update");
+});
+
+test("photo uploads are not coalesced with checklist mutations", async () => {
+  const { store, queue } = fixture();
+  const first = await store.saveChecklist({ id: "checklist-1", entityId: "cloud-entity-1", operation: "update", value: { version: 1 } });
+  const photo = await store.saveChecklist({ id: "photo-1", entityId: "cloud-entity-1", operation: "photo-upload", kind: "photo", value: { photoId: "p1" } });
+  assert.equal(queue.length, 2);
+  assert.equal(queue[0].opId, first.opId);
+  assert.equal(queue[0].operation, "update");
+  assert.equal(queue[1].opId, photo.opId);
+  assert.equal(queue[1].operation, "photo-upload");
+});
+
+test("a queued deletion followed by a create remains two ordered operations", async () => {
+  const { store, queue } = fixture();
+  const deletion = await store.saveChecklist({ id: "checklist-1", entityId: "cloud-entity-1", operation: "delete", value: { tombstone: true } });
+  const creation = await store.saveChecklist({ id: "checklist-1", entityId: "cloud-entity-1", operation: "create", value: { version: 2 } });
+  assert.equal(queue.length, 2);
+  assert.equal(queue[0].opId, deletion.opId);
+  assert.equal(queue[0].operation, "delete");
+  assert.equal(queue[1].opId, creation.opId);
+  assert.equal(queue[1].operation, "create");
+});
+
+test("a queued deletion blocks a later update without replacing the saved snapshot", async () => {
+  const { store, queue, records } = fixture();
+  await store.saveChecklist({ id: "checklist-1", entityId: "cloud-entity-1", operation: "delete", value: { tombstone: true } });
+  const before = records.get("checklist-1");
+  await assert.rejects(
+    store.saveChecklist({ id: "checklist-1", entityId: "cloud-entity-1", operation: "update", value: { version: 2 } }),
+    /deletion is pending/
+  );
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0].operation, "delete");
+  assert.deepEqual(records.get("checklist-1"), before);
 });
