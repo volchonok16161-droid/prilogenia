@@ -300,12 +300,32 @@ export function createOfflineVaultDatabase({
     });
   }
 
-  async function markSynced(opId, userId, serverRevision, expectedLeaseClaimId) {
-    return run([STORES.QUEUE], "readwrite", async (tx) => {
+  function cloudStateKey(userId, entityId) {
+    return "cloud-state:" + userId + ":" + entityId;
+  }
+
+  async function getCloudState(userId, entityId) {
+    return getMeta(cloudStateKey(userId, entityId));
+  }
+
+  async function markSynced(opId, userId, serverRevision, expectedLeaseClaimId, cloudState = undefined) {
+    if (cloudState !== undefined && cloudState !== null) {
+      if (!Number.isSafeInteger(cloudState.revision) || cloudState.revision < 1 ||
+          !Array.isArray(cloudState.photoManifest || [])) fail("Invalid cloud sync acknowledgement");
+    }
+    return run([STORES.QUEUE, STORES.META], "readwrite", async (tx) => {
       const store = tx.objectStore(STORES.QUEUE);
       const row = await requestResult(store.get([userId, opId]));
       if (!row || row.userId !== userId) return false;
       if (expectedLeaseClaimId !== undefined && row.leaseClaimId !== expectedLeaseClaimId) return false;
+      if (cloudState === null) {
+        await requestResult(tx.objectStore(STORES.META).delete(cloudStateKey(userId, row.entityId)));
+      } else if (cloudState !== undefined) {
+        await requestResult(tx.objectStore(STORES.META).put({
+          key: cloudStateKey(userId, row.entityId),
+          value: { revision: cloudState.revision, photoManifest: cloudState.photoManifest || [] },
+        }));
+      }
       await requestResult(store.delete([userId, opId]));
       return { opId, serverRevision: serverRevision ?? null };
     });
@@ -339,7 +359,7 @@ export function createOfflineVaultDatabase({
   }
 
   return Object.freeze({
-    open, close, getMeta, setMeta, putRecord, putRecordAndEnqueue, putRecordAndCoalesceQueue, getRecord, listRecords, deleteRecord,
+    open, close, getMeta, setMeta, getCloudState, putRecord, putRecordAndEnqueue, putRecordAndCoalesceQueue, getRecord, listRecords, deleteRecord,
     enqueue, listPending, claimQueueOperation, updateQueueOperation, markSynced, saveConflict, listConflicts,
   });
 }
