@@ -13,7 +13,8 @@ test("all five checklist runtimes save full snapshots through the encrypted vaul
   assert.equal((html.match(/api\.saveOfflineChecklist\(LS_KEY, snapshot\)/g) || []).length, 10);
   assert.match(html, /Сохранено в зашифрованном офлайн-хранилище/);
   assert.equal((html.match(/typeof __tmhOfflineSaveChain !== 'undefined'/g) || []).length, 5);
-  assert.equal((html.match(/var __tmhOfflinePendingWrites = 0;/g) || []).length, 5);\n  assert.equal((html.match(/window\\.addEventListener\\('beforeunload'/g) || []).length, 10);
+  assert.equal((html.match(/var __tmhOfflinePendingWrites = 0;/g) || []).length, 5);
+  assert.equal((html.match(/window\.addEventListener\('beforeunload'/g) || []).length, 10);
   assert.equal((html.match(/__tmhOfflinePendingWrites\+\+/g) || []).length, 10);
   assert.equal((html.match(/__tmhOfflinePendingWrites = Math\.max\(0, __tmhOfflinePendingWrites - 1\)/g) || []).length, 10);
   assert.match(html, /event\.preventDefault\(\);\s*event\.returnValue = ''/);
