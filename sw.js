@@ -16,6 +16,7 @@ const APP_SHELL = [
   './prototype/offline-checklist-store.js',
   './prototype/offline-sync-runner.js',
   './prototype/offline-sync-coordinator.js',
+  './prototype/offline-cloud-mapper.js',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-192.png',
