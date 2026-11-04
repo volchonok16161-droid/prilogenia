@@ -21,5 +21,5 @@ test("logout waits for the offline save chain and refuses to sign out after a fa
 
 test("the existing pending-write unload guard remains in every checklist runtime", () => {
   assert.equal(occurrences(html, /var __tmhOfflinePendingWrites = 0;\s*var __tmhOfflineSaveError = null;/g), 5);
-  assert.equal(occurrences(html, /window\.addEventListener\('beforeunload'/g), 5);
+  assert.equal(occurrences(html, /window\.addEventListener\('beforeunload'/g), 10);
 });
