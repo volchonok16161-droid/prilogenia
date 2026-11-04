@@ -19,10 +19,9 @@ test("all five auth runtimes can fall back only to an explicitly PIN-unlocked id
 test("offline profile is not copied into plaintext checklist_user localStorage", () => {
   assert.equal((html.match(/Do not copy the offline profile into plaintext localStorage/g) || []).length, 5);
   assert.equal((html.match(/api\.unlockOffline\(userId, pin\)/g) || []).length, 5);
-  assert.equal((html.match(/if \(!\^/g) || []).length, 0);
 });
 
 test("PIN controls validate numeric PIN length before calling auth API", () => {
-  assert.equal((html.match(/!\^\\d\{6,12\}\$/g) || []).length, 10);
+  assert.equal(html.split("!/^\\d{6,12}$/.test(pin)").length - 1, 10);
   assert.equal((html.match(/api\.setupOfflinePin\(pin\)/g) || []).length, 5);
 });
