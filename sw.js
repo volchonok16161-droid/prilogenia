@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v38';
+const CACHE_VERSION = 'checklist-cache-v39';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -17,6 +17,7 @@ const APP_SHELL = [
   './prototype/offline-sync-runner.js',
   './prototype/offline-sync-coordinator.js',
   './prototype/offline-cloud-mapper.js',
+  './prototype/offline-cleanup-demo.html',
   './prototype/offline-checklist-schema.js',
   './prototype/supabase-auth.js',
   './prototype/supabase-cloud-sync.js',
