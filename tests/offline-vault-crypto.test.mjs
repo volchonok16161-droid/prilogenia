@@ -39,7 +39,7 @@ test("AES-GCM detects tampering and account/device substitution", async () => {
   const descriptor = await vault.createDescriptor({ pin: "123456", userId: userA, deviceId: deviceA });
   const session = await vault.unlock({ pin: "123456", descriptor, userId: userA, deviceId: deviceA });
   const record = await session.encrypt({ value: "private" });
-  const changed = { ...record, ciphertext: record.ciphertext.slice(0, -1) + (record.ciphertext.endsWith("A") ? "B" : "A") };
+  const changed = { ...record, ciphertext: (record.ciphertext[0] === "A" ? "B" : "A") + record.ciphertext.slice(1) };
   await assert.rejects(session.decrypt(changed));
 });
 
