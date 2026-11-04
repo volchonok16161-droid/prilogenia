@@ -127,6 +127,29 @@ export function createOfflineVaultDatabase({
       return row?.userId === userId ? row : null;
     });
   }
+  async function putRecordAndEnqueue({
+    id, userId, kind, encrypted, opId, entityId, operation = "update",
+    updatedAt = new Date().toISOString(), createdAt = updatedAt,
+  }) {
+    if (typeof id !== "string" || !id || typeof userId !== "string" || !userId ||
+        typeof kind !== "string" || !kind || typeof opId !== "string" || !opId ||
+        typeof entityId !== "string" || !entityId ||
+        !["create", "update", "delete", "photo-upload"].includes(operation)) {
+      fail("Invalid offline snapshot or queue metadata");
+    }
+    assertEncrypted(encrypted, "Snapshot payload");
+    return run([STORES.RECORDS, STORES.QUEUE], "readwrite", async (tx) => {
+      await requestResult(tx.objectStore(STORES.RECORDS).put({
+        id, userId, kind, encrypted, updatedAt,
+      }));
+      await requestResult(tx.objectStore(STORES.QUEUE).add({
+        opId, userId, entityId, operation, encrypted, createdAt,
+        status: "pending", attempts: 0,
+      }));
+      return { id, opId };
+    });
+  }
+
 
   async function listRecords(userId, kind) {
     return run([STORES.RECORDS], "readonly", async (tx) => {
@@ -217,7 +240,7 @@ export function createOfflineVaultDatabase({
   }
 
   return Object.freeze({
-    open, close, getMeta, setMeta, putRecord, getRecord, listRecords, deleteRecord,
+    open, close, getMeta, setMeta, putRecord, putRecordAndEnqueue, getRecord, listRecords, deleteRecord,
     enqueue, listPending, updateQueueOperation, markSynced, saveConflict, listConflicts,
   });
 }
