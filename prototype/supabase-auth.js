@@ -70,13 +70,18 @@ const USERNAME_EMAILS = Object.freeze({
   "цгиспл-тимашевск": "cgspl-timashevsk@accounts.invalid",
 });
 
-function resolveLoginEmail(identifier) {
-  const normalized = String(identifier || "").trim().toLowerCase();
-  return USERNAME_EMAILS[normalized] || normalized;
+async function resolveLoginEmail(identifier) {
+  const normalized = String(identifier || "").trim().normalize("NFC").toLowerCase();
+  if (USERNAME_EMAILS[normalized]) return USERNAME_EMAILS[normalized];
+  if (normalized.includes("@")) return normalized;
+  if (!normalized) return "";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalized));
+  const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return "u" + hash.slice(0, 63) + "@accounts.invalid";
 }
 
 async function signIn(email, password) {
-  const normalizedEmail = resolveLoginEmail(email);
+  const normalizedEmail = await resolveLoginEmail(email);
   if (!normalizedEmail || !password) {
     return { user: null, profile: null, error: new Error("Введите логин/email и пароль") };
   }
