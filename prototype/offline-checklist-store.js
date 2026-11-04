@@ -21,7 +21,7 @@ export function createOfflineChecklistStore({ database, vault, userId, idFactory
   assertVault(vault);
   const uid = assertUserId(userId);
 
-  async function saveChecklist({ id, value, operation = "update", entityId = id, kind = "checklist" }) {
+  async function saveChecklist({ id, value, operation = "update", entityId = id, kind = "checklist", onlyIfAbsent = false }) {
     if (typeof id !== "string" || !id || typeof entityId !== "string" || !entityId) {
       throw new TypeError("Checklist id and entity id are required");
     }
@@ -39,10 +39,17 @@ export function createOfflineChecklistStore({ database, vault, userId, idFactory
     }
     const stamp = now();
     const opId = idFactory();
-    await database.putRecordAndEnqueue({
-      id, userId: uid, kind, encrypted, opId, entityId, operation,
-      updatedAt: stamp, createdAt: stamp,
-    });
+    try {
+      await database.putRecordAndEnqueue({
+        id, userId: uid, kind, encrypted, opId, entityId, operation,
+        updatedAt: stamp, createdAt: stamp, onlyIfAbsent,
+      });
+    } catch (error) {
+      if (onlyIfAbsent && error?.name === "ConstraintError") {
+        throw new Error("An encrypted snapshot with this id already exists", { cause: error });
+      }
+      throw error;
+    }
     return { id, opId, status: "pending-sync", updatedAt: stamp };
   }
 
@@ -86,11 +93,10 @@ export function createOfflineChecklistStore({ database, vault, userId, idFactory
   async function migrateLegacySnapshot({ id, legacyValue, confirmed = false, kind = "checklist" }) {
     if (confirmed !== true) throw new Error("Explicit confirmation is required before importing legacy data");
     if (typeof id !== "string" || !id) throw new TypeError("Legacy checklist id is required");
-    const existing = await database.getRecord(id, uid);
-    if (existing) throw new Error("An encrypted snapshot with this id already exists");
-    // Migration creates a new encrypted copy and an explicit sync queue item.
+    // The database's add() path makes the existence check and queue creation
+    // one atomic transaction, so concurrent imports cannot overwrite each other.
     // The old LocalStorage / IndexedDB entry is intentionally left untouched.
-    return saveChecklist({ id, value: legacyValue, operation: "create", entityId: id, kind });
+    return saveChecklist({ id, value: legacyValue, operation: "create", entityId: id, kind, onlyIfAbsent: true });
   }
 
   return Object.freeze({
