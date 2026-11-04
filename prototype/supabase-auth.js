@@ -2,10 +2,15 @@
 // This file is loaded by the parent page and same-origin srcdoc checklists.
 // Only the publishable key belongs here; never add a service_role/secret key.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
+import { createOfflineVault } from "./offline-vault.js";
 
 const SUPABASE_URL = "https://fecigiwjtbtabnsfsdym.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_j-bQu5o4dgj13X-8_7maOA_7KvkLuqH";
 const STORAGE_KEY = "tmh-supabase-auth-v1";
+
+// The parent page owns one shared offline vault factory; embedded checklist
+// runtimes access it through parent.TMHAuth without opening separate databases.
+const offlineVault = createOfflineVault();
 
 const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
@@ -110,6 +115,7 @@ async function signOut() {
 
 const api = Object.freeze({
   client,
+  offlineVault,
   storageKey: STORAGE_KEY,
   getCurrentIdentity,
   signIn,
