@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v23';
+const CACHE_VERSION = 'checklist-cache-v24';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -25,7 +25,8 @@ const APP_SHELL = [
 // Кэшируются здесь же при установке — если в момент установки есть интернет,
 // то Excel-экспорт будет работать и офлайн.
 const CDN_LIBS = [
-  'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'
+  'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+  'https://esm.sh/@supabase/supabase-js@2.118.0'
 ];
 
 self.addEventListener('install', (event) => {
@@ -69,7 +70,13 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-  const isCdnLib = CDN_LIBS.includes(req.url);
+  // Supabase JS is an ESM graph: cache the package entry during install and
+  // cache its versioned @supabase/* module imports as they are fetched online.
+  // This allows the first (online) sign-in to warm the complete dependency graph.
+  const isSupabaseEsm = url.origin === 'https://esm.sh' &&
+    (url.pathname === '/@supabase/supabase-js@2.118.0' ||
+     url.pathname.startsWith('/@supabase/'));
+  const isCdnLib = CDN_LIBS.includes(req.url) || isSupabaseEsm;
   const isSameOrigin = url.origin === self.location.origin;
 
   if (!isSameOrigin && !isCdnLib) {
