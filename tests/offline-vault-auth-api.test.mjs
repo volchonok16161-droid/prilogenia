@@ -28,3 +28,12 @@ test("cloud sync is opt-in and existing local snapshots are not queued automatic
   assert.match(auth, /await getCurrentIdentity\(\)/);
   assert.match(auth, /enableOfflineCloudSync,/);
 });
+
+test("PIN unlock does not wait indefinitely for the online session probe", () => {
+  assert.match(auth, /async function getCurrentIdentityForOfflineUnlock\(timeoutMs = 1800\)/);
+  assert.match(auth, /Promise\.race\(\[/);
+  assert.match(auth, /timer = setTimeout\(/);
+  assert.match(auth, /finally \{[\s\S]*?clearTimeout\(timer\)/);
+  assert.match(auth, /const candidate = await getCurrentIdentityForOfflineUnlock\(\)/);
+  assert.match(auth, /sync runner will perform its own fresh server-side check/);
+});
