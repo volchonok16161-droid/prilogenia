@@ -9,20 +9,20 @@ const ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const PHOTO_PATH = UID + "/" + ID + "/1/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const ENCRYPTED = Object.freeze({ version: 1, iv: "local-iv", ciphertext: "local-ciphertext" });
 
-function fixture({ identity = true, cloudError = null } = {}) {
+function fixture({ identity = true, cloudError = null, operation = "create" } = {}) {
   const state = {
     general: { type: "ТТ", number: "746" },
     values: { item1: { checked: true, comment: "Проверено", front_photo: "data:image/jpeg;base64,AQID" } },
     selectedSections: ["Секция 1"],
     changeLog: [{ action: "checked" }],
   };
-  const envelope = buildOfflineCloudEnvelope({ mode: "tt", state, cloudId: ID });
-  const queue = [{ opId: "op-1", userId: UID, entityId: ID, operation: "create", encrypted: ENCRYPTED, status: "pending", attempts: 0 }];
+  const envelope = buildOfflineCloudEnvelope({ mode: "tt", state, cloudId: ID, ...(operation === "update" ? { expectedRevision: 4 } : {}) });
+  const queue = [{ opId: "op-1", userId: UID, entityId: ID, operation, encrypted: ENCRYPTED, status: "pending", attempts: 0 }];
   const calls = [];
   const conflicts = [];
   const uploads = [];
   const removed = [];
-  let cloudState = null;
+  let cloudState = operation === "update" ? { revision: 4 } : null;
   const manifest = [{ itemId: "item1", field: "front_photo", path: PHOTO_PATH, contentType: "image/jpeg" }];
   const database = {
     async listPending(userId) { return queue.filter(row => row.userId === userId && row.status === "pending").map(row => ({ ...row })); },
@@ -73,7 +73,7 @@ function fixture({ identity = true, cloudError = null } = {}) {
     },
     async update(input) { calls.push(["update", structuredClone(input)]); if (cloudError) throw cloudError; return { id: ID, revision: 2 }; },
     async remove(id) { calls.push(["remove", id]); return true; },
-    async get(id) { calls.push(["get", id]); return { id, revision: 2, payload: { remote: true } }; },
+    async get(id) { calls.push(["get", id]); return { id, revision: 5, payload: { remote: true } }; },
   };
   const mapOperation = createOfflineChecklistOperationMapper({ photoSync });
   const runner = createOfflineSyncRunner({
@@ -106,7 +106,7 @@ test("photo upload and checklist create form one successful offline sync transac
 
 test("cloud write conflict rolls back uploaded photos and retains encrypted local data", async () => {
   const conflict = Object.assign(new Error("revision conflict"), { code: "REVISION_CONFLICT" });
-  const f = fixture({ cloudError: conflict });
+  const f = fixture({ cloudError: conflict, operation: "update" });
   const result = await f.runner.syncPending({ userId: UID });
   assert.equal(result.conflicts, 1);
   assert.equal(f.queue[0].status, "conflict");
