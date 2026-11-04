@@ -1,31 +1,11 @@
 // Strict adapter between encrypted local queue entries and Supabase checklist CRUD.
-// The legacy checklist UI is intentionally not guessed or transformed here: callers
-// must persist an explicit `cloud` envelope in the encrypted snapshot before enqueueing.
-// Unsupported shapes fail closed and remain in the local queue.
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// The versioned schema explicitly carries the complete native checklist state.
+import { validateOfflineCloudEnvelope } from "./offline-checklist-schema.js";
 
 function invalid(message) {
   const error = new TypeError(message);
   error.code = "INVALID_OFFLINE_CLOUD_SNAPSHOT";
   return error;
-}
-
-function assertChecklistEnvelope(value, entityId) {
-  if (!value || typeof value !== "object" || Array.isArray(value) ||
-      !value.cloud || typeof value.cloud !== "object" || Array.isArray(value.cloud)) {
-    throw invalid("Offline snapshot must contain an explicit cloud checklist envelope");
-  }
-  const cloud = value.cloud;
-  if (typeof entityId !== "string" || !UUID_RE.test(entityId) ||
-      typeof cloud.id !== "string" || !UUID_RE.test(cloud.id) ||
-      cloud.id.toLowerCase() !== entityId.toLowerCase()) {
-    throw invalid("Cloud checklist id must match the queued entity id");
-  }
-  if (typeof cloud.title !== "string" || typeof cloud.equipmentType !== "string" ||
-      !cloud.payload || typeof cloud.payload !== "object" || Array.isArray(cloud.payload)) {
-    throw invalid("Cloud checklist envelope has invalid title, equipment type, or payload");
-  }
-  return cloud;
 }
 
 export function mapOfflineChecklistOperation(operation, localValue) {
@@ -35,7 +15,9 @@ export function mapOfflineChecklistOperation(operation, localValue) {
   }
 
   if (operation.operation === "delete") {
-    if (!UUID_RE.test(operation.entityId)) throw invalid("Delete operation requires a checklist UUID");
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operation.entityId)) {
+      throw invalid("Delete operation requires a checklist UUID");
+    }
     return Object.freeze({ method: "remove", id: operation.entityId });
   }
 
@@ -43,7 +25,10 @@ export function mapOfflineChecklistOperation(operation, localValue) {
     throw invalid("This queue operation is not a checklist CRUD operation");
   }
 
-  const cloud = assertChecklistEnvelope(localValue, operation.entityId);
+  let cloud;
+  try { cloud = validateOfflineCloudEnvelope(localValue, operation.entityId); }
+  catch (error) { throw invalid(error.message); }
+
   const input = {
     id: cloud.id,
     title: cloud.title,
@@ -57,7 +42,7 @@ export function mapOfflineChecklistOperation(operation, localValue) {
 
   const expectedRevision = Number(cloud.expectedRevision);
   if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
-    throw invalid("Update requires the last confirmed positive cloud revision");
+    throw invalid("Update requires the last confirmed cloud revision");
   }
   return Object.freeze({
     method: "update",
