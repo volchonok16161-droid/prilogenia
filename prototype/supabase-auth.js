@@ -287,6 +287,26 @@ async function saveOfflineChecklist(id, snapshot) {
   return { saved: true, encrypted: true, queued: true, userId: activeOfflineUserId, id, cloudId, ...result };
 }
 
+async function migrateLegacyChecklist(storageId, snapshot, confirmed = false) {
+  if (!activeOfflineVault || !activeOfflineUserId) {
+    throw new Error("Сначала разблокируйте офлайн-хранилище PIN-кодом");
+  }
+  getChecklistMode(storageId);
+  if (confirmed !== true) throw new Error("Требуется явное подтверждение переноса");
+  if (!snapshot || typeof snapshot !== "object" || !snapshot.general || typeof snapshot.general !== "object") {
+    throw new TypeError("Некорректный снимок старого чек-листа");
+  }
+  const store = ensureOfflineSync();
+  const result = await store.migrateLegacySnapshot({
+    id: storageId, legacyValue: snapshot, confirmed: true, kind: "checklist-snapshot",
+  });
+  const imported = await store.readChecklist(storageId);
+  if (!imported || JSON.stringify(imported.value) !== JSON.stringify(snapshot)) {
+    throw new Error("Проверка перенесённой копии не пройдена");
+  }
+  return { ...result, verified: true, userId: activeOfflineUserId };
+}
+
 async function enableOfflineCloudSync() {
   if (!activeOfflineVault || !activeOfflineUserId) {
     throw new Error("Сначала разблокируйте офлайн-хранилище PIN-кодом");
@@ -357,6 +377,7 @@ const api = Object.freeze({
   hasOfflineSetup,
   getOfflineIdentity,
   saveOfflineChecklist,
+  migrateLegacyChecklist,
   enableOfflineCloudSync,
   isOfflineVaultUnlocked() { return Boolean(activeOfflineVault && activeOfflineUserId); },
   loadOfflineChecklist,
