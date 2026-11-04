@@ -12,6 +12,8 @@ const STORAGE_KEY = "tmh-supabase-auth-v1";
 // runtimes access it through parent.TMHAuth without opening separate databases.
 const offlineVault = createOfflineVault();
 let activeOfflineIdentity = null;
+let activeOfflineVault = null;
+let activeOfflineUserId = null;
 
 const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
@@ -131,12 +133,16 @@ async function setupOfflinePin(pin) {
   await offlineVault.database.setMeta("offline:identity:" + identity.user.id, encryptedIdentity);
   await offlineVault.database.setMeta("offline:last-user-id", identity.user.id);
   activeOfflineIdentity = null;
+  activeOfflineVault = unlocked.vault;
+  activeOfflineUserId = identity.user.id;
   return enrollment;
 }
 
 async function unlockOffline(userId, pin) {
   // Local PIN unlock is deliberately separate from signIn/getCurrentIdentity.
   const result = await offlineVault.session.unlockOffline(userId, pin);
+  activeOfflineVault = result.vault;
+  activeOfflineUserId = result.userId;
   const encryptedIdentity = await offlineVault.database.getMeta("offline:identity:" + result.userId);
   if (!encryptedIdentity) throw new Error("Офлайн-профиль не найден. Войдите онлайн и настройте PIN заново");
   const identity = await result.vault.decrypt(encryptedIdentity);
@@ -154,6 +160,29 @@ async function unlockOffline(userId, pin) {
   return activeOfflineIdentity;
 }
 
+async function saveOfflineChecklist(id, snapshot) {
+  if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
+  if (typeof id !== "string" || !id) throw new TypeError("Checklist storage id is required");
+  const encrypted = await activeOfflineVault.encrypt(snapshot);
+  await offlineVault.database.putRecord({
+    id, userId: activeOfflineUserId, kind: "checklist-snapshot", encrypted,
+  });
+  return { saved: true, encrypted: true, userId: activeOfflineUserId, id };
+}
+
+async function loadOfflineChecklist(id) {
+  if (!activeOfflineVault || !activeOfflineUserId) return null;
+  const row = await offlineVault.database.getRecord(id, activeOfflineUserId);
+  if (!row || row.kind !== "checklist-snapshot") return null;
+  return activeOfflineVault.decrypt(row.encrypted);
+}
+
+async function hasOfflineChecklist(id) {
+  if (!activeOfflineUserId) return false;
+  const row = await offlineVault.database.getRecord(id, activeOfflineUserId);
+  return Boolean(row && row.kind === "checklist-snapshot");
+}
+
 async function getOfflineIdentity() {
   return activeOfflineIdentity;
 }
@@ -169,9 +198,13 @@ async function hasOfflineSetup(userId) {
 async function signOut() {
   if (activeOfflineIdentity) {
     activeOfflineIdentity = null;
+    activeOfflineVault = null;
+    activeOfflineUserId = null;
     return { error: null, offline: true };
   }
   activeOfflineIdentity = null;
+  activeOfflineVault = null;
+  activeOfflineUserId = null;
   const { error } = await client.auth.signOut();
   return { error: error || null };
 }
@@ -183,6 +216,9 @@ const api = Object.freeze({
   unlockOffline,
   hasOfflineSetup,
   getOfflineIdentity,
+  saveOfflineChecklist,
+  loadOfflineChecklist,
+  hasOfflineChecklist,
   getLastOfflineUserId,
   storageKey: STORAGE_KEY,
   getCurrentIdentity,
