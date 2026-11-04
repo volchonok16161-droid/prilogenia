@@ -19,7 +19,7 @@ test("auth runtimes prefer explicitly PIN-unlocked identity", () => {
 
 test("offline profile is not copied into plaintext checklist_user localStorage", () => {
   assert.equal((html.match(/Do not copy the offline profile into plaintext localStorage/g) || []).length, 5);
-  assert.equal((html.match(/api\.unlockOffline\(userId, pin\)/g) || []).length, 5);
+  assert.equal((html.match(/api\.unlockOffline\(userId, pin\)/g) || []).length, 6);
 });
 
 test("PIN controls validate numeric PIN length before calling auth API", () => {
