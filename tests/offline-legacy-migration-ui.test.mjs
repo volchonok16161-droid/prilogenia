@@ -28,6 +28,9 @@ test("legacy migration stores an encrypted snapshot without queuing cloud work",
 });
 
 test("UI requires an explicit confirmation and leaves legacy storage untouched", () => {
+  assert.match(ui, /window\.parent !== window/);
+  assert.match(ui, /__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT/);
+  assert.match(ui, /__TMH_GET_CLOUD_BACKUP_CONTEXT/);
   assert.match(ui, /window\.confirm\(/);
   assert.match(ui, /api\.migrateLegacyChecklist\(context\.storageKey, snapshot, true\)/);
   assert.match(ui, /Облачная отправка НЕ включится/);
