@@ -2906,7 +2906,7 @@ function __tmhBindOfflinePinControls() {
   unlockButton.dataset.bound = '1';
   setupButton.onclick = async function() {
     const pin = String(pinInput.value || '');
-    if (!/^\\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
+    if (!/^\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
     setupButton.disabled = true;
     try {
       await api.setupOfflinePin(pin);
@@ -2918,7 +2918,7 @@ function __tmhBindOfflinePinControls() {
   };
   unlockButton.onclick = async function() {
     const pin = String(pinInput.value || '');
-    if (!/^\\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
+    if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
     unlockButton.disabled = true;
     try {
       const userId = await api.getLastOfflineUserId();
@@ -6597,7 +6597,7 @@ function __tmhBindOfflinePinControls() {
   unlockButton.dataset.bound = '1';
   setupButton.onclick = async function() {
     const pin = String(pinInput.value || '');
-    if (!/^\\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
+    if (!/^\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
     setupButton.disabled = true;
     try {
       await api.setupOfflinePin(pin);
@@ -6609,7 +6609,7 @@ function __tmhBindOfflinePinControls() {
   };
   unlockButton.onclick = async function() {
     const pin = String(pinInput.value || '');
-    if (!/^\\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
+    if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
     unlockButton.disabled = true;
     try {
       const userId = await api.getLastOfflineUserId();
@@ -9888,7 +9888,7 @@ function __tmhBindOfflinePinControls() {
   unlockButton.dataset.bound = '1';
   setupButton.onclick = async function() {
     const pin = String(pinInput.value || '');
-    if (!/^\\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
+    if (!/^\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
     setupButton.disabled = true;
     try {
       await api.setupOfflinePin(pin);
@@ -9900,7 +9900,7 @@ function __tmhBindOfflinePinControls() {
   };
   unlockButton.onclick = async function() {
     const pin = String(pinInput.value || '');
-    if (!/^\\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
+    if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
     unlockButton.disabled = true;
     try {
       const userId = await api.getLastOfflineUserId();
@@ -14526,7 +14526,7 @@ function __tmhBindOfflinePinControls() {
   unlockButton.dataset.bound = '1';
   setupButton.onclick = async function() {
     const pin = String(pinInput.value || '');
-    if (!/^\\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
+    if (!/^\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
     setupButton.disabled = true;
     try {
       await api.setupOfflinePin(pin);
@@ -14538,7 +14538,7 @@ function __tmhBindOfflinePinControls() {
   };
   unlockButton.onclick = async function() {
     const pin = String(pinInput.value || '');
-    if (!/^\\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
+    if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
     unlockButton.disabled = true;
     try {
       const userId = await api.getLastOfflineUserId();
@@ -16685,7 +16685,7 @@ function __tmhBindOfflinePinControls() {
   unlockButton.dataset.bound = '1';
   setupButton.onclick = async function() {
     const pin = String(pinInput.value || '');
-    if (!/^\\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
+    if (!/^\d{6,12}$/.test(pin)) { showToast('PIN должен содержать от 6 до 12 цифр'); return; }
     setupButton.disabled = true;
     try {
       await api.setupOfflinePin(pin);
@@ -16697,7 +16697,7 @@ function __tmhBindOfflinePinControls() {
   };
   unlockButton.onclick = async function() {
     const pin = String(pinInput.value || '');
-    if (!/^\\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
+    if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
     unlockButton.disabled = true;
     try {
       const userId = await api.getLastOfflineUserId();
