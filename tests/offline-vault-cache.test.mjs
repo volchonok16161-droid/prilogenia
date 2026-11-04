@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-
 const source = await readFile(new URL("../sw.js", import.meta.url), "utf8");
 
 test("offline vault modules are part of the app shell cache", () => {
@@ -13,14 +12,13 @@ test("offline vault modules are part of the app shell cache", () => {
   assert.match(source, /\.\/prototype\/offline-checklist-schema\.js/);
   assert.match(source, /\.\/prototype\/supabase-auth\.js/);
   assert.match(source, /\.\/prototype\/supabase-cloud-sync\.js/);
-  assert.match(source, /\.\/prototype\/supabase-cloud-photos\.js/);\n  assert.match(source, /\.\/prototype\/offline-five-mode-demo\.html/);
+  assert.match(source, /\.\/prototype\/supabase-cloud-photos\.js/);
+  assert.match(source, /\.\/prototype\/offline-five-mode-demo\.html/);
 });
-
 test("service worker keeps GET-only cache behavior and does not cache auth writes", () => {
   assert.match(source, /if \(req\.method !== 'GET'\) return/);
   assert.match(source, /const APP_SHELL = \[/);
 });
-
 test("Supabase ESM entry and versioned package modules are cached for offline startup", () => {
   assert.match(source, /https:\/\/esm\.sh\/\@supabase\/supabase-js\@2\.118\.0/);
   assert.match(source, /url\.origin === 'https:\/\/esm\.sh'/);
