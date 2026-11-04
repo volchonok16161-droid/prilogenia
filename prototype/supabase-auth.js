@@ -11,6 +11,7 @@ const STORAGE_KEY = "tmh-supabase-auth-v1";
 // The parent page owns one shared offline vault factory; embedded checklist
 // runtimes access it through parent.TMHAuth without opening separate databases.
 const offlineVault = createOfflineVault();
+let activeOfflineIdentity = null;
 
 const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
@@ -115,12 +116,44 @@ async function setupOfflinePin(pin) {
   if (!identity?.user || !identity?.profile || identity.error) {
     throw new Error("Для создания офлайн-PIN требуется действующий онлайн-вход");
   }
-  return offlineVault.session.setupAfterVerifiedOnlineLogin(identity, pin);
+  const enrollment = await offlineVault.session.setupAfterVerifiedOnlineLogin(identity, pin);
+  const unlocked = await offlineVault.session.unlockOffline(identity.user.id, pin);
+  const safeIdentity = {
+    user: { id: identity.user.id, email: identity.user.email || "" },
+    profile: {
+      id: identity.profile.id,
+      display_name: identity.profile.display_name || "",
+      role: identity.profile.role,
+    },
+  };
+  const encryptedIdentity = await unlocked.vault.encrypt(safeIdentity);
+  await offlineVault.database.setMeta("offline:identity:" + identity.user.id, encryptedIdentity);
+  activeOfflineIdentity = null;
+  return enrollment;
 }
 
 async function unlockOffline(userId, pin) {
   // Local PIN unlock is deliberately separate from signIn/getCurrentIdentity.
-  return offlineVault.session.unlockOffline(userId, pin);
+  const result = await offlineVault.session.unlockOffline(userId, pin);
+  const encryptedIdentity = await offlineVault.database.getMeta("offline:identity:" + result.userId);
+  if (!encryptedIdentity) throw new Error("Офлайн-профиль не найден. Войдите онлайн и настройте PIN заново");
+  const identity = await result.vault.decrypt(encryptedIdentity);
+  if (identity?.user?.id !== result.userId ||
+      identity?.profile?.id !== result.userId ||
+      !["employee", "admin", "developer"].includes(identity?.profile?.role)) {
+    throw new Error("Сохранённый офлайн-профиль недействителен");
+  }
+  activeOfflineIdentity = Object.freeze({
+    user: Object.freeze(identity.user),
+    profile: Object.freeze(identity.profile),
+    mode: "offline-local-unlock",
+    supabaseAuthenticated: false,
+  });
+  return activeOfflineIdentity;
+}
+
+async function getOfflineIdentity() {
+  return activeOfflineIdentity;
 }
 
 async function hasOfflineSetup(userId) {
@@ -138,6 +171,7 @@ const api = Object.freeze({
   setupOfflinePin,
   unlockOffline,
   hasOfflineSetup,
+  getOfflineIdentity,
   storageKey: STORAGE_KEY,
   getCurrentIdentity,
   signIn,
