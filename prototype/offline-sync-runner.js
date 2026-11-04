@@ -100,7 +100,7 @@ export function createOfflineSyncRunner({
             cloud: { ...localValue.cloud, expectedRevision: cloudState.revision },
           };
         }
-        const request = await mapOperation(effectiveOperation, effectiveValue);
+        const request = await mapOperation(effectiveOperation, effectiveValue, cloudState);
         if (!request || !["create", "update", "remove"].includes(request.method)) {
           throw new TypeError("mapOperation must return create, update, or remove");
         }
@@ -127,7 +127,7 @@ export function createOfflineSyncRunner({
           }
           let acknowledgement;
           if (request.method === "remove") {
-            acknowledgement = await database.markSynced(operation.opId, uid, undefined, claimId, null);
+            acknowledgement = await database.markSynced(operation.opId, uid, undefined, claimId, null, request.cleanupManifest?.length ? { cleanupId: operation.opId + ':photo-cleanup', manifest: request.cleanupManifest, createdAt: now() } : null);
           } else {
             const revision = Number(cloudResult?.revision);
             if (!Number.isSafeInteger(revision) || revision < 1) {
@@ -136,7 +136,9 @@ export function createOfflineSyncRunner({
             acknowledgement = await database.markSynced(operation.opId, uid, revision, claimId, {
               revision,
               photoManifest: request.input?.payload?.photoManifest || [],
-            });
+            }, request.cleanupManifest?.length ? {
+              cleanupId: operation.opId + ':photo-cleanup', manifest: request.cleanupManifest, createdAt: now(),
+            } : null);
           }
           if (!acknowledgement) throw new Error("Sync queue lease expired before acknowledgement");
           // markSynced atomically persists the confirmed server revision and clears this queue item.
@@ -180,11 +182,45 @@ export function createOfflineSyncRunner({
       }
     }
 
+    let cleanupProcessed = 0;
+    let cleanupFailed = 0;
+    if (typeof database.listPhotoCleanups === 'function' && typeof database.claimPhotoCleanup === 'function' &&
+        typeof database.updatePhotoCleanup === 'function' && typeof database.completePhotoCleanup === 'function' &&
+        typeof mapOperation.removePhotoManifest === 'function' && isOnline()) {
+      const jobs = await database.listPhotoCleanups(uid, now(), limit);
+      for (const job of jobs) {
+        let cleanupClaim = null;
+        try {
+          if (!isOnline()) break;
+          assertVerifiedIdentity(await authApi.getCurrentIdentity(), uid);
+          const claimedAt = now();
+          const leaseUntil = new Date(Date.parse(claimedAt) + 5 * 60 * 1000).toISOString();
+          cleanupClaim = claimIdFactory();
+          const claimedCleanup = await database.claimPhotoCleanup(job.cleanupId, uid, cleanupClaim, claimedAt, leaseUntil);
+          if (!claimedCleanup) continue;
+          const latest = await database.getCloudState(uid, job.entityId);
+          const activePaths = new Set((latest?.photoManifest || []).map((entry) => entry?.path).filter(Boolean));
+          const staleManifest = (job.manifest || []).filter((entry) => entry?.path && !activePaths.has(entry.path));
+          if (staleManifest.length) await mapOperation.removePhotoManifest(staleManifest);
+          await database.completePhotoCleanup(job.cleanupId, uid, cleanupClaim);
+          cleanupProcessed += 1;
+        } catch (error) {
+          cleanupFailed += 1;
+          if (cleanupClaim) await database.updatePhotoCleanup(job.cleanupId, uid, {
+            status: 'pending', leaseClaimId: null, leaseUntil: null,
+            attempts: (Number(job.attempts) || 0) + 1,
+            lastError: String(error?.code || error?.message || 'PHOTO_CLEANUP_FAILED').slice(0, 240),
+          }, cleanupClaim);
+          if (error?.code === 'AUTH_REQUIRED' || !isOnline()) break;
+        }
+      }
+    }
+    const cleanupRemaining = typeof database.listPhotoCleanups === 'function' ? (await database.listPhotoCleanups(uid, now(), 100)).length : 0;
     const remaining = (await database.listPending(uid, now())).length;
     return Object.freeze({
       status: conflicts ? "conflict" : failed ? "error" : remaining ? "pending-sync" : "synced",
       processed: synced + conflicts + failed,
-      synced, conflicts, failed, remaining,
+      synced, conflicts, failed, remaining, cleanupProcessed, cleanupFailed, cleanupRemaining,
     });
   }
 
