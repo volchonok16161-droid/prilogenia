@@ -1,27 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-const source = await readFile(new URL("../sw.js", import.meta.url), "utf8");
-
-test("offline vault modules are part of the app shell cache", () => {
-  assert.match(source, /checklist-cache-v42/);
-  assert.match(source, /\.\/prototype\/offline-vault-crypto\.js/);
-  assert.match(source, /\.\/prototype\/offline-vault-db\.js/);
-  assert.match(source, /\.\/prototype\/offline-sync-runner\.js/);
-  assert.match(source, /\.\/prototype\/offline-sync-coordinator\.js/);
-  assert.match(source, /\.\/prototype\/offline-checklist-schema\.js/);
-  assert.match(source, /\.\/prototype\/supabase-auth\.js/);
-  assert.match(source, /\.\/prototype\/supabase-cloud-sync\.js/);
-  assert.match(source, /\.\/prototype\/supabase-cloud-photos\.js/);
-  assert.match(source, /\.\/prototype\/offline-five-mode-demo\.html/);\n  assert.match(source, /\.\/prototype\/offline-demo-photo-store\.js/);
+const source=await readFile(new URL("../sw.js",import.meta.url),"utf8");
+test("offline modules and demo photo store are in app shell cache",()=>{
+ for(const path of ["offline-vault-crypto.js","offline-vault-db.js","offline-sync-runner.js","offline-sync-coordinator.js","offline-checklist-schema.js","supabase-auth.js","supabase-cloud-sync.js","supabase-cloud-photos.js","offline-five-mode-demo.html","offline-demo-photo-store.js"])assert.match(source,new RegExp(path.replaceAll(".","\\.")));
+ assert.match(source,/checklist-cache-v42/);
 });
-test("service worker keeps GET-only cache behavior and does not cache auth writes", () => {
-  assert.match(source, /if \(req\.method !== 'GET'\) return/);
-  assert.match(source, /const APP_SHELL = \[/);
+test("service worker caches GET only and excludes auth writes",()=>{
+ assert.match(source,/if \(req\.method !== 'GET'\) return/);assert.match(source,/const APP_SHELL = \[/);
 });
-test("Supabase ESM entry and versioned package modules are cached for offline startup", () => {
-  assert.match(source, /https:\/\/esm\.sh\/\@supabase\/supabase-js\@2\.118\.0/);
-  assert.match(source, /url\.origin === 'https:\/\/esm\.sh'/);
-  assert.match(source, /url\.pathname\.startsWith\('\/@supabase\/'\)/);
-  assert.match(source, /cache\.put\(url, resp\)/);
+test("Supabase ESM and versioned modules are cached for offline startup",()=>{
+ assert.match(source,/https:\/\/esm\.sh\/\@supabase\/supabase-js\@2\.118\.0/);
+ assert.match(source,/url\.origin === 'https:\/\/esm\.sh'/);
+ assert.match(source,/url\.pathname\.startsWith\('\/@supabase\/'\)/);
+ assert.match(source,/cache\.put\(url, resp\)/);
 });
