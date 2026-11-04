@@ -22,7 +22,7 @@ test("maps update only with the last confirmed cloud revision", () => {
 });
 
 test("maps delete to the cloud remove operation without requiring a local snapshot", () => {
-  assert.deepEqual(mapOfflineChecklistOperation({ entityId: ID, operation: "delete" }, null), { method: "remove", id: ID });
+  assert.deepEqual(mapOfflineChecklistOperation({ entityId: ID, operation: "delete" }, null), { method: "remove", id: ID, cleanupManifest: [] });
 });
 
 test("fails closed for legacy snapshots without a cloud envelope", () => {
