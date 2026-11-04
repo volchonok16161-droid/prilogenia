@@ -11,7 +11,7 @@ test("offline vault modules are part of the app shell cache", () => {
 });
 
 test("service worker keeps GET-only cache behavior and does not cache auth writes", () => {
-  assert.match(source, /if \(req\.method !== "GET"\) return/);
+  assert.match(source, /if \(req\.method !== 'GET'\) return/);
   assert.match(source, /const APP_SHELL = \[/);
 });
 
