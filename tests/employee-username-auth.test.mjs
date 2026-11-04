@@ -6,10 +6,11 @@ const auth = await readFile(new URL("../prototype/supabase-auth.js", import.meta
 const login = await readFile(new URL("../employee-login.html", import.meta.url), "utf8");
 const admin = await readFile(new URL("../supabase/functions/account-admin/index.ts", import.meta.url), "utf8");
 
-test("only the two approved employee usernames map to internal Auth identities", () => {
-  assert.match(auth, /"цгиспл-карасук": "cgspl-karasuk@accounts\.invalid"/);
-  assert.match(auth, /"цгиспл-тимашевск": "cgspl-timashevsk@accounts\.invalid"/);
-  assert.match(auth, /return USERNAME_EMAILS\[normalized\] \|\| normalized/);
+test("employee usernames are normalized and deterministically mapped to internal Auth identities", () => {
+  assert.match(auth, /String\(identifier \|\| ""\)\.trim\(\)\.normalize\("NFC"\)\.toLowerCase\(\)/);
+  assert.match(auth, /crypto\.subtle\.digest\("SHA-256", new TextEncoder\(\)\.encode\(normalized\)\)/);
+  assert.match(auth, /return "u" \+ hash\.slice\(0, 63\) \+ "@accounts\.invalid"/);
+  assert.doesNotMatch(auth, /USERNAME_EMAILS/);
 });
 
 test("employee provisioning remains behind server-side admin authorization", () => {
