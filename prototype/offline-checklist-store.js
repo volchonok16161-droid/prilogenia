@@ -43,7 +43,7 @@ export function createOfflineChecklistStore({ database, vault, userId, idFactory
       const writer = onlyIfAbsent
         ? database.putRecordAndEnqueue
         : (database.putRecordAndCoalesceQueue || database.putRecordAndEnqueue);
-      await writer.call(database, {
+      var writeResult = await writer.call(database, {
         id, userId: uid, kind, encrypted, opId, entityId, operation,
         updatedAt: stamp, createdAt: stamp, onlyIfAbsent,
       });
@@ -53,7 +53,7 @@ export function createOfflineChecklistStore({ database, vault, userId, idFactory
       }
       throw error;
     }
-    return { id, opId, status: "pending-sync", updatedAt: stamp };
+    return { id, opId: writeResult?.opId || opId, status: "pending-sync", updatedAt: stamp };
   }
 
   async function readChecklist(id) {
