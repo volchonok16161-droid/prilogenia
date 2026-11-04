@@ -3708,6 +3708,7 @@ saveState = function(silent) {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
       return true;
     }).catch(function(error) {
+      __tmhOfflineSaveError = error;
       console.error('Encrypted offline save failed', error);
       if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
       return false;
@@ -7790,6 +7791,7 @@ saveState = function(silent) {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
       return true;
     }).catch(function(error) {
+      __tmhOfflineSaveError = error;
       console.error('Encrypted offline save failed', error);
       if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
       return false;
@@ -12354,6 +12356,7 @@ saveState = function(silent) {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
       return true;
     }).catch(function(error) {
+      __tmhOfflineSaveError = error;
       console.error('Encrypted offline save failed', error);
       if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
       return false;
@@ -16338,6 +16341,7 @@ saveState = function(silent) {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
       return true;
     }).catch(function(error) {
+      __tmhOfflineSaveError = error;
       console.error('Encrypted offline save failed', error);
       if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
       return false;
@@ -18453,6 +18457,7 @@ saveState = function(silent) {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
       return true;
     }).catch(function(error) {
+      __tmhOfflineSaveError = error;
       console.error('Encrypted offline save failed', error);
       if (typeof __psWarn === 'function') __psWarn('Не удалось сохранить зашифрованную офлайн-копию. Не закрывайте приложение до устранения ошибки.');
       return false;
