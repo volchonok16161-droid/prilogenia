@@ -38,13 +38,13 @@ test("rejects mismatched ids, unknown operations and unconfirmed revisions", () 
 
 test("photo mapper uploads inline photos to private Storage and stores a manifest", async () => {
   const stateWithPhoto = structuredClone(state);
-  stateWithPhoto.values.item.photo_photo = "data:image/jpeg;base64,AA==";
+  stateWithPhoto.values.motor.photo_photo = "data:image/jpeg;base64,AA==";
   const uploaded = [];
   const mapper = createOfflineChecklistOperationMapper({
     photoSync: {
       async uploadState(args) {
         uploaded.push(args);
-        return { uploaded: 1, manifest: [{ itemId: "item", field: "photo_photo", path: "user/checklist/1/photo", contentType: "image/jpeg" }] };
+        return { uploaded: 1, manifest: [{ itemId: "motor", field: "photo_photo", path: "user/checklist/1/photo", contentType: "image/jpeg" }] };
       },
       async removeManifest(manifest) { uploaded.push({ removed: manifest }); },
     },
@@ -54,7 +54,7 @@ test("photo mapper uploads inline photos to private Storage and stores a manifes
   assert.equal(uploaded.length, 1);
   assert.equal(uploaded[0].revision, 1);
   assert.equal(request.input.payload.photoManifest.length, 1);
-  assert.equal(request.input.payload.state.values.item.photo_photo, undefined);
+  assert.equal(request.input.payload.state.values.motor.photo_photo, undefined);
   assert.equal(stateWithPhoto.values.motor.photo_photo, "data:image/jpeg;base64,AA==");
   await request.rollback();
   assert.equal(uploaded.length, 2);
