@@ -3,6 +3,12 @@
 // Only the publishable key belongs here; never add a service_role/secret key.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
 import { createOfflineVault } from "./offline-vault.js";
+import { createOfflineChecklistStore } from "./offline-checklist-store.js";
+import { createOfflineSyncRunner } from "./offline-sync-runner.js";
+import { mapOfflineChecklistOperation, createOfflineChecklistOperationMapper } from "./offline-cloud-mapper.js";
+import { createCloudSync } from "./supabase-cloud-sync.js";
+import { createChecklistPhotoSync } from "./supabase-cloud-photos.js";
+import { createOfflineSyncCoordinator } from "./offline-sync-coordinator.js";
 
 const SUPABASE_URL = "https://fecigiwjtbtabnsfsdym.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_j-bQu5o4dgj13X-8_7maOA_7KvkLuqH";
@@ -14,6 +20,49 @@ const offlineVault = createOfflineVault();
 let activeOfflineIdentity = null;
 let activeOfflineVault = null;
 let activeOfflineUserId = null;
+let offlineChecklistStore = null;
+let offlineSyncCoordinator = null;
+let offlineSyncStatus = Object.freeze({ status: "locked" });
+
+function getChecklistMode(storageId) {
+  const modes = {
+    checklist_2es5k_v1: "complex",
+    checklist_housings_v4: "housings",
+    checklist_tt_v1: "tt",
+    checklist_msud_v1: "bi",
+    checklist_hydro_v1: "hydro",
+  };
+  const mode = modes[storageId];
+  if (!mode) {
+    const error = new Error("Этот пользовательский режим пока не поддерживает облачную синхронизацию");
+    error.code = "UNSUPPORTED_CHECKLIST_MODE";
+    throw error;
+  }
+  return mode;
+}
+
+function ensureOfflineSync() {
+  if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
+  if (!offlineChecklistStore) {
+    offlineChecklistStore = createOfflineChecklistStore({
+      database: offlineVault.database, vault: activeOfflineVault, userId: activeOfflineUserId,
+    });
+  }
+  if (!offlineSyncCoordinator) {
+    const cloudSync = createCloudSync({ authApi: api });
+    const photoSync = createChecklistPhotoSync({ authApi: api });
+    const mapOperation = createOfflineChecklistOperationMapper({ photoSync });
+    const runner = createOfflineSyncRunner({
+      authApi: api, database: offlineVault.database, vault: activeOfflineVault,
+      cloudSync, mapOperation,
+    });
+    offlineSyncCoordinator = createOfflineSyncCoordinator({
+      authApi: api, syncRunner: runner,
+      onStatus(status) { offlineSyncStatus = Object.freeze({ ...status }); },
+    });
+  }
+  return offlineChecklistStore;
+}
 
 const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
@@ -135,6 +184,9 @@ async function setupOfflinePin(pin) {
   activeOfflineIdentity = null;
   activeOfflineVault = unlocked.vault;
   activeOfflineUserId = identity.user.id;
+  offlineChecklistStore = null; offlineSyncCoordinator?.stop(); offlineSyncCoordinator = null;
+  ensureOfflineSync();
+  void offlineSyncCoordinator.start();
   return enrollment;
 }
 
@@ -143,6 +195,7 @@ async function unlockOffline(userId, pin) {
   const result = await offlineVault.session.unlockOffline(userId, pin);
   activeOfflineVault = result.vault;
   activeOfflineUserId = result.userId;
+  offlineChecklistStore = null; offlineSyncCoordinator?.stop(); offlineSyncCoordinator = null;
   const encryptedIdentity = await offlineVault.database.getMeta("offline:identity:" + result.userId);
   if (!encryptedIdentity) throw new Error("Офлайн-профиль не найден. Войдите онлайн и настройте PIN заново");
   const identity = await result.vault.decrypt(encryptedIdentity);
@@ -163,11 +216,25 @@ async function unlockOffline(userId, pin) {
 async function saveOfflineChecklist(id, snapshot) {
   if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
   if (typeof id !== "string" || !id) throw new TypeError("Checklist storage id is required");
-  const encrypted = await activeOfflineVault.encrypt(snapshot);
-  await offlineVault.database.putRecord({
-    id, userId: activeOfflineUserId, kind: "checklist-snapshot", encrypted,
+  const store = ensureOfflineSync();
+  const mode = getChecklistMode(id);
+  const mappingKey = "offline:cloud-id:" + activeOfflineUserId + ":" + id;
+  let cloudId = await offlineVault.database.getMeta(mappingKey);
+  if (!cloudId) {
+    cloudId = crypto.randomUUID();
+    await offlineVault.database.setMeta(mappingKey, cloudId);
+  }
+  const cloudState = await offlineVault.database.getCloudState(activeOfflineUserId, cloudId);
+  const { buildOfflineCloudEnvelope } = await import("./offline-checklist-schema.js");
+  const envelope = buildOfflineCloudEnvelope({
+    mode, state: snapshot, cloudId,
+    ...(cloudState?.revision ? { expectedRevision: cloudState.revision } : {}),
   });
-  return { saved: true, encrypted: true, userId: activeOfflineUserId, id };
+  const result = await store.saveChecklist({
+    id, value: envelope, operation: cloudState?.revision ? "update" : "create",
+    entityId: cloudId, kind: "checklist-snapshot",
+  });
+  return { saved: true, encrypted: true, queued: true, userId: activeOfflineUserId, id, cloudId, ...result };
 }
 
 async function loadOfflineChecklist(id) {
