@@ -340,6 +340,8 @@ const api = Object.freeze({
   hasOfflineSetup,
   getOfflineIdentity,
   saveOfflineChecklist,
+  enableOfflineCloudSync,
+  isOfflineVaultUnlocked() { return Boolean(activeOfflineVault && activeOfflineUserId); },
   loadOfflineChecklist,
   hasOfflineChecklist,
   getLastOfflineUserId,
