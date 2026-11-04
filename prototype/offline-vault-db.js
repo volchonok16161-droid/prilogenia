@@ -1,12 +1,12 @@
 // Durable IndexedDB repository for encrypted offline records and sync operations.
 // This layer intentionally rejects plaintext payloads; callers must encrypt before writing.
 const DB_NAME = "tmh-offline-vault";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORES = Object.freeze({
   META: "meta",
-  RECORDS: "records",
-  QUEUE: "queue",
-  CONFLICTS: "conflicts",
+  RECORDS: "recordsByOwner",
+  QUEUE: "queueByOwner",
+  CONFLICTS: "conflictsByOwner",
 });
 
 function fail(message) {
@@ -52,15 +52,15 @@ export function createOfflineVaultDatabase({
           db.createObjectStore(STORES.META, { keyPath: "key" });
         }
         if (!db.objectStoreNames.contains(STORES.RECORDS)) {
-          const store = db.createObjectStore(STORES.RECORDS, { keyPath: "id" });
+          const store = db.createObjectStore(STORES.RECORDS, { keyPath: ["userId", "id"] });
           store.createIndex("byUser", "userId", { unique: false });
         }
         if (!db.objectStoreNames.contains(STORES.QUEUE)) {
-          const store = db.createObjectStore(STORES.QUEUE, { keyPath: "opId" });
+          const store = db.createObjectStore(STORES.QUEUE, { keyPath: ["userId", "opId"] });
           store.createIndex("byUserStatus", ["userId", "status"], { unique: false });
         }
         if (!db.objectStoreNames.contains(STORES.CONFLICTS)) {
-          const store = db.createObjectStore(STORES.CONFLICTS, { keyPath: "conflictId" });
+          const store = db.createObjectStore(STORES.CONFLICTS, { keyPath: ["userId", "conflictId"] });
           store.createIndex("byUser", "userId", { unique: false });
         }
       };
@@ -123,7 +123,7 @@ export function createOfflineVaultDatabase({
 
   async function getRecord(id, userId) {
     return run([STORES.RECORDS], "readonly", async (tx) => {
-      const row = await requestResult(tx.objectStore(STORES.RECORDS).get(id));
+      const row = await requestResult(tx.objectStore(STORES.RECORDS).get([userId, id]));
       return row?.userId === userId ? row : null;
     });
   }
@@ -161,9 +161,9 @@ export function createOfflineVaultDatabase({
   async function deleteRecord(id, userId) {
     return run([STORES.RECORDS], "readwrite", async (tx) => {
       const store = tx.objectStore(STORES.RECORDS);
-      const row = await requestResult(store.get(id));
+      const row = await requestResult(store.get([userId, id]));
       if (row?.userId !== userId) return false;
-      await requestResult(store.delete(id));
+      await requestResult(store.delete([userId, id]));
       return true;
     });
   }
@@ -193,7 +193,7 @@ export function createOfflineVaultDatabase({
   async function updateQueueOperation(opId, userId, changes) {
     return run([STORES.QUEUE], "readwrite", async (tx) => {
       const store = tx.objectStore(STORES.QUEUE);
-      const row = await requestResult(store.get(opId));
+      const row = await requestResult(store.get([userId, opId]));
       if (!row || row.userId !== userId) return false;
       const next = { ...row, ...changes, opId, userId };
       if (next.encrypted) assertEncrypted(next.encrypted, "Queued payload");
@@ -205,9 +205,9 @@ export function createOfflineVaultDatabase({
   async function markSynced(opId, userId, serverRevision) {
     return run([STORES.QUEUE], "readwrite", async (tx) => {
       const store = tx.objectStore(STORES.QUEUE);
-      const row = await requestResult(store.get(opId));
+      const row = await requestResult(store.get([userId, opId]));
       if (!row || row.userId !== userId) return false;
-      await requestResult(store.delete(opId));
+      await requestResult(store.delete([userId, opId]));
       return { opId, serverRevision: serverRevision ?? null };
     });
   }
