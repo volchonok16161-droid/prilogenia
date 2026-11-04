@@ -308,11 +308,15 @@ export function createOfflineVaultDatabase({
     return getMeta(cloudStateKey(userId, entityId));
   }
 
-  async function markSynced(opId, userId, serverRevision, expectedLeaseClaimId, cloudState = undefined) {
+  async function markSynced(opId, userId, serverRevision, expectedLeaseClaimId, cloudState = undefined, cleanupJob = null) {
     if (cloudState !== undefined && cloudState !== null) {
       if (!Number.isSafeInteger(cloudState.revision) || cloudState.revision < 1 ||
           !Array.isArray(cloudState.photoManifest || [])) fail("Invalid cloud sync acknowledgement");
     }
+    if (cleanupJob !== null && (!cleanupJob || typeof cleanupJob.cleanupId !== "string" ||
+        !cleanupJob.cleanupId || !Array.isArray(cleanupJob.manifest) ||
+        !cleanupJob.manifest.length || cleanupJob.manifest.some((entry) =>
+          !entry || typeof entry.path !== "string"))) fail("Invalid photo cleanup job");
     return run([STORES.QUEUE, STORES.META], "readwrite", async (tx) => {
       const store = tx.objectStore(STORES.QUEUE);
       const row = await requestResult(store.get([userId, opId]));
@@ -326,8 +330,68 @@ export function createOfflineVaultDatabase({
           value: { revision: cloudState.revision, photoManifest: cloudState.photoManifest || [] },
         }));
       }
+      if (cleanupJob) {
+        const key = photoCleanupKey(userId, cleanupJob.cleanupId);
+        await requestResult(tx.objectStore(STORES.META).put({
+          key,
+          value: {
+            cleanupId: cleanupJob.cleanupId, userId, entityId: row.entityId,
+            manifest: cleanupJob.manifest, status: "pending", attempts: 0,
+            createdAt: cleanupJob.createdAt || new Date().toISOString(),
+          },
+        }));
+      }
       await requestResult(store.delete([userId, opId]));
       return { opId, serverRevision: serverRevision ?? null };
+    });
+  }
+
+  function photoCleanupPrefix(userId) { return "photo-cleanup:" + userId + ":"; }
+  function photoCleanupKey(userId, cleanupId) { return photoCleanupPrefix(userId) + cleanupId; }
+
+  async function listPhotoCleanups(userId, nowIso = new Date().toISOString(), limit = 25) {
+    return run([STORES.META], "readonly", async (tx) => {
+      const rows = await requestResult(tx.objectStore(STORES.META).getAll());
+      return rows.filter((row) => row.key.startsWith(photoCleanupPrefix(userId)) &&
+        row.value && (row.value.status === "pending" ||
+          (row.value.status === "processing" && (!row.value.leaseUntil || row.value.leaseUntil <= nowIso))))
+        .map((row) => row.value).sort((a, b) => a.createdAt.localeCompare(b.createdAt)).slice(0, limit);
+    });
+  }
+
+  async function claimPhotoCleanup(cleanupId, userId, claimId, nowIso, leaseUntil) {
+    if (![cleanupId, userId, claimId, nowIso, leaseUntil].every((v) => typeof v === "string" && v) ||
+        leaseUntil <= nowIso) fail("Invalid photo cleanup claim");
+    return run([STORES.META], "readwrite", async (tx) => {
+      const store = tx.objectStore(STORES.META), key = photoCleanupKey(userId, cleanupId);
+      const row = await requestResult(store.get(key));
+      if (!row?.value || row.value.userId !== userId) return false;
+      const job = row.value, expired = job.status === "processing" &&
+        (!job.leaseUntil || job.leaseUntil <= nowIso);
+      if (job.status !== "pending" && !expired) return false;
+      await requestResult(store.put({ key, value: { ...job, status: "processing", leaseClaimId: claimId, leaseUntil } }));
+      return true;
+    });
+  }
+
+  async function updatePhotoCleanup(cleanupId, userId, changes, expectedClaimId) {
+    return run([STORES.META], "readwrite", async (tx) => {
+      const store = tx.objectStore(STORES.META), key = photoCleanupKey(userId, cleanupId);
+      const row = await requestResult(store.get(key));
+      if (!row?.value || row.value.userId !== userId ||
+          (expectedClaimId !== undefined && row.value.leaseClaimId !== expectedClaimId)) return false;
+      await requestResult(store.put({ key, value: { ...row.value, ...changes, cleanupId, userId } }));
+      return true;
+    });
+  }
+
+  async function completePhotoCleanup(cleanupId, userId, expectedClaimId) {
+    return run([STORES.META], "readwrite", async (tx) => {
+      const store = tx.objectStore(STORES.META), key = photoCleanupKey(userId, cleanupId);
+      const row = await requestResult(store.get(key));
+      if (!row?.value || row.value.userId !== userId ||
+          (expectedClaimId !== undefined && row.value.leaseClaimId !== expectedClaimId)) return false;
+      await requestResult(store.delete(key)); return true;
     });
   }
 
@@ -360,6 +424,6 @@ export function createOfflineVaultDatabase({
 
   return Object.freeze({
     open, close, getMeta, setMeta, getCloudState, putRecord, putRecordAndEnqueue, putRecordAndCoalesceQueue, getRecord, listRecords, deleteRecord,
-    enqueue, listPending, claimQueueOperation, updateQueueOperation, markSynced, saveConflict, listConflicts,
+    enqueue, listPending, claimQueueOperation, updateQueueOperation, markSynced, listPhotoCleanups, claimPhotoCleanup, updatePhotoCleanup, completePhotoCleanup, saveConflict, listConflicts,
   });
 }
