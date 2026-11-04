@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
 test("complex checklist marks local PIN sessions separately from Supabase sessions", () => {
-  assert.equal((html.match(/window\.__TMH_OFFLINE_MODE = identity\.mode === 'offline-local-unlock'/g) || []).length, 1);
+  assert.equal((html.match(/window\.__TMH_OFFLINE_MODE = identity\.mode === 'offline-local-unlock'/g) || []).length, 5);
 });
 
 test("all five checklist runtimes save full snapshots through the encrypted vault during offline use", () => {
