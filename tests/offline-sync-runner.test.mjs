@@ -8,7 +8,18 @@ const OP = { opId:"op-1", userId:UID, entityId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa
 function fixture({ identity, online=true, cloud={} } = {}) {
   const queue=[{...OP}]; const conflicts=[]; const calls=[];
   const database={
-    async listPending(uid){ assert.equal(uid,UID); return queue.filter(x=>x.status==="pending").map(x=>({...x})); },
+    async listPending(uid, nowIso = new Date().toISOString()){
+      assert.equal(uid,UID);
+      return queue.filter(x=>x.status==="pending" || (x.status==="processing" && (!x.leaseUntil || x.leaseUntil<=nowIso))).map(x=>({...x}));
+    },
+    async claimQueueOperation(opId,uid,claimId,nowIso,leaseUntil){
+      const row=queue.find(x=>x.opId===opId&&x.userId===uid);
+      if(!row) return false;
+      const expired=!row.leaseUntil || row.leaseUntil<=nowIso;
+      if(row.status!=="pending" && !(row.status==="processing"&&expired)) return false;
+      Object.assign(row,{status:"processing",leaseClaimId:claimId,leaseUntil});
+      return true;
+    },
     async updateQueueOperation(opId,uid,changes){ const row=queue.find(x=>x.opId===opId&&x.userId===uid); if(row) Object.assign(row,changes); return Boolean(row); },
     async markSynced(opId,uid){ const i=queue.findIndex(x=>x.opId===opId&&x.userId===uid); if(i>=0) queue.splice(i,1); },
     async saveConflict(value){ conflicts.push(value); },
@@ -66,4 +77,53 @@ test("validates batch size and account UUID",async()=>{
  const {runner}=fixture();
  await assert.rejects(runner.syncPending({userId:"bad"}),/UUID/);
  await assert.rejects(runner.syncPending({userId:UID,limit:101}),/limit/);
+});
+
+test("two runners cannot claim and send the same live queue lease", async()=>{
+ const {queue,calls}=fixture();
+ let release;
+ const gate=new Promise(resolve=>{release=resolve;});
+ const sharedDatabase={
+   async listPending(uid,nowIso=new Date().toISOString()){
+     return queue.filter(x=>x.userId===uid && (x.status==="pending" || (x.status==="processing" && x.leaseUntil<=nowIso))).map(x=>({...x}));
+   },
+   async claimQueueOperation(opId,uid,claimId,nowIso,leaseUntil){
+     const row=queue.find(x=>x.opId===opId&&x.userId===uid);
+     if(!row) return false;
+     if(row.status!=="pending" && !(row.status==="processing"&&row.leaseUntil<=nowIso)) return false;
+     Object.assign(row,{status:"processing",leaseClaimId:claimId,leaseUntil});
+     return true;
+   },
+   async updateQueueOperation(opId,uid,changes){const row=queue.find(x=>x.opId===opId&&x.userId===uid);if(row)Object.assign(row,changes);return !!row;},
+   async markSynced(opId,uid){const i=queue.findIndex(x=>x.opId===opId&&x.userId===uid);if(i>=0)queue.splice(i,1);},
+   async saveConflict(){},
+ };
+ const identity={async getCurrentIdentity(){return {user:{id:UID},profile:{id:UID,role:"employee"},error:null};}};
+ const vault={async decrypt(){return {title:"local"};},async encrypt(value){return {version:1,iv:"iv",ciphertext:JSON.stringify(value)};}};
+ const cloudSync={
+   async create(){},async remove(){},async get(){return {};},
+   async update(input){calls.push(input);await gate;}
+ };
+ const makeRunner=()=>createOfflineSyncRunner({
+   authApi:identity,database:sharedDatabase,vault,cloudSync,
+   mapOperation:async(_op,value)=>({method:"update",id:OP.entityId,input:{id:OP.entityId,expectedRevision:1,title:value.title,equipmentType:"TT",payload:{}}}),
+   isOnline:()=>true,now:()=> "2026-11-04T12:00:00.000Z",claimIdFactory:()=> "claim-"+Math.random(),
+ });
+ const first=makeRunner().syncPending({userId:UID});
+ await new Promise(resolve=>setImmediate(resolve));
+ const second=await makeRunner().syncPending({userId:UID});
+ assert.equal(calls.length,1);
+ assert.equal(second.synced,0);
+ release();
+ await first;
+ assert.equal(queue.length,0);
+});
+
+test("expired processing lease becomes claimable after another tab closes", async()=>{
+ const {runner,queue}=fixture();
+ queue[0].status="processing";
+ queue[0].leaseUntil="2026-11-04T11:00:00.000Z";
+ const result=await runner.syncPending({userId:UID});
+ assert.equal(result.synced,1);
+ assert.equal(queue.length,0);
 });
