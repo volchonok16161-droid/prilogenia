@@ -35,5 +35,5 @@ test("PIN unlock does not wait indefinitely for the online session probe", () =>
   assert.match(auth, /timer = setTimeout\(/);
   assert.match(auth, /finally \{[\s\S]*?clearTimeout\(timer\)/);
   assert.match(auth, /const candidate = await getCurrentIdentityForOfflineUnlock\(\)/);
-  assert.match(auth, /sync runner will perform its own fresh server-side check/);
+  assert.match(auth, /sync runner[\\s\\S]*?fresh server-side check/);
 });
