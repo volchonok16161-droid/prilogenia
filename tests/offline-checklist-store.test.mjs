@@ -21,6 +21,24 @@ function fixture() {
       queue.push({ opId: value.opId, userId: value.userId, entityId: value.entityId, operation: value.operation, encrypted: value.encrypted, createdAt: value.createdAt, status: "pending", attempts: 0 });
       calls.push("atomic-write");
     },
+    async putRecordAndCoalesceQueue(value) {
+      if (value.onlyIfAbsent && records.has(value.id)) {
+        const error = new Error("Key already exists");
+        error.name = "ConstraintError";
+        throw error;
+      }
+      records.set(value.id, { id: value.id, userId: value.userId, kind: value.kind, encrypted: value.encrypted, updatedAt: value.updatedAt });
+      const matching = queue.filter(row => row.userId === value.userId && row.entityId === value.entityId && row.status === "pending");
+      if (matching.length) {
+        const current = matching[0];
+        current.operation = current.operation === "create" && value.operation === "update" ? "create" : value.operation;
+        current.encrypted = value.encrypted;
+        current.updatedAt = value.updatedAt;
+        return { id: value.id, opId: current.opId, coalesced: true };
+      }
+      queue.push({ opId: value.opId, userId: value.userId, entityId: value.entityId, operation: value.operation, encrypted: value.encrypted, createdAt: value.createdAt, updatedAt: value.updatedAt, status: "pending", attempts: 0 });
+      return { id: value.id, opId: value.opId, coalesced: false };
+    },
     async getRecord(id, userId) {
       const row = records.get(id);
       return row?.userId === userId ? row : null;
@@ -125,4 +143,33 @@ test("concurrent legacy imports cannot overwrite an existing encrypted snapshot"
   );
   assert.equal((await store.readChecklist("legacy-race")).value.n, 1);
   assert.equal(queue.length, queuedBefore);
+});
+
+test("repeated saves coalesce into one pending operation with the newest encrypted snapshot", async () => {
+  const { store, queue } = fixture();
+  const first = await store.saveChecklist({ id: "checklist-1", entityId: "cloud-entity-1", operation: "create", value: { version: 1 } });
+  const second = await store.saveChecklist({ id: "checklist-1", entityId: "cloud-entity-1", operation: "update", value: { version: 2 } });
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0].opId, first.opId);
+  assert.equal(second.opId, first.opId);
+  assert.equal(queue[0].operation, "create");
+  assert.deepEqual(await store.readChecklist("checklist-1"), {
+    id: "checklist-1", kind: "checklist", value: { version: 2 }, updatedAt: "2026-11-04T10:00:00.000Z",
+  });
+});
+
+test("a save during an in-flight operation creates a follow-up queue item instead of replacing its lease", async () => {
+  const { store, queue } = fixture();
+  const first = await store.saveChecklist({ id: "checklist-1", entityId: "cloud-entity-1", operation: "create", value: { version: 1 } });
+  queue[0].status = "processing";
+  queue[0].leaseClaimId = "tab-a";
+  queue[0].leaseUntil = "2026-11-04T10:05:00.000Z";
+  const second = await store.saveChecklist({ id: "checklist-1", entityId: "cloud-entity-1", operation: "update", value: { version: 2 } });
+  assert.equal(queue.length, 2);
+  assert.equal(queue[0].opId, first.opId);
+  assert.equal(queue[0].status, "processing");
+  assert.equal(queue[0].leaseClaimId, "tab-a");
+  assert.equal(queue[1].opId, second.opId);
+  assert.equal(queue[1].status, "pending");
+  assert.equal(queue[1].operation, "update");
 });
