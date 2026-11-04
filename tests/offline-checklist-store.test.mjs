@@ -10,6 +10,16 @@ function fixture() {
   const calls = [];
   let nextOpId = 0;
   const database = {
+    async putRecordIfAbsent(value) {
+      if (records.has(value.id)) {
+        const error = new Error("Key already exists");
+        error.name = "ConstraintError";
+        throw error;
+      }
+      records.set(value.id, { id: value.id, userId: value.userId, kind: value.kind, encrypted: value.encrypted, updatedAt: value.updatedAt });
+      calls.push("local-only-import");
+      return value.id;
+    },
     async putRecordAndEnqueue(value) {
       if (value.onlyIfAbsent && records.has(value.id)) {
         const error = new Error("Key already exists");
@@ -79,13 +89,19 @@ test("checklist snapshots are encrypted before atomic snapshot-plus-queue write"
   assert.deepEqual((await store.readChecklist("checklist-1")).value, value);
 });
 
-test("legacy import requires explicit confirmation and never deletes the legacy source", async () => {
-  const { store, records } = fixture();
+test("legacy import requires confirmation, encrypts locally, creates no cloud queue, and keeps the source", async () => {
+  const { store, records, queue, calls } = fixture();
   const legacy = { oldLocalStorageKey: "still-here", checked: [1] };
   await assert.rejects(store.migrateLegacySnapshot({ id: "legacy-1", legacyValue: legacy }), /Explicit confirmation/);
   assert.equal(records.has("legacy-1"), false);
-  await store.migrateLegacySnapshot({ id: "legacy-1", legacyValue: legacy, confirmed: true });
+  const result = await store.migrateLegacySnapshot({ id: "legacy-1", legacyValue: legacy, confirmed: true });
+  assert.equal(result.status, "local-only");
+  assert.equal(result.queued, false);
+  assert.equal(result.imported, true);
   assert.deepEqual((await store.readChecklist("legacy-1")).value, legacy);
+  assert.equal(queue.length, 0);
+  assert.deepEqual(calls, ["local-only-import"]);
+  assert.equal(JSON.stringify(records.get("legacy-1")).includes("still-here"), false);
 });
 
 test("duplicate legacy import is refused rather than overwriting an encrypted snapshot", async () => {
