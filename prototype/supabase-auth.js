@@ -65,10 +65,20 @@ async function getCurrentIdentity() {
   return { user: data.user, profile: result.profile, error: null };
 }
 
+const USERNAME_EMAILS = Object.freeze({
+  "цгиспл-карасук": "cgspl-karasuk@accounts.invalid",
+  "цгиспл-тимашевск": "cgspl-timashevsk@accounts.invalid",
+});
+
+function resolveLoginEmail(identifier) {
+  const normalized = String(identifier || "").trim().toLowerCase();
+  return USERNAME_EMAILS[normalized] || normalized;
+}
+
 async function signIn(email, password) {
-  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedEmail = resolveLoginEmail(email);
   if (!normalizedEmail || !password) {
-    return { user: null, profile: null, error: new Error("Введите email и пароль") };
+    return { user: null, profile: null, error: new Error("Введите логин/email и пароль") };
   }
 
   const { data, error } = await client.auth.signInWithPassword({
