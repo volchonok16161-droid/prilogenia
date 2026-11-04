@@ -7,6 +7,7 @@ const OP = { opId:"op-1", userId:UID, entityId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa
 
 function fixture({ identity, online=true, cloud={} } = {}) {
   const queue=[{...OP}]; const conflicts=[]; const calls=[];
+  let cloudState = null;
   const database={
     async listPending(uid, nowIso = new Date().toISOString()){
       assert.equal(uid,UID);
@@ -21,15 +22,16 @@ function fixture({ identity, online=true, cloud={} } = {}) {
       return true;
     },
     async updateQueueOperation(opId,uid,changes,expectedClaim){ const row=queue.find(x=>x.opId===opId&&x.userId===uid); if(!row || (expectedClaim!==undefined && row.leaseClaimId!==expectedClaim)) return false; Object.assign(row,changes); return true; },
-    async markSynced(opId,uid,_revision,expectedClaim){ const i=queue.findIndex(x=>x.opId===opId&&x.userId===uid); if(i<0 || (expectedClaim!==undefined && queue[i].leaseClaimId!==expectedClaim)) return false; queue.splice(i,1); return true; },
+    async getCloudState(uid,entityId){ return uid===UID && entityId===OP.entityId ? cloudState : null; },
+    async markSynced(opId,uid,_revision,expectedClaim,nextState){ const i=queue.findIndex(x=>x.opId===opId&&x.userId===uid); if(i<0 || (expectedClaim!==undefined && queue[i].leaseClaimId!==expectedClaim)) return false; queue.splice(i,1); cloudState=nextState===null?null:(nextState||cloudState); return {opId,serverRevision:_revision??null}; },
     async saveConflict(value){ conflicts.push(value); },
   };
   const authApi={async getCurrentIdentity(){return identity ?? {user:{id:UID},profile:{id:UID,role:"employee"},error:null};}};
   const vault={async decrypt(){return {title:"local"};},async encrypt(value){return {version:1,iv:"remote-iv",ciphertext:JSON.stringify(value)};}};
   const cloudSync={
-    async create(input){calls.push(["create",input]); if(cloud.create) return cloud.create(input);},
-    async update(input){calls.push(["update",input]); if(cloud.update) return cloud.update(input);},
-    async remove(id){calls.push(["remove",id]); if(cloud.remove) return cloud.remove(id);},
+    async create(input){calls.push(["create",input]); if(cloud.create) return cloud.create(input); return {id:OP.entityId,revision:1};},
+    async update(input){calls.push(["update",input]); if(cloud.update) return cloud.update(input); return {id:OP.entityId,revision:2};},
+    async remove(id){calls.push(["remove",id]); if(cloud.remove) return cloud.remove(id); return true;},
     async get(id){calls.push(["get",id]); if(cloud.get) return cloud.get(id); return {title:"remote"};},
   };
   const runner=createOfflineSyncRunner({
@@ -37,7 +39,7 @@ function fixture({ identity, online=true, cloud={} } = {}) {
     mapOperation:async (_op,value)=>({method:"update",id:OP.entityId,input:{id:OP.entityId,expectedRevision:1,title:value.title,equipmentType:"TT",payload:{}}}),
     isOnline:()=>online,
   });
-  return {runner,queue,conflicts,calls};
+  return {runner,queue,conflicts,calls,get cloudState(){return cloudState;}};
 }
 
 test("refuses to sync a local PIN identity without a verified server profile", async()=>{
@@ -95,14 +97,15 @@ test("two runners cannot claim and send the same live queue lease", async()=>{
      return true;
    },
    async updateQueueOperation(opId,uid,changes,expectedClaim){const row=queue.find(x=>x.opId===opId&&x.userId===uid);if(!row||(expectedClaim!==undefined&&row.leaseClaimId!==expectedClaim))return false;Object.assign(row,changes);return true;},
-   async markSynced(opId,uid,_revision,expectedClaim){const i=queue.findIndex(x=>x.opId===opId&&x.userId===uid);if(i<0||(expectedClaim!==undefined&&queue[i].leaseClaimId!==expectedClaim))return false;queue.splice(i,1);return true;},
+   async getCloudState(){return null;},
+   async markSynced(opId,uid,_revision,expectedClaim){const i=queue.findIndex(x=>x.opId===opId&&x.userId===uid);if(i<0||(expectedClaim!==undefined&&queue[i].leaseClaimId!==expectedClaim))return false;queue.splice(i,1);return {opId};},
    async saveConflict(){},
  };
  const identity={async getCurrentIdentity(){return {user:{id:UID},profile:{id:UID,role:"employee"},error:null};}};
  const vault={async decrypt(){return {title:"local"};},async encrypt(value){return {version:1,iv:"iv",ciphertext:JSON.stringify(value)};}};
  const cloudSync={
    async create(){},async remove(){},async get(){return {};},
-   async update(input){calls.push(input);await gate;}
+   async update(input){calls.push(input);await gate;return {id:OP.entityId,revision:2};}
  };
  const makeRunner=()=>createOfflineSyncRunner({
    authApi:identity,database:sharedDatabase,vault,cloudSync,
