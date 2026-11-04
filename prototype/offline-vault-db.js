@@ -154,6 +154,51 @@ export function createOfflineVaultDatabase({
   }
 
 
+  // Atomically persist the newest snapshot and coalesce older pending work
+  // for the same entity. A currently processing lease is never overwritten.
+  async function putRecordAndCoalesceQueue({
+    id, userId, kind, encrypted, opId, entityId, operation = "update",
+    updatedAt = new Date().toISOString(), createdAt = updatedAt,
+  }) {
+    if (typeof id !== "string" || !id || typeof userId !== "string" || !userId ||
+        typeof kind !== "string" || !kind || typeof opId !== "string" || !opId ||
+        typeof entityId !== "string" || !entityId ||
+        !["create", "update", "delete", "photo-upload"].includes(operation)) {
+      fail("Invalid offline snapshot or queue metadata");
+    }
+    assertEncrypted(encrypted, "Snapshot payload");
+    return run([STORES.RECORDS, STORES.QUEUE], "readwrite", async (tx) => {
+      await requestResult(tx.objectStore(STORES.RECORDS).put({
+        id, userId, kind, encrypted, updatedAt,
+      }));
+      const queue = tx.objectStore(STORES.QUEUE);
+      const index = queue.index("byUserStatus");
+      const pending = await requestResult(index.getAll([userId, "pending"]));
+      const matching = pending
+        .filter((row) => row.entityId === entityId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      if (matching.length) {
+        const current = matching[0];
+        // A not-yet-synced create remains a create even as its snapshot changes.
+        const nextOperation = current.operation === "create" && operation === "update"
+          ? "create"
+          : operation;
+        await requestResult(queue.put({
+          ...current,
+          operation: nextOperation,
+          encrypted,
+          updatedAt,
+        }));
+        return { id, opId: current.opId, coalesced: true };
+      }
+      await requestResult(queue.add({
+        opId, userId, entityId, operation, encrypted, createdAt, updatedAt,
+        status: "pending", attempts: 0,
+      }));
+      return { id, opId, coalesced: false };
+    });
+  }
+
   async function listRecords(userId, kind) {
     return run([STORES.RECORDS], "readonly", async (tx) => {
       const rows = await requestResult(tx.objectStore(STORES.RECORDS).index("byUser").getAll(userId));
@@ -275,7 +320,7 @@ export function createOfflineVaultDatabase({
   }
 
   return Object.freeze({
-    open, close, getMeta, setMeta, putRecord, putRecordAndEnqueue, getRecord, listRecords, deleteRecord,
+    open, close, getMeta, setMeta, putRecord, putRecordAndEnqueue, putRecordAndCoalesceQueue, getRecord, listRecords, deleteRecord,
     enqueue, listPending, claimQueueOperation, updateQueueOperation, markSynced, saveConflict, listConflicts,
   });
 }
