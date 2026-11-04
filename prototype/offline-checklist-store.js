@@ -40,7 +40,10 @@ export function createOfflineChecklistStore({ database, vault, userId, idFactory
     const stamp = now();
     const opId = idFactory();
     try {
-      await database.putRecordAndEnqueue({
+      const writer = onlyIfAbsent
+        ? database.putRecordAndEnqueue
+        : (database.putRecordAndCoalesceQueue || database.putRecordAndEnqueue);
+      await writer.call(database, {
         id, userId: uid, kind, encrypted, opId, entityId, operation,
         updatedAt: stamp, createdAt: stamp, onlyIfAbsent,
       });
