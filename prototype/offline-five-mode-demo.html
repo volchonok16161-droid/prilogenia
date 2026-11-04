@@ -31,7 +31,7 @@ button.secondary{background:#e9edf5;color:#344054}button:disabled{opacity:.55}.r
 <label>Комментарий<textarea id="comment" placeholder="Комментарий сохранится в зашифрованной записи"></textarea></label>
 <label>Фото (необязательно)<input id="photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
 <div class="row"><button id="save" disabled>Сохранить офлайн</button><button id="load" class="secondary" disabled>Загрузить из IndexedDB</button></div>
-<div id="photoInfo" class="muted"></div>
+<div id="photoInfo" class="muted"></div><img id="photoPreview" alt="Локальное фото чек-листа" class="hidden" style="max-width:100%;max-height:260px;border-radius:10px;margin-top:8px">
 </section>
 <section class="card"><h2>Проверка перезапуска</h2><p class="muted">После сохранения обновите страницу, снова разблокируйте PIN и нажмите «Загрузить из IndexedDB». Запись привязана к выбранному режиму стенда.</p><button id="reload" class="secondary">Перезагрузить страницу</button></section>
 <section class="card"><h2>Журнал</h2><div id="log" class="log">Ожидание…</div></section>
@@ -42,7 +42,7 @@ import { createOfflineVaultDatabase } from "./offline-vault-db.js";
 const DB_NAME="tmh-offline-five-mode-demo-v1", USER="11111111-1111-4111-8111-111111111111";
 const $=id=>document.getElementById(id), modes=["complex","housings","tt","bi","hydro"];
 const cryptoVault=createOfflineVaultCrypto(), db=createOfflineVaultDatabase({dbName:DB_NAME});
-let deviceId, vault=null, photoData=null;
+let deviceId, vault=null, photoData=null;\nfunction showPhoto(data){const img=$("photoPreview");if(data){img.src=data;img.classList.remove("hidden");}else{img.removeAttribute("src");img.classList.add("hidden");}}
 const logLines=[];
 function log(t){logLines.push(new Date().toLocaleTimeString("ru-RU")+" · "+t);$("log").textContent=logLines.slice(-14).join("\n");}
 function status(t,k=""){ $("status").className="status "+k; $("status").textContent=t; }
@@ -73,7 +73,7 @@ $("unlock").onclick=async()=>{
 };
 $("photo").onchange=async()=>{
  const file=$("photo").files?.[0];photoData=null;
- if(!file){$("photoInfo").textContent="";return;}
+ if(!file){$("photoInfo").textContent="";showPhoto(null);return;}
  if(!/^image\/(jpeg|png|webp)$/.test(file.type)||file.size>10*1024*1024){$("photoInfo").textContent="Нужен JPEG/PNG/WebP до 10 МБ.";return;}
  photoData=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});
  $("photoInfo").textContent="Фото подготовлено ("+Math.round(file.size/1024)+" КБ); сохранится внутри зашифрованного снимка.";
