@@ -5,9 +5,11 @@ import { readFile } from "node:fs/promises";
 const source = await readFile(new URL("../sw.js", import.meta.url), "utf8");
 
 test("offline vault modules are part of the app shell cache", () => {
-  assert.match(source, /checklist-cache-v26/);
+  assert.match(source, /checklist-cache-v27/);
   assert.match(source, /\.\/prototype\/offline-vault-crypto\.js/);
   assert.match(source, /\.\/prototype\/offline-vault-db\.js/);
+  assert.match(source, /\.\/prototype\/offline-sync-runner\.js/);
+  assert.match(source, /\.\/prototype\/offline-sync-coordinator\.js/);
 });
 
 test("service worker keeps GET-only cache behavior and does not cache auth writes", () => {
