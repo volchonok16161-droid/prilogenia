@@ -70,7 +70,7 @@ export function createChecklistCloudRestore({
     });
     const clonedState = structuredClone(payload.state);
     const hydratedState = hydrateState
-      ? await hydrateState(clonedState, metadata, Array.isArray(payload.photos) ? payload.photos : [])
+      ? await hydrateState(clonedState, metadata, Array.isArray(payload.photoManifest) ? payload.photoManifest : (Array.isArray(payload.photos) ? payload.photos : []))
       : clonedState;
 
     // Opening an already-restored checklist (for example after login/page reload)
