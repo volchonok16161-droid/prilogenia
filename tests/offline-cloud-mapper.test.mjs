@@ -55,7 +55,7 @@ test("photo mapper uploads inline photos to private Storage and stores a manifes
   assert.equal(uploaded[0].revision, 1);
   assert.equal(request.input.payload.photoManifest.length, 1);
   assert.equal(request.input.payload.state.values.item.photo_photo, undefined);
-  assert.equal(stateWithPhoto.values.motor.photo_photo, "data:image/jpeg;base64,AA==");
+  assert.equal(stateWithPhoto.values.item.photo_photo, "data:image/jpeg;base64,AA==");
   await request.rollback();
   assert.equal(uploaded.length, 2);
 });
