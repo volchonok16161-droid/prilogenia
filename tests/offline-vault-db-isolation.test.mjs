@@ -33,3 +33,8 @@ test("pending operations are coalesced atomically by owner and entity without re
   assert.match(source, /current\.operation === "create" && operation === "update"/);
   assert.match(source, /status: "pending", attempts: 0/);
 });
+
+test("an earlier processing operation blocks later operations for the same entity", () => {
+  assert.match(source, /const processing = await requestResult\(store\.index\("byUserStatus"\)\.getAll\(\[userId, "processing"\]\)\)/);
+  assert.match(source, /item\.opId !== opId && item\.entityId === row\.entityId/);
+});
