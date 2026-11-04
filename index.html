@@ -1057,6 +1057,30 @@ window.addEventListener('tmh-offline-sync-status', function(event) {
   element.title = status.remaining == null ? element.textContent :
     element.textContent + ' · в очереди: ' + status.remaining;
 });
+const __enableOfflineSyncButton = document.getElementById('enableOfflineSyncBtn');
+if (__enableOfflineSyncButton) {
+  __enableOfflineSyncButton.addEventListener('click', async function() {
+    if (!window.confirm('Включить облачную синхронизацию для будущих сохранений? Старые локальные копии не будут отправлены автоматически. Синхронизация начнётся после следующего сохранения и только после проверки онлайн-аккаунта.')) return;
+    __enableOfflineSyncButton.disabled = true;
+    try {
+      const api = window.TMHAuthReady ? await window.TMHAuthReady : window.TMHAuth;
+      if (!api) throw new Error('Авторизация недоступна');
+      if (!api.isOfflineVaultUnlocked()) {
+        const userId = await api.getLastOfflineUserId();
+        if (!userId) throw new Error('Сначала войдите онлайн и настройте PIN для этого устройства');
+        const pin = window.prompt('Введите PIN этого устройства для разблокировки зашифрованного хранилища');
+        if (pin === null) return;
+        await api.unlockOffline(userId, pin);
+      }
+      await api.enableOfflineCloudSync();
+      __enableOfflineSyncButton.textContent = 'Синхронизация включена';
+      if (typeof showToast === 'function') showToast('Синхронизация включена. Новые изменения отправятся после следующего сохранения');
+    } catch (error) {
+      __enableOfflineSyncButton.disabled = false;
+      if (typeof showToast === 'function') showToast(error && error.message || 'Не удалось включить синхронизацию');
+    }
+  });
+}
 
 const restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');
 if(restoreButton){
@@ -1192,6 +1216,7 @@ if(button){
         <span>👤 <span id="userName">Пользователь</span></span>
         <span class="role" id="userRole">(user)</span>
         <span class="role" id="offlineSyncStatus" aria-live="polite" title="Состояние офлайн-синхронизации"></span>
+        <button class="logout-btn" id="enableOfflineSyncBtn" type="button" title="Разрешить отправку будущих сохранений в облако">Включить синхронизацию</button>
         <a class="logout-btn" id="accountCabinetLink" href="./account.html" style="text-decoration:none;display:inline-flex;align-items:center;">Личный кабинет</a>
         <button class="logout-btn" id="logoutBtn">Выход</button>
     </div>
