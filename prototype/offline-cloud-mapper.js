@@ -9,7 +9,7 @@ function invalid(message) {
   return error;
 }
 
-export function mapOfflineChecklistOperation(operation, localValue) {
+export function mapOfflineChecklistOperation(operation, localValue, cloudState = null) {
   if (!operation || typeof operation !== "object" ||
       typeof operation.entityId !== "string" || !operation.entityId) {
     throw invalid("Queue operation identity is missing");
@@ -18,7 +18,7 @@ export function mapOfflineChecklistOperation(operation, localValue) {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operation.entityId)) {
       throw invalid("Delete operation requires a checklist UUID");
     }
-    return Object.freeze({ method: "remove", id: operation.entityId });
+    return Object.freeze({ method: "remove", id: operation.entityId, cleanupManifest: Array.isArray(cloudState?.photoManifest) ? cloudState.photoManifest : [] });
   }
   if (operation.operation !== "create" && operation.operation !== "update") {
     throw invalid("This queue operation is not a checklist CRUD operation");
@@ -48,31 +48,29 @@ export function createOfflineChecklistOperationMapper({ photoSync } = {}) {
       typeof photoSync?.removeManifest !== "function") {
     throw new TypeError("Private checklist photo sync is required");
   }
-  return async function mapWithPhotos(operation, localValue) {
-    const request = mapOfflineChecklistOperation(operation, localValue);
+  const mapWithPhotos = async function (operation, localValue, previousCloudState = null) {
+    const request = mapOfflineChecklistOperation(operation, localValue, previousCloudState);
     if (!["create", "update"].includes(request.method)) return request;
     const cloud = localValue.cloud;
     const state = structuredClone(cloud.payload.state);
     const revision = request.method === "create" ? 1 : request.input.expectedRevision + 1;
-    const uploaded = await photoSync.uploadState({
-      state, checklistId: cloud.id, revision,
-    });
-    const cloudState = structuredClone(state);
+    const uploaded = await photoSync.uploadState({ state, checklistId: cloud.id, revision });
+    const sanitizedState = structuredClone(state);
     for (const entry of uploaded.manifest) {
-      if (cloudState.values?.[entry.itemId]) delete cloudState.values[entry.itemId][entry.field];
+      if (sanitizedState.values?.[entry.itemId]) delete sanitizedState.values[entry.itemId][entry.field];
     }
     const input = {
       ...request.input,
-      payload: {
-        ...request.input.payload,
-        state: cloudState,
-        photoManifest: uploaded.manifest,
-      },
+      payload: { ...request.input.payload, state: sanitizedState, photoManifest: uploaded.manifest },
     };
+    const currentPaths = new Set(uploaded.manifest.map((entry) => entry.path));
+    const cleanupManifest = (Array.isArray(previousCloudState?.photoManifest) ? previousCloudState.photoManifest : [])
+      .filter((entry) => entry && typeof entry.path === "string" && !currentPaths.has(entry.path));
     return Object.freeze({
-      ...request,
-      input: Object.freeze(input),
+      ...request, input: Object.freeze(input), cleanupManifest: Object.freeze(cleanupManifest),
       rollback: () => photoSync.removeManifest(uploaded.manifest),
     });
   };
+  mapWithPhotos.removePhotoManifest = photoSync.removeManifest;
+  return mapWithPhotos;
 }
