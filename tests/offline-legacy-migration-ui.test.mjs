@@ -38,8 +38,9 @@ test("UI requires an explicit confirmation and leaves legacy storage untouched",
   assert.doesNotMatch(ui, /localStorage\.(removeItem|clear|setItem)/);
 });
 
-test("migration control is loaded and included in the offline app shell", () => {
-  assert.match(auth, /import "\.\/offline-legacy-migration-ui\.js"/);
-  assert.match(sw, /checklist-cache-v43/);
-  assert.match(sw, /\.\/prototype\/offline-legacy-migration-ui\.js/);
+test("legacy migration service remains available but its UI is not loaded for employees", () => {
+  assert.match(auth, /async function migrateLegacyChecklist/);
+  assert.doesNotMatch(auth, /offline-legacy-migration-ui\.js/);
+  assert.match(sw, /checklist-cache-v44/);
+  assert.doesNotMatch(sw, /offline-legacy-migration-ui\.js/);
 });
