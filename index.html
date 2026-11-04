@@ -1036,7 +1036,28 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
 <script type="module">
 import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js';
 import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.js';
+
 import { createChecklistPhotoSync } from './prototype/supabase-cloud-photos.js';
+const __offlineSyncLabels = {
+  locked: 'Офлайн-хранилище закрыто',
+  offline: 'Офлайн',
+  'checking-session': 'Проверка аккаунта…',
+  syncing: 'Синхронизация…',
+  'pending-sync': 'Ожидает синхронизации',
+  synced: 'Синхронизировано',
+  conflict: 'Конфликт — требуется решение',
+  'auth-required': 'Нужен вход для синхронизации',
+  error: 'Ошибка синхронизации',
+};
+window.addEventListener('tmh-offline-sync-status', function(event) {
+  const element = document.getElementById('offlineSyncStatus');
+  if (!element) return;
+  const status = event.detail || {};
+  element.textContent = __offlineSyncLabels[status.status] || 'Состояние синхронизации';
+  element.title = status.remaining == null ? element.textContent :
+    element.textContent + ' · в очереди: ' + status.remaining;
+});
+
 const restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');
 if(restoreButton){
   restoreButton.addEventListener('click',async function(){
@@ -1170,6 +1191,7 @@ if(button){
     <div class="user-info" id="userInfo" style="display:none;">
         <span>👤 <span id="userName">Пользователь</span></span>
         <span class="role" id="userRole">(user)</span>
+        <span class="role" id="offlineSyncStatus" aria-live="polite" title="Состояние офлайн-синхронизации"></span>
         <a class="logout-btn" id="accountCabinetLink" href="./account.html" style="text-decoration:none;display:inline-flex;align-items:center;">Личный кабинет</a>
         <button class="logout-btn" id="logoutBtn">Выход</button>
     </div>
@@ -2931,7 +2953,7 @@ function __tmhBindOfflinePinControls() {
       const modal = document.getElementById('loginModal');
       if (modal) modal.style.display = 'none';
       if (typeof showContinueDialogOrStart === 'function') showContinueDialogOrStart();
-      showToast('Офлайн-доступ открыт. Синхронизация пока недоступна');
+      showToast('Офлайн-доступ открыт. При восстановлении сети проверим аккаунт и синхронизируем изменения');
     } catch (error) {
       showToast(error?.message || 'Не удалось выполнить офлайн-вход');
     } finally { unlockButton.disabled = false; }
