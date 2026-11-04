@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 const source=await readFile(new URL("../sw.js",import.meta.url),"utf8");
 test("offline modules and demo photo store are in app shell cache",()=>{
- for(const path of ["offline-vault-crypto.js","offline-vault-db.js","offline-sync-runner.js","offline-sync-coordinator.js","offline-checklist-schema.js","supabase-auth.js","supabase-cloud-sync.js","supabase-cloud-photos.js","offline-five-mode-demo.html","offline-demo-photo-store.js","offline-legacy-migration-ui.js"])assert.match(source,new RegExp(path.replaceAll(".","\\.")));
- assert.match(source,/checklist-cache-v43/);
+ for(const path of ["offline-vault-crypto.js","offline-vault-db.js","offline-sync-runner.js","offline-sync-coordinator.js","offline-checklist-schema.js","supabase-auth.js","supabase-cloud-sync.js","supabase-cloud-photos.js","offline-five-mode-demo.html","offline-demo-photo-store.js"])assert.match(source,new RegExp(path.replaceAll(".","\\.")));
+ assert.doesNotMatch(source,/offline-legacy-migration-ui\\.js/);\n assert.match(source,/checklist-cache-v44/);
 });
 test("service worker caches GET only and excludes auth writes",()=>{
  assert.match(source,/if \(req\.method !== 'GET'\) return/);assert.match(source,/const APP_SHELL = \[/);
