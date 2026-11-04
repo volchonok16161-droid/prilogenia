@@ -10,6 +10,11 @@ function fixture() {
   const calls = [];
   const database = {
     async putRecordAndEnqueue(value) {
+      if (value.onlyIfAbsent && records.has(value.id)) {
+        const error = new Error("Key already exists");
+        error.name = "ConstraintError";
+        throw error;
+      }
       if (records.get(value.id)?.userId !== value.userId) {
         records.set(value.id, { id: value.id, userId: value.userId, kind: value.kind, encrypted: value.encrypted, updatedAt: value.updatedAt });
       }
@@ -108,4 +113,16 @@ test("snapshot store rejects values that cannot be serialized as JSON", async ()
     store.saveChecklist({ id: "undefined-snapshot", value: undefined }),
     /JSON-serializable/,
   );
+});
+
+test("concurrent legacy imports cannot overwrite an existing encrypted snapshot", async () => {
+  const { store, records, queue } = fixture();
+  await store.migrateLegacySnapshot({ id: "legacy-race", legacyValue: { n: 1 }, confirmed: true });
+  const queuedBefore = queue.length;
+  await assert.rejects(
+    store.migrateLegacySnapshot({ id: "legacy-race", legacyValue: { n: 2 }, confirmed: true }),
+    /already exists/,
+  );
+  assert.equal((await store.readChecklist("legacy-race")).value.n, 1);
+  assert.equal(queue.length, queuedBefore);
 });
