@@ -65,11 +65,6 @@ async function getCurrentIdentity() {
   return { user: data.user, profile: result.profile, error: null };
 }
 
-const USERNAME_EMAILS = Object.freeze({
-  "цгиспл-карасук": "cgspl-karasuk@accounts.invalid",
-  "цгиспл-тимашевск": "cgspl-timashevsk@accounts.invalid",
-});
-
 async function resolveLoginEmail(identifier) {
   const normalized = String(identifier || "").trim().normalize("NFC").toLowerCase();
   if (USERNAME_EMAILS[normalized]) return USERNAME_EMAILS[normalized];
