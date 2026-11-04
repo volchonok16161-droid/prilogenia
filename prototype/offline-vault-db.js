@@ -129,7 +129,7 @@ export function createOfflineVaultDatabase({
   }
   async function putRecordAndEnqueue({
     id, userId, kind, encrypted, opId, entityId, operation = "update",
-    updatedAt = new Date().toISOString(), createdAt = updatedAt,
+    updatedAt = new Date().toISOString(), createdAt = updatedAt, onlyIfAbsent = false,
   }) {
     if (typeof id !== "string" || !id || typeof userId !== "string" || !userId ||
         typeof kind !== "string" || !kind || typeof opId !== "string" || !opId ||
@@ -137,11 +137,14 @@ export function createOfflineVaultDatabase({
         !["create", "update", "delete", "photo-upload"].includes(operation)) {
       fail("Invalid offline snapshot or queue metadata");
     }
+    if (typeof onlyIfAbsent !== "boolean") fail("onlyIfAbsent must be boolean");
     assertEncrypted(encrypted, "Snapshot payload");
     return run([STORES.RECORDS, STORES.QUEUE], "readwrite", async (tx) => {
-      await requestResult(tx.objectStore(STORES.RECORDS).put({
-        id, userId, kind, encrypted, updatedAt,
-      }));
+      const records = tx.objectStore(STORES.RECORDS);
+      const record = { id, userId, kind, encrypted, updatedAt };
+      // add() makes first-import-wins atomic across tabs; a duplicate aborts
+      // the whole transaction, including the queue write below.
+      await requestResult(onlyIfAbsent ? records.add(record) : records.put(record));
       await requestResult(tx.objectStore(STORES.QUEUE).add({
         opId, userId, entityId, operation, encrypted, createdAt,
         status: "pending", attempts: 0,
