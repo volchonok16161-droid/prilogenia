@@ -186,10 +186,40 @@ export function createOfflineVaultDatabase({
     });
   }
 
-  async function listPending(userId) {
+  async function listPending(userId, nowIso = new Date().toISOString()) {
     return run([STORES.QUEUE], "readonly", async (tx) => {
-      const rows = await requestResult(tx.objectStore(STORES.QUEUE).index("byUserStatus").getAll([userId, "pending"]));
-      return rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      const index = tx.objectStore(STORES.QUEUE).index("byUserStatus");
+      const [pending, processing] = await Promise.all([
+        requestResult(index.getAll([userId, "pending"])),
+        requestResult(index.getAll([userId, "processing"])),
+      ]);
+      const ready = pending.concat(processing.filter((row) =>
+        typeof row.leaseUntil !== "string" || row.leaseUntil <= nowIso
+      ));
+      return ready.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    });
+  }
+
+  // Atomically claim one queue item. IndexedDB serializes readwrite transactions
+  // across tabs, so only one tab can own an unexpired lease at a time.
+  async function claimQueueOperation(opId, userId, claimId, nowIso, leaseUntil) {
+    if (![opId, userId, claimId, nowIso, leaseUntil].every((value) => typeof value === "string" && value)) {
+      fail("Invalid queue claim metadata");
+    }
+    if (leaseUntil <= nowIso) fail("Queue claim lease must expire in the future");
+    return run([STORES.QUEUE], "readwrite", async (tx) => {
+      const store = tx.objectStore(STORES.QUEUE);
+      const row = await requestResult(store.get([userId, opId]));
+      if (!row || row.userId !== userId) return false;
+      const leaseExpired = typeof row.leaseUntil !== "string" || row.leaseUntil <= nowIso;
+      if (row.status !== "pending" && !(row.status === "processing" && leaseExpired)) return false;
+      await requestResult(store.put({
+        ...row,
+        status: "processing",
+        leaseClaimId: claimId,
+        leaseUntil,
+      }));
+      return true;
     });
   }
 
@@ -244,6 +274,6 @@ export function createOfflineVaultDatabase({
 
   return Object.freeze({
     open, close, getMeta, setMeta, putRecord, putRecordAndEnqueue, getRecord, listRecords, deleteRecord,
-    enqueue, listPending, updateQueueOperation, markSynced, saveConflict, listConflicts,
+    enqueue, listPending, claimQueueOperation, updateQueueOperation, markSynced, saveConflict, listConflicts,
   });
 }
