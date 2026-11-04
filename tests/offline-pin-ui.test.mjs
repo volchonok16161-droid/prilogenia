@@ -10,8 +10,9 @@ test("all five login surfaces expose offline PIN unlock controls", () => {
   assert.equal((html.match(/id="offlinePinInput"/g) || []).length, 5);
 });
 
-test("all five auth runtimes can fall back only to an explicitly PIN-unlocked identity", () => {
-  assert.equal((html.match(/const offlineIdentity = await api\.getOfflineIdentity\(\)/g) || []).length, 5);
+test("all five auth runtimes prefer an explicitly PIN-unlocked identity", () => {
+  assert.equal((html.match(/let identity = await api\.getOfflineIdentity\(\)/g) || []).length, 5);
+  assert.equal((html.match(/identity = await api\.getCurrentIdentity\(\)/g) || []).length, 5);
   assert.equal((html.match(/identity\.mode === 'offline-local-unlock'/g) || []).length, 5);
   assert.equal((html.match(/__tmhBindOfflinePinControls\(\);/g) || []).length, 5);
 });
