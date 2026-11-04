@@ -214,7 +214,17 @@ async function unlockOffline(userId, pin) {
       !["employee", "admin", "developer"].includes(identity?.profile?.role)) {
     throw new Error("Сохранённый офлайн-профиль недействителен");
   }
-  activeOfflineIdentity = Object.freeze({
+  // A PIN unlock only opens the local encryption key. If the server session
+  // is currently valid, retain online identity; otherwise expose the explicitly
+  // local-only offline identity.
+  let onlineIdentity = null;
+  try {
+    const candidate = await getCurrentIdentity();
+    if (!candidate?.error && candidate?.user?.id === result.userId && candidate?.profile?.id === result.userId) {
+      onlineIdentity = candidate;
+    }
+  } catch {}
+  activeOfflineIdentity = onlineIdentity ? null : Object.freeze({
     user: Object.freeze(identity.user),
     profile: Object.freeze(identity.profile),
     mode: "offline-local-unlock",
@@ -222,12 +232,20 @@ async function unlockOffline(userId, pin) {
   });
   ensureOfflineSync();
   void offlineSyncCoordinator.start();
-  return activeOfflineIdentity;
+  return onlineIdentity || activeOfflineIdentity;
 }
 
 async function saveOfflineChecklist(id, snapshot) {
   if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
   if (typeof id !== "string" || !id) throw new TypeError("Checklist storage id is required");
+  const cloudEnabled = await offlineVault.database.getMeta("offline:cloud-sync-enabled:" + activeOfflineUserId);
+  if (cloudEnabled !== true) {
+    const encrypted = await activeOfflineVault.encrypt(snapshot);
+    await offlineVault.database.putRecord({
+      id, userId: activeOfflineUserId, kind: "checklist-snapshot", encrypted,
+    });
+    return { saved: true, encrypted: true, queued: false, status: "local-only", userId: activeOfflineUserId, id };
+  }
   const store = ensureOfflineSync();
   const mode = getChecklistMode(id);
   const mappingKey = "offline:cloud-id:" + activeOfflineUserId + ":" + id;
@@ -250,6 +268,23 @@ async function saveOfflineChecklist(id, snapshot) {
     void offlineSyncCoordinator.syncNow();
   }
   return { saved: true, encrypted: true, queued: true, userId: activeOfflineUserId, id, cloudId, ...result };
+}
+
+async function enableOfflineCloudSync() {
+  if (!activeOfflineVault || !activeOfflineUserId) {
+    throw new Error("Сначала разблокируйте офлайн-хранилище PIN-кодом");
+  }
+  const identity = await getCurrentIdentity();
+  if (!identity?.user || identity.user.id !== activeOfflineUserId ||
+      !identity?.profile || identity.profile.id !== activeOfflineUserId || identity.error) {
+    const error = new Error("Для включения облачной синхронизации нужен действующий онлайн-вход этого сотрудника");
+    error.code = "AUTH_REQUIRED";
+    throw error;
+  }
+  await offlineVault.database.setMeta("offline:cloud-sync-enabled:" + activeOfflineUserId, true);
+  ensureOfflineSync();
+  void offlineSyncCoordinator.start();
+  return { enabled: true, userId: activeOfflineUserId };
 }
 
 async function loadOfflineChecklist(id) {
