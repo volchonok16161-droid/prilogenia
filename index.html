@@ -2849,16 +2849,21 @@ async function checkAuth() {
     __tmhApplyUserStorageScope(identity.user.id);
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
-    try {
-      localStorage.setItem('checklist_user', JSON.stringify({
-        login: identity.user.email || '',
-        displayName: identity.profile.display_name || '',
-        role: currentUser,
-        profileRole: role,
-        dev: role === 'developer',
-        authUid: identity.user.id
-      }));
-    } catch (e) {}
+    if (identity.mode === 'offline-local-unlock') {
+      // Do not copy the offline profile into plaintext localStorage.
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+    } else {
+      try {
+        localStorage.setItem('checklist_user', JSON.stringify({
+          login: identity.user.email || '',
+          displayName: identity.profile.display_name || '',
+          role: currentUser,
+          profileRole: role,
+          dev: role === 'developer',
+          authUid: identity.user.id
+        }));
+      } catch (e) {}
+    }
     updateUserUI();
     return true;
   } catch (e) {
@@ -6540,16 +6545,21 @@ async function checkAuth() {
     __tmhApplyUserStorageScope(identity.user.id);
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
-    try {
-      localStorage.setItem('checklist_user', JSON.stringify({
-        login: identity.user.email || '',
-        displayName: identity.profile.display_name || '',
-        role: currentUser,
-        profileRole: role,
-        dev: role === 'developer',
-        authUid: identity.user.id
-      }));
-    } catch (e) {}
+    if (identity.mode === 'offline-local-unlock') {
+      // Do not copy the offline profile into plaintext localStorage.
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+    } else {
+      try {
+        localStorage.setItem('checklist_user', JSON.stringify({
+          login: identity.user.email || '',
+          displayName: identity.profile.display_name || '',
+          role: currentUser,
+          profileRole: role,
+          dev: role === 'developer',
+          authUid: identity.user.id
+        }));
+      } catch (e) {}
+    }
     updateUserUI();
     return true;
   } catch (e) {
@@ -9831,16 +9841,21 @@ async function checkAuth() {
     __tmhApplyUserStorageScope(identity.user.id);
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
-    try {
-      localStorage.setItem('checklist_user', JSON.stringify({
-        login: identity.user.email || '',
-        displayName: identity.profile.display_name || '',
-        role: currentUser,
-        profileRole: role,
-        dev: role === 'developer',
-        authUid: identity.user.id
-      }));
-    } catch (e) {}
+    if (identity.mode === 'offline-local-unlock') {
+      // Do not copy the offline profile into plaintext localStorage.
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+    } else {
+      try {
+        localStorage.setItem('checklist_user', JSON.stringify({
+          login: identity.user.email || '',
+          displayName: identity.profile.display_name || '',
+          role: currentUser,
+          profileRole: role,
+          dev: role === 'developer',
+          authUid: identity.user.id
+        }));
+      } catch (e) {}
+    }
     updateUserUI();
     return true;
   } catch (e) {
@@ -14469,16 +14484,21 @@ async function checkAuth() {
     __tmhApplyUserStorageScope(identity.user.id);
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
-    try {
-      localStorage.setItem('checklist_user', JSON.stringify({
-        login: identity.user.email || '',
-        displayName: identity.profile.display_name || '',
-        role: currentUser,
-        profileRole: role,
-        dev: role === 'developer',
-        authUid: identity.user.id
-      }));
-    } catch (e) {}
+    if (identity.mode === 'offline-local-unlock') {
+      // Do not copy the offline profile into plaintext localStorage.
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+    } else {
+      try {
+        localStorage.setItem('checklist_user', JSON.stringify({
+          login: identity.user.email || '',
+          displayName: identity.profile.display_name || '',
+          role: currentUser,
+          profileRole: role,
+          dev: role === 'developer',
+          authUid: identity.user.id
+        }));
+      } catch (e) {}
+    }
     updateUserUI();
     return true;
   } catch (e) {
@@ -16628,16 +16648,21 @@ async function checkAuth() {
     __tmhApplyUserStorageScope(identity.user.id);
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
-    try {
-      localStorage.setItem('checklist_user', JSON.stringify({
-        login: identity.user.email || '',
-        displayName: identity.profile.display_name || '',
-        role: currentUser,
-        profileRole: role,
-        dev: role === 'developer',
-        authUid: identity.user.id
-      }));
-    } catch (e) {}
+    if (identity.mode === 'offline-local-unlock') {
+      // Do not copy the offline profile into plaintext localStorage.
+      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+    } else {
+      try {
+        localStorage.setItem('checklist_user', JSON.stringify({
+          login: identity.user.email || '',
+          displayName: identity.profile.display_name || '',
+          role: currentUser,
+          profileRole: role,
+          dev: role === 'developer',
+          authUid: identity.user.id
+        }));
+      } catch (e) {}
+    }
     updateUserUI();
     return true;
   } catch (e) {
