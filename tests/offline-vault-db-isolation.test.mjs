@@ -42,7 +42,17 @@ test("an earlier processing operation blocks later operations for the same entit
 test("confirmed cloud revisions are persisted atomically with queue acknowledgement", () => {
   assert.match(source, /function cloudStateKey\(userId, entityId\)/);
   assert.match(source, /async function getCloudState\(userId, entityId\)/);
-  assert.match(source, /async function markSynced\(opId, userId, serverRevision, expectedLeaseClaimId, cloudState = undefined\)/);
+  assert.match(source, /async function markSynced\(opId, userId, serverRevision, expectedLeaseClaimId, cloudState = undefined, cleanupJob = null\)/);
   assert.match(source, /STORES\.QUEUE, STORES\.META/);
   assert.match(source, /photoManifest: cloudState\.photoManifest \|\| \[\]/);
+});
+
+test("photo cleanup job is committed atomically with cloud acknowledgement", () => {
+  assert.match(source, /async function markSynced\([\s\S]*?cleanupJob = null\)/);
+  assert.match(source, /photoCleanupKey\(userId, cleanupJob\.cleanupId\)/);
+  assert.match(source, /status: "pending", attempts: 0/);
+  assert.match(source, /async function listPhotoCleanups/);
+  assert.match(source, /async function claimPhotoCleanup/);
+  assert.match(source, /async function updatePhotoCleanup/);
+  assert.match(source, /async function completePhotoCleanup/);
 });
