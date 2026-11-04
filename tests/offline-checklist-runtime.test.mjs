@@ -19,7 +19,6 @@ test("runtime requires a verified account UUID and unlocked encrypted vault", ()
   assert.match(source, /A verified account UUID is required/);
   assert.match(source, /Unlock the device vault/);
   assert.match(source, /vault: unlockedVault/);
-  assert.match(source, /vault: unlockedVault/);
 });
 
 test("sync start checks server profile and never starts from a local PIN alone", () => {
@@ -31,6 +30,7 @@ test("sync start checks server profile and never starts from a local PIN alone",
 
 test("runtime does not automatically migrate legacy localStorage or launch sync at construction", () => {
   assert.doesNotMatch(source, /localStorage\.getItem/);
-  assert.doesNotMatch(source, /coordinator\.start\(\);/);
-  assert.match(source, /start\(\)\s*\{/);
+  const beforeStart = source.slice(0, source.indexOf("async function start()"));
+  assert.doesNotMatch(beforeStart, /coordinator\.start/);
+  assert.match(source, /async function start\(\)/);
 });
