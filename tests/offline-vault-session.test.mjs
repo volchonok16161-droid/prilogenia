@@ -75,8 +75,11 @@ test("device identity mismatch prevents offline unlock", async () => {
     cryptoImpl: { randomUUID: () => "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
   });
   await first.setupAfterVerifiedOnlineLogin(identity, "123456");
+  const secondDb = fakeDatabase();
+  const savedDescriptor = await db.getMeta("offline:descriptor:" + identity.user.id);
+  await secondDb.setMeta("offline:descriptor:" + identity.user.id, savedDescriptor);
   const second = createOfflineVaultSession({
-    database: db, cryptoVault: crypto,
+    database: secondDb, cryptoVault: crypto,
     cryptoImpl: { randomUUID: () => "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" },
   });
   await assert.rejects(second.unlockOffline(identity.user.id, "123456"), /another account or device/);
