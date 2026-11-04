@@ -121,6 +121,18 @@ export function createOfflineVaultDatabase({
     });
   }
 
+  // Import a legacy snapshot without creating a cloud queue item. The add()
+  // request is atomic and refuses to overwrite an existing encrypted record.
+  async function putRecordIfAbsent({ id, userId, kind, encrypted, updatedAt = new Date().toISOString() }) {
+    if (typeof id !== "string" || !id || typeof userId !== "string" || !userId ||
+        typeof kind !== "string" || !kind) fail("Record identity and kind are required");
+    assertEncrypted(encrypted, "Record payload");
+    return run([STORES.RECORDS], "readwrite", async (tx) => {
+      await requestResult(tx.objectStore(STORES.RECORDS).add({ id, userId, kind, encrypted, updatedAt }));
+      return id;
+    });
+  }
+
   async function getRecord(id, userId) {
     return run([STORES.RECORDS], "readonly", async (tx) => {
       const row = await requestResult(tx.objectStore(STORES.RECORDS).get([userId, id]));
@@ -423,7 +435,7 @@ export function createOfflineVaultDatabase({
   }
 
   return Object.freeze({
-    open, close, getMeta, setMeta, getCloudState, putRecord, putRecordAndEnqueue, putRecordAndCoalesceQueue, getRecord, listRecords, deleteRecord,
+    open, close, getMeta, setMeta, getCloudState, putRecord, putRecordIfAbsent, putRecordAndEnqueue, putRecordAndCoalesceQueue, getRecord, listRecords, deleteRecord,
     enqueue, listPending, claimQueueOperation, updateQueueOperation, markSynced, listPhotoCleanups, claimPhotoCleanup, updatePhotoCleanup, completePhotoCleanup, saveConflict, listConflicts,
   });
 }
