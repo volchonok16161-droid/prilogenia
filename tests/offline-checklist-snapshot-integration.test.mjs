@@ -12,6 +12,7 @@ test("all five checklist runtimes save full snapshots through the encrypted vaul
   assert.equal((html.match(/var __tmhOriginalSaveState = saveState/g) || []).length, 5);
   assert.equal((html.match(/api\.saveOfflineChecklist\(LS_KEY, snapshot\)/g) || []).length, 10);
   assert.match(html, /Сохранено в зашифрованном офлайн-хранилище/);
+  assert.equal((html.match(/typeof __tmhOfflineSaveChain !== 'undefined'/g) || []).length, 5);
   assert.match(html, /await __tmhOfflineSaveChain/);
 });
 
