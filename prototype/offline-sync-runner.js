@@ -137,7 +137,7 @@ export function createOfflineSyncRunner({
               revision,
               photoManifest: request.input?.payload?.photoManifest || [],
             }, request.cleanupManifest?.length ? {
-              cleanupId: operation.opId + ':photo-cleanup', manifest: request.cleanupManifest, createdAt: now(),
+              cleanupId: operation.opId + ':photo-cleanup', manifest: request.cleanupManifest, reason: 'delete', createdAt: now(),
             } : null);
           }
           if (!acknowledgement) throw new Error("Sync queue lease expired before acknowledgement");
@@ -198,8 +198,23 @@ export function createOfflineSyncRunner({
           cleanupClaim = claimIdFactory();
           const claimedCleanup = await database.claimPhotoCleanup(job.cleanupId, uid, cleanupClaim, claimedAt, leaseUntil);
           if (!claimedCleanup) continue;
-          const latest = await database.getCloudState(uid, job.entityId);
-          const activePaths = new Set((latest?.photoManifest || []).map((entry) => entry?.path).filter(Boolean));
+          let activeManifest = [];
+          if (job.reason === "delete") {
+            // A delete cleanup is authorized only after a fresh RLS-scoped
+            // lookup confirms that the cloud checklist is actually absent.
+            try {
+              await cloudSync.get(job.entityId);
+              throw new Error("Checklist still exists remotely; photo cleanup deferred");
+            } catch (lookupError) {
+              if (lookupError?.code !== "NOT_FOUND") throw lookupError;
+            }
+          } else {
+            const latestRemote = await cloudSync.get(job.entityId);
+            activeManifest = Array.isArray(latestRemote?.payload?.photoManifest)
+              ? latestRemote.payload.photoManifest
+              : [];
+          }
+          const activePaths = new Set(activeManifest.map((entry) => entry?.path).filter(Boolean));
           const staleManifest = (job.manifest || []).filter((entry) => entry?.path && !activePaths.has(entry.path));
           if (staleManifest.length) await mapOperation.removePhotoManifest(staleManifest);
           await database.completePhotoCleanup(job.cleanupId, uid, cleanupClaim);
