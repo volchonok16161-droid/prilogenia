@@ -1,16 +1,34 @@
 // Explicit, local-only import of the currently open legacy checklist.
 // The original LocalStorage/legacy photo records are never removed or modified.
 function currentChecklistContext() {
-  if (typeof window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT === "function") {
-    return window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT();
-  }
-  for (const frame of document.querySelectorAll("iframe")) {
+  const getters = [
+    () => window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT,
+    () => window.__TMH_GET_CLOUD_BACKUP_CONTEXT,
+    () => window.parent !== window ? window.parent.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT : null,
+    () => window.parent !== window ? window.parent.__TMH_GET_CLOUD_BACKUP_CONTEXT : null,
+  ];
+  for (const get of getters) {
     try {
-      const child = frame.contentWindow;
-      if (typeof child?.__TMH_GET_CLOUD_BACKUP_CONTEXT === "function") {
-        return child.__TMH_GET_CLOUD_BACKUP_CONTEXT();
+      const getter = get();
+      if (typeof getter === "function") {
+        const context = getter.call(window);
+        if (context?.storageKey && context?.state?.general) return context;
       }
     } catch {}
+  }
+  const documents = [document];
+  try { if (window.parent !== window) documents.push(window.parent.document); } catch {}
+  for (const doc of documents) {
+    for (const frame of doc.querySelectorAll("iframe")) {
+      try {
+        const child = frame.contentWindow;
+        const getter = child?.__TMH_GET_CLOUD_BACKUP_CONTEXT;
+        if (typeof getter === "function") {
+          const context = getter.call(child);
+          if (context?.storageKey && context?.state?.general) return context;
+        }
+      } catch {}
+    }
   }
   throw new Error("Сначала откройте нужный чек-лист");
 }
