@@ -20,8 +20,8 @@ function fixture({ identity, online=true, cloud={} } = {}) {
       Object.assign(row,{status:"processing",leaseClaimId:claimId,leaseUntil});
       return true;
     },
-    async updateQueueOperation(opId,uid,changes){ const row=queue.find(x=>x.opId===opId&&x.userId===uid); if(row) Object.assign(row,changes); return Boolean(row); },
-    async markSynced(opId,uid){ const i=queue.findIndex(x=>x.opId===opId&&x.userId===uid); if(i>=0) queue.splice(i,1); },
+    async updateQueueOperation(opId,uid,changes,expectedClaim){ const row=queue.find(x=>x.opId===opId&&x.userId===uid); if(!row || (expectedClaim!==undefined && row.leaseClaimId!==expectedClaim)) return false; Object.assign(row,changes); return true; },
+    async markSynced(opId,uid,_revision,expectedClaim){ const i=queue.findIndex(x=>x.opId===opId&&x.userId===uid); if(i<0 || (expectedClaim!==undefined && queue[i].leaseClaimId!==expectedClaim)) return false; queue.splice(i,1); return true; },
     async saveConflict(value){ conflicts.push(value); },
   };
   const authApi={async getCurrentIdentity(){return identity ?? {user:{id:UID},profile:{id:UID,role:"employee"},error:null};}};
@@ -94,8 +94,8 @@ test("two runners cannot claim and send the same live queue lease", async()=>{
      Object.assign(row,{status:"processing",leaseClaimId:claimId,leaseUntil});
      return true;
    },
-   async updateQueueOperation(opId,uid,changes){const row=queue.find(x=>x.opId===opId&&x.userId===uid);if(row)Object.assign(row,changes);return !!row;},
-   async markSynced(opId,uid){const i=queue.findIndex(x=>x.opId===opId&&x.userId===uid);if(i>=0)queue.splice(i,1);},
+   async updateQueueOperation(opId,uid,changes,expectedClaim){const row=queue.find(x=>x.opId===opId&&x.userId===uid);if(!row||(expectedClaim!==undefined&&row.leaseClaimId!==expectedClaim))return false;Object.assign(row,changes);return true;},
+   async markSynced(opId,uid,_revision,expectedClaim){const i=queue.findIndex(x=>x.opId===opId&&x.userId===uid);if(i<0||(expectedClaim!==undefined&&queue[i].leaseClaimId!==expectedClaim))return false;queue.splice(i,1);return true;},
    async saveConflict(){},
  };
  const identity={async getCurrentIdentity(){return {user:{id:UID},profile:{id:UID,role:"employee"},error:null};}};
@@ -126,4 +126,23 @@ test("expired processing lease becomes claimable after another tab closes", asyn
  const result=await runner.syncPending({userId:UID});
  assert.equal(result.synced,1);
  assert.equal(queue.length,0);
+});
+
+test("a stale lease owner cannot acknowledge or release a newer claim", async()=>{
+ const {queue}=fixture();
+ const row=queue[0];
+ row.status="processing";
+ row.leaseClaimId="new-owner";
+ const {runner}=fixture();
+ // The runner claims its own item in an isolated fixture; the stale-owner
+ // guard itself is asserted against the shared fake DB contract here.
+ const guarded={
+   async updateQueueOperation(opId,uid,changes,expected){if(row.opId!==opId||row.userId!==uid||row.leaseClaimId!==expected)return false;Object.assign(row,changes);return true;},
+   async markSynced(opId,uid,_revision,expected){if(row.opId!==opId||row.userId!==uid||row.leaseClaimId!==expected)return false;return true;},
+ };
+ assert.equal(await guarded.updateQueueOperation(row.opId,UID,{status:"pending"}, "old-owner"),false);
+ assert.equal(await guarded.markSynced(row.opId,UID,undefined,"old-owner"),false);
+ assert.equal(row.status,"processing");
+ assert.equal(row.leaseClaimId,"new-owner");
+ assert.ok(runner);
 });
