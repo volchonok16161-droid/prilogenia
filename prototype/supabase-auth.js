@@ -81,6 +81,7 @@ async function resolveLoginEmail(identifier) {
 }
 
 async function signIn(email, password) {
+  activeOfflineIdentity = null;
   const normalizedEmail = await resolveLoginEmail(email);
   if (!normalizedEmail || !password) {
     return { user: null, profile: null, error: new Error("Введите логин/email и пароль") };
@@ -166,6 +167,7 @@ async function hasOfflineSetup(userId) {
 }
 
 async function signOut() {
+  activeOfflineIdentity = null;
   const { error } = await client.auth.signOut();
   return { error: error || null };
 }
