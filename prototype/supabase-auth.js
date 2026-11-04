@@ -108,6 +108,25 @@ async function signIn(email, password) {
   return { user: data.user, profile: result.profile, error: null };
 }
 
+async function setupOfflinePin(pin) {
+  // Re-verify both the live Supabase session and the server-side profile.
+  // A stale local checklist_user value is never accepted as enrollment authority.
+  const identity = await getCurrentIdentity();
+  if (!identity?.user || !identity?.profile || identity.error) {
+    throw new Error("Для создания офлайн-PIN требуется действующий онлайн-вход");
+  }
+  return offlineVault.session.setupAfterVerifiedOnlineLogin(identity, pin);
+}
+
+async function unlockOffline(userId, pin) {
+  // Local PIN unlock is deliberately separate from signIn/getCurrentIdentity.
+  return offlineVault.session.unlockOffline(userId, pin);
+}
+
+async function hasOfflineSetup(userId) {
+  return offlineVault.session.hasOfflineSetup(userId);
+}
+
 async function signOut() {
   const { error } = await client.auth.signOut();
   return { error: error || null };
@@ -116,6 +135,9 @@ async function signOut() {
 const api = Object.freeze({
   client,
   offlineVault,
+  setupOfflinePin,
+  unlockOffline,
+  hasOfflineSetup,
   storageKey: STORAGE_KEY,
   getCurrentIdentity,
   signIn,
