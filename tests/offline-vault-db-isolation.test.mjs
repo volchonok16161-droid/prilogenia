@@ -38,3 +38,11 @@ test("an earlier processing operation blocks later operations for the same entit
   assert.match(source, /const processing = await requestResult\(store\.index\("byUserStatus"\)\.getAll\(\[userId, "processing"\]\)\)/);
   assert.match(source, /item\.opId !== opId && item\.entityId === row\.entityId/);
 });
+
+test("confirmed cloud revisions are persisted atomically with queue acknowledgement", () => {
+  assert.match(source, /function cloudStateKey\(userId, entityId\)/);
+  assert.match(source, /async function getCloudState\(userId, entityId\)/);
+  assert.match(source, /async function markSynced\(opId, userId, serverRevision, expectedLeaseClaimId, cloudState = undefined\)/);
+  assert.match(source, /STORES\.QUEUE, STORES\.META/);
+  assert.match(source, /photoManifest: cloudState\.photoManifest \|\| \[\]/);
+});
