@@ -11,6 +11,7 @@ function assertDependencies({ authApi, database, vault, cloudSync, mapOperation 
       typeof database?.updateQueueOperation !== "function" ||
       typeof database?.markSynced !== "function" ||
       typeof database?.saveConflict !== "function" ||
+      typeof database?.getCloudState !== "function" ||
       typeof vault?.decrypt !== "function" || typeof vault?.encrypt !== "function" ||
       typeof mapOperation !== "function" ||
       !["create", "update", "remove", "get"].every((key) => typeof cloudSync?.[key] === "function")) {
@@ -75,7 +76,27 @@ export function createOfflineSyncRunner({
           throw new Error("Очередь содержит некорректную операцию владельца");
         }
         const localValue = await vault.decrypt(operation.encrypted);
-        const request = await mapOperation(operation, localValue);
+        const cloudState = await database.getCloudState(uid, operation.entityId);
+        let effectiveOperation = operation;
+        let effectiveValue = localValue;
+        if (operation.operation === "create" && cloudState?.revision) {
+          // Recover safely from a lost acknowledgement after a successful create.
+          // The row id is deterministic; RLS-scoped get() proves it belongs to this user.
+          const existing = await cloudSync.get(operation.entityId);
+          if (existing?.id !== operation.entityId || existing?.revision !== cloudState.revision) {
+            const error = new Error("Cloud record exists but its saved revision cannot be verified");
+            error.code = "REVISION_CONFLICT";
+            throw error;
+          }
+          effectiveOperation = { ...operation, operation: "update" };
+        }
+        if (operation.operation === "update" && cloudState?.revision) {
+          effectiveValue = {
+            ...localValue,
+            cloud: { ...localValue.cloud, expectedRevision: cloudState.revision },
+          };
+        }
+        const request = await mapOperation(effectiveOperation, effectiveValue);
         if (!request || !["create", "update", "remove"].includes(request.method)) {
           throw new TypeError("mapOperation must return create, update, or remove");
         }
@@ -89,7 +110,19 @@ export function createOfflineSyncRunner({
 
         try {
           try {
-            await cloudSync[request.method](request.method === "remove" ? request.id : request.input);
+            const cloudResult = await cloudSync[request.method](request.method === "remove" ? request.id : request.input);
+          if (request.method === "remove") {
+            await database.markSynced(operation.opId, uid, undefined, claimId, null);
+          } else {
+            const revision = Number(cloudResult?.revision);
+            if (!Number.isSafeInteger(revision) || revision < 1) {
+              throw new Error("Cloud API did not return a valid checklist revision");
+            }
+            await database.markSynced(operation.opId, uid, revision, claimId, {
+              revision,
+              photoManifest: request.input?.payload?.photoManifest || [],
+            });
+          }
           } catch (cloudError) {
             // Photo objects are uploaded before the checklist row. If the row
             // write fails or conflicts, remove only this operation's uploads.
@@ -99,8 +132,7 @@ export function createOfflineSyncRunner({
             }
             throw cloudError;
           }
-          const removed = await database.markSynced(operation.opId, uid, undefined, claimId);
-          if (!removed) throw new Error("Sync queue lease expired before acknowledgement");
+          // markSynced atomically persists the confirmed server revision and clears this queue item.
           synced += 1;
         } catch (error) {
           if (error?.code !== "REVISION_CONFLICT" || request.method !== "update") throw error;
