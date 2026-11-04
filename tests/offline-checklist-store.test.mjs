@@ -8,6 +8,7 @@ function fixture() {
   const queue = [];
   const conflicts = [];
   const calls = [];
+  let nextOpId = 0;
   const database = {
     async putRecordAndEnqueue(value) {
       if (value.onlyIfAbsent && records.has(value.id)) {
@@ -27,11 +28,10 @@ function fixture() {
         error.name = "ConstraintError";
         throw error;
       }
-      records.set(value.id, { id: value.id, userId: value.userId, kind: value.kind, encrypted: value.encrypted, updatedAt: value.updatedAt });
       const matching = queue.filter(row => row.userId === value.userId && row.entityId === value.entityId && row.status === "pending");
       const current = matching.find(row => ["create","update","delete"].includes(row.operation) && ["create","update","delete"].includes(value.operation));
       if (current) {
-        if (current.operation === "delete" && value.operation === "update") throw new Error("Cannot update an entity while its deletion is pending");
+        if (current.operation === "delete" && (value.operation === "update" || value.operation === "create")) throw new Error("Cannot modify an entity while its deletion is pending");
         if (current.operation === "create" && value.operation === "delete") throw new Error("A pending create must be resolved before deleting the entity");
         if (current.operation === "update" && value.operation === "create") throw new Error("Cannot create an entity that already has a pending update");
         if (!(current.operation === "delete" && value.operation === "create")) {
@@ -42,6 +42,7 @@ function fixture() {
           return { id: value.id, opId: current.opId, coalesced: true };
         }
       }
+      records.set(value.id, { id: value.id, userId: value.userId, kind: value.kind, encrypted: value.encrypted, updatedAt: value.updatedAt });
       queue.push({ opId: value.opId, userId: value.userId, entityId: value.entityId, operation: value.operation, encrypted: value.encrypted, createdAt: value.createdAt, updatedAt: value.updatedAt, status: "pending", attempts: 0 });
       calls.push("atomic-write");
       return { id: value.id, opId: value.opId, coalesced: false };
@@ -60,7 +61,7 @@ function fixture() {
     async encrypt(value) { return { version: 1, iv: "iv", ciphertext: Buffer.from(JSON.stringify(value)).toString("base64") }; },
     async decrypt(record) { return JSON.parse(Buffer.from(record.ciphertext, "base64").toString("utf8")); },
   };
-  const store = createOfflineChecklistStore({ database, vault, userId: uid, idFactory: () => "op-1", now: () => "2026-11-04T10:00:00.000Z" });
+  const store = createOfflineChecklistStore({ database, vault, userId: uid, idFactory: () => "op-" + (++nextOpId), now: () => "2026-11-04T10:00:00.000Z" });
   return { store, records, queue, calls };
 }
 
@@ -192,15 +193,18 @@ test("photo uploads are not coalesced with checklist mutations", async () => {
   assert.equal(queue[1].operation, "photo-upload");
 });
 
-test("a queued deletion followed by a create remains two ordered operations", async () => {
-  const { store, queue } = fixture();
+test("a queued deletion blocks a later create until deletion is resolved", async () => {
+  const { store, queue, records } = fixture();
   const deletion = await store.saveChecklist({ id: "checklist-1", entityId: "cloud-entity-1", operation: "delete", value: { tombstone: true } });
-  const creation = await store.saveChecklist({ id: "checklist-1", entityId: "cloud-entity-1", operation: "create", value: { version: 2 } });
-  assert.equal(queue.length, 2);
+  const before = records.get("checklist-1");
+  await assert.rejects(
+    store.saveChecklist({ id: "checklist-1", entityId: "cloud-entity-1", operation: "create", value: { version: 2 } }),
+    /deletion is pending/
+  );
+  assert.equal(queue.length, 1);
   assert.equal(queue[0].opId, deletion.opId);
   assert.equal(queue[0].operation, "delete");
-  assert.equal(queue[1].opId, creation.opId);
-  assert.equal(queue[1].operation, "create");
+  assert.deepEqual(records.get("checklist-1"), before);
 });
 
 test("a queued deletion blocks a later update without replacing the saved snapshot", async () => {
