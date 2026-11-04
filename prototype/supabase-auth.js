@@ -200,6 +200,23 @@ async function setupOfflinePin(pin) {
   return enrollment;
 }
 
+async function getCurrentIdentityForOfflineUnlock(timeoutMs = 1800) {
+  // PIN unlock must remain usable when the network is absent or captive.
+  // A timed-out server check does not authenticate the user; the sync runner
+  // will perform its own fresh server-side check before any upload.
+  let timer;
+  try {
+    return await Promise.race([
+      getCurrentIdentity(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Онлайн-проверка временно недоступна")), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 async function unlockOffline(userId, pin) {
   // Local PIN unlock is deliberately separate from signIn/getCurrentIdentity.
   const result = await offlineVault.session.unlockOffline(userId, pin);
@@ -219,7 +236,7 @@ async function unlockOffline(userId, pin) {
   // local-only offline identity.
   let onlineIdentity = null;
   try {
-    const candidate = await getCurrentIdentity();
+    const candidate = await getCurrentIdentityForOfflineUnlock();
     if (!candidate?.error && candidate?.user?.id === result.userId && candidate?.profile?.id === result.userId) {
       onlineIdentity = candidate;
     }
