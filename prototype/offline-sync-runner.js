@@ -89,6 +89,10 @@ export function createOfflineSyncRunner({
             throw error;
           }
           effectiveOperation = { ...operation, operation: "update" };
+          effectiveValue = {
+            ...localValue,
+            cloud: { ...localValue.cloud, expectedRevision: cloudState.revision },
+          };
         }
         if (operation.operation === "update" && cloudState?.revision) {
           effectiveValue = {
