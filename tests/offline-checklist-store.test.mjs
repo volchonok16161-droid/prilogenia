@@ -1,0 +1,78 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createOfflineChecklistStore } from "../prototype/offline-checklist-store.js";
+
+const uid = "11111111-1111-4111-8111-111111111111";
+function fixture() {
+  const records = new Map();
+  const queue = [];
+  const conflicts = [];
+  const calls = [];
+  const database = {
+    async putRecordAndEnqueue(value) {
+      if (records.get(value.id)?.userId !== value.userId) {
+        records.set(value.id, { id: value.id, userId: value.userId, kind: value.kind, encrypted: value.encrypted, updatedAt: value.updatedAt });
+      }
+      queue.push({ opId: value.opId, userId: value.userId, entityId: value.entityId, operation: value.operation, encrypted: value.encrypted, createdAt: value.createdAt, status: "pending", attempts: 0 });
+      calls.push("atomic-write");
+    },
+    async getRecord(id, userId) {
+      const row = records.get(id);
+      return row?.userId === userId ? row : null;
+    },
+    async listRecords(userId, kind) {
+      return [...records.values()].filter(row => row.userId === userId && (!kind || row.kind === kind));
+    },
+    async listPending(userId) { return queue.filter(row => row.userId === userId && row.status === "pending"); },
+    async listConflicts(userId) { return conflicts.filter(row => row.userId === userId); },
+  };
+  const vault = {
+    async encrypt(value) { return { version: 1, iv: "iv", ciphertext: "cipher:" + JSON.stringify(value) }; },
+    async decrypt(record) { return JSON.parse(record.ciphertext.slice(7)); },
+  };
+  const store = createOfflineChecklistStore({ database, vault, userId: uid, idFactory: () => "op-1", now: () => "2026-11-04T10:00:00.000Z" });
+  return { store, records, queue, calls };
+}
+
+test("checklist snapshots are encrypted before atomic snapshot-plus-queue write", async () => {
+  const { store, records, queue, calls } = fixture();
+  const value = { checks: [true, false], note: "offline" };
+  const result = await store.saveChecklist({ id: "checklist-1", value });
+  assert.equal(result.status, "pending-sync");
+  assert.equal(calls.length, 1);
+  assert.equal(records.get("checklist-1").encrypted.version, 1);
+  assert.equal(JSON.stringify(records.get("checklist-1")).includes("offline"), false);
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0].encrypted.version, 1);
+  assert.deepEqual((await store.readChecklist("checklist-1")).value, value);
+});
+
+test("legacy import requires explicit confirmation and never deletes the legacy source", async () => {
+  const { store, records } = fixture();
+  const legacy = { oldLocalStorageKey: "still-here", checked: [1] };
+  await assert.rejects(store.migrateLegacySnapshot({ id: "legacy-1", legacyValue: legacy }), /Explicit confirmation/);
+  assert.equal(records.has("legacy-1"), false);
+  await store.migrateLegacySnapshot({ id: "legacy-1", legacyValue: legacy, confirmed: true });
+  assert.deepEqual((await store.readChecklist("legacy-1")).value, legacy);
+});
+
+test("duplicate legacy import is refused rather than overwriting an encrypted snapshot", async () => {
+  const { store } = fixture();
+  await store.migrateLegacySnapshot({ id: "legacy-1", legacyValue: { n: 1 }, confirmed: true });
+  await assert.rejects(store.migrateLegacySnapshot({ id: "legacy-1", legacyValue: { n: 2 }, confirmed: true }), /already exists/);
+  assert.equal((await store.readChecklist("legacy-1")).value.n, 1);
+});
+
+test("sync status distinguishes queued work from synchronized state", async () => {
+  const { store } = fixture();
+  assert.equal((await store.getSyncStatus()).status, "synced");
+  await store.saveChecklist({ id: "checklist-1", value: { ok: true } });
+  assert.equal((await store.getSyncStatus()).status, "pending-sync");
+  assert.equal((await store.getSyncStatus()).pendingCount, 1);
+});
+
+test("store rejects a missing or invalid user identity and a locked vault", () => {
+  const { store } = fixture();
+  assert.equal(store.userId, uid);
+  assert.throws(() => createOfflineChecklistStore({ database: {}, vault: {}, userId: "not-a-uuid" }), /database|UUID|vault/i);
+});
