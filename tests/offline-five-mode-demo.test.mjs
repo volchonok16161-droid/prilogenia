@@ -17,7 +17,7 @@ test("demo exercises actual AES-GCM encrypt/decrypt and persistent save/load", (
   assert.match(html, /vault\.encrypt\(value\)/);
   assert.match(html, /vault\.decrypt\(encrypted\)/);
   assert.match(html, /db\.putRecord/);
-  assert.match(html, /db\.getRecord/);
+  assert.match(html, /db\.getRecord/);\n  assert.match(html, /photoPreview/);\n  assert.match(html, /showPhoto\(photoData\)/);
 });
 
 test("demo provides five checklist modes and photo input without touching legacy storage", () => {
