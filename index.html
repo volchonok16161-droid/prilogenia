@@ -18684,10 +18684,15 @@ async function init(){
     }
 
     if(EMBEDDED_MODES.indexOf(MODE)!==-1){
-        // Render the same checklist immediately; authentication only unlocks its storage.
-        showEmbeddedApp(MODE);
         const hasAuth = await checkAuth();
-        if(!hasAuth){document.getElementById('loginModal').style.display='flex';setupCommonHandlers();return;}
+        if(!hasAuth){document.getElementById('loginModal').style.display='flex';showEmbeddedApp(MODE);setupCommonHandlers();return;}
+        const requestedLocalId = new URLSearchParams(window.location.search).get('openLocalChecklist');
+        if(requestedLocalId){
+            const api = __getTMHAuthApi();
+            try { await api.activateOfflineChecklistInstance(LS_KEY, requestedLocalId); }
+            catch(error){ showToast(error.message || 'Не удалось открыть локальный чек-лист'); }
+        }
+        showEmbeddedApp(MODE);
         updateModePicker();
         setupCommonHandlers();
         return;
@@ -18696,9 +18701,16 @@ async function init(){
     updateModeTitle();
     updateModePicker();
     const hasAuth = await checkAuth();
-    const __requestedChecklistId=new URLSearchParams(window.location.search).get('openChecklist');
+    const __params = new URLSearchParams(window.location.search);
+    const __requestedChecklistId=__params.get('openChecklist');
+    const __requestedLocalId=__params.get('openLocalChecklist');
     if(!hasAuth)document.getElementById('loginModal').style.display='flex';
     else if(__requestedChecklistId){document.getElementById('continueDialog').style.display='none';const __restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');if(__restoreButton)__restoreButton.click();else showToast('Кнопка восстановления облачной записи недоступна');}
+    else if(__requestedLocalId){
+        const api=__getTMHAuthApi();
+        try{await api.activateOfflineChecklistInstance(LS_KEY,__requestedLocalId);await startApp(false);}
+        catch(error){showToast(error.message||'Не удалось открыть локальный чек-лист');showContinueDialogOrStart();}
+    }
     else showContinueDialogOrStart();
     setupCommonHandlers();
 }
