@@ -87,7 +87,24 @@ export function createChecklistCloudRestore({
             return result;
           }, {});
         };
-        stateChanged = JSON.stringify(comparable(currentState)) !== JSON.stringify(comparable(hydratedState));
+
+        // applyState preserves local photos when the cloud payload has no photo
+        // for that field. Compare against that effective incoming state, otherwise
+        // those intentionally preserved photos make every repeated restore look
+        // like a destructive change and create another safety snapshot.
+        const stateToApply = structuredClone(hydratedState);
+        const oldValues = currentState.values || {};
+        const newValues = stateToApply.values || (stateToApply.values = {});
+        Object.keys(oldValues).forEach((itemId) => {
+          const oldItem = oldValues[itemId] || {};
+          const newItem = newValues[itemId] || (newValues[itemId] = {});
+          Object.keys(oldItem).forEach((key) => {
+            if (/_photo$/i.test(key) && oldItem[key] && !newItem[key]) {
+              newItem[key] = oldItem[key];
+            }
+          });
+        });
+        stateChanged = JSON.stringify(comparable(currentState)) !== JSON.stringify(comparable(stateToApply));
       }
     }
     if (stateChanged && beforeApply) {
