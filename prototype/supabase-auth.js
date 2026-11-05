@@ -441,18 +441,6 @@ async function beginNewOfflineChecklistInstance(storageId) {
   return { ready: true, mode: getChecklistMode(storageId) };
 }
 
-function activeInstanceMetaKey(storageId, userId = activeOfflineUserId) {
-  const mode = getChecklistMode(storageId);
-  return "offline:active-instance:" + userId + ":" + mode;
-}
-
-async function beginNewOfflineChecklistInstance(storageId) {
-  if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
-  const key = activeInstanceMetaKey(storageId);
-  await offlineVault.database.setMeta(key, null);
-  return { ready: true, mode: getChecklistMode(storageId) };
-}
-
 async function getOfflineChecklistInstances() {
   if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
   const store = ensureOfflineSync();
