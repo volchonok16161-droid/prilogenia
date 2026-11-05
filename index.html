@@ -1059,6 +1059,15 @@ import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js
 import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.js';
 
 import { createChecklistPhotoSync } from './prototype/supabase-cloud-photos.js';
+import { createChecklistExcelArchive } from './prototype/supabase-cloud-excel-archive.js';
+
+window.__TMH_SAVE_EXCEL_EXPORT = async function(blob, metadata) {
+  await __psEnsureCloudReady();
+  const api = window.TMHAuthReady ? await window.TMHAuthReady : window.TMHAuth;
+  if (!api) throw new Error('Авторизация Supabase недоступна');
+  const archive = createChecklistExcelArchive({ authApi: api });
+  return archive.save({ blob, ...metadata });
+};
 const __enableOfflineSyncButton = document.getElementById('enableOfflineSyncBtn');
 if (__enableOfflineSyncButton) __enableOfflineSyncButton.hidden = true;
 
