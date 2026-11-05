@@ -32,3 +32,13 @@ for (const [file, mode] of modes) {
     assert.match(source.slice(click, click + 250), /Excel скачан, но не сохранён в облако/);
   });
 }
+
+test("the native complex checklist export also uploads its workbook before download", () => {
+  const start = main.indexOf("async function exportWithPhotos");
+  const anchor = main.indexOf("a.download=sb+'.xlsx';", start);
+  const upload = main.indexOf("__saveExcel(blob", anchor);
+  const click = main.indexOf("a.click()", anchor);
+  assert.ok(start >= 0 && anchor > start && upload > anchor && click > upload);
+  assert.match(main.slice(upload, click), /mode: MODE/);
+  assert.match(main.slice(upload, click), /checklistType: type/);
+});
