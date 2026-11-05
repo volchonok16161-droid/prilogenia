@@ -1070,16 +1070,34 @@ import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.
 
 import { createChecklistPhotoSync } from './prototype/supabase-cloud-photos.js';
 const __offlineSyncLabels = {
-  locked: 'Офлайн-хранилище закрыто',
-  offline: 'Офлайн',
-  'checking-session': 'Проверка аккаунта…',
+  locked: 'Сохранение на устройстве',
+  offline: 'Офлайн — сохранено на устройстве',
+  'checking-session': 'Проверяем облачную сессию…',
   syncing: 'Синхронизация…',
   'pending-sync': 'Ожидает синхронизации',
   synced: 'Синхронизировано',
-  conflict: 'Конфликт — требуется решение',
-  'auth-required': 'Нужен вход для синхронизации',
+  conflict: 'Конфликт синхронизации',
+  'auth-required': 'Локально сохранено · нужен вход для облака',
   error: 'Ошибка синхронизации',
 };
+window.__TMH_SET_CONNECTION_STATUS = function(mode) {
+  const element = document.getElementById('offlineSyncStatus');
+  if (!element) return;
+  if (mode === 'offline') {
+    element.textContent = __offlineSyncLabels.offline;
+    element.title = 'Изменения сохраняются локально на этом устройстве';
+  } else if (mode === 'online') {
+    element.textContent = 'Онлайн · облако проверяется при синхронизации';
+    element.title = 'Сеть доступна; облачные операции требуют действующей сессии';
+  }
+};
+window.addEventListener('offline', function() { window.__TMH_SET_CONNECTION_STATUS('offline'); });
+window.addEventListener('online', function() {
+  const element = document.getElementById('offlineSyncStatus');
+  if (element) element.textContent = 'Сеть появилась · проверяем сессию…';
+  if (typeof checkAuth === 'function') void checkAuth();
+});
+window.__TMH_SET_CONNECTION_STATUS(navigator.onLine === false ? 'offline' : 'online');
 window.addEventListener('tmh-offline-sync-status', function(event) {
   const element = document.getElementById('offlineSyncStatus');
   if (!element) return;
@@ -1089,29 +1107,7 @@ window.addEventListener('tmh-offline-sync-status', function(event) {
     element.textContent + ' · в очереди: ' + status.remaining;
 });
 const __enableOfflineSyncButton = document.getElementById('enableOfflineSyncBtn');
-if (__enableOfflineSyncButton) {
-  __enableOfflineSyncButton.addEventListener('click', async function() {
-    if (!window.confirm('Включить облачную синхронизацию для будущих сохранений? Старые локальные копии не будут отправлены автоматически. Синхронизация начнётся после следующего сохранения и только после проверки онлайн-аккаунта.')) return;
-    __enableOfflineSyncButton.disabled = true;
-    try {
-      const api = window.TMHAuthReady ? await window.TMHAuthReady : window.TMHAuth;
-      if (!api) throw new Error('Авторизация недоступна');
-      if (!api.isOfflineVaultUnlocked()) {
-        const userId = await api.getLastOfflineUserId();
-        if (!userId) throw new Error('Сначала войдите онлайн и настройте PIN для этого устройства');
-        const pin = window.prompt('Введите PIN этого устройства для разблокировки зашифрованного хранилища');
-        if (pin === null) return;
-        await api.unlockOffline(userId, pin);
-      }
-      await api.enableOfflineCloudSync();
-      __enableOfflineSyncButton.textContent = 'Синхронизация включена';
-      if (typeof showToast === 'function') showToast('Синхронизация включена. Новые изменения отправятся после следующего сохранения');
-    } catch (error) {
-      __enableOfflineSyncButton.disabled = false;
-      if (typeof showToast === 'function') showToast(error && error.message || 'Не удалось включить синхронизацию');
-    }
-  });
-}
+if (__enableOfflineSyncButton) __enableOfflineSyncButton.hidden = true;
 
 const restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');
 if(restoreButton){
@@ -1246,8 +1242,7 @@ if(button){
     <div class="user-info" id="userInfo" style="display:none;">
         <span>👤 <span id="userName">Пользователь</span></span>
         <span class="role" id="userRole">(user)</span>
-        <span class="role" id="offlineSyncStatus" aria-live="polite" title="Состояние офлайн-синхронизации"></span>
-        <button class="logout-btn" id="enableOfflineSyncBtn" type="button" title="Разрешить отправку будущих сохранений в облако">Включить синхронизацию</button>
+        <span class="role" id="offlineSyncStatus" aria-live="polite" title="Автоматическое состояние подключения и синхронизации"></span>
         <a class="logout-btn account-cabinet-btn" id="accountCabinetLink" href="./account.html" aria-label="Открыть личный кабинет"><span aria-hidden="true">👤</span><span>Личный кабинет</span></a>
         <button class="logout-btn" id="logoutBtn">Выход</button>
     </div>
@@ -1352,10 +1347,6 @@ if(button){
         <div class="field"><label>Пароль</label><input type="password" id="passwordInput" placeholder="Введите пароль"></div>
         <div class="error" id="loginError">Неверный логин или пароль</div>
         <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
-        <div class="field"><label>PIN этого устройства (6–12 цифр)</label><input type="password" inputmode="numeric" autocomplete="off" id="offlinePinInput" placeholder="PIN устройства"></div>
-        <div class="btn-row">
-            <button class="btn" type="button" id="unlockOfflineBtn">Войти офлайн</button>
-        </div>
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
             <a href="https://prilogenia-password-recovery.onrender.com/" target="_blank" rel="noopener noreferrer" style="color:var(--amber);text-decoration:underline;">Забыли пароль? Восстановить по email</a>
         </div>
@@ -2806,10 +2797,6 @@ const EMBED_TT_HTML=`<!DOCTYPE html>
             <div class="field"><label>Пароль</label><input type="password" id="passwordInput" placeholder="Введите пароль"></div>
             <div class="error" id="loginError">Неверный логин или пароль</div>
             <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
-        <div class="field"><label>PIN этого устройства (6–12 цифр)</label><input type="password" inputmode="numeric" autocomplete="off" id="offlinePinInput" placeholder="PIN устройства"></div>
-        <div class="btn-row">
-            <button class="btn" type="button" id="unlockOfflineBtn">Войти офлайн</button>
-        </div>
             <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
                 
             </div>
@@ -2910,10 +2897,12 @@ async function checkAuth() {
   if (!api) { currentUser = null; return false; }
   __tmhInstallAuthWatcher(api);
   try {
-    __tmhBindOfflinePinControls();
     let identity = await api.getOfflineIdentity();
     if (!identity?.user || !identity?.profile) {
       identity = await api.getCurrentIdentity();
+      if ((!identity?.user || !identity?.profile) && typeof api.getCachedOfflineIdentity === 'function') {
+        identity = await api.getCachedOfflineIdentity(identity?.error);
+      }
     }
     if (!identity || !identity.user || !identity.profile) {
       currentUser = null;
@@ -2922,12 +2911,16 @@ async function checkAuth() {
       return false;
     }
     __tmhApplyUserStorageScope(identity.user.id);
-    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock';
+    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
+    var __tmhStatusOwner = window;
+    try { if (window.parent && window.parent !== window) __tmhStatusOwner = window.parent; } catch (e) {}
+    if (typeof __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS === 'function') {
+      __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS(window.__TMH_OFFLINE_MODE ? 'offline' : 'online');
+    }
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
-    if (identity.mode === 'offline-local-unlock') {
-      // Do not copy the offline profile into plaintext localStorage.
-      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+    if (identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache') {
+      // Do not elevate cached/offline identity into a fresh cloud session.
     } else {
       try {
         localStorage.setItem('checklist_user', JSON.stringify({
@@ -2971,50 +2964,13 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
-  try {
-    if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
-        window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
-      const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
-      if (offlinePin !== null) {
-        await api.setupOfflinePin(offlinePin);
-        showToast('Офлайн-PIN создан для этого устройства');
-      }
-    }
-  } catch (error) {
-    // Offline storage is optional; never block a successful online login.
-    showToast(error?.message || 'Не удалось настроить офлайн-PIN');
-  }
   updateUserUI();
   const modal = document.getElementById('loginModal');
   if (modal) modal.style.display = 'none';
   return true;
 }
 
-function __tmhBindOfflinePinControls() {
-  const api = __getTMHAuthApi();
-  const pinInput = document.getElementById('offlinePinInput');
-  const unlockButton = document.getElementById('unlockOfflineBtn');
-  if (!api || !pinInput || !unlockButton || unlockButton.dataset.bound === '1') return;
-  unlockButton.dataset.bound = '1';
-  unlockButton.onclick = async function() {
-    const pin = String(pinInput.value || '');
-    if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
-    unlockButton.disabled = true;
-    try {
-      const userId = await api.getLastOfflineUserId();
-      if (!userId) throw new Error('На этом устройстве ещё не настроен офлайн-PIN');
-      await api.unlockOffline(userId, pin);
-      pinInput.value = '';
-      if (!(await checkAuth())) throw new Error('Не удалось открыть локальный профиль');
-      const modal = document.getElementById('loginModal');
-      if (modal) modal.style.display = 'none';
-      if (typeof showContinueDialogOrStart === 'function') showContinueDialogOrStart();
-      showToast('Офлайн-доступ открыт. При восстановлении сети проверим аккаунт и синхронизируем изменения');
-    } catch (error) {
-      showToast(error?.message || 'Не удалось выполнить офлайн-вход');
-    } finally { unlockButton.disabled = false; }
-  };
-}
+function __tmhBindOfflinePinControls() {}
 
 async function doLogout() {
   try {
@@ -3698,7 +3654,12 @@ saveState = function(silent) {
   if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
   var api = __getTMHAuthApi();
   if (window.__TMH_OFFLINE_MODE) {
-    if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
+    // Without an unlocked legacy vault, preserve normal localStorage saving.
+    // Never fail a user's checklist edit merely because cloud/offline crypto is locked.
+    if (!api || typeof api.isOfflineVaultUnlocked !== 'function' || !api.isOfflineVaultUnlocked()) {
+      return __tmhOriginalSaveState.apply(this, arguments);
+    }
+    if (typeof api.saveOfflineChecklist !== 'function') return __tmhOriginalSaveState.apply(this, arguments);
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
@@ -3718,7 +3679,8 @@ saveState = function(silent) {
     return true;
   }
   var result = __tmhOriginalSaveState.apply(this, arguments);
-  if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
+  if (result !== false && api && typeof api.saveOfflineChecklist === 'function' &&
+      typeof api.isOfflineVaultUnlocked === 'function' && api.isOfflineVaultUnlocked()) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
@@ -6576,10 +6538,6 @@ const EMBED_BI_HTML=`<!DOCTYPE html>
             <div class="field"><label>Пароль</label><input type="password" id="passwordInput" placeholder="Введите пароль"></div>
             <div class="error" id="loginError">Неверный логин или пароль</div>
             <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
-        <div class="field"><label>PIN этого устройства (6–12 цифр)</label><input type="password" inputmode="numeric" autocomplete="off" id="offlinePinInput" placeholder="PIN устройства"></div>
-        <div class="btn-row">
-            <button class="btn" type="button" id="unlockOfflineBtn">Войти офлайн</button>
-        </div>
             <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
                 
             </div>
@@ -6681,10 +6639,12 @@ async function checkAuth() {
   if (!api) { currentUser = null; return false; }
   __tmhInstallAuthWatcher(api);
   try {
-    __tmhBindOfflinePinControls();
     let identity = await api.getOfflineIdentity();
     if (!identity?.user || !identity?.profile) {
       identity = await api.getCurrentIdentity();
+      if ((!identity?.user || !identity?.profile) && typeof api.getCachedOfflineIdentity === 'function') {
+        identity = await api.getCachedOfflineIdentity(identity?.error);
+      }
     }
     if (!identity || !identity.user || !identity.profile) {
       currentUser = null;
@@ -6693,12 +6653,16 @@ async function checkAuth() {
       return false;
     }
     __tmhApplyUserStorageScope(identity.user.id);
-    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock';
+    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
+    var __tmhStatusOwner = window;
+    try { if (window.parent && window.parent !== window) __tmhStatusOwner = window.parent; } catch (e) {}
+    if (typeof __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS === 'function') {
+      __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS(window.__TMH_OFFLINE_MODE ? 'offline' : 'online');
+    }
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
-    if (identity.mode === 'offline-local-unlock') {
-      // Do not copy the offline profile into plaintext localStorage.
-      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+    if (identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache') {
+      // Do not elevate cached/offline identity into a fresh cloud session.
     } else {
       try {
         localStorage.setItem('checklist_user', JSON.stringify({
@@ -6742,50 +6706,13 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
-  try {
-    if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
-        window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
-      const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
-      if (offlinePin !== null) {
-        await api.setupOfflinePin(offlinePin);
-        showToast('Офлайн-PIN создан для этого устройства');
-      }
-    }
-  } catch (error) {
-    // Offline storage is optional; never block a successful online login.
-    showToast(error?.message || 'Не удалось настроить офлайн-PIN');
-  }
   updateUserUI();
   const modal = document.getElementById('loginModal');
   if (modal) modal.style.display = 'none';
   return true;
 }
 
-function __tmhBindOfflinePinControls() {
-  const api = __getTMHAuthApi();
-  const pinInput = document.getElementById('offlinePinInput');
-  const unlockButton = document.getElementById('unlockOfflineBtn');
-  if (!api || !pinInput || !unlockButton || unlockButton.dataset.bound === '1') return;
-  unlockButton.dataset.bound = '1';
-  unlockButton.onclick = async function() {
-    const pin = String(pinInput.value || '');
-    if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
-    unlockButton.disabled = true;
-    try {
-      const userId = await api.getLastOfflineUserId();
-      if (!userId) throw new Error('На этом устройстве ещё не настроен офлайн-PIN');
-      await api.unlockOffline(userId, pin);
-      pinInput.value = '';
-      if (!(await checkAuth())) throw new Error('Не удалось открыть локальный профиль');
-      const modal = document.getElementById('loginModal');
-      if (modal) modal.style.display = 'none';
-      if (typeof showContinueDialogOrStart === 'function') showContinueDialogOrStart();
-      showToast('Офлайн-доступ открыт. Синхронизация пока недоступна');
-    } catch (error) {
-      showToast(error?.message || 'Не удалось выполнить офлайн-вход');
-    } finally { unlockButton.disabled = false; }
-  };
-}
+function __tmhBindOfflinePinControls() {}
 
 async function doLogout() {
   try {
@@ -7781,7 +7708,12 @@ saveState = function(silent) {
   if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
   var api = __getTMHAuthApi();
   if (window.__TMH_OFFLINE_MODE) {
-    if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
+    // Without an unlocked legacy vault, preserve normal localStorage saving.
+    // Never fail a user's checklist edit merely because cloud/offline crypto is locked.
+    if (!api || typeof api.isOfflineVaultUnlocked !== 'function' || !api.isOfflineVaultUnlocked()) {
+      return __tmhOriginalSaveState.apply(this, arguments);
+    }
+    if (typeof api.saveOfflineChecklist !== 'function') return __tmhOriginalSaveState.apply(this, arguments);
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
@@ -7801,7 +7733,8 @@ saveState = function(silent) {
     return true;
   }
   var result = __tmhOriginalSaveState.apply(this, arguments);
-  if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
+  if (result !== false && api && typeof api.saveOfflineChecklist === 'function' &&
+      typeof api.isOfflineVaultUnlocked === 'function' && api.isOfflineVaultUnlocked()) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
@@ -9931,10 +9864,6 @@ html[data-theme="dark"] .frow.unfilled-highlight,html[data-theme="dark"] .field.
     <div class="field"><label>Пароль</label><input type="password" id="passwordInput" placeholder="Введите пароль"></div>
     <div class="error" id="loginError">Неверный логин или пароль</div>
     <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
-        <div class="field"><label>PIN этого устройства (6–12 цифр)</label><input type="password" inputmode="numeric" autocomplete="off" id="offlinePinInput" placeholder="PIN устройства"></div>
-        <div class="btn-row">
-            <button class="btn" type="button" id="unlockOfflineBtn">Войти офлайн</button>
-        </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
       
     </div>
@@ -10035,10 +9964,12 @@ async function checkAuth() {
   if (!api) { currentUser = null; return false; }
   __tmhInstallAuthWatcher(api);
   try {
-    __tmhBindOfflinePinControls();
     let identity = await api.getOfflineIdentity();
     if (!identity?.user || !identity?.profile) {
       identity = await api.getCurrentIdentity();
+      if ((!identity?.user || !identity?.profile) && typeof api.getCachedOfflineIdentity === 'function') {
+        identity = await api.getCachedOfflineIdentity(identity?.error);
+      }
     }
     if (!identity || !identity.user || !identity.profile) {
       currentUser = null;
@@ -10047,12 +9978,16 @@ async function checkAuth() {
       return false;
     }
     __tmhApplyUserStorageScope(identity.user.id);
-    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock';
+    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
+    var __tmhStatusOwner = window;
+    try { if (window.parent && window.parent !== window) __tmhStatusOwner = window.parent; } catch (e) {}
+    if (typeof __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS === 'function') {
+      __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS(window.__TMH_OFFLINE_MODE ? 'offline' : 'online');
+    }
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
-    if (identity.mode === 'offline-local-unlock') {
-      // Do not copy the offline profile into plaintext localStorage.
-      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+    if (identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache') {
+      // Do not elevate cached/offline identity into a fresh cloud session.
     } else {
       try {
         localStorage.setItem('checklist_user', JSON.stringify({
@@ -10096,50 +10031,13 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
-  try {
-    if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
-        window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
-      const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
-      if (offlinePin !== null) {
-        await api.setupOfflinePin(offlinePin);
-        showToast('Офлайн-PIN создан для этого устройства');
-      }
-    }
-  } catch (error) {
-    // Offline storage is optional; never block a successful online login.
-    showToast(error?.message || 'Не удалось настроить офлайн-PIN');
-  }
   updateUserUI();
   const modal = document.getElementById('loginModal');
   if (modal) modal.style.display = 'none';
   return true;
 }
 
-function __tmhBindOfflinePinControls() {
-  const api = __getTMHAuthApi();
-  const pinInput = document.getElementById('offlinePinInput');
-  const unlockButton = document.getElementById('unlockOfflineBtn');
-  if (!api || !pinInput || !unlockButton || unlockButton.dataset.bound === '1') return;
-  unlockButton.dataset.bound = '1';
-  unlockButton.onclick = async function() {
-    const pin = String(pinInput.value || '');
-    if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
-    unlockButton.disabled = true;
-    try {
-      const userId = await api.getLastOfflineUserId();
-      if (!userId) throw new Error('На этом устройстве ещё не настроен офлайн-PIN');
-      await api.unlockOffline(userId, pin);
-      pinInput.value = '';
-      if (!(await checkAuth())) throw new Error('Не удалось открыть локальный профиль');
-      const modal = document.getElementById('loginModal');
-      if (modal) modal.style.display = 'none';
-      if (typeof showContinueDialogOrStart === 'function') showContinueDialogOrStart();
-      showToast('Офлайн-доступ открыт. Синхронизация пока недоступна');
-    } catch (error) {
-      showToast(error?.message || 'Не удалось выполнить офлайн-вход');
-    } finally { unlockButton.disabled = false; }
-  };
-}
+function __tmhBindOfflinePinControls() {}
 
 async function doLogout() {
   try {
@@ -12346,7 +12244,12 @@ saveState = function(silent) {
   if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
   var api = __getTMHAuthApi();
   if (window.__TMH_OFFLINE_MODE) {
-    if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
+    // Without an unlocked legacy vault, preserve normal localStorage saving.
+    // Never fail a user's checklist edit merely because cloud/offline crypto is locked.
+    if (!api || typeof api.isOfflineVaultUnlocked !== 'function' || !api.isOfflineVaultUnlocked()) {
+      return __tmhOriginalSaveState.apply(this, arguments);
+    }
+    if (typeof api.saveOfflineChecklist !== 'function') return __tmhOriginalSaveState.apply(this, arguments);
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
@@ -12366,7 +12269,8 @@ saveState = function(silent) {
     return true;
   }
   var result = __tmhOriginalSaveState.apply(this, arguments);
-  if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
+  if (result !== false && api && typeof api.saveOfflineChecklist === 'function' &&
+      typeof api.isOfflineVaultUnlocked === 'function' && api.isOfflineVaultUnlocked()) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
@@ -14632,10 +14536,6 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
         <div class="field"><label>Пароль</label><input type="password" id="passwordInput" placeholder="Введите пароль"></div>
         <div class="error" id="loginError">Неверный логин или пароль</div>
         <div class="btn-row"><button class="btn primary" id="loginBtn" style="flex:1;">Войти</button></div>
-        <div class="field"><label>PIN этого устройства (6–12 цифр)</label><input type="password" inputmode="numeric" autocomplete="off" id="offlinePinInput" placeholder="PIN устройства"></div>
-        <div class="btn-row">
-            <button class="btn" type="button" id="unlockOfflineBtn">Войти офлайн</button>
-        </div>
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-dim);text-align:center;">
             
         </div>
@@ -14736,10 +14636,12 @@ async function checkAuth() {
   if (!api) { currentUser = null; return false; }
   __tmhInstallAuthWatcher(api);
   try {
-    __tmhBindOfflinePinControls();
     let identity = await api.getOfflineIdentity();
     if (!identity?.user || !identity?.profile) {
       identity = await api.getCurrentIdentity();
+      if ((!identity?.user || !identity?.profile) && typeof api.getCachedOfflineIdentity === 'function') {
+        identity = await api.getCachedOfflineIdentity(identity?.error);
+      }
     }
     if (!identity || !identity.user || !identity.profile) {
       currentUser = null;
@@ -14748,12 +14650,16 @@ async function checkAuth() {
       return false;
     }
     __tmhApplyUserStorageScope(identity.user.id);
-    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock';
+    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
+    var __tmhStatusOwner = window;
+    try { if (window.parent && window.parent !== window) __tmhStatusOwner = window.parent; } catch (e) {}
+    if (typeof __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS === 'function') {
+      __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS(window.__TMH_OFFLINE_MODE ? 'offline' : 'online');
+    }
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
-    if (identity.mode === 'offline-local-unlock') {
-      // Do not copy the offline profile into plaintext localStorage.
-      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+    if (identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache') {
+      // Do not elevate cached/offline identity into a fresh cloud session.
     } else {
       try {
         localStorage.setItem('checklist_user', JSON.stringify({
@@ -14797,50 +14703,13 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
-  try {
-    if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
-        window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
-      const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
-      if (offlinePin !== null) {
-        await api.setupOfflinePin(offlinePin);
-        showToast('Офлайн-PIN создан для этого устройства');
-      }
-    }
-  } catch (error) {
-    // Offline storage is optional; never block a successful online login.
-    showToast(error?.message || 'Не удалось настроить офлайн-PIN');
-  }
   updateUserUI();
   const modal = document.getElementById('loginModal');
   if (modal) modal.style.display = 'none';
   return true;
 }
 
-function __tmhBindOfflinePinControls() {
-  const api = __getTMHAuthApi();
-  const pinInput = document.getElementById('offlinePinInput');
-  const unlockButton = document.getElementById('unlockOfflineBtn');
-  if (!api || !pinInput || !unlockButton || unlockButton.dataset.bound === '1') return;
-  unlockButton.dataset.bound = '1';
-  unlockButton.onclick = async function() {
-    const pin = String(pinInput.value || '');
-    if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
-    unlockButton.disabled = true;
-    try {
-      const userId = await api.getLastOfflineUserId();
-      if (!userId) throw new Error('На этом устройстве ещё не настроен офлайн-PIN');
-      await api.unlockOffline(userId, pin);
-      pinInput.value = '';
-      if (!(await checkAuth())) throw new Error('Не удалось открыть локальный профиль');
-      const modal = document.getElementById('loginModal');
-      if (modal) modal.style.display = 'none';
-      if (typeof showContinueDialogOrStart === 'function') showContinueDialogOrStart();
-      showToast('Офлайн-доступ открыт. Синхронизация пока недоступна');
-    } catch (error) {
-      showToast(error?.message || 'Не удалось выполнить офлайн-вход');
-    } finally { unlockButton.disabled = false; }
-  };
-}
+function __tmhBindOfflinePinControls() {}
 
 async function doLogout() {
   try {
@@ -16331,7 +16200,12 @@ saveState = function(silent) {
   if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
   var api = __getTMHAuthApi();
   if (window.__TMH_OFFLINE_MODE) {
-    if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
+    // Without an unlocked legacy vault, preserve normal localStorage saving.
+    // Never fail a user's checklist edit merely because cloud/offline crypto is locked.
+    if (!api || typeof api.isOfflineVaultUnlocked !== 'function' || !api.isOfflineVaultUnlocked()) {
+      return __tmhOriginalSaveState.apply(this, arguments);
+    }
+    if (typeof api.saveOfflineChecklist !== 'function') return __tmhOriginalSaveState.apply(this, arguments);
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
@@ -16351,7 +16225,8 @@ saveState = function(silent) {
     return true;
   }
   var result = __tmhOriginalSaveState.apply(this, arguments);
-  if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
+  if (result !== false && api && typeof api.saveOfflineChecklist === 'function' &&
+      typeof api.isOfflineVaultUnlocked === 'function' && api.isOfflineVaultUnlocked()) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
@@ -16959,10 +16834,12 @@ async function checkAuth() {
   if (!api) { currentUser = null; return false; }
   __tmhInstallAuthWatcher(api);
   try {
-    __tmhBindOfflinePinControls();
     let identity = await api.getOfflineIdentity();
     if (!identity?.user || !identity?.profile) {
       identity = await api.getCurrentIdentity();
+      if ((!identity?.user || !identity?.profile) && typeof api.getCachedOfflineIdentity === 'function') {
+        identity = await api.getCachedOfflineIdentity(identity?.error);
+      }
     }
     if (!identity || !identity.user || !identity.profile) {
       currentUser = null;
@@ -16971,12 +16848,16 @@ async function checkAuth() {
       return false;
     }
     __tmhApplyUserStorageScope(identity.user.id);
-    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock';
+    window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
+    var __tmhStatusOwner = window;
+    try { if (window.parent && window.parent !== window) __tmhStatusOwner = window.parent; } catch (e) {}
+    if (typeof __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS === 'function') {
+      __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS(window.__TMH_OFFLINE_MODE ? 'offline' : 'online');
+    }
     const role = identity.profile.role;
     currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
-    if (identity.mode === 'offline-local-unlock') {
-      // Do not copy the offline profile into plaintext localStorage.
-      try { localStorage.removeItem('checklist_user'); } catch (e) {}
+    if (identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache') {
+      // Do not elevate cached/offline identity into a fresh cloud session.
     } else {
       try {
         localStorage.setItem('checklist_user', JSON.stringify({
@@ -17020,50 +16901,13 @@ async function doLogin(login, password) {
       authUid: result.user.id
     }));
   } catch (e) {}
-  try {
-    if (typeof api.hasOfflineSetup === 'function' && !(await api.hasOfflineSetup(result.user.id)) &&
-        window.confirm('Настроить офлайн-вход по PIN для этого устройства?')) {
-      const offlinePin = window.prompt('Придумайте PIN из 6–12 цифр. Он будет работать только на этом устройстве:');
-      if (offlinePin !== null) {
-        await api.setupOfflinePin(offlinePin);
-        showToast('Офлайн-PIN создан для этого устройства');
-      }
-    }
-  } catch (error) {
-    // Offline storage is optional; never block a successful online login.
-    showToast(error?.message || 'Не удалось настроить офлайн-PIN');
-  }
   updateUserUI();
   const modal = document.getElementById('loginModal');
   if (modal) modal.style.display = 'none';
   return true;
 }
 
-function __tmhBindOfflinePinControls() {
-  const api = __getTMHAuthApi();
-  const pinInput = document.getElementById('offlinePinInput');
-  const unlockButton = document.getElementById('unlockOfflineBtn');
-  if (!api || !pinInput || !unlockButton || unlockButton.dataset.bound === '1') return;
-  unlockButton.dataset.bound = '1';
-  unlockButton.onclick = async function() {
-    const pin = String(pinInput.value || '');
-    if (!/^\d{6,12}$/.test(pin)) { showToast('Введите PIN из 6–12 цифр'); return; }
-    unlockButton.disabled = true;
-    try {
-      const userId = await api.getLastOfflineUserId();
-      if (!userId) throw new Error('На этом устройстве ещё не настроен офлайн-PIN');
-      await api.unlockOffline(userId, pin);
-      pinInput.value = '';
-      if (!(await checkAuth())) throw new Error('Не удалось открыть локальный профиль');
-      const modal = document.getElementById('loginModal');
-      if (modal) modal.style.display = 'none';
-      if (typeof showContinueDialogOrStart === 'function') showContinueDialogOrStart();
-      showToast('Офлайн-доступ открыт. Синхронизация пока недоступна');
-    } catch (error) {
-      showToast(error?.message || 'Не удалось выполнить офлайн-вход');
-    } finally { unlockButton.disabled = false; }
-  };
-}
+function __tmhBindOfflinePinControls() {}
 
 async function doLogout() {
   try {
@@ -18447,7 +18291,12 @@ saveState = function(silent) {
   if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
   var api = __getTMHAuthApi();
   if (window.__TMH_OFFLINE_MODE) {
-    if (!api || typeof api.saveOfflineChecklist !== 'function') return false;
+    // Without an unlocked legacy vault, preserve normal localStorage saving.
+    // Never fail a user's checklist edit merely because cloud/offline crypto is locked.
+    if (!api || typeof api.isOfflineVaultUnlocked !== 'function' || !api.isOfflineVaultUnlocked()) {
+      return __tmhOriginalSaveState.apply(this, arguments);
+    }
+    if (typeof api.saveOfflineChecklist !== 'function') return __tmhOriginalSaveState.apply(this, arguments);
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
@@ -18467,7 +18316,8 @@ saveState = function(silent) {
     return true;
   }
   var result = __tmhOriginalSaveState.apply(this, arguments);
-  if (result !== false && api && typeof api.saveOfflineChecklist === 'function') {
+  if (result !== false && api && typeof api.saveOfflineChecklist === 'function' &&
+      typeof api.isOfflineVaultUnlocked === 'function' && api.isOfflineVaultUnlocked()) {
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {

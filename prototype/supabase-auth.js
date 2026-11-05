@@ -252,6 +252,31 @@ async function unlockOffline(userId, pin) {
   return onlineIdentity || activeOfflineIdentity;
 }
 
+async function getCachedOfflineIdentity(cause) {
+  const networkFailure = globalThis.navigator?.onLine === false ||
+    cause?.name === "AuthRetryableFetchError" ||
+    cause instanceof TypeError ||
+    cause?.status === 0 ||
+    /fetch|network|offline|timeout|connection/i.test(String(cause?.message || ""));
+  if (!networkFailure) return null;
+  let cached;
+  try { cached = JSON.parse(globalThis.localStorage?.getItem("checklist_user") || "null"); }
+  catch { return null; }
+  const userId = cached?.authUid;
+  if (typeof userId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) return null;
+  return Object.freeze({
+    user: Object.freeze({ id: userId.toLowerCase(), email: String(cached.login || "") }),
+    profile: Object.freeze({
+      id: userId.toLowerCase(),
+      display_name: String(cached.displayName || ""),
+      role: "employee",
+    }),
+    mode: "offline-local-cache",
+    supabaseAuthenticated: false,
+  });
+}
+
 async function saveOfflineChecklist(id, snapshot) {
   if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
   if (typeof id !== "string" || !id) throw new TypeError("Checklist storage id is required");
@@ -376,6 +401,7 @@ const api = Object.freeze({
   unlockOffline,
   hasOfflineSetup,
   getOfflineIdentity,
+  getCachedOfflineIdentity,
   saveOfflineChecklist,
   migrateLegacyChecklist,
   enableOfflineCloudSync,
