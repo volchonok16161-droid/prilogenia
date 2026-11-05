@@ -219,3 +219,35 @@ test("photoManifest takes precedence over legacy photos when both are present", 
   await restore.restore(ROW);
   assert.deepEqual(received, current);
 });
+
+
+test("preserved local-only photos do not trigger repeated safety snapshots", async () => {
+  const h = harness({ payload: { mode: "complex", state: { general: { number: "42" }, values: { item1: { status: "ok" } } } } });
+  let snapshots = 0;
+  const localPhoto = "data:image/jpeg;base64,LOCAL";
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    getCurrentState: () => ({ general: { number: "42" }, values: { item1: { status: "ok", front_photo: localPhoto } }, __cloudChecklistId: "local-only-id" }),
+    async beforeApply() { snapshots += 1; },
+    async applyState() {},
+  });
+  await restore.restore(ROW);
+  assert.equal(snapshots, 0);
+});
+
+test("real checklist changes still create a safety snapshot when local photos are preserved", async () => {
+  const h = harness({ payload: { mode: "complex", state: { general: { number: "42" }, values: { item1: { status: "ok" } } } } });
+  let snapshots = 0;
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    getCurrentState: () => ({ general: { number: "local unsaved edit" }, values: { item1: { status: "ok", front_photo: "data:image/jpeg;base64,LOCAL" } } }),
+    async beforeApply() { snapshots += 1; },
+    async applyState() {},
+  });
+  await restore.restore(ROW);
+  assert.equal(snapshots, 1);
+});
