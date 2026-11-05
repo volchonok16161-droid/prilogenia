@@ -2910,6 +2910,10 @@ async function checkAuth() {
       updateUserUI();
       return false;
     }
+    if (identity.mode !== 'offline-local-unlock' && typeof api.activateDeviceVault === 'function') {
+      try { await api.activateDeviceVault(identity); }
+      catch (vaultError) { console.warn('Device offline storage is unavailable; continuing with standard local save', vaultError); }
+    }
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
     var __tmhStatusOwner = window;
@@ -6652,6 +6656,10 @@ async function checkAuth() {
       updateUserUI();
       return false;
     }
+    if (identity.mode !== 'offline-local-unlock' && typeof api.activateDeviceVault === 'function') {
+      try { await api.activateDeviceVault(identity); }
+      catch (vaultError) { console.warn('Device offline storage is unavailable; continuing with standard local save', vaultError); }
+    }
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
     var __tmhStatusOwner = window;
@@ -9976,6 +9984,10 @@ async function checkAuth() {
       try { localStorage.removeItem('checklist_user'); } catch (e) {}
       updateUserUI();
       return false;
+    }
+    if (identity.mode !== 'offline-local-unlock' && typeof api.activateDeviceVault === 'function') {
+      try { await api.activateDeviceVault(identity); }
+      catch (vaultError) { console.warn('Device offline storage is unavailable; continuing with standard local save', vaultError); }
     }
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
@@ -14649,6 +14661,10 @@ async function checkAuth() {
       updateUserUI();
       return false;
     }
+    if (identity.mode !== 'offline-local-unlock' && typeof api.activateDeviceVault === 'function') {
+      try { await api.activateDeviceVault(identity); }
+      catch (vaultError) { console.warn('Device offline storage is unavailable; continuing with standard local save', vaultError); }
+    }
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
     var __tmhStatusOwner = window;
@@ -16846,6 +16862,10 @@ async function checkAuth() {
       try { localStorage.removeItem('checklist_user'); } catch (e) {}
       updateUserUI();
       return false;
+    }
+    if (identity.mode !== 'offline-local-unlock' && typeof api.activateDeviceVault === 'function') {
+      try { await api.activateDeviceVault(identity); }
+      catch (vaultError) { console.warn('Device offline storage is unavailable; continuing with standard local save', vaultError); }
     }
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';

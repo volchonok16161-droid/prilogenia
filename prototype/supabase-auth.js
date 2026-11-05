@@ -127,6 +127,38 @@ async function getCurrentIdentity() {
   return { user: data.user, profile: result.profile, error: null };
 }
 
+async function activateDeviceVault(identity) {
+  if (!identity?.user?.id || !identity?.profile?.id ||
+      identity.user.id !== identity.profile.id || !ALLOWED_ROLES.has(identity.profile.role)) {
+    throw new Error("A verified online account is required to initialize this device");
+  }
+  if (activeOfflineVault && activeOfflineUserId === identity.user.id && !activeOfflineIdentity) {
+    return { userId: activeOfflineUserId, ready: true };
+  }
+  const setup = await offlineVault.session.setupDeviceKeyAfterVerifiedOnlineLogin(identity);
+  activeOfflineVault = setup.vault;
+  activeOfflineUserId = setup.userId;
+  activeOfflineIdentity = null;
+  await offlineVault.database.setMeta("offline:last-user-id", setup.userId);
+  const safeIdentity = {
+    user: { id: identity.user.id, email: identity.user.email || "" },
+    profile: {
+      id: identity.profile.id,
+      display_name: identity.profile.display_name || "",
+      role: identity.profile.role,
+    },
+  };
+  const encryptedIdentity = await setup.vault.encrypt(safeIdentity);
+  await offlineVault.database.setMeta("offline:identity:" + setup.userId, encryptedIdentity);
+  await offlineVault.database.setMeta("offline:cloud-sync-enabled:" + setup.userId, true);
+  offlineChecklistStore = null;
+  offlineSyncCoordinator?.stop();
+  offlineSyncCoordinator = null;
+  ensureOfflineSync();
+  void offlineSyncCoordinator.start();
+  return { userId: setup.userId, ready: true };
+}
+
 async function resolveLoginEmail(identifier) {
   const normalized = String(identifier || "").trim().normalize("NFC").toLowerCase();
   if (normalized.includes("@")) return normalized;
@@ -168,6 +200,8 @@ async function signIn(email, password) {
     return { user: data.user, profile: null, error: result.error };
   }
 
+  try { await activateDeviceVault({ user: data.user, profile: result.profile }); }
+  catch (vaultError) { console.warn("Device offline storage could not be initialized", vaultError); }
   return { user: data.user, profile: result.profile, error: null };
 }
 
@@ -265,16 +299,32 @@ async function getCachedOfflineIdentity(cause) {
   const userId = cached?.authUid;
   if (typeof userId !== "string" ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) return null;
-  return Object.freeze({
-    user: Object.freeze({ id: userId.toLowerCase(), email: String(cached.login || "") }),
-    profile: Object.freeze({
-      id: userId.toLowerCase(),
-      display_name: String(cached.displayName || ""),
-      role: "employee",
-    }),
-    mode: "offline-local-cache",
-    supabaseAuthenticated: false,
-  });
+  try {
+    const unlocked = await offlineVault.session.unlockDeviceKey(userId);
+    const encryptedIdentity = await offlineVault.database.getMeta("offline:identity:" + unlocked.userId);
+    if (!encryptedIdentity) return null;
+    const identity = await unlocked.vault.decrypt(encryptedIdentity);
+    if (identity?.user?.id !== unlocked.userId ||
+        identity?.profile?.id !== unlocked.userId ||
+        !ALLOWED_ROLES.has(identity?.profile?.role)) return null;
+    activeOfflineVault = unlocked.vault;
+    activeOfflineUserId = unlocked.userId;
+    activeOfflineIdentity = Object.freeze({
+      user: Object.freeze(identity.user),
+      profile: Object.freeze(identity.profile),
+      mode: "offline-local-unlock",
+      supabaseAuthenticated: false,
+    });
+    offlineChecklistStore = null;
+    offlineSyncCoordinator?.stop();
+    offlineSyncCoordinator = null;
+    ensureOfflineSync();
+    void offlineSyncCoordinator.start();
+    return activeOfflineIdentity;
+  } catch (error) {
+    console.warn("Could not unlock device-bound offline storage", error);
+    return null;
+  }
 }
 
 async function saveOfflineChecklist(id, snapshot) {
@@ -363,6 +413,16 @@ async function hasOfflineChecklist(id) {
 }
 
 async function getOfflineIdentity() {
+  if (activeOfflineIdentity && globalThis.navigator?.onLine !== false) {
+    const offlineUserId = activeOfflineIdentity.user.id;
+    try {
+      const online = await getCurrentIdentity();
+      if (online?.user?.id === offlineUserId && online?.profile?.id === offlineUserId && !online.error) {
+        activeOfflineIdentity = null;
+        return online;
+      }
+    } catch {}
+  }
   return activeOfflineIdentity;
 }
 
@@ -401,6 +461,7 @@ const api = Object.freeze({
   unlockOffline,
   hasOfflineSetup,
   getOfflineIdentity,
+  activateDeviceVault,
   getCachedOfflineIdentity,
   saveOfflineChecklist,
   migrateLegacyChecklist,

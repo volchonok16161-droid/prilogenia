@@ -89,6 +89,43 @@ export function createOfflineVaultCrypto({
     ));
   }
 
+  function vaultFor(key, uid, did) {
+    return Object.freeze({
+      encrypt: (value) => encryptJson(key, value, uid, did),
+      decrypt: (record) => decryptJson(key, record, uid, did),
+      encryptBytes: async (bytes) => {
+        if (!(bytes instanceof ArrayBuffer) && !ArrayBuffer.isView(bytes)) {
+          throw new TypeError("Binary data must be an ArrayBuffer or typed array");
+        }
+        const view = bytes instanceof ArrayBuffer
+          ? new Uint8Array(bytes)
+          : new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        return Object.freeze({
+          version: VERSION,
+          ...(await encryptBytes(key, view, aadFor(uid, did))),
+        });
+      },
+      decryptBytes: async (record) => {
+        if (record?.version !== VERSION) throw new Error("Unsupported encrypted record version");
+        return decryptBytes(key, record, aadFor(uid, did));
+      },
+    });
+  }
+
+  async function createDeviceKey() {
+    return cryptoImpl.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  }
+
+  function unlockWithDeviceKey({ key, userId, deviceId }) {
+    const uid = assertUuid(userId, "userId");
+    const did = assertUuid(deviceId, "deviceId");
+    if (!key || key.type !== "secret" || key.algorithm?.name !== "AES-GCM" ||
+        key.extractable !== false || !key.usages?.includes("encrypt") || !key.usages?.includes("decrypt")) {
+      throw new TypeError("Invalid device encryption key");
+    }
+    return vaultFor(key, uid, did);
+  }
+
   async function createDescriptor({ pin, userId, deviceId }) {
     assertPin(pin);
     const uid = assertUuid(userId, "userId");
@@ -127,26 +164,7 @@ export function createOfflineVaultCrypto({
     const key = await deriveKey(pin, salt);
     const plaintext = await decryptBytes(key, descriptor.verifier, aadFor(uid, did));
     if (new TextDecoder().decode(plaintext) !== MARKER) throw new Error("Invalid PIN");
-    return Object.freeze({
-      encrypt: (value) => encryptJson(key, value, uid, did),
-      decrypt: (record) => decryptJson(key, record, uid, did),
-      encryptBytes: async (bytes) => {
-        if (!(bytes instanceof ArrayBuffer) && !ArrayBuffer.isView(bytes)) {
-          throw new TypeError("Binary data must be an ArrayBuffer or typed array");
-        }
-        const view = bytes instanceof ArrayBuffer
-          ? new Uint8Array(bytes)
-          : new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-        return Object.freeze({
-          version: VERSION,
-          ...(await encryptBytes(key, view, aadFor(uid, did))),
-        });
-      },
-      decryptBytes: async (record) => {
-        if (record?.version !== VERSION) throw new Error("Unsupported encrypted record version");
-        return decryptBytes(key, record, aadFor(uid, did));
-      },
-    });
+    return vaultFor(key, uid, did);
   }
 
   async function encryptJson(key, value, userId, deviceId) {
@@ -166,5 +184,5 @@ export function createOfflineVaultCrypto({
     return JSON.parse(new TextDecoder().decode(plaintext));
   }
 
-  return Object.freeze({ createDescriptor, unlock });
+  return Object.freeze({ createDescriptor, unlock, createDeviceKey, unlockWithDeviceKey });
 }

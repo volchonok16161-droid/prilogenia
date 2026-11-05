@@ -36,6 +36,40 @@ export function createOfflineVaultSession({ database, cryptoVault, cryptoImpl = 
     return id.toLowerCase();
   }
 
+  async function setupDeviceKeyAfterVerifiedOnlineLogin(identity) {
+    const userId = assertIdentity(identity);
+    const key = "offline:device-key:" + userId;
+    const deviceId = await getDeviceId();
+    let cryptoKey = await database.getMeta(key);
+    if (!cryptoKey) {
+      cryptoKey = await cryptoVault.createDeviceKey();
+      await database.setMeta(key, cryptoKey);
+    }
+    return Object.freeze({
+      userId,
+      deviceId,
+      configured: true,
+      mode: "device-key",
+      vault: cryptoVault.unlockWithDeviceKey({ key: cryptoKey, userId, deviceId }),
+    });
+  }
+
+  async function unlockDeviceKey(userId) {
+    if (typeof userId !== "string" || !/^[0-9a-f-]{36}$/i.test(userId)) {
+      throw new TypeError("A valid account UUID is required");
+    }
+    const uid = userId.toLowerCase();
+    const cryptoKey = await database.getMeta("offline:device-key:" + uid);
+    if (!cryptoKey) throw new Error("Device encryption key is not configured for this account");
+    const deviceId = await getDeviceId();
+    return Object.freeze({
+      userId: uid,
+      deviceId,
+      mode: "device-key",
+      vault: cryptoVault.unlockWithDeviceKey({ key: cryptoKey, userId: uid, deviceId }),
+    });
+  }
+
   async function setupAfterVerifiedOnlineLogin(identity, pin) {
     const userId = assertIdentity(identity);
     const key = descriptorKey(userId);
@@ -95,5 +129,5 @@ export function createOfflineVaultSession({ database, cryptoVault, cryptoImpl = 
     return Boolean(await database.getMeta(descriptorKey(userId.toLowerCase())));
   }
 
-  return Object.freeze({ getDeviceId, setupAfterVerifiedOnlineLogin, unlockOffline, hasOfflineSetup });
+  return Object.freeze({ getDeviceId, setupDeviceKeyAfterVerifiedOnlineLogin, unlockDeviceKey, setupAfterVerifiedOnlineLogin, unlockOffline, hasOfflineSetup });
 }
