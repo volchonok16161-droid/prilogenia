@@ -2731,12 +2731,22 @@ async function getEmbeddedSource(mode){
     // справочник локомотивов/приписок/мест осмотра берём из zona_riska.xlsx (если файл прочитан)
     return (window.__RISK_CORE__ ? window.__RISK_CORE__.applyRegistry(html, mode) : html);
 }
+// Единственный актуальный запуск встроенного чек-листа: устаревшая async-загрузка
+// не должна перезаписывать iframe после более нового выбора режима.
+window.__TMH_EMBED_OPEN_SEQ = window.__TMH_EMBED_OPEN_SEQ || 0;
+window.__TMH_ACTIVE_EMBEDDED_MODE = window.__TMH_ACTIVE_EMBEDDED_MODE || null;
 function showEmbeddedApp(mode){
+  const openSeq = ++window.__TMH_EMBED_OPEN_SEQ;
   const nativeApp=document.getElementById('nativeApp');
   const host=document.getElementById('iframeHost');
   const frame=document.getElementById('embeddedFrame');
   const label=document.getElementById('iframeModeLabel');
   if(!host||!frame)return;
+  // Повторный вызов для уже открытого режима не пересоздаёт документ и его таймеры.
+  if(window.__TMH_ACTIVE_EMBEDDED_MODE===mode && frame.srcdoc && host.style.display==='flex'){
+    if(nativeApp)nativeApp.style.display='none';
+    return;
+  }
   document.title='Чек-лист — '+(MODE_NAMES[mode]||mode);
   if(label)label.textContent=MODE_NAMES[mode]||mode;
   const showError=function(message){
@@ -2748,6 +2758,7 @@ function showEmbeddedApp(mode){
     if(!host.isConnected)return;
     try{
       const source=await getEmbeddedSource(mode);
+      if(openSeq!==window.__TMH_EMBED_OPEN_SEQ)return;
       if(!source){showError('Не удалось загрузить выбранный чек-лист. Выберите режим ещё раз.');return;}
       const prepared=typeof window.__tmhAttachCloudBackup==='function'
         ?window.__tmhAttachCloudBackup(source,mode):source;
@@ -2755,7 +2766,9 @@ function showEmbeddedApp(mode){
         showError('Чек-лист не удалось подготовить. Основной экран оставлен открытым.');
         return;
       }
+      if(openSeq!==window.__TMH_EMBED_OPEN_SEQ)return;
       frame.srcdoc=prepared;
+      window.__TMH_ACTIVE_EMBEDDED_MODE=mode;
       host.style.display='flex';
       if(nativeApp)nativeApp.style.display='none';
     }catch(error){
@@ -2767,7 +2780,7 @@ function showEmbeddedApp(mode){
     window.__RISK_CORE__.ready(2500).then(go,go);
   }else go();
 }
-function hideEmbeddedApp(){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');if(host)host.style.display='none';if(frame)frame.srcdoc='about:blank';if(nativeApp)nativeApp.style.display='';}
+function hideEmbeddedApp(){window.__TMH_EMBED_OPEN_SEQ++;window.__TMH_ACTIVE_EMBEDDED_MODE=null;const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');if(host)host.style.display='none';if(frame)frame.srcdoc='about:blank';if(nativeApp)nativeApp.style.display='';}
 
 async function selectModeAndStart(mode){
     // Если MODE уже был установлен и он совпадает — это не первый запуск
@@ -2946,7 +2959,6 @@ function setupCommonHandlers(){
     window.addEventListener('scroll',function(){if(window.scrollY>300)sb.classList.add('visible');else sb.classList.remove('visible');});
     sb.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
     initThemeSwitch();
-        initThemeSwitch();
     document.getElementById('toggleNavBtn').addEventListener('click',function(){document.getElementById('noticeList').classList.toggle('show');});
 }
 
