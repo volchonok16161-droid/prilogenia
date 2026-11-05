@@ -102,3 +102,31 @@ test("cloud queue keeps a separate entity for every instance when sync is enable
   assert.equal(f.queue[0].operation, "create");
   assert.equal(f.queue[1].operation, "create");
 });
+
+test("concurrent autosaves are serialized so an older encryption cannot overwrite a newer snapshot", async () => {
+  const f = fixture();
+  const first = await f.instances.create("complex", state("100"));
+  const encrypt = f.vault.encrypt.bind(f.vault);
+  let releaseOlder;
+  let olderStarted;
+  const started = new Promise(resolve => { olderStarted = resolve; });
+  let encryptCalls = 0;
+  f.vault.encrypt = async value => {
+    encryptCalls += 1;
+    if (encryptCalls === 2) {
+      olderStarted();
+      await new Promise(resolve => { releaseOlder = resolve; });
+    }
+    return encrypt(value);
+  };
+
+  const olderSave = f.instances.save(first.instanceId, "complex", state("101"));
+  await started;
+  const newerSave = f.instances.save(first.instanceId, "complex", state("102"));
+  await Promise.resolve();
+  assert.equal(encryptCalls, 2, "newer save waits behind the in-flight older save");
+
+  releaseOlder();
+  await Promise.all([olderSave, newerSave]);
+  assert.equal((await f.instances.load(first.instanceId)).state.general.number, "102");
+});
