@@ -3516,10 +3516,7 @@ window.addEventListener('DOMContentLoaded', function(){ init(); }, { once: true 
     });
     mo.observe(document.documentElement, {childList: true, subtree: true});
   }
-  setInterval(function(){
-    var ef2 = document.getElementById('embeddedFrame');
-    if (ef2) bindIframe(ef2);
-  }, 2000);
+  // iframe binding is event-driven: initial scan, load event and MutationObserver.
 })();
 </script>
 
@@ -3645,10 +3642,7 @@ window.addEventListener('DOMContentLoaded', function(){ init(); }, { once: true 
     });
     mo.observe(document.documentElement, {childList: true, subtree: true});
   }
-  setInterval(function(){
-    var ef2 = document.getElementById('embeddedFrame');
-    if (ef2) bindIframe(ef2);
-  }, 2000);
+  // iframe binding is event-driven: initial scan, load event and MutationObserver.
 })();
 </script>
 
@@ -3804,10 +3798,7 @@ window.addEventListener('DOMContentLoaded', function(){ init(); }, { once: true 
     });
     mo.observe(document.documentElement, {childList: true, subtree: true});
   }
-  setInterval(function(){
-    var ef2 = document.getElementById('embeddedFrame');
-    if (ef2) bindIframe(ef2);
-  }, 2000);
+  // iframe binding is event-driven: initial scan, load event and MutationObserver.
 })();
 </script>
 
@@ -4030,10 +4021,7 @@ if ('serviceWorker' in navigator) {
     });
     mo.observe(document.documentElement, {childList:true, subtree:true});
   }
-  setInterval(function(){
-    var ef2 = document.getElementById('embeddedFrame');
-    if (ef2) bindIframe(ef2);
-  }, 2000);
+  // iframe binding is event-driven: initial scan, load event and MutationObserver.
 })();
 </script>
 <!-- ============================================================
@@ -5241,10 +5229,7 @@ if ('serviceWorker' in navigator) {
     });
     mo.observe(document.documentElement, {childList:true, subtree:true});
   }
-  setInterval(function(){
-    var ef2 = document.getElementById('embeddedFrame');
-    if (ef2) bindIframe(ef2);
-  }, 2000);
+  // iframe binding is event-driven: initial scan, load event and MutationObserver.
 })();
 </script>
 
@@ -5447,10 +5432,7 @@ if ('serviceWorker' in navigator) {
     });
     mo.observe(document.documentElement, {childList:true, subtree:true});
   }
-  setInterval(function(){
-    var ef2 = document.getElementById('embeddedFrame');
-    if (ef2) bindIframe(ef2);
-  }, 2000);
+  // iframe binding is event-driven: initial scan, load event and MutationObserver.
 })();
 </script>
 
@@ -5595,10 +5577,7 @@ if ('serviceWorker' in navigator) {
     });
     mo.observe(document.documentElement, {childList:true, subtree:true});
   }
-  setInterval(function(){
-    var ef2 = document.getElementById('embeddedFrame');
-    if (ef2) bindIframe(ef2);
-  }, 2000);
+  // iframe binding is event-driven: initial scan, load event and MutationObserver.
 })();
 </script>
 
