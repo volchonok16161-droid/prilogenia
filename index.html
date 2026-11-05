@@ -1038,24 +1038,21 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     vertical-align:middle;
 }
 
-/* Theme selector and account actions form one compact control group. */
+/* Account identity and its two actions occupy the dedicated row below theme controls. */
 .topbar-account-controls{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;margin-left:auto;}
 .topbar-account-controls .theme-switch{margin-left:0;}
-.topbar-account-controls .user-info{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
-.user-info .account-cabinet-btn{white-space:nowrap;}
-.user-info .account-cabinet-btn{white-space:nowrap;}
-#iframeBar .iframe-account-cabinet-btn{margin-left:auto;white-space:nowrap;}
+.topbar .user-info{display:flex;align-items:center;gap:10px;flex:0 0 100%;width:100%;box-sizing:border-box;margin:0 0 0 3%;padding:8px 0 0 14px;border-left:1px solid var(--line);font-size:16px;}
+.user-info .role{font-weight:600;color:var(--amber);}
+.user-info .user-role-icon{font-size:20px;line-height:1;}
+.user-info .logout-btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--ink-dim);font:inherit;font-size:14px;text-decoration:none;cursor:pointer;white-space:nowrap;}
+.user-info .logout-btn:hover{border-color:var(--amber);color:var(--ink);}
+.user-info .account-cabinet-btn{margin-left:4px;}
 @media(max-width:640px){
   .topbar-account-controls{gap:6px;margin-left:auto;max-width:100%;flex-wrap:wrap;justify-content:flex-end;}
-  .topbar-account-controls .theme-switch{margin-left:0;}
-  .topbar-account-controls .user-info{gap:6px;}
-  .topbar-account-controls .account-cabinet-btn{padding:7px 9px;font-size:11px;}
-  #iframeBar .iframe-account-cabinet-btn{margin-left:auto;}
+  .topbar .user-info{gap:7px;margin-left:0;padding:8px 0 0 8px;font-size:13px;flex-wrap:wrap;}
+  .user-info .logout-btn{min-height:34px;padding:5px 9px;font-size:12px;}
+  .user-info .user-role-icon{font-size:17px;}
 }
-
-/* Keep cabinet navigation visually consistent with the existing toolbar buttons. */
-.user-info .account-cabinet-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;}
-#iframeBar .iframe-account-cabinet-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;}
 </style>
 <script type="module" src="prototype/supabase-auth.js"></script>
 <script type="module">
@@ -1199,10 +1196,12 @@ if(button){
           <button type="button" class="active" data-theme-value="standard">Светлая</button>
           <button type="button" data-theme-value="dark">Тёмная</button>
       </div>
-      <div class="user-info" id="userInfo" style="display:none;">
-          <a class="btn account-cabinet-btn" id="accountCabinetLink" href="./account.html">👤 Личный кабинет</a>
-          <button class="logout-btn" id="logoutConfirmBtn" type="button">Выход</button>
-      </div>
+    </div>
+    <div class="user-info" id="userInfo" style="display:none;">
+        <span class="user-role-icon" aria-hidden="true">👤</span>
+        <span class="role" id="userRole">Пользователь</span>
+        <a class="logout-btn account-cabinet-btn" id="accountCabinetLink" href="./account.html">Личный кабинет</a>
+        <button class="logout-btn" id="logoutConfirmBtn" type="button">Выход</button>
     </div>
 </div>
 <div class="stat-bar" id="statBar">
@@ -1248,7 +1247,6 @@ if(button){
     <div id="iframeBar">
         <button class="btn primary" id="iframeBackBtn">🔄 Сменить чек-лист</button>
         <b id="iframeModeLabel"></b>
-        <a class="btn iframe-account-cabinet-btn" id="iframeAccountCabinetLink" href="./account.html">👤 Личный кабинет</a>
         <button class="btn" id="iframeLogoutConfirmBtn" type="button">Выход</button>
         <button class="btn" id="riskBtnBar" type="button" title="Справочник: локомотивы, приписки, места осмотра">📍 Зона риска</button>
         <button class="btn" id="helpBtnBar" type="button">📖 Инструкция</button>
@@ -1566,7 +1564,17 @@ async function doLogout() {
 
 function updateUserUI(){
   const info=document.getElementById('userInfo');
+  const roleLabel=document.getElementById('userRole');
   if(currentUser){
+    let profileRole='';
+    try {
+      const saved=JSON.parse(localStorage.getItem('checklist_user')||'{}');
+      profileRole=saved.profileRole||'';
+    } catch(e) {}
+    if(roleLabel){
+      const labels={developer:'Разработчик (developer)',admin:'Администратор (admin)',assistant:'Помощник (assistant)',user:'Пользователь (user)'};
+      roleLabel.textContent=labels[profileRole]||'Пользователь';
+    }
     if(info)info.style.display='flex';
   }else{
     if(info)info.style.display='none';
