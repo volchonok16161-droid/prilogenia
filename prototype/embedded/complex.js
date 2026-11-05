@@ -1797,8 +1797,8 @@ async function exportWithPhotos(){ try{await __psReady();}catch(e){}
           await __saveExcel(blob, {
             fileName: a.download,
             mode: MODE,
-            checklistType: typeVal || type || '',
-            checklistNumber: numberVal || number || '',
+            checklistType: type || '',
+            checklistNumber: nv || '',
             checklistDate: date || ''
           });
           __tmhExcelCloudSaved = true;
