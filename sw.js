@@ -105,7 +105,8 @@ self.addEventListener('install', (event) => {
       version: CACHE_VERSION,
       checkedAt: new Date().toISOString(),
       requiredCached: REQUIRED_APP_SHELL,
-      optionalCached: OPTIONAL_APP_SHELL.filter(async (path) => !!(await cache.match(path))),
+      optionalCached: (await Promise.all(OPTIONAL_APP_SHELL.map(async (path) =>
+        (await cache.match(path)) ? path : null))).filter(Boolean),
       failedOptional,
       failedCdn
     };
