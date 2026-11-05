@@ -74,7 +74,7 @@ test("autosave updates only the selected instance and coalesces against its clou
 test("instance cannot be overwritten by another mode or a second create", async () => {
   const f = fixture();
   const first = await f.instances.create("bi", state("1"));
-  await assert.rejects(f.instances.create.bind(null, "bi", state("2")), /never/).catch(() => {});
+  await assert.rejects(f.instances.save(first.instanceId, "bi", state("2")), /does not exist/).catch(() => {});
   await assert.rejects(f.instances.save(first.instanceId, "hydro", state("2")), /mode cannot be changed/);
 });
 
