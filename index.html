@@ -1069,46 +1069,6 @@ import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js
 import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.js';
 
 import { createChecklistPhotoSync } from './prototype/supabase-cloud-photos.js';
-const __offlineSyncLabels = {
-  locked: 'Сохранение на устройстве',
-  offline: 'Офлайн — сохранено на устройстве',
-  'checking-session': 'Проверяем облачную сессию…',
-  syncing: 'Синхронизация…',
-  'pending-sync': 'Ожидает синхронизации',
-  synced: 'Синхронизировано',
-  conflict: 'Конфликт синхронизации',
-  'auth-required': 'Локально сохранено · нужен вход для облака',
-  error: 'Ошибка синхронизации',
-};
-window.__TMH_SET_CONNECTION_STATUS = function(mode) {
-  const element = document.getElementById('offlineSyncStatus');
-  const badgeText = document.getElementById('tmhConnectionText');
-  const badgeDot = document.getElementById('tmhConnectionDot');
-  const offline = mode === 'offline';
-  if (element) {
-    element.textContent = offline ? __offlineSyncLabels.offline : 'Онлайн · облако проверяется при синхронизации';
-    element.title = offline ? 'Изменения сохраняются локально на этом устройстве' : 'Сеть доступна; облачные операции требуют действующей сессии';
-  }
-  if (badgeText) badgeText.textContent = offline ? 'Офлайн · локально' : 'Онлайн';
-  if (badgeDot) badgeDot.style.background = offline ? '#ffbd4a' : '#45d483';
-  const badge = document.getElementById('tmhConnectionBadge');
-  if (badge) badge.title = offline ? 'Нет сети: изменения сохраняются на устройстве' : 'Сеть доступна; облачная синхронизация требует действующей сессии';
-};
-window.addEventListener('offline', function() { window.__TMH_SET_CONNECTION_STATUS('offline'); });
-window.addEventListener('online', function() {
-  const element = document.getElementById('offlineSyncStatus');
-  if (element) element.textContent = 'Сеть появилась · проверяем сессию…';
-  if (typeof checkAuth === 'function') void checkAuth();
-});
-window.__TMH_SET_CONNECTION_STATUS(navigator.onLine === false ? 'offline' : 'online');
-window.addEventListener('tmh-offline-sync-status', function(event) {
-  const element = document.getElementById('offlineSyncStatus');
-  if (!element) return;
-  const status = event.detail || {};
-  element.textContent = __offlineSyncLabels[status.status] || 'Состояние синхронизации';
-  element.title = status.remaining == null ? element.textContent :
-    element.textContent + ' · в очереди: ' + status.remaining;
-});
 const __enableOfflineSyncButton = document.getElementById('enableOfflineSyncBtn');
 if (__enableOfflineSyncButton) __enableOfflineSyncButton.hidden = true;
 
@@ -1218,11 +1178,11 @@ if(button){
 }
 </script>
 
-<style id="tmh-connection-badge-style">#tmhConnectionBadge{position:fixed!important;top:calc(env(safe-area-inset-top,0px) + 10px)!important;right:12px!important;z-index:2147483000!important;display:flex!important;align-items:center!important;gap:7px!important;padding:7px 12px!important;border:1px solid rgba(255,255,255,.28)!important;border-radius:999px!important;background:#17324f!important;color:#fff!important;box-shadow:0 3px 14px rgba(0,0,0,.24)!important;font:600 12px/1.2 system-ui,sans-serif!important;pointer-events:none!important;white-space:nowrap!important;visibility:visible!important;opacity:1!important}#tmhConnectionDot{display:inline-block!important;width:9px!important;height:9px!important;min-width:9px!important;border-radius:50%!important;background:#45d483;box-shadow:0 0 0 2px rgba(255,255,255,.16)!important}@media(max-width:520px){#tmhConnectionBadge{top:calc(env(safe-area-inset-top,0px) + 7px)!important;right:7px!important;padding:6px 9px!important;font-size:11px!important}}</style>
+
 </head>
 <body>
 <div id="nativeApp">
-<div class="topbar"><div id="tmhConnectionBadge" role="status" aria-live="polite" style="position:fixed;top:10px;right:12px;z-index:10000;display:flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid rgba(255,255,255,.55);border-radius:999px;background:#123e66;color:#fff;font:600 12px/1.2 Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.22);pointer-events:none"><span id="tmhConnectionDot" style="width:8px;height:8px;border-radius:50%;background:#45d483;display:inline-block;flex:0 0 8px"></span><span id="tmhConnectionText">Онлайн</span></div>
+<div class="topbar">
     <div class="brand">
         <div class="logo-block">
             <div class="tmh-logo"><span class="tmh">ТМХ</span><span class="tmh-sub">трансмашхолдинг</span></div>
@@ -2737,7 +2697,7 @@ const EMBED_TT_HTML=`<!DOCTYPE html>
     </style>
 </head>
 <body>
-    <div class="topbar"><div id="tmhConnectionBadge" role="status" aria-live="polite" style="position:fixed;top:10px;right:12px;z-index:10000;display:flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid rgba(255,255,255,.55);border-radius:999px;background:#123e66;color:#fff;font:600 12px/1.2 Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.22);pointer-events:none"><span id="tmhConnectionDot" style="width:8px;height:8px;border-radius:50%;background:#45d483;display:inline-block;flex:0 0 8px"></span><span id="tmhConnectionText">Онлайн</span></div>
+    <div class="topbar">
         <div class="brand">
             <div class="logo-block">
                 <div class="tmh-logo"><span class="tmh">ТМХ</span><span class="tmh-sub">трансмашхолдинг</span></div>
@@ -6508,7 +6468,7 @@ const EMBED_BI_HTML=`<!DOCTYPE html>
     </style>
 </head>
 <body>
-    <div class="topbar"><div id="tmhConnectionBadge" role="status" aria-live="polite" style="position:fixed;top:10px;right:12px;z-index:10000;display:flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid rgba(255,255,255,.55);border-radius:999px;background:#123e66;color:#fff;font:600 12px/1.2 Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.22);pointer-events:none"><span id="tmhConnectionDot" style="width:8px;height:8px;border-radius:50%;background:#45d483;display:inline-block;flex:0 0 8px"></span><span id="tmhConnectionText">Онлайн</span></div>
+    <div class="topbar">
         <div class="brand">
             <div class="logo-block">
                 <div class="tmh-logo"><span class="tmh">ТМХ</span><span class="tmh-sub">трансмашхолдинг</span></div>
@@ -9857,7 +9817,7 @@ html[data-theme="dark"] .frow.unfilled-highlight,html[data-theme="dark"] .field.
 </style>
 </head>
 <body>
-<div class="topbar"><div id="tmhConnectionBadge" role="status" aria-live="polite" style="position:fixed;top:10px;right:12px;z-index:10000;display:flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid rgba(255,255,255,.55);border-radius:999px;background:#123e66;color:#fff;font:600 12px/1.2 Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.22);pointer-events:none"><span id="tmhConnectionDot" style="width:8px;height:8px;border-radius:50%;background:#45d483;display:inline-block;flex:0 0 8px"></span><span id="tmhConnectionText">Онлайн</span></div>
+<div class="topbar">
   <div class="brand">
     <div class="logo-block">
       <div class="tmh-logo"><span class="tmh">ТМХ</span><span class="tmh-sub">трансмашхолдинг</span></div>
@@ -14545,7 +14505,7 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
 </head>
 <body>
 <div id="nativeApp">
-<div class="topbar"><div id="tmhConnectionBadge" role="status" aria-live="polite" style="position:fixed;top:10px;right:12px;z-index:10000;display:flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid rgba(255,255,255,.55);border-radius:999px;background:#123e66;color:#fff;font:600 12px/1.2 Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.22);pointer-events:none"><span id="tmhConnectionDot" style="width:8px;height:8px;border-radius:50%;background:#45d483;display:inline-block;flex:0 0 8px"></span><span id="tmhConnectionText">Онлайн</span></div>
+<div class="topbar">
     <div class="brand">
         <div class="logo-block">
             <div class="tmh-logo"><span class="tmh">ТМХ</span><span class="tmh-sub">трансмашхолдинг</span></div>
@@ -18228,7 +18188,42 @@ function getEmbeddedSource(mode){
     // справочник локомотивов/приписок/мест осмотра берём из zona_riska.xlsx (если файл прочитан)
     return (window.__RISK_CORE__ ? window.__RISK_CORE__.applyRegistry(html, mode) : html);
 }
-function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];host.style.display='flex';var __go=function(){if(host.style.display==='none')return;frame.srcdoc=window.__tmhAttachCloudBackup(getEmbeddedSource(mode),mode);};if(window.__RISK_CORE__)window.__RISK_CORE__.ready(2500).then(__go,__go);else __go();}
+function showEmbeddedApp(mode){
+  const nativeApp=document.getElementById('nativeApp');
+  const host=document.getElementById('iframeHost');
+  const frame=document.getElementById('embeddedFrame');
+  const label=document.getElementById('iframeModeLabel');
+  if(!host||!frame)return;
+  document.title='Чек-лист — '+(MODE_NAMES[mode]||mode);
+  if(label)label.textContent=MODE_NAMES[mode]||mode;
+  const showError=function(message){
+    host.style.display='none';
+    if(nativeApp)nativeApp.style.display='';
+    if(typeof showToast==='function')showToast(message);
+  };
+  const go=function(){
+    if(!host.isConnected)return;
+    try{
+      const source=getEmbeddedSource(mode);
+      if(!source){showError('Не удалось загрузить выбранный чек-лист. Выберите режим ещё раз.');return;}
+      const prepared=typeof window.__tmhAttachCloudBackup==='function'
+        ?window.__tmhAttachCloudBackup(source,mode):source;
+      if(typeof prepared!=='string'||!prepared.trim()){
+        showError('Чек-лист не удалось подготовить. Основной экран оставлен открытым.');
+        return;
+      }
+      frame.srcdoc=prepared;
+      host.style.display='flex';
+      if(nativeApp)nativeApp.style.display='none';
+    }catch(error){
+      console.error('Checklist mode opening failed',error);
+      showError('Ошибка открытия чек-листа: '+String(error&&error.message||error));
+    }
+  };
+  if(window.__RISK_CORE__&&typeof window.__RISK_CORE__.ready==='function'){
+    window.__RISK_CORE__.ready(2500).then(go,go);
+  }else go();
+}
 function hideEmbeddedApp(){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');if(host)host.style.display='none';if(frame)frame.srcdoc='about:blank';if(nativeApp)nativeApp.style.display='';}
 
 async function selectModeAndStart(mode){
@@ -22066,6 +22061,42 @@ html[data-theme="dark"] #xlTable tr.err td{background:#3a1d1a}html[data-theme="d
 })();
 </script>
 
-<script id="tmh-connection-badge-runtime">(function(){function mount(){if(!document.body||document.getElementById('tmhConnectionBadge'))return;var badge=document.createElement('div');badge.id='tmhConnectionBadge';badge.setAttribute('role','status');badge.setAttribute('aria-live','polite');badge.innerHTML='<span id="tmhConnectionDot" aria-hidden="true"></span><span id="tmhConnectionText">Проверяем связь…</span>';document.body.appendChild(badge);function update(){var offline=navigator.onLine===false,text=document.getElementById('tmhConnectionText'),dot=document.getElementById('tmhConnectionDot');if(text)text.textContent=offline?'Офлайн':'Онлайн';if(dot)dot.style.background=offline?'#ffbd4a':'#45d483';badge.title=offline?'Нет сети. Изменения сохраняются локально на устройстве.':'Сеть доступна. Облачная синхронизация требует действующей сессии.';badge.dataset.mode=offline?'offline':'online';}window.addEventListener('online',update);window.addEventListener('offline',update);update();window.__TMH_SET_CONNECTION_STATUS=function(){update();};}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();})();</script>
+<script id="tmh-connection-badge-runtime">
+(function(){
+  function mount(){
+    if(!document.body)return;
+    var badge=document.getElementById('tmhConnectionBadge');
+    if(!badge){
+      badge=document.createElement('div');
+      badge.id='tmhConnectionBadge';
+      badge.setAttribute('role','status');
+      badge.setAttribute('aria-live','polite');
+      badge.innerHTML='<span id="tmhConnectionDot" aria-hidden="true"></span><span id="tmhConnectionText">Проверяем связь…</span>';
+      document.body.appendChild(badge);
+    }
+    badge.style.cssText='position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:2147483000;display:flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:#17324f;color:#fff;box-shadow:0 3px 14px rgba(0,0,0,.24);font:600 12px/1.2 system-ui,sans-serif;pointer-events:none;white-space:nowrap;visibility:visible;opacity:1';
+    var dot=document.getElementById('tmhConnectionDot');
+    if(dot)dot.style.cssText='display:inline-block;width:9px;height:9px;min-width:9px;border-radius:50%;background:#45d483;box-shadow:0 0 0 2px rgba(255,255,255,.16)';
+    function update(){
+      var offline=navigator.onLine===false;
+      var text=document.getElementById('tmhConnectionText');
+      var indicator=document.getElementById('tmhConnectionDot');
+      if(text)text.textContent=offline?'Офлайн':'Онлайн';
+      if(indicator)indicator.style.background=offline?'#ffbd4a':'#45d483';
+      badge.dataset.mode=offline?'offline':'online';
+      badge.title=offline?'Нет сети. Изменения сохраняются локально на устройстве.':'Сеть доступна. Облачная синхронизация выполняется при действующей сессии.';
+    }
+    window.__TMH_SET_CONNECTION_STATUS=update;
+    if(!window.__TMH_CONNECTION_EVENTS_BOUND){
+      window.__TMH_CONNECTION_EVENTS_BOUND=true;
+      window.addEventListener('online',update);
+      window.addEventListener('offline',update);
+    }
+    update();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});
+  else mount();
+})();
+</script>
 </body>
 </html>
