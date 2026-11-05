@@ -14897,12 +14897,12 @@ function getSections(type){const count=getMaxSectionsForType(type);const s=[];fo
 const MODE_KEY='checklist_mode_v2';
 const LS_KEY_COMPLEX='checklist_2es5k_v1';
 const LS_KEY_HOUSINGS='checklist_housings_v4';
-const EMBEDDED_MODES=[];
+const EMBEDDED_MODES=['tt','bi','hydro'];
 const ALL_MODES=['complex','housings','tt','bi','hydro'];
 const MODE_NAMES={complex:'Комплексный',housings:'Только Кожуха',tt:'ТТ',bi:'БИ',hydro:'Гидродемпферы'};
 const __openModeParam=new URLSearchParams(window.location.search).get('mode');
-let MODE=(__openModeParam||((typeof window.__MODE__!=='undefined')?window.__MODE__:'complex'));
-if(MODE!=='complex'&&MODE!=='housings'&&!/^k_/.test(String(MODE)))MODE='complex';
+let MODE=(__openModeParam||((typeof window.__MODE__!=='undefined')?window.__MODE__:(function(){try{return localStorage.getItem('checklist_mode_v2')||'complex';}catch(e){return 'complex';}})()));
+if(MODE!=='complex'&&MODE!=='housings'&&EMBEDDED_MODES.indexOf(MODE)===-1&&!/^k_/.test(String(MODE)))MODE='complex';
 let LS_KEY=(MODE==='housings')?LS_KEY_HOUSINGS:((MODE!=='complex')?('checklist_custom_'+MODE+'_v1'):LS_KEY_COMPLEX);
 try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}
 
