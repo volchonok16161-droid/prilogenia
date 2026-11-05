@@ -293,10 +293,14 @@ async function getCachedOfflineIdentity(cause) {
     cause?.status === 0 ||
     /fetch|network|offline|timeout|connection/i.test(String(cause?.message || ""));
   if (!networkFailure) return null;
-  let cached;
-  try { cached = JSON.parse(globalThis.localStorage?.getItem("checklist_user") || "null"); }
-  catch { return null; }
-  const userId = cached?.authUid;
+  let cached = null;
+  try { cached = JSON.parse(globalThis.localStorage?.getItem("checklist_user") || "null"); } catch {}
+  // Logout clears checklist_user for security/UI cleanup. The device-bound
+  // offline identity is still recoverable from the encrypted vault metadata.
+  let userId = cached?.authUid;
+  if (typeof userId !== "string") {
+    try { userId = await offlineVault.database.getMeta("offline:last-user-id"); } catch {}
+  }
   if (typeof userId !== "string" ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) return null;
   try {

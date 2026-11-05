@@ -2942,7 +2942,21 @@ async function doLogin(login, password) {
   let result;
   try { result = await api.signIn(login, password); }
   finally { window.__TMH_AUTH_ACTION = ''; }
-  if (!result || result.error || !result.user || !result.profile) return false;
+  if (!result || result.error || !result.user || !result.profile) {
+    // When the network/auth service is unavailable, allow only the previously
+    // enrolled device identity. The password is NOT verified offline.
+    if (result && result.error && typeof api.getCachedOfflineIdentity === 'function') {
+      const cachedIdentity = await api.getCachedOfflineIdentity(result.error);
+      if (cachedIdentity && cachedIdentity.user && cachedIdentity.profile) {
+        const restored = await checkAuth();
+        if (restored) {
+          if (typeof showToast === 'function') showToast('Офлайн-вход: открыт сохранённый на этом устройстве профиль. Пароль без интернета не проверяется.');
+          return true;
+        }
+      }
+    }
+    return false;
+  }
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
@@ -6711,7 +6725,21 @@ async function doLogin(login, password) {
   let result;
   try { result = await api.signIn(login, password); }
   finally { window.__TMH_AUTH_ACTION = ''; }
-  if (!result || result.error || !result.user || !result.profile) return false;
+  if (!result || result.error || !result.user || !result.profile) {
+    // When the network/auth service is unavailable, allow only the previously
+    // enrolled device identity. The password is NOT verified offline.
+    if (result && result.error && typeof api.getCachedOfflineIdentity === 'function') {
+      const cachedIdentity = await api.getCachedOfflineIdentity(result.error);
+      if (cachedIdentity && cachedIdentity.user && cachedIdentity.profile) {
+        const restored = await checkAuth();
+        if (restored) {
+          if (typeof showToast === 'function') showToast('Офлайн-вход: открыт сохранённый на этом устройстве профиль. Пароль без интернета не проверяется.');
+          return true;
+        }
+      }
+    }
+    return false;
+  }
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
@@ -10063,7 +10091,21 @@ async function doLogin(login, password) {
   let result;
   try { result = await api.signIn(login, password); }
   finally { window.__TMH_AUTH_ACTION = ''; }
-  if (!result || result.error || !result.user || !result.profile) return false;
+  if (!result || result.error || !result.user || !result.profile) {
+    // When the network/auth service is unavailable, allow only the previously
+    // enrolled device identity. The password is NOT verified offline.
+    if (result && result.error && typeof api.getCachedOfflineIdentity === 'function') {
+      const cachedIdentity = await api.getCachedOfflineIdentity(result.error);
+      if (cachedIdentity && cachedIdentity.user && cachedIdentity.profile) {
+        const restored = await checkAuth();
+        if (restored) {
+          if (typeof showToast === 'function') showToast('Офлайн-вход: открыт сохранённый на этом устройстве профиль. Пароль без интернета не проверяется.');
+          return true;
+        }
+      }
+    }
+    return false;
+  }
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
@@ -14761,7 +14803,21 @@ async function doLogin(login, password) {
   let result;
   try { result = await api.signIn(login, password); }
   finally { window.__TMH_AUTH_ACTION = ''; }
-  if (!result || result.error || !result.user || !result.profile) return false;
+  if (!result || result.error || !result.user || !result.profile) {
+    // When the network/auth service is unavailable, allow only the previously
+    // enrolled device identity. The password is NOT verified offline.
+    if (result && result.error && typeof api.getCachedOfflineIdentity === 'function') {
+      const cachedIdentity = await api.getCachedOfflineIdentity(result.error);
+      if (cachedIdentity && cachedIdentity.user && cachedIdentity.profile) {
+        const restored = await checkAuth();
+        if (restored) {
+          if (typeof showToast === 'function') showToast('Офлайн-вход: открыт сохранённый на этом устройстве профиль. Пароль без интернета не проверяется.');
+          return true;
+        }
+      }
+    }
+    return false;
+  }
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
@@ -16985,7 +17041,21 @@ async function doLogin(login, password) {
   let result;
   try { result = await api.signIn(login, password); }
   finally { window.__TMH_AUTH_ACTION = ''; }
-  if (!result || result.error || !result.user || !result.profile) return false;
+  if (!result || result.error || !result.user || !result.profile) {
+    // When the network/auth service is unavailable, allow only the previously
+    // enrolled device identity. The password is NOT verified offline.
+    if (result && result.error && typeof api.getCachedOfflineIdentity === 'function') {
+      const cachedIdentity = await api.getCachedOfflineIdentity(result.error);
+      if (cachedIdentity && cachedIdentity.user && cachedIdentity.profile) {
+        const restored = await checkAuth();
+        if (restored) {
+          if (typeof showToast === 'function') showToast('Офлайн-вход: открыт сохранённый на этом устройстве профиль. Пароль без интернета не проверяется.');
+          return true;
+        }
+      }
+    }
+    return false;
+  }
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
@@ -22063,36 +22133,63 @@ html[data-theme="dark"] #xlTable tr.err td{background:#3a1d1a}html[data-theme="d
 
 <script id="tmh-connection-badge-runtime">
 (function(){
+  var lastMode='unknown', probing=false;
+  function paint(offline){
+    var badge=document.getElementById('tmhConnectionBadge');
+    var text=document.getElementById('tmhConnectionText');
+    var dot=document.getElementById('tmhConnectionDot');
+    if(text)text.textContent=offline?'Офлайн':'Онлайн';
+    if(dot)dot.style.background=offline?'#ffbd4a':'#45d483';
+    if(badge){
+      badge.dataset.mode=offline?'offline':'online';
+      badge.title=offline
+        ?'Интернет или сервер авторизации недоступен. Чек-лист работает локально; синхронизация ожидает связи.'
+        :'Интернет доступен. Облачная синхронизация требует действующей сессии.';
+    }
+  }
+  async function probe(){
+    if(probing)return;
+    if(navigator.onLine===false){paint(true);return;}
+    probing=true;
+    var controller=typeof AbortController==='function'?new AbortController():null;
+    var timer=controller?setTimeout(function(){controller.abort();},4500):null;
+    try{
+      // no-cors makes the opaque response sufficient: only reachability matters.
+      // This request is deliberately not handled by the service-worker shell cache.
+      await fetch('https://fecigiwjtbtabnsfsdym.supabase.co/auth/v1/health',{
+        method:'GET',mode:'no-cors',cache:'no-store',
+        signal:controller?controller.signal:undefined
+      });
+      paint(false);
+    }catch(e){paint(true);}
+    finally{if(timer)clearTimeout(timer);probing=false;}
+  }
   function mount(){
     if(!document.body)return;
     var badge=document.getElementById('tmhConnectionBadge');
     if(!badge){
-      badge=document.createElement('div');
-      badge.id='tmhConnectionBadge';
-      badge.setAttribute('role','status');
-      badge.setAttribute('aria-live','polite');
+      badge=document.createElement('div');badge.id='tmhConnectionBadge';
+      badge.setAttribute('role','status');badge.setAttribute('aria-live','polite');
       badge.innerHTML='<span id="tmhConnectionDot" aria-hidden="true"></span><span id="tmhConnectionText">Проверяем связь…</span>';
       document.body.appendChild(badge);
     }
     badge.style.cssText='position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:2147483000;display:flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:#17324f;color:#fff;box-shadow:0 3px 14px rgba(0,0,0,.24);font:600 12px/1.2 system-ui,sans-serif;pointer-events:none;white-space:nowrap;visibility:visible;opacity:1';
     var dot=document.getElementById('tmhConnectionDot');
     if(dot)dot.style.cssText='display:inline-block;width:9px;height:9px;min-width:9px;border-radius:50%;background:#45d483;box-shadow:0 0 0 2px rgba(255,255,255,.16)';
-    function update(){
-      var offline=navigator.onLine===false;
-      var text=document.getElementById('tmhConnectionText');
-      var indicator=document.getElementById('tmhConnectionDot');
-      if(text)text.textContent=offline?'Офлайн':'Онлайн';
-      if(indicator)indicator.style.background=offline?'#ffbd4a':'#45d483';
-      badge.dataset.mode=offline?'offline':'online';
-      badge.title=offline?'Нет сети. Изменения сохраняются локально на устройстве.':'Сеть доступна. Облачная синхронизация выполняется при действующей сессии.';
-    }
-    window.__TMH_SET_CONNECTION_STATUS=update;
+    window.__TMH_SET_CONNECTION_STATUS=function(mode){
+      lastMode=mode==='offline'?'offline':mode==='online'?'online':'unknown';
+      paint(lastMode==='offline'||(lastMode==='unknown'&&navigator.onLine===false));
+      if(lastMode==='unknown')void probe();
+    };
     if(!window.__TMH_CONNECTION_EVENTS_BOUND){
       window.__TMH_CONNECTION_EVENTS_BOUND=true;
-      window.addEventListener('online',update);
-      window.addEventListener('offline',update);
+      window.addEventListener('online',function(){lastMode='unknown';void probe();});
+      window.addEventListener('offline',function(){lastMode='offline';paint(true);});
     }
-    update();
+    void probe();
+    if(!window.__TMH_CONNECTION_PROBE_TIMER){
+      window.__TMH_CONNECTION_PROBE_TIMER=setInterval(function(){lastMode='unknown';void probe();},20000);
+    }
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});
   else mount();
