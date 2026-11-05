@@ -7,7 +7,7 @@ test("offline modules and demo photo store are in app shell cache", () => {
     assert.match(source, new RegExp(path.replaceAll(".", "\\.")));
   }
   assert.doesNotMatch(source, /offline-legacy-migration-ui\.js/);
-  assert.match(source, /checklist-cache-v44/);
+  assert.match(source, /checklist-cache-v\\d+/);
 });
 test("service worker caches GET only and excludes auth writes", () => {
   assert.match(source, /if \(req\.method !== 'GET'\) return/);

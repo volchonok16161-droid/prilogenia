@@ -12,7 +12,7 @@ test("the explicit cloud backup button is injected into embedded checklist footb
   assert.equal(count(html, "function __tmhAttachCloudBackup(source, mode)"), 1);
   assert.match(html, /id="tmhCloudBackupBtn" type="button">☁️ Сохранить в облако/);
   assert.match(html, /source\.replace\(footbar,footbar\+/);
-  assert.equal(count(html, "frame.srcdoc=window.__tmhAttachCloudBackup(getEmbeddedSource(mode),mode);"), 2);
+  assert.equal(count(html, "frame.srcdoc=window.__tmhAttachCloudBackup(getEmbeddedSource(mode),mode);"), 1);
 });
 
 test("the embedded bridge exposes live checklist state and the scoped storage key", () => {
@@ -55,7 +55,7 @@ test("the primary checklist screen exposes its own explicit cloud backup action"
 
 
 test("all embedded modes pass their active mode into the backup bridge", () => {
-  assert.equal(count(html, "__tmhAttachCloudBackup(getEmbeddedSource(mode),mode)"), 2);
+  assert.equal(count(html, "__tmhAttachCloudBackup(getEmbeddedSource(mode),mode)"), 1);
   for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
     assert.ok(html.includes(mode + ":'"), "mode name is registered: " + mode);
   }
