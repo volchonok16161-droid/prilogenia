@@ -54,7 +54,7 @@ function ensureOfflineSync() {
     });
   }
   if (!offlineSyncCoordinator) {
-    const cloudSync = createCloudSync({ authApi: api });
+    const cloudSync = createCloudSync(api);
     const photoSync = createChecklistPhotoSync({ authApi: api });
     const mapOperation = createOfflineChecklistOperationMapper({ photoSync });
     const runner = createOfflineSyncRunner({
