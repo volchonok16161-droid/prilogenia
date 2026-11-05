@@ -2518,10 +2518,25 @@ async function exportWithPhotos(){
         const bn=date+'_'+tv+'_'+nv+'_Чек-лист_'+(MODE==='housings'?'кожухи':'комплексный');
         const sb=bn.replace(/[\/\\:*?"<>|]/g,'_');
         a.download=sb+'.xlsx';
+        let __tmhExcelCloudSaved = false;
+        try {
+          const __saveExcel = window.__TMH_SAVE_EXCEL_EXPORT;
+          if (typeof __saveExcel !== 'function') throw new Error('Облачное сохранение Excel не подключено');
+          await __saveExcel(blob, {
+            fileName: a.download,
+            mode: MODE,
+            checklistType: type,
+            checklistNumber: number,
+            checklistDate: date || ''
+          });
+          __tmhExcelCloudSaved = true;
+        } catch (__cloudError) {
+          console.error('Excel cloud archive failed', __cloudError);
+        }
         a.href=url;
         a.click();
         URL.revokeObjectURL(url);
-        showToast('✅ Экспорт выполнен успешно');
+        showToast(__tmhExcelCloudSaved ? '☁️ Excel сохранён в облако и загружен' : '⚠️ Excel скачан, но не сохранён в облако. Проверьте вход и подключение.');
     }catch(e){
         console.error(e);
         showToast('⚠️ Ошибка при экспорте: '+e.message);
