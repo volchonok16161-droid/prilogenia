@@ -1462,6 +1462,7 @@ async function checkAuth() {
     if (authCheckId !== __TMH_AUTH_CHECK_SEQ) return !!currentUser;
     __tmhApplyUserStorageScope(identity.user.id, identity.profile.role);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
+    window.__TMH_AUTH_CONTEXT = Object.freeze({ userId: identity.user.id, role: identity.profile.role, offlineMode: Boolean(window.__TMH_OFFLINE_MODE) });
     var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
     var __tmhBadgeText = document.getElementById('tmhConnectionText');
     var __tmhBadgeDot = document.getElementById('tmhConnectionDot');
