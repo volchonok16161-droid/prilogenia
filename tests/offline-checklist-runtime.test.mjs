@@ -25,6 +25,7 @@ test("sync start checks server profile and never starts from a local PIN alone",
   assert.match(source, /authApi\.getCurrentIdentity\(\)/);
   assert.match(source, /identity\?\.profile\?\.id !== identity\?\.user\?\.id/);
   assert.match(source, /Online sign-in and an enabled employee profile are required/);
+  assert.match(source, /\["employee", "assistant", "admin", "developer"\]/);
   assert.match(source, /return coordinator\.start\(\)/);
 });
 
