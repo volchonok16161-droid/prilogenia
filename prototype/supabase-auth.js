@@ -83,7 +83,7 @@ const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   },
 });
 
-const ALLOWED_ROLES = new Set(["employee", "admin", "developer"]);
+const ALLOWED_ROLES = new Set(["employee", "assistant", "admin", "developer"]);
 
 async function getProfileWithRetry(user, attempts = 2) {
   let result;

@@ -98,7 +98,7 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
 import { isChecklistComplete, summarizeChecklistStatuses } from "./prototype/checklist-status.js";
 import { createChecklistPhotoSync } from "./prototype/supabase-cloud-photos.js";
 const $ = (id) => document.getElementById(id);
-const roleLabels = { employee: "Сотрудник", admin: "Администратор", developer: "Разработчик" };
+const roleLabels = { employee: "Сотрудник", assistant: "Помощник", admin: "Администратор", developer: "Разработчик" };
 const formatDate = (value) => {
   if (!value) return "—";
   const date = new Date(value);
@@ -173,6 +173,36 @@ async function loadEmployees(api, requestId = cabinetLoadSequence) {
       pill.className = "admin-pill" + (employee.suspended ? " off" : "");
       pill.textContent = employee.suspended ? "Доступ заблокирован" : "Доступ активен";
       info.append(name, meta, pill);
+      const roleLabel = document.createElement("div");
+      roleLabel.className = "admin-meta";
+      roleLabel.textContent = "Роль: " + (roleLabels[employee.role] || employee.role || "Сотрудник");
+      info.append(roleLabel);
+      if (window.TMHAuth?.getCurrentIdentity) {
+        const identity = await window.TMHAuth.getCurrentIdentity();
+        if (identity?.profile?.role === "developer") {
+          const roleButton = document.createElement("button");
+          roleButton.type = "button";
+          roleButton.className = employee.role === "assistant" ? "btn secondary" : "btn";
+          roleButton.textContent = employee.role === "assistant" ? "Забрать роль помощника" : "Назначить помощником";
+          roleButton.addEventListener("click", async () => {
+            const nextRole = employee.role === "assistant" ? "employee" : "assistant";
+            const verb = nextRole === "assistant" ? "выдать роль помощника" : "отозвать роль помощника";
+            if (!window.confirm("Подтвердить действие: " + verb + " для «" + (employee.display_name || employee.id) + "»?")) return;
+            roleButton.disabled = true;
+            status.textContent = "Изменяем роль…";
+            try {
+              await callAdmin(api, { action: "set_employee_role", user_id: employee.id, role: nextRole });
+              status.textContent = nextRole === "assistant" ? "Роль помощника выдана." : "Роль помощника отозвана.";
+              await loadEmployees(api);
+            } catch (error) {
+              status.textContent = error?.message || "Не удалось изменить роль.";
+              status.className = "error";
+              roleButton.disabled = false;
+            }
+          });
+          row.append(roleButton);
+        }
+      }
       const button = document.createElement("button");
       button.type = "button";
       button.className = employee.suspended ? "btn secondary" : "btn";
