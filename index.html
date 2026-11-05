@@ -1038,6 +1038,11 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     vertical-align:middle;
 }
 
+/* Account dropdown in the embedded checklist toolbar. */
+#iframeBar .iframe-account-menu-wrap{margin-left:auto;flex:0 0 auto;}
+#iframeBar .iframe-account-menu-toggle{min-height:38px;white-space:nowrap;}
+#iframeBar .iframe-account-menu{right:0;top:calc(100% + 8px);}
+@media(max-width:560px){#iframeBar .iframe-account-menu-wrap{flex:1 1 100%;display:flex;justify-content:flex-end;}#iframeBar .iframe-account-menu-toggle{width:auto;min-width:112px;}}
 /* Compact account dropdown next to the exit control. */
 .account-menu-wrap{position:relative;display:inline-flex;align-items:center;}
 .user-info .account-menu-toggle{min-height:36px;padding:7px 12px;font-size:12px;}
@@ -1278,7 +1283,14 @@ if(button){
     <div id="iframeBar">
         <button class="btn primary" id="iframeBackBtn">🔄 Сменить чек-лист</button>
         <b id="iframeModeLabel"></b>
-        <a class="btn account-cabinet-btn iframe-account-cabinet-btn" id="iframeAccountCabinetLink" href="./account.html" aria-label="Открыть личный кабинет">👤 <span>Личный кабинет</span></a>
+        <div class="account-menu-wrap iframe-account-menu-wrap">
+          <button class="btn iframe-account-menu-toggle" id="iframeAccountMenuToggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="iframeAccountMenu">Выход ▾</button>
+          <div class="account-menu iframe-account-menu" id="iframeAccountMenu" hidden>
+            <div class="account-menu-user">👤 <span id="iframeUserName">Пользователь</span></div>
+            <a class="account-menu-role" id="iframeAccountCabinetLink" href="./account.html"><span class="role" id="iframeUserRole">Сотрудник</span><span>Личный кабинет →</span></a>
+            <button class="account-menu-logout" id="iframeLogoutConfirmBtn" type="button">Выйти из аккаунта</button>
+          </div>
+        </div>
         <button class="btn" id="riskBtnBar" type="button" title="Справочник: локомотивы, приписки, места осмотра">📍 Зона риска</button>
         <button class="btn" id="helpBtnBar" type="button">📖 Инструкция</button>
     </div>
@@ -1599,6 +1611,10 @@ function updateUserUI(){
   const role=document.getElementById('userRole');
   const menu=document.getElementById('accountMenu');
   const toggle=document.getElementById('logoutBtn');
+  const iframeName=document.getElementById('iframeUserName');
+  const iframeRole=document.getElementById('iframeUserRole');
+  const iframeMenu=document.getElementById('iframeAccountMenu');
+  const iframeToggle=document.getElementById('iframeAccountMenuToggle');
   if(currentUser){
     info.style.display='flex';
     let profile={};
@@ -1608,11 +1624,16 @@ function updateUserUI(){
     name.textContent=profile.displayName|| (isDeveloper?'Разработчик':isAdmin?'Администратор':'Пользователь');
     role.textContent=isDeveloper?'Разработчик':isAdmin?'Администратор':profile.profileRole==='assistant'?'Помощник':'Сотрудник';
     role.classList.toggle('dim',!isDeveloper&&!isAdmin);
+    if(iframeName)iframeName.textContent=name.textContent;
+    if(iframeRole)iframeRole.textContent=role.textContent;
     if(menu){menu.hidden=true;}
     if(toggle)toggle.setAttribute('aria-expanded','false');
+    if(iframeMenu)iframeMenu.hidden=true;
+    if(iframeToggle)iframeToggle.setAttribute('aria-expanded','false');
   }else{
     info.style.display='none';
     if(menu)menu.hidden=true;
+    if(iframeMenu)iframeMenu.hidden=true;
   }
 }
 
@@ -2970,6 +2991,29 @@ function setupCommonHandlers(){
       });
     }
     if(logoutConfirmBtn)logoutConfirmBtn.onclick=doLogout;
+    const iframeAccountMenu=document.getElementById('iframeAccountMenu');
+    const iframeAccountToggle=document.getElementById('iframeAccountMenuToggle');
+    const iframeLogoutConfirmBtn=document.getElementById('iframeLogoutConfirmBtn');
+    if(iframeAccountToggle&&iframeAccountMenu){
+      iframeAccountToggle.addEventListener('click',function(){
+        const willOpen=iframeAccountMenu.hidden;
+        iframeAccountMenu.hidden=!willOpen;
+        iframeAccountToggle.setAttribute('aria-expanded',String(willOpen));
+      });
+      document.addEventListener('click',function(event){
+        if(!event.target.closest('.iframe-account-menu-wrap')){
+          iframeAccountMenu.hidden=true;
+          iframeAccountToggle.setAttribute('aria-expanded','false');
+        }
+      });
+      document.addEventListener('keydown',function(event){
+        if(event.key==='Escape'){
+          iframeAccountMenu.hidden=true;
+          iframeAccountToggle.setAttribute('aria-expanded','false');
+        }
+      });
+    }
+    if(iframeLogoutConfirmBtn)iframeLogoutConfirmBtn.onclick=doLogout;
     document.getElementById('continueBtn').onclick=function(){loadState();startApp(false);};
     document.getElementById('newBtn').onclick = async function() {
     const api = __getTMHAuthApi();
