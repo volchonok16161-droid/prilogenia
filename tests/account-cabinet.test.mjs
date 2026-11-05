@@ -156,13 +156,16 @@ test("account cabinet invalidates stale loads and clears prior-account content o
   assert.match(html, /\$\("checklists"\)\.replaceChildren\(\)/);
 });
 
-test("account cabinet entry is a visible responsive button in the main and embedded navigation", async () => {
+test("account cabinet is opened from the role entry in the exit dropdown", async () => {
   const main = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(main, /class="logout-btn account-cabinet-btn" id="accountCabinetLink"/);
-  assert.match(main, /class="btn account-cabinet-btn iframe-account-cabinet-btn" id="iframeAccountCabinetLink"/);
-  assert.match(main, /\.user-info \.account-cabinet-btn[\s\S]*?background:#0757c9!important/);
-  assert.match(main, /#iframeBar \.iframe-account-cabinet-btn[\s\S]*?margin-left:auto/);
-  assert.match(main, /@media\(max-width:640px\)[\s\S]*?#iframeBar[\s\S]*?flex-wrap:wrap/);
+  assert.match(main, /id="logoutBtn"[^>]*aria-controls="accountMenu"/);
+  assert.match(main, /id="accountMenu" hidden/);
+  assert.match(main, /id="accountCabinetLink" href="\.\/account\.html"/);
+  assert.match(main, /id="logoutConfirmBtn"/);
+  assert.match(main, /\.account-menu-role[\s\S]*?text-decoration:none/);
+  assert.match(main, /\.account-menu-toggle/);
+  assert.match(main, /accountMenuToggle\.setAttribute\('aria-expanded',String\(willOpen\)\)/);
+  assert.match(main, /id="iframeAccountCabinetLink"/);
 });
 
 test("account cabinet list and actions adapt to narrow screens", () => {
