@@ -2,7 +2,7 @@
 // This runner never treats a local PIN unlock as a Supabase session. Call it
 // only after connectivity returns; each operation revalidates the server identity.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const ROLES = new Set(["employee", "admin", "developer"]);
+const ROLES = new Set(["employee", "assistant", "admin", "developer"]);
 
 function assertDependencies({ authApi, database, vault, cloudSync, mapOperation }) {
   if (typeof authApi?.getCurrentIdentity !== "function" ||
