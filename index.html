@@ -16093,6 +16093,10 @@ if(typeof EMBED_TT_HTML==='undefined')return '';if(mode==='tt')return EMBED_TT_H
 function showEmbeddedApp(mode){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');const label=document.getElementById('iframeModeLabel');if(!host||!frame)return;if(nativeApp)nativeApp.style.display='none';document.title='Чек-лист — '+MODE_NAMES[mode];if(label)label.textContent=MODE_NAMES[mode];frame.srcdoc=window.__tmhAttachCloudBackup(getEmbeddedSource(mode),mode);host.style.display='flex';}
 function hideEmbeddedApp(){const nativeApp=document.getElementById('nativeApp');const host=document.getElementById('iframeHost');const frame=document.getElementById('embeddedFrame');if(host)host.style.display='none';if(frame)frame.srcdoc='about:blank';if(nativeApp)nativeApp.style.display='';}
 
+function __tmhStorageIdForMode(mode){
+    const ids={complex:LS_KEY_COMPLEX,housings:LS_KEY_HOUSINGS,tt:'checklist_tt_v1',bi:'checklist_msud_v1',hydro:'checklist_hydro_v1'};
+    return ids[mode]||LS_KEY;
+}
 async function selectModeAndStart(mode){
     // Если MODE уже был установлен и он совпадает — это не первый запуск
     if(MODE && mode===MODE){
@@ -16115,7 +16119,7 @@ async function selectModeAndStart(mode){
         const requestedLocalId = new URLSearchParams(window.location.search).get('openLocalChecklist');
         const api = __getTMHAuthApi();
         if(requestedLocalId && api && typeof api.activateOfflineChecklistInstance === 'function'){
-            try{await api.activateOfflineChecklistInstance(LS_KEY,requestedLocalId);}
+            try{await api.activateOfflineChecklistInstance(__tmhStorageIdForMode(mode),requestedLocalId);}
             catch(error){showToast(error.message||'Не удалось открыть локальный чек-лист');}
         }
         showEmbeddedApp(mode);
@@ -16131,7 +16135,7 @@ async function selectModeAndStart(mode){
         const requestedLocalId = new URLSearchParams(window.location.search).get('openLocalChecklist');
         const api = __getTMHAuthApi();
         if(requestedLocalId && api && typeof api.activateOfflineChecklistInstance === 'function'){
-            try{await api.activateOfflineChecklistInstance(LS_KEY,requestedLocalId);}
+            try{await api.activateOfflineChecklistInstance(__tmhStorageIdForMode(mode),requestedLocalId);}
             catch(error){showToast(error.message||'Не удалось открыть локальный чек-лист');}
         }
         showContinueDialogOrStart();
@@ -18708,7 +18712,7 @@ async function init(){
     else if(__requestedChecklistId){document.getElementById('continueDialog').style.display='none';const __restoreButton=document.getElementById('tmhNativeCloudRestoreBtn');if(__restoreButton)__restoreButton.click();else showToast('Кнопка восстановления облачной записи недоступна');}
     else if(__requestedLocalId){
         const api=__getTMHAuthApi();
-        try{await api.activateOfflineChecklistInstance(LS_KEY,__requestedLocalId);await startApp(false);}
+        try{await api.activateOfflineChecklistInstance(__tmhStorageIdForMode(MODE),__requestedLocalId);await startApp(false);}
         catch(error){showToast(error.message||'Не удалось открыть локальный чек-лист');showContinueDialogOrStart();}
     }
     else showContinueDialogOrStart();
