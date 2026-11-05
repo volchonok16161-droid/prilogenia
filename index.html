@@ -14148,7 +14148,12 @@ async function init() {
     loadState();
     startApp(false);
   };
-  document.getElementById('newBtn').onclick = function() {
+  document.getElementById('newBtn').onclick = async function() {
+    const api = __getTMHAuthApi();
+    if (api && typeof api.beginNewOfflineChecklistInstance === 'function' && window.__TMH_STORAGE_UID) {
+      try { await api.beginNewOfflineChecklistInstance(LS_KEY); }
+      catch (error) { showToast('Не удалось создать новый чек-лист: ' + (error.message || error)); return; }
+    }
     fullClearState();
     startApp(true);
   };
@@ -16210,7 +16215,15 @@ function setupCommonHandlers(){
     document.getElementById('passwordInput').onkeypress=function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();};
     document.getElementById('logoutBtn').onclick=doLogout;
     document.getElementById('continueBtn').onclick=function(){loadState();startApp(false);};
-    document.getElementById('newBtn').onclick=function(){fullClearState();startApp(true);};
+    document.getElementById('newBtn').onclick = async function() {
+    const api = __getTMHAuthApi();
+    if (api && typeof api.beginNewOfflineChecklistInstance === 'function' && window.__TMH_STORAGE_UID) {
+      try { await api.beginNewOfflineChecklistInstance(LS_KEY); }
+      catch (error) { showToast('Не удалось создать новый чек-лист: ' + (error.message || error)); return; }
+    }
+    fullClearState();
+    startApp(true);
+  };
     document.getElementById('btnSave').onclick=()=>saveState();
     document.getElementById('btnSaveHtml').onclick=saveAsHtmlFile;
     document.getElementById('btnExport').onclick=exportWithPhotos;
@@ -18472,7 +18485,15 @@ function setupCommonHandlers(){
     document.getElementById('passwordInput').onkeypress=function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();};
     document.getElementById('logoutBtn').onclick=doLogout;
     document.getElementById('continueBtn').onclick=function(){loadState();startApp(false);};
-    document.getElementById('newBtn').onclick=function(){fullClearState();startApp(true);};
+    document.getElementById('newBtn').onclick = async function() {
+    const api = __getTMHAuthApi();
+    if (api && typeof api.beginNewOfflineChecklistInstance === 'function' && window.__TMH_STORAGE_UID) {
+      try { await api.beginNewOfflineChecklistInstance(LS_KEY); }
+      catch (error) { showToast('Не удалось создать новый чек-лист: ' + (error.message || error)); return; }
+    }
+    fullClearState();
+    startApp(true);
+  };
     document.getElementById('btnSave').onclick=()=>saveState();
     document.getElementById('btnSaveHtml').onclick=saveAsHtmlFile;
     document.getElementById('btnExport').onclick=exportWithPhotos;
