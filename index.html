@@ -1342,6 +1342,7 @@ for(i=0;i<8;i++)H[i]=(H[i]+a[i])|0;}
 var h='';for(i=0;i<8;i++)h+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);return h;}
 function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==='c6a92f1d718a2a74fbbe448c66b70baffa1811636e527d1e3245b6c2e2285147';}catch(e){return false;}}
 let currentUser=null;
+let __TMH_AUTH_CHECK_SEQ=0;
 function __tmhApplyUserStorageScope(uid) {
   if (typeof uid !== 'string' || !/^[0-9a-f-]{36}$/i.test(uid)) {
     throw new Error('Не удалось подтвердить UUID пользователя Supabase');
@@ -1400,8 +1401,14 @@ function __getTMHAuthApi() {
 }
 
 async function checkAuth() {
+  // Multiple startup paths can request auth simultaneously (main page + embedded checklist).
+  // Only the newest check may update the visible account state.
+  const authCheckId = ++__TMH_AUTH_CHECK_SEQ;
   const api = __getTMHAuthApi();
-  if (!api) { currentUser = null; return false; }
+  if (!api) {
+    if (authCheckId === __TMH_AUTH_CHECK_SEQ) updateUserUI();
+    return false;
+  }
   __tmhInstallAuthWatcher(api);
   try {
     let identity = await api.getOfflineIdentity();
@@ -1411,16 +1418,19 @@ async function checkAuth() {
         identity = await api.getCachedOfflineIdentity(identity?.error);
       }
     }
+    if (authCheckId !== __TMH_AUTH_CHECK_SEQ) return !!currentUser;
     if (!identity || !identity.user || !identity.profile) {
       currentUser = null;
       try { localStorage.removeItem('checklist_user'); } catch (e) {}
       updateUserUI();
       return false;
     }
+    if (authCheckId !== __TMH_AUTH_CHECK_SEQ) return !!currentUser;
     if (identity.mode !== 'offline-local-unlock' && typeof api.activateDeviceVault === 'function') {
       try { await api.activateDeviceVault(identity); }
       catch (vaultError) { console.warn('Device offline storage is unavailable; continuing with standard local save', vaultError); }
     }
+    if (authCheckId !== __TMH_AUTH_CHECK_SEQ) return !!currentUser;
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
     var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
@@ -1470,6 +1480,7 @@ async function checkAuth() {
     return true;
   } catch (e) {
     console.error('Auth check failed', e);
+    if (authCheckId !== __TMH_AUTH_CHECK_SEQ) return !!currentUser;
     currentUser = null;
     updateUserUI();
     return false;
