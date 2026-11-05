@@ -6,6 +6,7 @@ const html = (await readFile(new URL("../index.html", import.meta.url), "utf8"))
   "../prototype/embedded/tt.js",
   "../prototype/embedded/bi.js",
   "../prototype/embedded/hydro.js",
+  "../prototype/embedded/complex.js",
 ].map((path) => readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
 
 test("complex checklist marks local PIN sessions separately from Supabase sessions", () => {
