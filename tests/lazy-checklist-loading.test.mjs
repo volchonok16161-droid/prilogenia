@@ -29,3 +29,15 @@ test("lazy checklist templates are precached for offline use", () => {
     assert.ok(sw.includes(path), path + " must be in the app shell cache");
   }
 });
+
+
+test("embedded checklist opening is idempotent and ignores stale async loads", () => {
+  assert.match(index, /window\.__TMH_EMBED_OPEN_SEQ/);
+  assert.match(index, /window\.__TMH_ACTIVE_EMBEDDED_MODE===mode/);
+  assert.match(index, /if\(openSeq!==window\.__TMH_EMBED_OPEN_SEQ\)return;/);
+  assert.match(index, /function hideEmbeddedApp\(\)\{window\.__TMH_EMBED_OPEN_SEQ\+\+/);
+});
+
+test("main application initializes its theme controls only once", () => {
+  assert.doesNotMatch(index, /initThemeSwitch\(\);\s*initThemeSwitch\(\);/);
+});
