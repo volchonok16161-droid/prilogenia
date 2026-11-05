@@ -3694,11 +3694,26 @@ saveState = function(silent) {
                 const baseName = \`\${date}_\${typeVal}_\${numberVal}_Чек-лист_МСУД-015\`;
                 const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
                 a.download = safeBase + '.xlsx';
+        let __tmhExcelCloudSaved = false;
+        try {
+          const __saveExcel = window.parent && window.parent.__TMH_SAVE_EXCEL_EXPORT;
+          if (typeof __saveExcel !== 'function') throw new Error('Облачное сохранение Excel не подключено');
+          await __saveExcel(blob, {
+            fileName: a.download,
+            mode: 'bi',
+            checklistType: typeVal || type || '',
+            checklistNumber: numberVal || number || '',
+            checklistDate: date || ''
+          });
+          __tmhExcelCloudSaved = true;
+        } catch (__cloudError) {
+          console.error('Excel cloud archive failed', __cloudError);
+        }
 
                 a.href = url;
                 a.click();
                 URL.revokeObjectURL(url);
-                showToast('✅ Экспорт выполнен успешно');
+                showToast(__tmhExcelCloudSaved ? '☁️ Excel сохранён в облако и загружен' : '⚠️ Excel скачан, но не сохранён в облако. Проверьте вход и подключение.');
             } catch (e) {
                 console.error(e);
                 showToast('⚠️ Ошибка при экспорте: ' + e.message);
