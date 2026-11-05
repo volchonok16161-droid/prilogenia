@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v65';
+const CACHE_VERSION = 'checklist-cache-v66';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -13,6 +13,9 @@ const APP_SHELL = [
   './zona_riska.xlsx',
   './instruction.html',
   './manifest.json',
+  './prototype/embedded/tt.js',
+  './prototype/embedded/bi.js',
+  './prototype/embedded/hydro.js',
   './prototype/offline-vault-crypto.js',
   './prototype/offline-vault-db.js',
   './prototype/offline-vault-session.js',
