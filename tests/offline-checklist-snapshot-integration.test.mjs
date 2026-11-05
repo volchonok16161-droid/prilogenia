@@ -32,3 +32,13 @@ test("offline snapshot persistence is scoped to the authenticated storage owner"
   assert.match(html, /if \(!window\.__TMH_STORAGE_UID \|\| window\.__TMH_STORAGE_LOCKED \|\| !STATE \|\| !STATE\.general\) return false/);
   assert.match(html, /window\.__TMH_OFFLINE_MODE/);
 });
+
+
+test("local cabinet deep links activate the selected owner-scoped instance in all five modes", () => {
+  assert.match(html, /openLocalChecklist/);
+  assert.match(html, /__tmhStorageIdForMode\(MODE\)/);
+  assert.match(html, /__tmhStorageIdForMode\(mode\)/);
+  assert.match(html, /await api\.activateOfflineChecklistInstance/);
+  assert.match(html, /await startApp\(false\)/);
+  assert.match(html, /async function __tmhRestoreActiveOfflineState\(\)/);
+});

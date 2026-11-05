@@ -171,3 +171,11 @@ test("account cabinet list and actions adapt to narrow screens", () => {
   assert.match(html, /\.item\{display:grid;grid-template-columns:37px minmax\(0,1fr\)/);
   assert.match(html, /\.item>div:last-child \.btn\{flex:1 1 110px/);
 });
+
+
+test("account cabinet opens the selected encrypted local checklist in its matching form", () => {
+  assert.match(html, /api\.activateDeviceVault\(identity\)/);
+  assert.match(html, /api\.listOfflineChecklistInstances\(\)/);
+  assert.match(html, /open\.href = "\.\/index\.html\?mode=" \+ encodeURIComponent\(entry\.mode\) \+ "&openLocalChecklist=" \+ encodeURIComponent\(entry\.instanceId\)/);
+  assert.match(html, /open\.textContent = "Открыть"/);
+});
