@@ -1559,33 +1559,10 @@ async function doLogout() {
 
 function updateUserUI(){
   const info=document.getElementById('userInfo');
-  const name=document.getElementById('userName');
-  const role=document.getElementById('userRole');
-  const menu=document.getElementById('accountMenu');
-  const toggle=document.getElementById('logoutBtn');
-  const iframeName=document.getElementById('iframeUserName');
-  const iframeRole=document.getElementById('iframeUserRole');
-  const iframeMenu=document.getElementById('iframeAccountMenu');
-  const iframeToggle=document.getElementById('iframeAccountMenuToggle');
   if(currentUser){
-    info.style.display='flex';
-    let profile={};
-    try{profile=JSON.parse(localStorage.getItem('checklist_user')||'{}')||{};}catch(e){}
-    const isDeveloper=profile.dev===true||profile.profileRole==='developer';
-    const isAdmin=profile.profileRole==='admin';
-    name.textContent=profile.displayName|| (isDeveloper?'Разработчик':isAdmin?'Администратор':'Пользователь');
-    role.textContent=isDeveloper?'Разработчик':isAdmin?'Администратор':profile.profileRole==='assistant'?'Помощник':'Сотрудник';
-    role.classList.toggle('dim',!isDeveloper&&!isAdmin);
-    if(iframeName)iframeName.textContent=name.textContent;
-    if(iframeRole)iframeRole.textContent=role.textContent;
-    if(menu){menu.hidden=true;}
-    if(toggle)toggle.setAttribute('aria-expanded','false');
-    if(iframeMenu)iframeMenu.hidden=true;
-    if(iframeToggle)iframeToggle.setAttribute('aria-expanded','false');
+    if(info)info.style.display='flex';
   }else{
-    info.style.display='none';
-    if(menu)menu.hidden=true;
-    if(iframeMenu)iframeMenu.hidden=true;
+    if(info)info.style.display='none';
   }
 }
 
