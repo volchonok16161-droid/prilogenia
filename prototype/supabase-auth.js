@@ -311,7 +311,7 @@ async function getCachedOfflineIdentity(cause) {
     activeOfflineUserId = unlocked.userId;
     activeOfflineIdentity = Object.freeze({
       user: Object.freeze(identity.user),
-      profile: Object.freeze(identity.profile),
+      profile: Object.freeze({ ...identity.profile, role: "employee" }),
       mode: "offline-local-unlock",
       supabaseAuthenticated: false,
     });
