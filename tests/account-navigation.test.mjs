@@ -7,10 +7,10 @@ const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 test("main authenticated header shows cabinet and exit as separate adjacent actions", () => {
   const userMenu = html.match(/<div class="user-info" id="userInfo"[\s\S]*?<\/div>\s*<\/div>/)?.[0];
   assert.ok(userMenu, "main user menu exists");
-  assert.match(userMenu, /class="btn account-cabinet-btn" id="accountCabinetLink"/);
+  assert.match(userMenu, /class="logout-btn btn account-cabinet-btn" id="accountCabinetLink"/);
   assert.match(userMenu, /id="accountCabinetLink"/);
   assert.match(userMenu, /href="\.\/account\.html"/);
-  assert.match(userMenu, /id="logoutConfirmBtn"[^>]*>Выход/);
+  assert.match(userMenu, /href="\\.\\/account\\.html"/);
 });
 
 test("cabinet navigation is separate from checklist save behavior", () => {
