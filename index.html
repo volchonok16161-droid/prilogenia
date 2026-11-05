@@ -1038,6 +1038,20 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     vertical-align:middle;
 }
 
+/* Compact account dropdown next to the exit control. */
+.account-menu-wrap{position:relative;display:inline-flex;align-items:center;}
+.user-info .account-menu-toggle{min-height:36px;padding:7px 12px;font-size:12px;}
+.account-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:1200;min-width:220px;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.22);display:grid;gap:8px;}
+.account-menu[hidden]{display:none!important;}
+.account-menu-user{padding:4px 6px 8px;border-bottom:1px solid var(--line);font-weight:650;color:var(--ink);overflow-wrap:anywhere;}
+.account-menu-role{display:grid;gap:3px;padding:10px;border-radius:8px;text-decoration:none;background:var(--panel2);border:1px solid var(--line);}
+.account-menu-role:hover{border-color:var(--amber);background:var(--panel);}
+.account-menu-role .role{font-size:14px;font-weight:750;color:var(--amber);}
+.account-menu-role>span:last-child{font-size:12px;color:var(--ink-dim);}
+.account-menu-logout{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--ink);font:600 12px var(--sans);cursor:pointer;text-align:left;}
+.account-menu-logout:hover{border-color:var(--bad);color:var(--bad);}
+@media(max-width:640px){.account-menu{right:0;min-width:210px;}.user-info .account-menu-toggle{min-height:40px;padding:8px 12px;}}
+
 /* Account cabinet: high-contrast primary action, distinct from utility/logout controls. */
 .user-info{flex-wrap:wrap;min-width:0;}
 .user-info .account-cabinet-btn,
@@ -1211,11 +1225,14 @@ if(button){
         <button type="button" data-theme-value="dark">Тёмная</button>
     </div>
     <div class="user-info" id="userInfo" style="display:none;">
-        <span>👤 <span id="userName">Пользователь</span></span>
-        <span class="role" id="userRole">(user)</span>
-        
-        <a class="logout-btn account-cabinet-btn" id="accountCabinetLink" href="./account.html" aria-label="Открыть личный кабинет"><span aria-hidden="true">👤</span><span>Личный кабинет</span></a>
-        <button class="logout-btn" id="logoutBtn">Выход</button>
+        <div class="account-menu-wrap">
+          <button class="logout-btn account-menu-toggle" id="logoutBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="accountMenu">Выход ▾</button>
+          <div class="account-menu" id="accountMenu" hidden>
+            <div class="account-menu-user">👤 <span id="userName">Пользователь</span></div>
+            <a class="account-menu-role" id="accountCabinetLink" href="./account.html"><span class="role" id="userRole">Сотрудник</span><span>Личный кабинет →</span></a>
+            <button class="account-menu-logout" id="logoutConfirmBtn" type="button">Выйти из аккаунта</button>
+          </div>
+        </div>
     </div>
 </div>
 <div class="stat-bar" id="statBar">
@@ -1576,7 +1593,28 @@ async function doLogout() {
   }
 }
 
-function updateUserUI(){const info=document.getElementById('userInfo');const name=document.getElementById('userName');const role=document.getElementById('userRole');if(currentUser){info.style.display='flex';if(currentUser==='admin'){const __d=(function(){try{return JSON.parse(localStorage.getItem('checklist_user')).dev===true;}catch(e){return false;}})();name.textContent=(function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})()||(__d?'Разработчик':'Администратор');role.textContent=__d?'(developer)':'(admin)';role.classList.remove('dim');}else{name.textContent = (function(){try{return JSON.parse(localStorage.getItem('checklist_user')||'{}').displayName||'';}catch(e){return '';}})() || 'Пользователь';role.textContent='(user)';role.classList.add('dim');}}else{info.style.display='none';}}
+function updateUserUI(){
+  const info=document.getElementById('userInfo');
+  const name=document.getElementById('userName');
+  const role=document.getElementById('userRole');
+  const menu=document.getElementById('accountMenu');
+  const toggle=document.getElementById('logoutBtn');
+  if(currentUser){
+    info.style.display='flex';
+    let profile={};
+    try{profile=JSON.parse(localStorage.getItem('checklist_user')||'{}')||{};}catch(e){}
+    const isDeveloper=profile.dev===true||profile.profileRole==='developer';
+    const isAdmin=profile.profileRole==='admin';
+    name.textContent=profile.displayName|| (isDeveloper?'Разработчик':isAdmin?'Администратор':'Пользователь');
+    role.textContent=isDeveloper?'Разработчик':isAdmin?'Администратор':profile.profileRole==='assistant'?'Помощник':'Сотрудник';
+    role.classList.toggle('dim',!isDeveloper&&!isAdmin);
+    if(menu){menu.hidden=true;}
+    if(toggle)toggle.setAttribute('aria-expanded','false');
+  }else{
+    info.style.display='none';
+    if(menu)menu.hidden=true;
+  }
+}
 
 /* ========================================================================
    ДАННЫЕ ИЗ КЖЦ
@@ -2909,7 +2947,29 @@ function setupCommonHandlers(){
     };
     document.getElementById('loginInput').onkeypress=function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();};
     document.getElementById('passwordInput').onkeypress=function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();};
-    document.getElementById('logoutBtn').onclick=doLogout;
+    const accountMenu=document.getElementById('accountMenu');
+    const accountMenuToggle=document.getElementById('logoutBtn');
+    const logoutConfirmBtn=document.getElementById('logoutConfirmBtn');
+    if(accountMenuToggle&&accountMenu){
+      accountMenuToggle.addEventListener('click',function(){
+        const willOpen=accountMenu.hidden;
+        accountMenu.hidden=!willOpen;
+        accountMenuToggle.setAttribute('aria-expanded',String(willOpen));
+      });
+      document.addEventListener('click',function(event){
+        if(!event.target.closest('.account-menu-wrap')){
+          accountMenu.hidden=true;
+          accountMenuToggle.setAttribute('aria-expanded','false');
+        }
+      });
+      document.addEventListener('keydown',function(event){
+        if(event.key==='Escape'){
+          accountMenu.hidden=true;
+          accountMenuToggle.setAttribute('aria-expanded','false');
+        }
+      });
+    }
+    if(logoutConfirmBtn)logoutConfirmBtn.onclick=doLogout;
     document.getElementById('continueBtn').onclick=function(){loadState();startApp(false);};
     document.getElementById('newBtn').onclick = async function() {
     const api = __getTMHAuthApi();
