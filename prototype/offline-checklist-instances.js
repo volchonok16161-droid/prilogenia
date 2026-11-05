@@ -53,14 +53,19 @@ export function createOfflineChecklistInstances({
     if (!instance || !UUID_RE.test(instance.instanceId || "") ||
         !Object.hasOwn(OFFLINE_CHECKLIST_MODES, instance.mode) ||
         !state || typeof state !== "object") return null;
+    const cloudId = value?.cloud?.id || null;
+    const cloudState = cloudId ? await database.getCloudState(uid, cloudId) : null;
+    const pending = cloudId ? (await database.listPending(uid)).some((operation) => operation.entityId === cloudId) : false;
     return {
       instanceId: instance.instanceId,
+      cloudId,
       mode: instance.mode,
       title: instance.title || OFFLINE_CHECKLIST_MODES[instance.mode],
       createdAt: instance.createdAt,
       updatedAt: instance.updatedAt || row.updatedAt,
       state,
-      sync: value?.cloud ? "queued-or-synced" : "local-only",
+      sync: pending ? "pending-sync" : cloudState?.revision ? "synced" : "local-only",
+      revision: cloudState?.revision || null,
     };
   }
 
