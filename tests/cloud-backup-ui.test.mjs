@@ -31,8 +31,8 @@ test("the embedded bridge exposes live checklist state and the scoped storage ke
 test("cloud backup is explicit and never runs automatically during checklist startup", () => {
   assert.match(html, /button\.addEventListener\('click',async function\(\)/);
   assert.ok(html.includes("window.confirm('Сохранить текущий чек-лист и фотографии в приватное облако?"));
-  assert.match(html, /const result=await backup\.saveCurrent\(\)/);
-  assert.equal(count(html, "backup.saveCurrent()"), 2, "native and embedded checklists each have one explicit save handler");
+  assert.match(html, /return backup\.saveCurrent\(\)/);
+  assert.equal(count(html, "backup.saveCurrent()"), 1, "native and embedded save actions share one backup implementation");
   assert.match(html, /button\.disabled=true/);
   assert.match(html, /button\.disabled=false/);
 });
@@ -43,7 +43,7 @@ test("the injected bridge closes both scripts safely inside the parent template"
   const bridge = html.slice(start, end);
   assert.equal(count(bridge, "<\\/script>"), 2);
   assert.equal(count(bridge, "type=\"module\""), 1);
-  assert.match(bridge, /createChecklistCloudBackup/);
+  assert.match(bridge, /window\.parent\.__TMH_SAVE_CLOUD_BACKUP_CONTEXT\(getContext\(\)\)/);
   assert.match(bridge, /prototype\/supabase-cloud-backup\.js/);
   assert.match(bridge, /mode:\$\{JSON\.stringify\(mode\|\|\(\(typeof MODE==='undefined'\)\?'unknown':MODE\)\)\}/);
 
@@ -112,7 +112,7 @@ test("embedded restore is attached to the iframe document and keeps the parent a
 
 test("native and embedded cloud save/restore wire the private photo Storage adapter", () => {
   assert.match(html, /import \{ createChecklistPhotoSync \} from '\.\/prototype\/supabase-cloud-photos\.js'/);
-  assert.equal(count(html, "createChecklistPhotoSync({authApi:api})"), 4);
+  assert.equal(count(html, "createChecklistPhotoSync({ authApi: api })"), 1);
   assert.equal(count(html, "hydrateState:async function(state,metadata,manifest)"), 2);
   assert.match(html, /photoSync,/);
   assert.match(html, /photoSync\.restoreState/);
@@ -121,7 +121,7 @@ test("native and embedded cloud save/restore wire the private photo Storage adap
 
 
 test("cloud photo actions fail closed when IndexedDB photo hydration or its queue fails", () => {
-  assert.equal(count(html, "await __psEnsureCloudReady();"), 9);
+  assert.equal(count(html, "await __psEnsureCloudReady();"), 8);
   assert.equal(count(html, "__PS.restoreFailed=true;"), 4);
   assert.match(html, /if\(__PS\.restoreFailed\)throw new Error\('Не удалось прочитать фотографии из IndexedDB/);
   assert.match(html, /if\(ok===false\)throw new Error\('Не удалось завершить очередь фотографий IndexedDB/);
