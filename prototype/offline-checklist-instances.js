@@ -112,7 +112,7 @@ export function createOfflineChecklistInstances({
 
     const cloudEnabled = await database.getMeta("offline:cloud-sync-enabled:" + uid);
     if (cloudEnabled !== true) {
-      return { saved: true, encrypted: true, queued: false, status: "local-only", ...instance };
+      return { saved: true, encrypted: true, queued: false, status: "local-only", cloudId, ...instance };
     }
     try {
       const queued = await store.saveChecklist({

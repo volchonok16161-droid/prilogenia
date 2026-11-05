@@ -25,6 +25,7 @@ function fixture() {
     async getMeta(key) { return meta.get(key) ?? null; },
     async setMeta(key, value) { meta.set(key, value); },
     async getCloudState() { return null; },
+    async listPending() { return []; },
   };
   const vault = {
     async encrypt(value) { return { version: 1, iv: "iv", ciphertext: JSON.stringify(value) }; },
