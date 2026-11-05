@@ -45,7 +45,7 @@ export function createOfflineChecklistInstances({
     return PREFIX + instanceId.toLowerCase();
   }
 
-  async function decode(row) {
+  async function decode(row, pendingOperations = null) {
     if (!row || row.userId !== uid || row.kind !== "checklist-snapshot") return null;
     const value = await vault.decrypt(row.encrypted);
     const instance = value?.instance;
@@ -55,7 +55,12 @@ export function createOfflineChecklistInstances({
         !state || typeof state !== "object") return null;
     const cloudId = value?.cloud?.id || null;
     const cloudState = cloudId ? await database.getCloudState(uid, cloudId) : null;
-    const pending = cloudId ? (await database.listPending(uid)).some((operation) => operation.entityId === cloudId) : false;
+    // list() supplies one queue snapshot for the whole collection. Avoid
+    // opening a separate IndexedDB transaction for every checklist instance.
+    const operations = pendingOperations === null
+      ? await database.listPending(uid)
+      : pendingOperations;
+    const pending = cloudId ? operations.some((operation) => operation.entityId === cloudId) : false;
     return {
       instanceId: instance.instanceId,
       cloudId,
@@ -145,11 +150,14 @@ export function createOfflineChecklistInstances({
   }
 
   async function list() {
-    const rows = await database.listRecords(uid, "checklist-snapshot");
+    const [rows, pendingOperations] = await Promise.all([
+      database.listRecords(uid, "checklist-snapshot"),
+      database.listPending(uid),
+    ]);
     const result = [];
     for (const row of rows) {
       if (!row.id.startsWith(PREFIX)) continue;
-      const item = await decode(row);
+      const item = await decode(row, pendingOperations);
       if (item) result.push(item);
     }
     return result.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
