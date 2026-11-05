@@ -22,8 +22,8 @@ test("all five checklist runtimes save full snapshots through the encrypted vaul
 });
 
 test("complex checklist restores encrypted snapshots before falling back to legacy local state", () => {
-  assert.equal((html.match(/await api\.hasOfflineChecklist\(LS_KEY\)/g) || []).length, 2);
-  assert.equal((html.match(/await api\.loadOfflineChecklist\(LS_KEY\)/g) || []).length, 1);
+  assert.equal((html.match(/await api\.hasOfflineChecklist\(LS_KEY\)/g) || []).length, 10);
+  assert.equal((html.match(/await api\.loadOfflineChecklist\(LS_KEY\)/g) || []).length, 5);
   assert.match(html, /let restoredEncrypted = false/);
   assert.match(html, /if \(!restoredEncrypted\)[\s\S]*?loadState\(\)/);
 });
