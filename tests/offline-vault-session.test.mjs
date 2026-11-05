@@ -84,3 +84,13 @@ test("device identity mismatch prevents offline unlock", async () => {
   });
   await assert.rejects(second.unlockOffline(identity.user.id, "123456"), /another account or device/);
 });
+
+test("assistant role can initialize and unlock the encrypted offline vault", async () => {
+  const session = makeSession();
+  const assistantIdentity = { ...identity, profile: { ...identity.profile, role: "assistant" } };
+  const setup = await session.setupAfterVerifiedOnlineLogin(assistantIdentity, "123456");
+  assert.equal(setup.userId, assistantIdentity.user.id);
+  const unlocked = await session.unlockOffline(assistantIdentity.user.id, "123456");
+  assert.equal(unlocked.mode, "offline-local-unlock");
+  assert.equal(unlocked.supabaseAuthenticated, false);
+});
