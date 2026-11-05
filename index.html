@@ -1059,14 +1059,31 @@ import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js
 import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.js';
 
 import { createChecklistPhotoSync } from './prototype/supabase-cloud-photos.js';
-import { createChecklistExcelArchive } from './prototype/supabase-cloud-excel-archive.js';
 
-window.__TMH_SAVE_EXCEL_EXPORT = async function(blob, metadata) {
+// Единственная точка облачного сохранения: кнопка и экспорт Excel используют
+// один и тот же snapshot чек-листа, ревизию и синхронизацию фотографий.
+window.__TMH_SAVE_CLOUD_BACKUP_CONTEXT = async function(context) {
+  if (!context || !context.state || typeof context.mode !== 'string' ||
+      typeof context.storageKey !== 'string' || typeof context.persistState !== 'function') {
+    throw new Error('Не удалось получить состояние чек-листа для облачного сохранения');
+  }
   await __psEnsureCloudReady();
   const api = window.TMHAuthReady ? await window.TMHAuthReady : window.TMHAuth;
   if (!api) throw new Error('Авторизация Supabase недоступна');
-  const archive = createChecklistExcelArchive({ authApi: api });
-  return archive.save({ blob, ...metadata });
+  const photoSync = createChecklistPhotoSync({ authApi: api });
+  const backup = createChecklistCloudBackup({
+    authApi: api,
+    storage: window.localStorage,
+    photoSync,
+    getState: () => context.state,
+    getMode: () => context.mode,
+    getStorageKey: () => context.storageKey,
+    persistState: () => context.persistState(),
+    getChecklistDefinitions: () => context.definitions || [],
+    getChecklistStats: () => context.stats || null,
+    getChecklistType: () => context.checklistType || ''
+  });
+  return backup.saveCurrent();
 };
 const __enableOfflineSyncButton = document.getElementById('enableOfflineSyncBtn');
 if (__enableOfflineSyncButton) __enableOfflineSyncButton.hidden = true;
