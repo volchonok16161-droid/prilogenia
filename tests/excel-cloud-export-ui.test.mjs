@@ -22,6 +22,7 @@ for (const file of modes) {
     assert.ok(start >= 0 && anchor > start, "export handler and filename exist");
     assert.ok(save > anchor && click > save, "cloud checklist backup is awaited before local Excel download");
     assert.match(source.slice(save, click), /__getContext\(\)/);
+    assert.match(source.slice(save, click), /await __psEnsureCloudReady\(\)/, "embedded photo writes are flushed before the shared backup runs");
     assert.match(source.slice(save, click), /catch \(__cloudError\)/);
     assert.match(source.slice(click, click + 280), /Excel скачан, но не сохранён в облако/);
   });
