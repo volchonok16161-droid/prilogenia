@@ -1038,55 +1038,19 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     vertical-align:middle;
 }
 
-/* Account dropdown in the embedded checklist toolbar. */
-#iframeBar .iframe-account-menu-wrap{margin-left:auto;flex:0 0 auto;}
-#iframeBar .iframe-account-menu-toggle{min-height:38px;white-space:nowrap;}
-#iframeBar .iframe-account-menu{right:0;top:calc(100% + 8px);}
-@media(max-width:560px){#iframeBar .iframe-account-menu-wrap{flex:1 1 100%;display:flex;justify-content:flex-end;}#iframeBar .iframe-account-menu-toggle{width:auto;min-width:112px;}}
-/* Compact account dropdown next to the exit control. */
-.account-menu-wrap{position:relative;display:inline-flex;align-items:center;}
-.user-info .account-menu-toggle{min-height:36px;padding:7px 12px;font-size:12px;}
-.account-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:1200;min-width:220px;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.22);display:grid;gap:8px;}
-.account-menu[hidden]{display:none!important;}
-.account-menu-user{padding:4px 6px 8px;border-bottom:1px solid var(--line);font-weight:650;color:var(--ink);overflow-wrap:anywhere;}
-.account-menu-role{display:grid;gap:3px;padding:10px;border-radius:8px;text-decoration:none;background:var(--panel2);border:1px solid var(--line);}
-.account-menu-role:hover{border-color:var(--amber);background:var(--panel);}
-.account-menu-role .role{font-size:14px;font-weight:750;color:var(--amber);}
-.account-menu-role>span:last-child{font-size:12px;color:var(--ink-dim);}
-.account-menu-logout{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--ink);font:600 12px var(--sans);cursor:pointer;text-align:left;}
-.account-menu-logout:hover{border-color:var(--bad);color:var(--bad);}
-@media(max-width:640px){.account-menu{right:0;min-width:210px;}.user-info .account-menu-toggle{min-height:40px;padding:8px 12px;}}
-
-/* Account cabinet: high-contrast primary action, distinct from utility/logout controls. */
-.user-info{flex-wrap:wrap;min-width:0;}
-.user-info .account-cabinet-btn,
-#iframeBar .iframe-account-cabinet-btn{
-  display:inline-flex!important;align-items:center;justify-content:center;gap:9px;
-  min-height:44px;padding:10px 16px;border:2px solid #f5c542!important;
-  border-radius:12px;background:#0757c9!important;color:#fff!important;
-  box-shadow:0 3px 0 #063b86,0 0 0 2px rgba(7,87,201,.16);
-  font-size:14px;font-weight:800;line-height:1.2;letter-spacing:.01em;
-  text-decoration:none!important;white-space:nowrap;cursor:pointer;
-}
-.user-info .account-cabinet-btn:hover,
-#iframeBar .iframe-account-cabinet-btn:hover{
-  background:#06449e!important;border-color:#ffd85e!important;
-  box-shadow:0 4px 0 #042f70,0 0 0 3px rgba(7,87,201,.22);
-  transform:translateY(-1px);
-}
-.user-info .account-cabinet-btn:focus-visible,
-#iframeBar .account-cabinet-btn:focus-visible{outline:3px solid #f5c542;outline-offset:3px;}
-#iframeBar .iframe-account-cabinet-btn{margin-left:auto;}
-.user-info .account-cabinet-btn span:first-child,
-#iframeBar .iframe-account-cabinet-btn{font-size:15px;}
+/* Account and exit actions sit together beside the theme selector. */
+.user-info{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+.user-info .account-cabinet-btn{white-space:nowrap;}
+#iframeBar .iframe-account-cabinet-btn{margin-left:auto;white-space:nowrap;}
 @media(max-width:640px){
-  .user-info{gap:8px;padding-left:0;border-left:0;flex-wrap:wrap;}
-  .user-info .account-cabinet-btn,
-  #iframeBar .iframe-account-cabinet-btn{min-height:46px;padding:10px 14px;font-size:14px;}
-  #iframeBar{gap:8px;padding-left:10px;padding-right:10px;flex-wrap:wrap;}
-  #iframeModeLabel{flex:1 1 100%;order:3;min-width:0;overflow-wrap:anywhere;}
+  .user-info{gap:6px;}
+  .user-info .account-cabinet-btn{padding:7px 9px;font-size:11px;}
   #iframeBar .iframe-account-cabinet-btn{margin-left:auto;}
 }
+
+/* Keep cabinet navigation visually consistent with the existing toolbar buttons. */
+.user-info .account-cabinet-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;}
+#iframeBar .iframe-account-cabinet-btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;}
 </style>
 <script type="module" src="prototype/supabase-auth.js"></script>
 <script type="module">
@@ -1230,14 +1194,8 @@ if(button){
         <button type="button" data-theme-value="dark">Тёмная</button>
     </div>
     <div class="user-info" id="userInfo" style="display:none;">
-        <div class="account-menu-wrap">
-          <button class="logout-btn account-menu-toggle" id="logoutBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="accountMenu">Выход ▾</button>
-          <div class="account-menu" id="accountMenu" hidden>
-            <div class="account-menu-user">👤 <span id="userName">Пользователь</span></div>
-            <a class="account-menu-role" id="accountCabinetLink" href="./account.html"><span class="role" id="userRole">Сотрудник</span><span>Личный кабинет →</span></a>
-            <button class="account-menu-logout" id="logoutConfirmBtn" type="button">Выйти из аккаунта</button>
-          </div>
-        </div>
+        <a class="btn account-cabinet-btn" id="accountCabinetLink" href="./account.html">👤 Личный кабинет</a>
+        <button class="logout-btn" id="logoutConfirmBtn" type="button">Выход</button>
     </div>
 </div>
 <div class="stat-bar" id="statBar">
@@ -1283,14 +1241,8 @@ if(button){
     <div id="iframeBar">
         <button class="btn primary" id="iframeBackBtn">🔄 Сменить чек-лист</button>
         <b id="iframeModeLabel"></b>
-        <div class="account-menu-wrap iframe-account-menu-wrap">
-          <button class="btn iframe-account-menu-toggle" id="iframeAccountMenuToggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="iframeAccountMenu">Выход ▾</button>
-          <div class="account-menu iframe-account-menu" id="iframeAccountMenu" hidden>
-            <div class="account-menu-user">👤 <span id="iframeUserName">Пользователь</span></div>
-            <a class="account-menu-role" id="iframeAccountCabinetLink" href="./account.html"><span class="role" id="iframeUserRole">Сотрудник</span><span>Личный кабинет →</span></a>
-            <button class="account-menu-logout" id="iframeLogoutConfirmBtn" type="button">Выйти из аккаунта</button>
-          </div>
-        </div>
+        <a class="btn iframe-account-cabinet-btn" id="iframeAccountCabinetLink" href="./account.html">👤 Личный кабинет</a>
+        <button class="btn" id="iframeLogoutConfirmBtn" type="button">Выход</button>
         <button class="btn" id="riskBtnBar" type="button" title="Справочник: локомотивы, приписки, места осмотра">📍 Зона риска</button>
         <button class="btn" id="helpBtnBar" type="button">📖 Инструкция</button>
     </div>
@@ -2968,51 +2920,9 @@ function setupCommonHandlers(){
     };
     document.getElementById('loginInput').onkeypress=function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();};
     document.getElementById('passwordInput').onkeypress=function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();};
-    const accountMenu=document.getElementById('accountMenu');
-    const accountMenuToggle=document.getElementById('logoutBtn');
     const logoutConfirmBtn=document.getElementById('logoutConfirmBtn');
-    if(accountMenuToggle&&accountMenu){
-      accountMenuToggle.addEventListener('click',function(){
-        const willOpen=accountMenu.hidden;
-        accountMenu.hidden=!willOpen;
-        accountMenuToggle.setAttribute('aria-expanded',String(willOpen));
-      });
-      document.addEventListener('click',function(event){
-        if(!event.target.closest('.account-menu-wrap')){
-          accountMenu.hidden=true;
-          accountMenuToggle.setAttribute('aria-expanded','false');
-        }
-      });
-      document.addEventListener('keydown',function(event){
-        if(event.key==='Escape'){
-          accountMenu.hidden=true;
-          accountMenuToggle.setAttribute('aria-expanded','false');
-        }
-      });
-    }
     if(logoutConfirmBtn)logoutConfirmBtn.onclick=doLogout;
-    const iframeAccountMenu=document.getElementById('iframeAccountMenu');
-    const iframeAccountToggle=document.getElementById('iframeAccountMenuToggle');
     const iframeLogoutConfirmBtn=document.getElementById('iframeLogoutConfirmBtn');
-    if(iframeAccountToggle&&iframeAccountMenu){
-      iframeAccountToggle.addEventListener('click',function(){
-        const willOpen=iframeAccountMenu.hidden;
-        iframeAccountMenu.hidden=!willOpen;
-        iframeAccountToggle.setAttribute('aria-expanded',String(willOpen));
-      });
-      document.addEventListener('click',function(event){
-        if(!event.target.closest('.iframe-account-menu-wrap')){
-          iframeAccountMenu.hidden=true;
-          iframeAccountToggle.setAttribute('aria-expanded','false');
-        }
-      });
-      document.addEventListener('keydown',function(event){
-        if(event.key==='Escape'){
-          iframeAccountMenu.hidden=true;
-          iframeAccountToggle.setAttribute('aria-expanded','false');
-        }
-      });
-    }
     if(iframeLogoutConfirmBtn)iframeLogoutConfirmBtn.onclick=doLogout;
     document.getElementById('continueBtn').onclick=function(){loadState();startApp(false);};
     document.getElementById('newBtn').onclick = async function() {
