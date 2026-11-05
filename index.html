@@ -22150,6 +22150,7 @@ html[data-theme="dark"] #xlTable tr.err td{background:#3a1d1a}html[data-theme="d
 (function(){
   var lastMode='unknown', probing=false;
   function paint(offline){
+    window.__TMH_CONNECTION_MODE=offline?'offline':'online';
     var badge=document.getElementById('tmhConnectionBadge');
     var text=document.getElementById('tmhConnectionText');
     var dot=document.getElementById('tmhConnectionDot');

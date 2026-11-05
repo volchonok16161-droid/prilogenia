@@ -65,3 +65,18 @@ test("encrypted local checklist snapshot is committed before cloud queue work", 
   assert.match(body, /syncDeferred: true/);
   assert.match(body, /saved: true, encrypted: true, queued: false/);
 });
+
+
+test("cached device login follows the app's active connection probe state", () => {
+  assert.match(auth, /globalThis\.__TMH_CONNECTION_MODE === "offline"/);
+  assert.match(auth, /parent\?\.__TMH_CONNECTION_MODE === "offline"/);
+  assert.match(auth, /failed to load\|load failed/i);
+});
+
+test("network exceptions from Supabase sign-in are returned for offline fallback", () => {
+  const start = auth.indexOf("async function signIn(email, password)");
+  const end = auth.indexOf("\nasync function setupOfflinePin", start);
+  const body = auth.slice(start, end);
+  assert.match(body, /catch \(authError\)/);
+  assert.match(body, /error = authError/);
+});

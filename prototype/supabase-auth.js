@@ -192,10 +192,18 @@ async function signIn(email, password) {
     return { user: null, profile: null, error: new Error("Введите логин/email и пароль") };
   }
 
-  const { data, error } = await client.auth.signInWithPassword({
-    email: normalizedEmail,
-    password: String(password),
-  });
+  let data = null;
+  let error = null;
+  try {
+    const response = await client.auth.signInWithPassword({
+      email: normalizedEmail,
+      password: String(password),
+    });
+    data = response?.data || null;
+    error = response?.error || null;
+  } catch (authError) {
+    error = authError;
+  }
 
   if (error || !data?.user) {
     return { user: null, profile: null, error: error || new Error("Не удалось выполнить вход") };
@@ -303,11 +311,20 @@ async function unlockOffline(userId, pin) {
 }
 
 async function getCachedOfflineIdentity(cause) {
-  const networkFailure = globalThis.navigator?.onLine === false ||
+  let reportedOffline = globalThis.__TMH_CONNECTION_MODE === "offline";
+  try {
+    reportedOffline = reportedOffline ||
+      globalThis.parent?.__TMH_CONNECTION_MODE === "offline" ||
+      globalThis.document?.getElementById("tmhConnectionBadge")?.dataset?.mode === "offline" ||
+      globalThis.parent?.document?.getElementById("tmhConnectionBadge")?.dataset?.mode === "offline";
+  } catch {}
+  const networkFailure = reportedOffline ||
+    globalThis.navigator?.onLine === false ||
     cause?.name === "AuthRetryableFetchError" ||
+    cause?.name === "AuthUnknownError" ||
     cause instanceof TypeError ||
     cause?.status === 0 ||
-    /fetch|network|offline|timeout|connection/i.test(String(cause?.message || ""));
+    /fetch|network|offline|timeout|connection|failed to load|load failed/i.test(String(cause?.message || cause || ""));
   if (!networkFailure) return null;
   let cached = null;
   try { cached = JSON.parse(globalThis.localStorage?.getItem("checklist_user") || "null"); } catch {}
