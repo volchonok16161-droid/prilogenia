@@ -27,9 +27,13 @@ test("authenticated checklist header uses the profile display name", () => {
   assert.match(html, /profile\.displayName\s*\|\|/);
 });
 
-test("embedded checklist header provides direct navigation to the personal cabinet", () => {
-  const iframeBar = html.split('<div id="iframeBar">')[1]?.split("</div>")[0] || "";
+test("embedded checklist header exposes the role menu and cabinet navigation", () => {
+  const iframeBar = html.split('<div id="iframeBar">')[1]?.split('<iframe id="embeddedFrame"')[0] || "";
+  assert.match(iframeBar, /id="iframeAccountMenuToggle"/);
+  assert.match(iframeBar, /id="iframeAccountMenu" hidden/);
   assert.match(iframeBar, /id="iframeAccountCabinetLink" href="\.\/account\.html"/);
-  assert.match(iframeBar, /Личный кабинет/);
+  assert.match(iframeBar, /id="iframeLogoutConfirmBtn"/);
+  assert.match(html, /iframeName\)iframeName\.textContent=name\.textContent/);
+  assert.match(html, /iframeLogoutConfirmBtn\)iframeLogoutConfirmBtn\.onclick=doLogout/);
   assert.ok(html.includes('id="accountCabinetLink" href="./account.html"'));
 });
