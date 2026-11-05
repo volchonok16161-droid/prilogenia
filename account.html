@@ -281,6 +281,10 @@ async function loadCabinet() {
     return;
   }
   const { user, profile } = identity;
+  if (typeof api.activateDeviceVault === "function") {
+    try { await api.activateDeviceVault(identity); }
+    catch (error) { console.warn("Device-local checklist storage is unavailable", error); }
+  }
   await renderLocalOfflineChecklists(api, requestId);
   if (requestId !== cabinetLoadSequence) return;
   activeCabinetUserId = user.id;
