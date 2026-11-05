@@ -96,6 +96,7 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
 <script type="module" src="./prototype/supabase-auth.js"></script>
 <script type="module">
 import { isChecklistComplete, summarizeChecklistStatuses } from "./prototype/checklist-status.js";
+import { createChecklistPhotoSync } from "./prototype/supabase-cloud-photos.js";
 const $ = (id) => document.getElementById(id);
 const roleLabels = { employee: "Сотрудник", admin: "Администратор", developer: "Разработчик" };
 const formatDate = (value) => {
@@ -281,6 +282,48 @@ async function loadCabinet() {
     return;
   }
   const { user, profile } = identity;
+  // Remove only expired complex-mode restore safety copies. Never touch ordinary backups.
+  try {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const titlePrefix = "Автокопия перед восстановлением — complex";
+    const { data: safetyCopies, error: safetyListError } = await api.client
+      .from("checklists")
+      .select("id,title,equipment_type,payload,created_at")
+      .eq("owner_id", user.id)
+      .eq("equipment_type", "complex")
+      .eq("payload->>mode", "complex")
+      .like("title", titlePrefix + "%");
+    if (safetyListError) throw safetyListError;
+    const photoSync = createChecklistPhotoSync({ authApi: api });
+    for (const copy of Array.isArray(safetyCopies) ? safetyCopies : []) {
+      const titleMatches = copy?.title === titlePrefix ||
+        (typeof copy?.title === "string" && copy.title.startsWith(titlePrefix + " — "));
+      const createdAt = Date.parse(copy?.created_at || "");
+      if (!titleMatches || !Number.isFinite(createdAt) || createdAt > cutoff ||
+          copy?.equipment_type !== "complex" || copy?.payload?.mode !== "complex") continue;
+      const { data: deleted, error: deleteError } = await api.client
+        .from("checklists")
+        .delete()
+        .eq("id", copy.id)
+        .eq("owner_id", user.id)
+        .eq("title", copy.title)
+        .eq("equipment_type", "complex")
+        .select("id")
+        .maybeSingle();
+      if (deleteError) throw deleteError;
+      if (deleted?.id) {
+        const manifest = Array.isArray(copy.payload?.photoManifest) ? copy.payload.photoManifest :
+          (Array.isArray(copy.payload?.photos) ? copy.payload.photos : []);
+        if (manifest.length) {
+          try { await photoSync.removeManifest(manifest); }
+          catch (photoError) { console.warn("Expired safety-copy photos could not be cleaned up", photoError); }
+        }
+      }
+    }
+  } catch (cleanupError) {
+    // Cleanup is best-effort and must never block access to the user's cabinet.
+    console.warn("Expired complex restore safety-copy cleanup was deferred", cleanupError);
+  }
   if (typeof api.activateDeviceVault === "function") {
     try { await api.activateDeviceVault(identity); }
     catch (error) { console.warn("Device-local checklist storage is unavailable", error); }
