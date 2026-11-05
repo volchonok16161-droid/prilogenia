@@ -9,6 +9,7 @@ import { mapOfflineChecklistOperation, createOfflineChecklistOperationMapper } f
 import { createCloudSync } from "./supabase-cloud-sync.js";
 import { createChecklistPhotoSync } from "./supabase-cloud-photos.js";
 import { createOfflineSyncCoordinator } from "./offline-sync-coordinator.js";
+import { createOfflineChecklistInstances } from "./offline-checklist-instances.js";
 
 const SUPABASE_URL = "https://fecigiwjtbtabnsfsdym.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_j-bQu5o4dgj13X-8_7maOA_7KvkLuqH";
@@ -21,6 +22,7 @@ let activeOfflineIdentity = null;
 let activeOfflineVault = null;
 let activeOfflineUserId = null;
 let offlineChecklistStore = null;
+let offlineChecklistInstances = null;
 let offlineSyncCoordinator = null;
 let offlineSyncStatus = Object.freeze({ status: "locked" });
 
@@ -414,6 +416,30 @@ async function saveOfflineChecklist(id, snapshot) {
   }
 }
 
+async function getOfflineChecklistInstances() {
+  if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
+  const store = ensureOfflineSync();
+  if (!offlineChecklistInstances) {
+    offlineChecklistInstances = createOfflineChecklistInstances({
+      database: offlineVault.database, vault: activeOfflineVault, store, userId: activeOfflineUserId,
+    });
+  }
+  return offlineChecklistInstances;
+}
+
+async function createOfflineChecklistInstance(mode, snapshot) {
+  return (await getOfflineChecklistInstances()).create(mode, snapshot);
+}
+async function saveOfflineChecklistInstance(instanceId, mode, snapshot) {
+  return (await getOfflineChecklistInstances()).save(instanceId, mode, snapshot);
+}
+async function loadOfflineChecklistInstance(instanceId) {
+  return (await getOfflineChecklistInstances()).load(instanceId);
+}
+async function listOfflineChecklistInstances() {
+  return (await getOfflineChecklistInstances()).list();
+}
+
 async function migrateLegacyChecklist(storageId, snapshot, confirmed = false) {
   if (!activeOfflineVault || !activeOfflineUserId) {
     throw new Error("Сначала разблокируйте офлайн-хранилище PIN-кодом");
@@ -516,6 +542,10 @@ const api = Object.freeze({
   activateDeviceVault,
   getCachedOfflineIdentity,
   saveOfflineChecklist,
+  createOfflineChecklistInstance,
+  saveOfflineChecklistInstance,
+  loadOfflineChecklistInstance,
+  listOfflineChecklistInstances,
   migrateLegacyChecklist,
   enableOfflineCloudSync,
   isOfflineVaultUnlocked() { return Boolean(activeOfflineVault && activeOfflineUserId); },
