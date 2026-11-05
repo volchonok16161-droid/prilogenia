@@ -3475,20 +3475,16 @@ function fullClearState() { __psClear();
                 const baseName = \`\${date}_\${typeVal}_\${numberVal}_Чек-лист_ТТ\`;
                 const safeBase = baseName.replace(/[\\/\\\\:*?"<>|]/g, '_');
                 a.download = safeBase + '.xlsx';
-        let __tmhExcelCloudSaved = false;
+                let __tmhExcelCloudSaved = false;
         try {
-          const __saveExcel = window.parent && window.parent.__TMH_SAVE_EXCEL_EXPORT;
-          if (typeof __saveExcel !== 'function') throw new Error('Облачное сохранение Excel не подключено');
-          await __saveExcel(blob, {
-            fileName: a.download,
-            mode: 'tt',
-            checklistType: typeVal || type || '',
-            checklistNumber: numberVal || number || '',
-            checklistDate: date || ''
-          });
+          const __saveCloud = window.parent && window.parent.__TMH_SAVE_CLOUD_BACKUP_CONTEXT;
+          const __getContext = window.__TMH_GET_CLOUD_BACKUP_CONTEXT;
+          if (typeof __saveCloud !== 'function' || typeof __getContext !== 'function') throw new Error('Облачное сохранение чек-листа не подключено');
+          const __cloudResult = await __saveCloud(__getContext());
           __tmhExcelCloudSaved = true;
+          console.info('Excel export cloud backup completed', { id: __cloudResult.row.id, revision: __cloudResult.row.revision });
         } catch (__cloudError) {
-          console.error('Excel cloud archive failed', __cloudError);
+          console.error('Excel export cloud backup failed', __cloudError);
         }
 
                 a.href = url;
