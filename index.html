@@ -1400,6 +1400,7 @@ function __tmhInstallAuthWatcher(api) {
         // and return to login in place, without writing under the new account.
         window.__TMH_STORAGE_LOCKED = true;
         window.__TMH_STORAGE_UID = null;
+        window.__TMH_AUTH_CONTEXT = null;
         currentUser = null;
         try { localStorage.removeItem('checklist_user'); } catch (e) {}
         if (typeof updateUserUI === 'function') updateUserUI();
