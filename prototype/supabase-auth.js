@@ -291,7 +291,7 @@ async function unlockOffline(userId, pin) {
   const identity = await result.vault.decrypt(encryptedIdentity);
   if (identity?.user?.id !== result.userId ||
       identity?.profile?.id !== result.userId ||
-      !["employee", "admin", "developer"].includes(identity?.profile?.role)) {
+      !["employee", "assistant", "admin", "developer"].includes(identity?.profile?.role)) {
     throw new Error("Сохранённый офлайн-профиль недействителен");
   }
   // A PIN unlock only opens the local encryption key. If the server session
