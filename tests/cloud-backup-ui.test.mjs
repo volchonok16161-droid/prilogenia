@@ -121,7 +121,7 @@ test("native and embedded cloud save/restore wire the private photo Storage adap
 
 
 test("cloud photo actions fail closed when IndexedDB photo hydration or its queue fails", () => {
-  assert.equal(count(html, "await __psEnsureCloudReady();"), 9);
+  assert.equal(count(html, "await __psEnsureCloudReady();"), 13);
   assert.equal(count(html, "__PS.restoreFailed=true;"), 4);
   assert.match(html, /if\(__PS\.restoreFailed\)throw new Error\('Не удалось прочитать фотографии из IndexedDB/);
   assert.match(html, /if\(ok===false\)throw new Error\('Не удалось завершить очередь фотографий IndexedDB/);
