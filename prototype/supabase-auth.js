@@ -23,6 +23,8 @@ let activeOfflineVault = null;
 let activeOfflineUserId = null;
 let offlineChecklistStore = null;
 let offlineChecklistInstances = null;
+let offlineChecklistInstancesUserId = null;
+let offlineChecklistInstancesVault = null;
 let offlineSyncCoordinator = null;
 let offlineSyncStatus = Object.freeze({ status: "locked" });
 
@@ -419,10 +421,13 @@ async function saveOfflineChecklist(id, snapshot) {
 async function getOfflineChecklistInstances() {
   if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
   const store = ensureOfflineSync();
-  if (!offlineChecklistInstances) {
+  if (!offlineChecklistInstances || offlineChecklistInstancesUserId !== activeOfflineUserId ||
+      offlineChecklistInstancesVault !== activeOfflineVault) {
     offlineChecklistInstances = createOfflineChecklistInstances({
       database: offlineVault.database, vault: activeOfflineVault, store, userId: activeOfflineUserId,
     });
+    offlineChecklistInstancesUserId = activeOfflineUserId;
+    offlineChecklistInstancesVault = activeOfflineVault;
   }
   return offlineChecklistInstances;
 }

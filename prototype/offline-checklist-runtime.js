@@ -8,6 +8,7 @@ import { createOfflineChecklistStore } from "./offline-checklist-store.js";
 import { createOfflineChecklistOperationMapper } from "./offline-cloud-mapper.js";
 import { createOfflineSyncRunner } from "./offline-sync-runner.js";
 import { createOfflineSyncCoordinator } from "./offline-sync-coordinator.js";
+import { createOfflineChecklistInstances } from "./offline-checklist-instances.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -40,6 +41,7 @@ export function createOfflineChecklistRuntime({
   const runner = createOfflineSyncRunner({
     authApi, database, vault: unlockedVault, cloudSync, mapOperation, isOnline, now,
   });
+  const instances = createOfflineChecklistInstances({ database, vault: unlockedVault, store, userId: uid, idFactory, now });
   const coordinator = createOfflineSyncCoordinator({
     authApi, syncRunner: runner, isOnline, eventTarget, documentTarget, onStatus,
   });
@@ -67,6 +69,7 @@ export function createOfflineChecklistRuntime({
     userId: uid,
     database,
     store,
+    instances,
     cloudSync,
     photoSync,
     runner,
