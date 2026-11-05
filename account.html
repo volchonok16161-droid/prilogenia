@@ -73,6 +73,24 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
   </section>
   <section class="panel"><h2>Мои облачные чек-листы</h2><div id="checklists"><div class="empty">Загрузка списка…</div></div></section>
   <section class="panel"><h2>Локальные чек-листы на этом устройстве</h2><div id="localOfflineChecklists"><div class="empty">Проверяем локальное хранилище…</div></div><p class="muted" style="font-size:12px;margin:10px 0 0">Локальные копии зашифрованы на устройстве. Для отправки в облако требуется действующая онлайн-сессия того же сотрудника.</p></section>
+  <section class="panel hidden" id="assistantWorkspace" aria-labelledby="assistantHeading">
+   <h2 id="assistantHeading">Подготовка фото-примеров OK / NOK</h2>
+   <p class="muted" style="margin:0 0 14px">Здесь можно подготовить черновики фотографий и передать их разработчику JSON-файлом. Черновики не публикуются автоматически. Помощник не может менять опубликованные примеры.</p>
+   <form id="assistantDraftForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;align-items:end">
+    <label style="display:grid;gap:6px"><span class="muted">Ключ оборудования / узла</span><input id="assistantEquipmentKey" type="text" maxlength="120" required placeholder="Например: cx|vb8|f1" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink);background:#fff"></label>
+    <label style="display:grid;gap:6px"><span class="muted">Тип примера</span><select id="assistantExampleStatus" required style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink);background:#fff"><option value="ok">OK — соответствует</option><option value="nok">NOK — несоответствие</option></select></label>
+    <label style="display:grid;gap:6px"><span class="muted">Описание (необязательно)</span><input id="assistantExampleNote" type="text" maxlength="500" placeholder="Что должно быть видно на фото" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink);background:#fff"></label>
+    <label style="display:grid;gap:6px"><span class="muted">Фотография (JPEG, PNG или WebP)</span><input id="assistantExamplePhoto" type="file" accept="image/jpeg,image/png,image/webp" required style="width:100%;font:inherit"></label>
+    <button class="btn" id="assistantAddDraftBtn" type="submit">Добавить в черновики</button>
+   </form>
+   <p id="assistantDraftStatus" class="muted" role="status" aria-live="polite" style="margin:10px 0"></p>
+   <div id="assistantDraftList" style="display:grid;gap:8px;margin:12px 0"></div>
+   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <button class="btn" id="assistantExportDraftsBtn" type="button" disabled>Скачать JSON для разработчика</button>
+    <button class="btn secondary" id="assistantClearDraftsBtn" type="button" disabled>Очистить черновики</button>
+   </div>
+   <p class="muted" style="font-size:12px;margin:10px 0 0">Фотографии включаются в JSON-файл. Передавайте его разработчику безопасным способом: файл может содержать служебные фотографии и сведения об оборудовании.</p>
+  </section>
   <section class="panel hidden" id="adminPanel" aria-labelledby="adminHeading">
    <h2 id="adminHeading">Управление сотрудниками</h2>
    <p class="muted" style="margin:0 0 12px">Доступно администраторам и разработчикам. Создавайте аккаунты с любыми логинами и управляйте доступом сотрудников прямо из личного кабинета.</p>
@@ -107,6 +125,7 @@ const formatDate = (value) => {
 let activeChecklistFilter = "all";
 let cabinetLoadSequence = 0;
 let activeCabinetUserId = null;
+let assistantDrafts = [];
 function clearCabinet() {
   cabinetLoadSequence += 1;
   activeCabinetUserId = null;
@@ -125,6 +144,8 @@ function clearCabinet() {
   $("checklists").replaceChildren();
   $("employeeList").replaceChildren();
   $("adminPanel").classList.add("hidden");
+  $("assistantWorkspace").classList.add("hidden");
+  assistantDrafts = [];
 }
 function showError(message) {
   $("loading").classList.add("hidden");
@@ -399,6 +420,9 @@ async function loadCabinet() {
   $("roleProfileValue").textContent = roleLabels[profile.role] || profile.role;
   const canManageEmployees = ["developer", "admin"].includes(profile.role);
   $("adminPanel").classList.toggle("hidden", !canManageEmployees);
+  $("assistantWorkspace").classList.toggle("hidden", profile.role !== "assistant");
+  if (profile.role !== "assistant") assistantDrafts = [];
+  renderAssistantDrafts();
   if (canManageEmployees) await loadEmployees(api, requestId);
   if (requestId !== cabinetLoadSequence) return;
   const checklistSummary = summarizeChecklistStatuses(rows);
@@ -521,6 +545,128 @@ async function loadCabinet() {
   $("error").classList.add("hidden");
   $("content").classList.remove("hidden");
 }
+
+function renderAssistantDrafts() {
+  const host = $("assistantDraftList");
+  if (!host) return;
+  host.replaceChildren();
+  assistantDrafts.forEach((draft, index) => {
+    const row = document.createElement("article");
+    row.className = "admin-row";
+    const info = document.createElement("div");
+    info.className = "admin-info";
+    const title = document.createElement("strong");
+    title.textContent = (draft.status === "ok" ? "OK" : "NOK") + " · " + draft.equipmentKey;
+    const meta = document.createElement("div");
+    meta.className = "admin-meta";
+    meta.textContent = draft.fileName + (draft.note ? " · " + draft.note : "");
+    info.append(title, meta);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "btn secondary";
+    remove.textContent = "Убрать";
+    remove.addEventListener("click", () => {
+      assistantDrafts.splice(index, 1);
+      renderAssistantDrafts();
+      $("assistantDraftStatus").textContent = "Черновик удалён из текущего набора.";
+    });
+    row.append(info, remove);
+    host.append(row);
+  });
+  $("assistantExportDraftsBtn").disabled = assistantDrafts.length === 0;
+  $("assistantClearDraftsBtn").disabled = assistantDrafts.length === 0;
+  if (!assistantDrafts.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Черновиков пока нет. Добавьте фотографию OK или NOK.";
+    host.append(empty);
+  }
+}
+$("assistantDraftForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = $("assistantAddDraftBtn");
+  const status = $("assistantDraftStatus");
+  const identity = await window.TMHAuth.getCurrentIdentity();
+  if (identity?.error || identity?.profile?.role !== "assistant") {
+    status.textContent = "Доступ помощника не подтверждён. Обновите страницу и войдите снова.";
+    status.className = "error";
+    return;
+  }
+  const file = $("assistantExamplePhoto").files?.[0];
+  if (!file) return;
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+    status.textContent = "Поддерживаются только JPEG, PNG и WebP.";
+    status.className = "error";
+    return;
+  }
+  if (file.size > 6 * 1024 * 1024) {
+    status.textContent = "Размер фотографии не должен превышать 6 МБ.";
+    status.className = "error";
+    return;
+  }
+  button.disabled = true;
+  status.textContent = "Читаем фотографию…";
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Не удалось прочитать фотографию."));
+      reader.readAsDataURL(file);
+    });
+    assistantDrafts.push({
+      equipmentKey: $("assistantEquipmentKey").value.trim(),
+      status: $("assistantExampleStatus").value,
+      note: $("assistantExampleNote").value.trim(),
+      fileName: file.name,
+      mimeType: file.type,
+      dataUrl,
+      addedAt: new Date().toISOString()
+    });
+    $("assistantExamplePhoto").value = "";
+    $("assistantExampleNote").value = "";
+    $("assistantDraftStatus").textContent = "Фотография добавлена в черновики. Опубликованные примеры не изменены.";
+    $("assistantDraftStatus").className = "muted";
+    renderAssistantDrafts();
+  } catch (error) {
+    status.textContent = error?.message || "Не удалось добавить фотографию.";
+    status.className = "error";
+  } finally {
+    button.disabled = false;
+  }
+});
+$("assistantExportDraftsBtn").addEventListener("click", async () => {
+  const identity = await window.TMHAuth.getCurrentIdentity();
+  if (identity?.error || identity?.profile?.role !== "assistant") {
+    $("assistantDraftStatus").textContent = "Только действующий помощник может экспортировать этот набор.";
+    $("assistantDraftStatus").className = "error";
+    return;
+  }
+  const payload = {
+    format: "tmh-example-drafts",
+    version: 1,
+    createdAt: new Date().toISOString(),
+    createdBy: identity.profile.display_name || identity.user?.email || identity.user?.id,
+    items: assistantDrafts
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "tmh-example-drafts-" + new Date().toISOString().slice(0, 10) + ".json";
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  $("assistantDraftStatus").textContent = "JSON-файл подготовлен. Отправьте его разработчику для проверки и публикации.";
+  $("assistantDraftStatus").className = "muted";
+});
+$("assistantClearDraftsBtn").addEventListener("click", () => {
+  if (!window.confirm("Очистить все неподанные черновики?")) return;
+  assistantDrafts = [];
+  renderAssistantDrafts();
+  $("assistantDraftStatus").textContent = "Черновики очищены только из текущего сеанса.";
+});
+
 document.querySelectorAll(".stat-filter").forEach((card) => {
   const activate = () => {
     activeChecklistFilter = card.dataset.filter || "all";
