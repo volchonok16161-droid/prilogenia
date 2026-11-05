@@ -1663,6 +1663,46 @@ if(MODE){try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}}
 if(MODE==='housings')LS_KEY=LS_KEY_HOUSINGS;
 
 let STATE={general:{type:'',number:'',date:'',depot:'',place:'',mileage:''},values:{},selectedSections:[],selected:[],changeLog:[]};
+window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
+  return {
+    state:STATE,
+    stats:(typeof computeStats==="function"?computeStats():null),
+    persistState:function(){return saveState(true);},
+    definitions:(typeof EQUIPMENT!=='undefined'?EQUIPMENT:[]).map(function(eq){
+      return {
+        id:eq.id,
+        fields:typeof eq.getFields==='function'?eq.getFields({}):(eq.fields||[]),
+        instances:typeof eq.instances==='function'?eq.instances().filter(function(inst){
+          return (!(STATE.selectedSections||[]).length||(STATE.selectedSections||[]).indexOf(inst.section)>=0);
+        }).map(function(inst){
+          return {id:[eq.id,inst.section].join('|'),fields:typeof eq.getFields==='function'?eq.getFields(inst):(eq.fields||[])};
+        }):[]
+      };
+    }),
+    checklistType:(typeof CUSTOM_CHECKLIST!=='undefined'&&CUSTOM_CHECKLIST?CUSTOM_CHECKLIST.title:({complex:'Комплексный чек-лист',housings:'КМБ',tt:'ТТ',bi:'БИ',hydro:'Гидродемпферы'}[MODE]||MODE)),
+    mode:MODE,
+    storageKey:LS_KEY,
+    applyState:async function(incoming,metadata){
+      if(!metadata||typeof metadata.id!=='string'||!Number.isSafeInteger(metadata.revision)||metadata.revision<1)throw new Error('Некорректная версия облачной записи');
+      await __psEnsureCloudReady();
+      var current=STATE||{},next=structuredClone(incoming);
+      var oldValues=current.values||{},newValues=next.values||(next.values={});
+      Object.keys(oldValues).forEach(function(iid){
+        var oldItem=oldValues[iid]||{},newItem=newValues[iid]||(newValues[iid]={});
+        Object.keys(oldItem).forEach(function(key){if(/_photo$/i.test(key)&&oldItem[key]&&!newItem[key])newItem[key]=oldItem[key];});
+      });
+      next.__cloudChecklistId=crypto.randomUUID();
+      STATE=next;
+      var saved=saveState(true);
+      if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
+      await __psEnsureCloudReady();
+      localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId,JSON.stringify({id:metadata.id,revision:metadata.revision}));
+      buildEquipment(STATE.general&&STATE.general.type||'');
+      renderGeneral();renderPicker();renderEquip();updateStats();
+      return true;
+    }
+  };
+};
 if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){STATE=__EMBEDDED_STATE;const el=document.getElementById('__embedded_state');if(el)el.parentNode.removeChild(el);}
 
 /* ===== Хранилище фото на базе IndexedDB (вместо localStorage) =====
