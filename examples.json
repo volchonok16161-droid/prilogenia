@@ -1,9 +1,56 @@
 {
   "version": 1,
-  "updated": "2026-10-30T09:24:51.275Z",
+  "updated": "2026-11-05T09:46:13.988Z",
   "items": {
     "cx|vb8|zav": {
       "ok": "examples/e_11hwbr_ok_mvurndpt.jpg"
+    },
+    "cx|vb8|f4": {
+      "ok": "examples/e_wiqyko_ok_mw3caqgz.jpg"
+    },
+    "cx|vb8|f2": {
+      "nok": "examples/e_y6okqi_nok_mw3bomby.jpg"
+    },
+    "cx|bvv|f1": {
+      "ok": "examples/e_60lj59_ok_mw3bue26.jpg"
+    },
+    "cx|nvmontazh|f3": {
+      "ok": "examples/e_8xwyuc_ok_mw3bvqck.jpg"
+    },
+    "cx|rassekatel|presence": {
+      "ok": "examples/e_4f4g6q_ok_mw3c1xep.jpg"
+    },
+    "cx|rassekatel|install": {
+      "nok": "examples/e_ccb29u_nok_mw3c5tbl.jpg"
+    },
+    "cx|mk9|f1": {
+      "ok": "examples/e_nf4jw2_ok_mw3c8x03.jpg"
+    },
+    "cx|vb8|f3": {
+      "nok": "examples/e_ygo6fh_nok_mw3ccza2.jpg"
+    },
+    "cx|mk9|f3": {
+      "ok": "examples/e_mv5ci4_ok_mw3cfvu3.jpg",
+      "nok": "examples/e_mv5ci4_nok_mw3cke16.jpg"
+    },
+    "cx|nvmontazh|f1": {
+      "ok": "examples/e_9hw68a_ok_mw3cnf1c.jpg"
+    },
+    "cx|nvmontazh|f2": {
+      "ok": "examples/e_97wkjb_ok_mw3cr629.jpg"
+    },
+    "cx|gres|f2": {
+      "ok": "examples/e_1f6kjuh_ok_mw3cskr3.jpg"
+    },
+    "cx|nb514|f6": {
+      "nok": "examples/e_34genw_nok_mw3ctx4g.jpg",
+      "ok": "examples/e_34genw_ok_mw3cweof.jpg"
+    },
+    "cx|msud|zav": {
+      "ok": "examples/e_bt562a_ok_mw3cyrza.jpg"
+    },
+    "cx|vb8|f7": {
+      "nok": "examples/e_xcprnl_nok_mw3d1zxm.jpg"
     }
   }
 }
