@@ -26,3 +26,9 @@ test("embedded checklist header links to the account cabinet", () => {
   assert.match(iframeBar, /id="iframeAccountCabinetLink" href="\.\/account\.html"/);
 });
 
+
+test("iframe patchers bind on load and DOM changes without permanent 2-second polling", () => {
+  assert.match(html, /f\.addEventListener\('load', tryGo\)/);
+  assert.match(html, /mo\.observe\(document\.documentElement, \{childList: ?true, subtree: ?true\}\)/);
+  assert.doesNotMatch(html, /setInterval\(function\(\)\{\s*var ef2 = document\.getElementById\('embeddedFrame'\);\s*if \(ef2\) bindIframe\(ef2\);\s*\}, 2000\)/);
+});
