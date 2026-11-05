@@ -4328,9 +4328,11 @@ function fullClearState() { __psClear();
            ======================================================================== */
         function handleProducerChange(eq, instance, iid, newProducer) {
             const allFields = eq.getFields(instance);
+            const producer = String(newProducer || '').trim().toLocaleUpperCase('ru-RU');
+            const fieldsNotRequired = producer === 'ТТ' || producer === 'ЧТЗ';
             for (let f of allFields) {
                 if (f.key === 'proizvoditel') continue;
-                if (newProducer === 'ТТт' || newProducer === 'ЧТЗт') {
+                if (fieldsNotRequired) {
                     setVal(iid, f.key, 'Не требуется');
                 } else {
                     setVal(iid, f.key, '');
