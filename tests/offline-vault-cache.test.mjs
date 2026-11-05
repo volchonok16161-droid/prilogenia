@@ -17,5 +17,6 @@ test("Supabase ESM and versioned modules are cached for offline startup", () => 
   assert.match(source, /https:\/\/esm\.sh\/\@supabase\/supabase-js\@2\.118\.0/);
   assert.match(source, /url\.origin === 'https:\/\/esm\.sh'/);
   assert.match(source, /url\.pathname\.startsWith\('\/@supabase\/'\)/);
-  assert.match(source, /cache\.put\(url, resp\)/);
+  assert.match(source, /cache\.put\(url, response\)/);
+  assert.match(source, /cache\.put\(req, resp\)/);
 });
