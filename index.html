@@ -943,10 +943,6 @@ html[data-theme="dark"] .inst.notice-needed{border-color:var(--gold);box-shadow:
 .user-info{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-dim);border-left:1px solid var(--line);padding-left:14px;}
 .user-info .role{font-weight:600;color:var(--amber);}
 .user-info .role.dim{color:var(--ink-dim);}
-.user-info .connection-status{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border:1px solid var(--line);border-radius:999px;font-size:11px;white-space:nowrap;color:var(--ink-dim);}
-.user-info .connection-status::before{content:'';width:7px;height:7px;border-radius:50%;background:#d69e36;display:inline-block;flex:0 0 7px;}
-.user-info .connection-status:not(:empty){color:var(--ink-dim);}
-html[data-theme="tmh"] .user-info .connection-status{border-color:#ffffff40;color:#fff;}
 .user-info .logout-btn{background:none;border:1px solid var(--line);color:var(--ink-dim);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-family:var(--sans);}
 .user-info .logout-btn:hover{border-color:var(--bad);color:var(--bad);}
 .sub-fields{margin-top:8px;padding-left:10px;border-left:2px solid var(--line);display:none;}
@@ -1221,6 +1217,8 @@ if(button){
   });
 }
 </script>
+
+<style id="tmh-connection-badge-style">#tmhConnectionBadge{position:fixed!important;top:calc(env(safe-area-inset-top,0px) + 10px)!important;right:12px!important;z-index:2147483000!important;display:flex!important;align-items:center!important;gap:7px!important;padding:7px 12px!important;border:1px solid rgba(255,255,255,.28)!important;border-radius:999px!important;background:#17324f!important;color:#fff!important;box-shadow:0 3px 14px rgba(0,0,0,.24)!important;font:600 12px/1.2 system-ui,sans-serif!important;pointer-events:none!important;white-space:nowrap!important;visibility:visible!important;opacity:1!important}#tmhConnectionDot{display:inline-block!important;width:9px!important;height:9px!important;min-width:9px!important;border-radius:50%!important;background:#45d483;box-shadow:0 0 0 2px rgba(255,255,255,.16)!important}@media(max-width:520px){#tmhConnectionBadge{top:calc(env(safe-area-inset-top,0px) + 7px)!important;right:7px!important;padding:6px 9px!important;font-size:11px!important}}</style>
 </head>
 <body>
 <div id="nativeApp">
@@ -1249,7 +1247,7 @@ if(button){
     <div class="user-info" id="userInfo" style="display:none;">
         <span>👤 <span id="userName">Пользователь</span></span>
         <span class="role" id="userRole">(user)</span>
-        <span class="role" id="offlineSyncStatus" aria-live="polite" title="Автоматическое состояние подключения и синхронизации"></span>
+        
         <a class="logout-btn account-cabinet-btn" id="accountCabinetLink" href="./account.html" aria-label="Открыть личный кабинет"><span aria-hidden="true">👤</span><span>Личный кабинет</span></a>
         <button class="logout-btn" id="logoutBtn">Выход</button>
     </div>
@@ -2757,7 +2755,7 @@ const EMBED_TT_HTML=`<!DOCTYPE html>
         <div class="user-info" id="userInfo" style="display:none;">
             <span>👤 <span id="userName">Пользователь</span></span>
             <span class="role" id="userRole">(user)</span>
-            <span class="role connection-status" id="offlineSyncStatus" aria-live="polite" title="Состояние подключения и синхронизации">Проверяем связь…</span>
+            
             <button class="logout-btn" id="logoutBtn">Выход</button>
         </div>
     </div>
@@ -6528,7 +6526,7 @@ const EMBED_BI_HTML=`<!DOCTYPE html>
         <div class="user-info" id="userInfo" style="display:none;">
             <span>👤 <span id="userName">Пользователь</span></span>
             <span class="role" id="userRole">(user)</span>
-            <span class="role connection-status" id="offlineSyncStatus" aria-live="polite" title="Состояние подключения и синхронизации">Проверяем связь…</span>
+            
             <button class="logout-btn" id="logoutBtn">Выход</button>
         </div>
     </div>
@@ -9877,7 +9875,7 @@ html[data-theme="dark"] .frow.unfilled-highlight,html[data-theme="dark"] .field.
   <div class="user-info" id="userInfo" style="display:none;">
     <span>👤 <span id="userName">Пользователь</span></span>
     <span class="role" id="userRole">(user)</span>
-    <span class="role connection-status" id="offlineSyncStatus" aria-live="polite" title="Состояние подключения и синхронизации">Проверяем связь…</span>
+    
     <button class="logout-btn" id="logoutBtn">Выход</button>
   </div>
 </div>
@@ -22067,5 +22065,7 @@ html[data-theme="dark"] #xlTable tr.err td{background:#3a1d1a}html[data-theme="d
   window.__XL_PANEL_V1__={open:openPanel,state:st,validate:validate,publish:publish,build:collectEdits};
 })();
 </script>
+
+<script id="tmh-connection-badge-runtime">(function(){function mount(){if(!document.body||document.getElementById('tmhConnectionBadge'))return;var badge=document.createElement('div');badge.id='tmhConnectionBadge';badge.setAttribute('role','status');badge.setAttribute('aria-live','polite');badge.innerHTML='<span id="tmhConnectionDot" aria-hidden="true"></span><span id="tmhConnectionText">Проверяем связь…</span>';document.body.appendChild(badge);function update(){var offline=navigator.onLine===false,text=document.getElementById('tmhConnectionText'),dot=document.getElementById('tmhConnectionDot');if(text)text.textContent=offline?'Офлайн':'Онлайн';if(dot)dot.style.background=offline?'#ffbd4a':'#45d483';badge.title=offline?'Нет сети. Изменения сохраняются локально на устройстве.':'Сеть доступна. Облачная синхронизация требует действующей сессии.';badge.dataset.mode=offline?'offline':'online';}window.addEventListener('online',update);window.addEventListener('offline',update);update();window.__TMH_SET_CONNECTION_STATUS=function(){update();};}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();})();</script>
 </body>
 </html>
