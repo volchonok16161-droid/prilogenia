@@ -6,6 +6,7 @@ const html = (await readFile(new URL("../index.html", import.meta.url), "utf8"))
   "../prototype/embedded/tt.js",
   "../prototype/embedded/bi.js",
   "../prototype/embedded/hydro.js",
+  "../prototype/embedded/complex.js",
 ].map((path) => readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
 const crypto = await readFile(new URL("../prototype/offline-vault-crypto.js", import.meta.url), "utf8");
 const session = await readFile(new URL("../prototype/offline-vault-session.js", import.meta.url), "utf8");
