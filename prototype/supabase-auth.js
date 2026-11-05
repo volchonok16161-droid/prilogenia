@@ -425,6 +425,15 @@ function activeInstanceMetaKey(storageId, userId = activeOfflineUserId) {
   return "offline:active-instance:" + userId + ":" + mode;
 }
 
+async function activateOfflineChecklistInstance(storageId, instanceId) {
+  if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
+  const mode = getChecklistMode(storageId);
+  const instance = await loadOfflineChecklistInstance(instanceId);
+  if (!instance || instance.mode !== mode) throw new Error("Локальный чек-лист не найден или относится к другому режиму");
+  await offlineVault.database.setMeta(activeInstanceMetaKey(storageId), instanceId);
+  return { activated: true, instanceId, mode };
+}
+
 async function beginNewOfflineChecklistInstance(storageId) {
   if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
   const key = activeInstanceMetaKey(storageId);
@@ -591,6 +600,7 @@ const api = Object.freeze({
   saveOfflineChecklist,
   saveOfflineChecklistForActiveInstance,
   beginNewOfflineChecklistInstance,
+  activateOfflineChecklistInstance,
   createOfflineChecklistInstance,
   saveOfflineChecklistInstance,
   loadOfflineChecklistInstance,

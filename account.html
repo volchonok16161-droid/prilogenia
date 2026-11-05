@@ -244,7 +244,16 @@ async function renderLocalOfflineChecklists(api, requestId) {
       status.className = "status-pill " + (entry.sync === "synced" ? "done" : "progress");
       status.textContent = entry.sync === "synced" ? "✓ В облаке" : entry.sync === "pending-sync" ? "Ожидает синхронизации" : "Только на устройстве";
       info.append(title, meta, status);
-      item.append(icon, info);
+      const actions = document.createElement("div");
+      actions.style.display = "flex";
+      actions.style.gap = "8px";
+      const open = document.createElement("a");
+      open.className = "btn secondary";
+      open.textContent = "Открыть";
+      open.href = "./index.html?mode=" + encodeURIComponent(entry.mode) + "&openLocalChecklist=" + encodeURIComponent(entry.instanceId);
+      open.setAttribute("aria-label", "Открыть " + (entry.title || "локальный чек-лист"));
+      actions.append(open);
+      item.append(icon, info, actions);
       host.append(item);
     }
   } catch (error) {
