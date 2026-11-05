@@ -41,6 +41,6 @@ test("UI requires an explicit confirmation and leaves legacy storage untouched",
 test("legacy migration service remains available but its UI is not loaded for employees", () => {
   assert.match(auth, /async function migrateLegacyChecklist/);
   assert.doesNotMatch(auth, /offline-legacy-migration-ui\.js/);
-  assert.match(sw, /checklist-cache-v\\d+/);
+  assert.match(sw, /checklist-cache-v\d+/);
   assert.doesNotMatch(sw, /offline-legacy-migration-ui\.js/);
 });
