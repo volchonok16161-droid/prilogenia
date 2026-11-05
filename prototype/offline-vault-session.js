@@ -12,7 +12,7 @@ const MAX_FAILURES_BEFORE_COOLDOWN = 5;
 function assertIdentity(identity) {
   const id = identity?.user?.id;
   if (typeof id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ||
-      identity?.profile?.id !== id || !["employee", "admin", "developer"].includes(identity?.profile?.role)) {
+      identity?.profile?.id !== id || !["employee", "assistant", "admin", "developer"].includes(identity?.profile?.role)) {
     throw new Error("A verified online Supabase identity and authorized profile are required");
   }
   return id.toLowerCase();
