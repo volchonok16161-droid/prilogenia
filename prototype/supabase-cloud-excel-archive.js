@@ -77,10 +77,21 @@ export function createChecklistExcelArchive({
       checklist_date: String(checklistDate || "").slice(0, 32),
       file_size: blob.size,
     };
-    const inserted = await database.from("checklist_exports").insert(metadata).select(
-      "id,storage_path,file_name,mode,checklist_type,checklist_number,checklist_date,file_size,created_at"
-    ).single();
-    const row = checkResult(inserted, "сохранение сведений о файле");
+    let row;
+    try {
+      const inserted = await database.from("checklist_exports").insert(metadata).select(
+        "id,storage_path,file_name,mode,checklist_type,checklist_number,checklist_date,file_size,created_at"
+      ).single();
+      row = checkResult(inserted, "сохранение сведений о файле");
+    } catch (error) {
+      try {
+        const removed = await storageApi.from(BUCKET).remove([path]);
+        checkResult(removed, "очистка файла без метаданных");
+      } catch (cleanupError) {
+        error.cleanupError = cleanupError;
+      }
+      throw error;
+    }
     return Object.freeze(row);
   }
 
