@@ -18,6 +18,14 @@ function cloneWithoutPhotos(value, stats = { removed: 0 }) {
   return result;
 }
 
+function stableJson(value) {
+  if (Array.isArray(value)) return "[" + value.map(stableJson).join(",") + "]";
+  if (!value || typeof value !== "object") return JSON.stringify(value);
+  return "{" + Object.keys(value).sort().map((key) =>
+    JSON.stringify(key) + ":" + stableJson(value[key])
+  ).join(",") + "}";
+}
+
 function calculateChecklistStats(state, definitions = []) {
   const counters = { total: 0, answered: 0, deviations: 0 };
   for (const equipment of definitions || []) {
@@ -276,15 +284,42 @@ export function createChecklistCloudBackup({
 
     const stats = { removed: 0 };
     const mode = String(getMode() || "unknown");
+    const snapshotState = cloneWithoutPhotos(state, stats);
+    const title = [label, state.general?.type || mode, state.general?.number || ""]
+      .filter(Boolean).join(" — ").slice(0, 200);
+
+    // Reuse an identical safety snapshot instead of creating another cloud row
+    // every time the same restore is opened/retried. If listing fails, preserve
+    // the original safety behavior and create a fresh snapshot.
+    if (typeof cloud.list === "function") {
+      try {
+        const existingRows = await cloud.list();
+        const stateSignature = stableJson(snapshotState);
+        const duplicate = existingRows.find((candidate) =>
+          candidate?.title === title &&
+          candidate?.equipment_type === mode &&
+          candidate?.payload?.mode === mode &&
+          candidate?.payload?.state &&
+          stableJson(candidate.payload.state) === stateSignature
+        );
+        if (duplicate) {
+          return Object.freeze({
+            row: duplicate, photosExcluded: stats.removed,
+            photosUploaded: 0, reused: true,
+          });
+        }
+      } catch {
+        // A transient list failure must not prevent creation of a safety copy.
+      }
+    }
+
     const checklistId = idFactory();
     let manifest = [];
     if (photoSync) {
       const result = await photoSync.uploadState({ state, checklistId, revision: 1 });
       manifest = result.manifest;
     }
-    const payload = { mode, state: cloneWithoutPhotos(state, stats), photos: manifest };
-    const title = [label, state.general?.type || mode, state.general?.number || ""]
-      .filter(Boolean).join(" — ").slice(0, 200);
+    const payload = { mode, state: snapshotState, photos: manifest };
     let row;
     try {
       row = await cloud.create({
