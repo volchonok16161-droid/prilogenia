@@ -1038,13 +1038,18 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     vertical-align:middle;
 }
 
-/* Account and exit actions sit together beside the theme selector. */
-.user-info{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+/* Theme selector and account actions form one compact control group. */
+.topbar-account-controls{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;margin-left:auto;}
+.topbar-account-controls .theme-switch{margin-left:0;}
+.topbar-account-controls .user-info{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+.user-info .account-cabinet-btn{white-space:nowrap;}
 .user-info .account-cabinet-btn{white-space:nowrap;}
 #iframeBar .iframe-account-cabinet-btn{margin-left:auto;white-space:nowrap;}
 @media(max-width:640px){
-  .user-info{gap:6px;}
-  .user-info .account-cabinet-btn{padding:7px 9px;font-size:11px;}
+  .topbar-account-controls{gap:6px;margin-left:auto;max-width:100%;flex-wrap:wrap;justify-content:flex-end;}
+  .topbar-account-controls .theme-switch{margin-left:0;}
+  .topbar-account-controls .user-info{gap:6px;}
+  .topbar-account-controls .account-cabinet-btn{padding:7px 9px;font-size:11px;}
   #iframeBar .iframe-account-cabinet-btn{margin-left:auto;}
 }
 
@@ -1188,14 +1193,16 @@ if(button){
         <span class="ico">📋</span>
         <span id="modePickerLabel">Чек-лист</span>
     </button>
-    <div class="theme-switch" id="themeSwitch">
-        <button type="button" data-theme-value="tmh">ТМХ</button>
-        <button type="button" class="active" data-theme-value="standard">Светлая</button>
-        <button type="button" data-theme-value="dark">Тёмная</button>
-    </div>
-    <div class="user-info" id="userInfo" style="display:none;">
-        <a class="btn account-cabinet-btn" id="accountCabinetLink" href="./account.html">👤 Личный кабинет</a>
-        <button class="logout-btn" id="logoutConfirmBtn" type="button">Выход</button>
+    <div class="topbar-account-controls">
+      <div class="theme-switch" id="themeSwitch">
+          <button type="button" data-theme-value="tmh">ТМХ</button>
+          <button type="button" class="active" data-theme-value="standard">Светлая</button>
+          <button type="button" data-theme-value="dark">Тёмная</button>
+      </div>
+      <div class="user-info" id="userInfo" style="display:none;">
+          <a class="btn account-cabinet-btn" id="accountCabinetLink" href="./account.html">👤 Личный кабинет</a>
+          <button class="logout-btn" id="logoutConfirmBtn" type="button">Выход</button>
+      </div>
     </div>
 </div>
 <div class="stat-bar" id="statBar">
