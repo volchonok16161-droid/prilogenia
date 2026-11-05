@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v66';
+const CACHE_VERSION = 'checklist-cache-v67';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -25,9 +25,6 @@ const APP_SHELL = [
   './prototype/offline-sync-runner.js',
   './prototype/offline-sync-coordinator.js',
   './prototype/offline-cloud-mapper.js',
-  './prototype/offline-cleanup-demo.html',
-  './prototype/offline-five-mode-demo.html',
-  './prototype/offline-demo-photo-store.js',
   './prototype/offline-checklist-runtime.js',
   './prototype/offline-checklist-schema.js',
   './prototype/supabase-auth.js',
@@ -166,23 +163,32 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Файл «Зона риска» редактируется вручную и должен обновляться сразу:
-  // сначала сеть (в обход HTTP-кэша), при отсутствии сети — последняя сохранённая копия.
+  // Справочники должны быстро открываться из локальной копии даже при
+  // медленном интернете. Сеть проверяем ограниченное время, а обновление кэша
+  // продолжается в фоне. Если сеть недоступна, используем последнюю копию.
   if (isSameOrigin && /\/(zona_riska\.xlsx|oborudovanie\.json|examples\.json)$/.test(url.pathname)) {
     const key = new Request(url.origin + url.pathname);
-    event.respondWith(
-      fetch(req, { cache: 'no-store' })
-        .then((resp) => {
-          if (resp && resp.ok) {
-            const copy = resp.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(key, copy));
-          }
-          return resp;
-        })
-        .catch(() =>
-          caches.match(key).then((cached) => cached || new Response('', { status: 504, statusText: 'Offline' }))
-        )
-    );
+    const networkPromise = fetch(req, { cache: 'no-store' }).then(async (resp) => {
+      if (resp && resp.ok) {
+        const cache = await caches.open(CACHE_VERSION);
+        await cache.put(key, resp.clone());
+      }
+      return resp;
+    });
+    // Продлеваем жизнь Service Worker до завершения фонового обновления.
+    event.waitUntil(networkPromise.catch(() => {}));
+    event.respondWith((async () => {
+      const cached = await caches.match(key);
+      const timeoutMs = cached ? 1200 : 4000;
+      const outcome = await Promise.race([
+        networkPromise.then((response) => ({ response })).catch((error) => ({ error })),
+        new Promise((resolve) => setTimeout(() => resolve({ timeout: true }), timeoutMs))
+      ]);
+      if (outcome.response) return outcome.response;
+      if (cached) return cached;
+      if (outcome.error) throw outcome.error;
+      return new Response('', { status: 504, statusText: 'Offline cache is not ready' });
+    })());
     return;
   }
 
