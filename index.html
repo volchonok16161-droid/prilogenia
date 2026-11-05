@@ -1046,10 +1046,12 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
 .user-info .user-role-icon{font-size:20px;line-height:1;}
 .user-info .logout-btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--ink-dim);font:inherit;font-size:14px;text-decoration:none;cursor:pointer;white-space:nowrap;}
 .user-info .logout-btn:hover{border-color:var(--amber);color:var(--ink);}
-.user-info .account-cabinet-btn{margin-left:4px;}
+ .user-info-actions{display:inline-flex;align-items:center;gap:8px;margin-left:4px;flex:0 0 auto;}
+.user-info-actions .logout-btn{margin:0;}
 @media(max-width:640px){
   .topbar-account-controls{gap:6px;margin-left:auto;max-width:100%;flex-wrap:wrap;justify-content:flex-end;}
   .topbar .user-info{gap:7px;margin-left:0;padding:8px 0 0 8px;font-size:13px;flex-wrap:wrap;}
+   .user-info-actions{gap:6px;margin-left:2px;}
   .user-info .logout-btn{min-height:34px;padding:5px 9px;font-size:12px;}
   .user-info .user-role-icon{font-size:17px;}
 }
@@ -1200,8 +1202,10 @@ if(button){
     <div class="user-info" id="userInfo" style="display:none;">
         <span class="user-role-icon" aria-hidden="true">👤</span>
         <span class="role" id="userRole">Пользователь</span>
-        <a class="logout-btn account-cabinet-btn" id="accountCabinetLink" href="./account.html">Личный кабинет</a>
-        <button class="logout-btn" id="logoutConfirmBtn" type="button">Выход</button>
+        <div class="user-info-actions">
+            <a class="logout-btn" id="accountCabinetLink" href="./account.html">Личный кабинет</a>
+            <button class="logout-btn" id="logoutConfirmBtn" type="button">Выход</button>
+        </div>
     </div>
 </div>
 <div class="stat-bar" id="statBar">
