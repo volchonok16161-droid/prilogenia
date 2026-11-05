@@ -1440,6 +1440,7 @@ async function checkAuth() {
     if (authCheckId !== __TMH_AUTH_CHECK_SEQ) return !!currentUser;
     if (!identity || !identity.user || !identity.profile) {
       currentUser = null;
+      window.__TMH_AUTH_CONTEXT = null;
       try { localStorage.removeItem('checklist_user'); } catch (e) {}
       updateUserUI();
       return false;
@@ -1502,6 +1503,7 @@ async function checkAuth() {
     console.error('Auth check failed', e);
     if (authCheckId !== __TMH_AUTH_CHECK_SEQ) return !!currentUser;
     currentUser = null;
+    window.__TMH_AUTH_CONTEXT = null;
     updateUserUI();
     return false;
   }
@@ -1580,6 +1582,7 @@ async function doLogout() {
     }
   }
   currentUser = null;
+  window.__TMH_AUTH_CONTEXT = null;
   try { localStorage.removeItem('checklist_user'); } catch (e) {}
   updateUserUI();
   try {
