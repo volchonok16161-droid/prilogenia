@@ -89,21 +89,28 @@ export function createChecklistCloudRestore({
         };
 
         // applyState preserves local photos when the cloud payload has no photo
-        // for that field. Compare against that effective incoming state, otherwise
-        // those intentionally preserved photos make every repeated restore look
-        // like a destructive change and create another safety snapshot.
+        // for that field. Copy only actual local photo values into the comparison
+        // state; do not add an empty values object when there are no local photos.
         const stateToApply = structuredClone(hydratedState);
-        const oldValues = currentState.values || {};
-        const newValues = stateToApply.values || (stateToApply.values = {});
-        Object.keys(oldValues).forEach((itemId) => {
-          const oldItem = oldValues[itemId] || {};
-          const newItem = newValues[itemId] || (newValues[itemId] = {});
-          Object.keys(oldItem).forEach((key) => {
-            if (/_photo$/i.test(key) && oldItem[key] && !newItem[key]) {
-              newItem[key] = oldItem[key];
-            }
+        const oldValues = currentState.values;
+        if (oldValues && typeof oldValues === "object" && !Array.isArray(oldValues)) {
+          let newValues = stateToApply.values;
+          Object.keys(oldValues).forEach((itemId) => {
+            const oldItem = oldValues[itemId] || {};
+            Object.keys(oldItem).forEach((key) => {
+              if (!/_photo$/i.test(key) || !oldItem[key]) return;
+              const newItem = newValues && typeof newValues === "object" && !Array.isArray(newValues)
+                ? newValues[itemId]
+                : null;
+              if (newItem && newItem[key]) return;
+              if (!newValues || typeof newValues !== "object" || Array.isArray(newValues)) {
+                newValues = stateToApply.values = {};
+              }
+              const targetItem = newValues[itemId] || (newValues[itemId] = {});
+              targetItem[key] = oldItem[key];
+            });
           });
-        });
+        }
         stateChanged = JSON.stringify(comparable(currentState)) !== JSON.stringify(comparable(stateToApply));
       }
     }
