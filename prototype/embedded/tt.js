@@ -1483,6 +1483,20 @@ function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==
   window.__TMH_STORAGE_LOCKED = false;
 }
 
+function __tmhIsEmbeddedRuntime() {
+  try { return Boolean(window.parent && window.parent !== window); } catch (e) { return false; }
+}
+function __tmhShowLoginModal() {
+  if (__tmhIsEmbeddedRuntime()) {
+    try {
+      var parentModal = window.parent.document.getElementById('loginModal');
+      if (parentModal) { parentModal.style.display = 'flex'; return; }
+    } catch (e) {}
+  }
+  var modal = document.getElementById('loginModal');
+  if (modal) modal.style.display = 'flex';
+}
+
 function __tmhInstallAuthWatcher(api) {
   if (window.__TMH_AUTH_WATCHER_INSTALLED || !api || typeof api.onAuthStateChange !== 'function') return;
   window.__TMH_AUTH_WATCHER_INSTALLED = true;
@@ -1497,7 +1511,7 @@ function __tmhInstallAuthWatcher(api) {
       try { localStorage.removeItem('checklist_user'); } catch (e) {}
       if (typeof updateUserUI === 'function') updateUserUI();
       var loginModal = document.getElementById('loginModal');
-      if (loginModal) loginModal.style.display = 'flex';
+      __tmhShowLoginModal();
       return;
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
@@ -1513,7 +1527,7 @@ function __tmhInstallAuthWatcher(api) {
         try { localStorage.removeItem('checklist_user'); } catch (e) {}
         if (typeof updateUserUI === 'function') updateUserUI();
         var loginModal = document.getElementById('loginModal');
-        if (loginModal) loginModal.style.display = 'flex';
+        __tmhShowLoginModal();
         return;
       }
     }
@@ -1529,6 +1543,19 @@ function __getTMHAuthApi() {
 }
 
 async function checkAuth() {
+  if (__tmhIsEmbeddedRuntime()) {
+    try {
+      var sharedAuth = window.parent.__TMH_AUTH_CONTEXT;
+      if (sharedAuth && /^[0-9a-f-]{36}$/i.test(String(sharedAuth.userId || '')) &&
+          ['admin','developer','user'].includes(sharedAuth.role)) {
+        __tmhApplyUserStorageScope(sharedAuth.userId);
+        currentUser = (sharedAuth.role === 'admin' || sharedAuth.role === 'developer') ? 'admin' : 'user';
+        window.__TMH_OFFLINE_MODE = Boolean(sharedAuth.offlineMode);
+        updateUserUI();
+        return true;
+      }
+    } catch (e) {}
+  }
   const api = __getTMHAuthApi();
   if (!api) { currentUser = null; return false; }
   __tmhInstallAuthWatcher(api);
@@ -3542,7 +3569,7 @@ function fullClearState() { __psClear();
         let dialogShown = false;
 
         async function showContinueDialogOrStart() {
-            if (!window.__TMH_STORAGE_UID) { document.getElementById('loginModal').style.display = 'flex'; return; }
+            if (!window.__TMH_STORAGE_UID) { __tmhShowLoginModal(); return; }
             if (dialogShown) return;
             let hasSaved = localStorage.getItem(LS_KEY) !== null;
             if (window.__TMH_OFFLINE_MODE || window.__TMH_STORAGE_UID) {
@@ -3754,7 +3781,7 @@ function fullClearState() { __psClear();
         async function init() {
             const hasAuth = await checkAuth();
             if (!hasAuth) {
-                document.getElementById('loginModal').style.display = 'flex';
+                __tmhShowLoginModal();
             } else {
                 showContinueDialogOrStart();
             }
