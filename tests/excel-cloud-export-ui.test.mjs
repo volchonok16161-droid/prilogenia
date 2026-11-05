@@ -19,7 +19,8 @@ test("the parent page exposes an authenticated private Excel archive uploader", 
 for (const [file, mode] of modes) {
   test(file + " uploads the generated workbook before triggering the download", async () => {
     const source = await readFile(new URL("../prototype/embedded/" + file, import.meta.url), "utf8");
-    const anchor = source.indexOf("a.download");
+    const exportStart = source.indexOf("async function exportWithPhotos");
+    const anchor = source.indexOf("a.download", exportStart);
     const upload = source.indexOf("__saveExcel(blob", anchor);
     const click = source.indexOf("a.click()", anchor);
     assert.ok(anchor >= 0, "xlsx filename is generated");
