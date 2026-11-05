@@ -350,36 +350,51 @@ async function getCachedOfflineIdentity(cause) {
 async function saveOfflineChecklist(id, snapshot) {
   if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
   if (typeof id !== "string" || !id) throw new TypeError("Checklist storage id is required");
-  const cloudEnabled = await offlineVault.database.getMeta("offline:cloud-sync-enabled:" + activeOfflineUserId);
+
+  // The encrypted local snapshot is the durability boundary. Cloud queue work
+  // is best-effort and must never roll back the local write or block logout.
+  const userId = activeOfflineUserId;
+  const localEncrypted = await activeOfflineVault.encrypt(snapshot);
+  await offlineVault.database.putRecord({
+    id, userId, kind: "checklist-snapshot", encrypted: localEncrypted,
+  });
+
+  const cloudEnabled = await offlineVault.database.getMeta("offline:cloud-sync-enabled:" + userId);
   if (cloudEnabled !== true) {
-    const encrypted = await activeOfflineVault.encrypt(snapshot);
-    await offlineVault.database.putRecord({
-      id, userId: activeOfflineUserId, kind: "checklist-snapshot", encrypted,
+    return { saved: true, encrypted: true, queued: false, status: "local-only", userId, id };
+  }
+
+  try {
+    const store = ensureOfflineSync();
+    const mode = getChecklistMode(id);
+    const mappingKey = "offline:cloud-id:" + userId + ":" + id;
+    let cloudId = await offlineVault.database.getMeta(mappingKey);
+    if (!cloudId) {
+      cloudId = crypto.randomUUID();
+      await offlineVault.database.setMeta(mappingKey, cloudId);
+    }
+    const cloudState = await offlineVault.database.getCloudState(userId, cloudId);
+    const { buildOfflineCloudEnvelope } = await import("./offline-checklist-schema.js");
+    const envelope = buildOfflineCloudEnvelope({
+      mode, state: snapshot, cloudId,
+      ...(cloudState?.revision ? { expectedRevision: cloudState.revision } : {}),
     });
-    return { saved: true, encrypted: true, queued: false, status: "local-only", userId: activeOfflineUserId, id };
+    const result = await store.saveChecklist({
+      id, value: envelope, operation: cloudState?.revision ? "update" : "create",
+      entityId: cloudId, kind: "checklist-snapshot",
+    });
+    if (globalThis.navigator?.onLine !== false && offlineSyncCoordinator) {
+      void offlineSyncCoordinator.syncNow();
+    }
+    return { saved: true, encrypted: true, queued: true, userId, id, cloudId, ...result };
+  } catch (syncError) {
+    console.warn("Cloud sync queue unavailable; encrypted local snapshot was retained", syncError);
+    return {
+      saved: true, encrypted: true, queued: false, status: "local-only",
+      syncDeferred: true, syncError: syncError?.message || "Cloud sync could not be queued",
+      userId, id,
+    };
   }
-  const store = ensureOfflineSync();
-  const mode = getChecklistMode(id);
-  const mappingKey = "offline:cloud-id:" + activeOfflineUserId + ":" + id;
-  let cloudId = await offlineVault.database.getMeta(mappingKey);
-  if (!cloudId) {
-    cloudId = crypto.randomUUID();
-    await offlineVault.database.setMeta(mappingKey, cloudId);
-  }
-  const cloudState = await offlineVault.database.getCloudState(activeOfflineUserId, cloudId);
-  const { buildOfflineCloudEnvelope } = await import("./offline-checklist-schema.js");
-  const envelope = buildOfflineCloudEnvelope({
-    mode, state: snapshot, cloudId,
-    ...(cloudState?.revision ? { expectedRevision: cloudState.revision } : {}),
-  });
-  const result = await store.saveChecklist({
-    id, value: envelope, operation: cloudState?.revision ? "update" : "create",
-    entityId: cloudId, kind: "checklist-snapshot",
-  });
-  if (globalThis.navigator?.onLine !== false && offlineSyncCoordinator) {
-    void offlineSyncCoordinator.syncNow();
-  }
-  return { saved: true, encrypted: true, queued: true, userId: activeOfflineUserId, id, cloudId, ...result };
 }
 
 async function migrateLegacyChecklist(storageId, snapshot, confirmed = false) {

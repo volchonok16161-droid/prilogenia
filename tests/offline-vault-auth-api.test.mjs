@@ -51,3 +51,17 @@ test("device vault enrollment verifies the encrypted identity before marking the
   assert.ok(body.indexOf("verifiedIdentity") < body.indexOf("activeOfflineVault ="));
   assert.doesNotMatch(body, /if \(activeOfflineVault && activeOfflineUserId/);
 });
+
+
+test("encrypted local checklist snapshot is committed before cloud queue work", () => {
+  const start = auth.indexOf("async function saveOfflineChecklist(id, snapshot)");
+  const end = auth.indexOf("\nasync function migrateLegacyChecklist", start);
+  const body = auth.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  const localWrite = body.indexOf("database.putRecord(");
+  const cloudQueue = body.indexOf("store.saveChecklist(");
+  assert.ok(localWrite >= 0 && cloudQueue > localWrite);
+  assert.match(body, /catch \(syncError\)/);
+  assert.match(body, /syncDeferred: true/);
+  assert.match(body, /saved: true, encrypted: true, queued: false/);
+});
