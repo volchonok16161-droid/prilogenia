@@ -2957,6 +2957,9 @@ async function doLogin(login, password) {
     }
     return false;
   }
+  if (result.offlineSetupError && typeof showToast === 'function') {
+    showToast('Офлайн-вход не подготовлен: ' + (result.offlineSetupError.message || 'ошибка локального хранилища'));
+  }
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
@@ -6740,6 +6743,9 @@ async function doLogin(login, password) {
     }
     return false;
   }
+  if (result.offlineSetupError && typeof showToast === 'function') {
+    showToast('Офлайн-вход не подготовлен: ' + (result.offlineSetupError.message || 'ошибка локального хранилища'));
+  }
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
@@ -10105,6 +10111,9 @@ async function doLogin(login, password) {
       }
     }
     return false;
+  }
+  if (result.offlineSetupError && typeof showToast === 'function') {
+    showToast('Офлайн-вход не подготовлен: ' + (result.offlineSetupError.message || 'ошибка локального хранилища'));
   }
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
@@ -14818,6 +14827,9 @@ async function doLogin(login, password) {
     }
     return false;
   }
+  if (result.offlineSetupError && typeof showToast === 'function') {
+    showToast('Офлайн-вход не подготовлен: ' + (result.offlineSetupError.message || 'ошибка локального хранилища'));
+  }
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
@@ -17055,6 +17067,9 @@ async function doLogin(login, password) {
       }
     }
     return false;
+  }
+  if (result.offlineSetupError && typeof showToast === 'function') {
+    showToast('Офлайн-вход не подготовлен: ' + (result.offlineSetupError.message || 'ошибка локального хранилища'));
   }
   __tmhApplyUserStorageScope(result.user.id);
   const role = result.profile.role;

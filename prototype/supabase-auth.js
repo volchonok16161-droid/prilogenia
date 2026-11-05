@@ -132,14 +132,10 @@ async function activateDeviceVault(identity) {
       identity.user.id !== identity.profile.id || !ALLOWED_ROLES.has(identity.profile.role)) {
     throw new Error("A verified online account is required to initialize this device");
   }
-  if (activeOfflineVault && activeOfflineUserId === identity.user.id && !activeOfflineIdentity) {
-    return { userId: activeOfflineUserId, ready: true };
-  }
+
+  // Verify durable storage before exposing the vault as unlocked. This keeps
+  // failed or partial IndexedDB enrollment retryable on the next auth check.
   const setup = await offlineVault.session.setupDeviceKeyAfterVerifiedOnlineLogin(identity);
-  activeOfflineVault = setup.vault;
-  activeOfflineUserId = setup.userId;
-  activeOfflineIdentity = null;
-  await offlineVault.database.setMeta("offline:last-user-id", setup.userId);
   const safeIdentity = {
     user: { id: identity.user.id, email: identity.user.email || "" },
     profile: {
@@ -150,7 +146,23 @@ async function activateDeviceVault(identity) {
   };
   const encryptedIdentity = await setup.vault.encrypt(safeIdentity);
   await offlineVault.database.setMeta("offline:identity:" + setup.userId, encryptedIdentity);
+
+  const storedIdentity = await offlineVault.database.getMeta("offline:identity:" + setup.userId);
+  if (!storedIdentity) throw new Error("Encrypted offline identity was not persisted");
+  const deviceUnlock = await offlineVault.session.unlockDeviceKey(setup.userId);
+  const verifiedIdentity = await deviceUnlock.vault.decrypt(storedIdentity);
+  if (verifiedIdentity?.user?.id !== setup.userId ||
+      verifiedIdentity?.profile?.id !== setup.userId ||
+      !ALLOWED_ROLES.has(verifiedIdentity?.profile?.role)) {
+    throw new Error("Persisted offline identity failed verification");
+  }
+
+  await offlineVault.database.setMeta("offline:last-user-id", setup.userId);
   await offlineVault.database.setMeta("offline:cloud-sync-enabled:" + setup.userId, true);
+
+  activeOfflineVault = deviceUnlock.vault;
+  activeOfflineUserId = setup.userId;
+  activeOfflineIdentity = null;
   offlineChecklistStore = null;
   offlineSyncCoordinator?.stop();
   offlineSyncCoordinator = null;
@@ -200,9 +212,13 @@ async function signIn(email, password) {
     return { user: data.user, profile: null, error: result.error };
   }
 
+  let offlineSetupError = null;
   try { await activateDeviceVault({ user: data.user, profile: result.profile }); }
-  catch (vaultError) { console.warn("Device offline storage could not be initialized", vaultError); }
-  return { user: data.user, profile: result.profile, error: null };
+  catch (vaultError) {
+    offlineSetupError = vaultError;
+    console.warn("Device offline storage could not be initialized", vaultError);
+  }
+  return { user: data.user, profile: result.profile, error: null, offlineSetupError };
 }
 
 async function setupOfflinePin(pin) {

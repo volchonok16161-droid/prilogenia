@@ -37,3 +37,17 @@ test("PIN unlock does not wait indefinitely for the online session probe", () =>
   assert.match(auth, /const candidate = await getCurrentIdentityForOfflineUnlock\(\)/);
   assert.match(auth, /before any upload/);
 });
+
+
+
+test("device vault enrollment verifies the encrypted identity before marking the vault active", () => {
+  const start = auth.indexOf("async function activateDeviceVault(identity)");
+  const end = auth.indexOf("\nasync function resolveLoginEmail", start);
+  const body = auth.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.match(body, /setMeta\("offline:identity:" \+ setup\.userId, encryptedIdentity\)/);
+  assert.match(body, /getMeta\("offline:identity:" \+ setup\.userId\)/);
+  assert.match(body, /session\.unlockDeviceKey\(setup\.userId\)/);
+  assert.ok(body.indexOf("verifiedIdentity") < body.indexOf("activeOfflineVault ="));
+  assert.doesNotMatch(body, /if \(activeOfflineVault && activeOfflineUserId/);
+});
