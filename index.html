@@ -1370,7 +1370,7 @@ var h='';for(i=0;i<8;i++)h+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);retur
 function __adminPassOk(p){try{return __sha256('tmh-checklist-salt:'+String(p))==='c6a92f1d718a2a74fbbe448c66b70baffa1811636e527d1e3245b6c2e2285147';}catch(e){return false;}}
 let currentUser=null;
 let __TMH_AUTH_CHECK_SEQ=0;
-function __tmhApplyUserStorageScope(uid) {
+function __tmhApplyUserStorageScope(uid, profileRole) {
   if (typeof uid !== 'string' || !/^[0-9a-f-]{36}$/i.test(uid)) {
     throw new Error('Не удалось подтвердить UUID пользователя Supabase');
   }
@@ -1380,6 +1380,7 @@ function __tmhApplyUserStorageScope(uid) {
   LS_KEY = base + '::user:' + uid;
   window.__TMH_STORAGE_UID = uid;
   window.__TMH_STORAGE_LOCKED = false;
+  if (profileRole) window.__TMH_AUTH_CONTEXT = Object.freeze({ userId: uid, role: profileRole, offlineMode: Boolean(window.__TMH_OFFLINE_MODE) });
 }
 
 function __tmhInstallAuthWatcher(api) {
@@ -1392,6 +1393,7 @@ function __tmhInstallAuthWatcher(api) {
       // that document: lock writes and return to the login UI in place.
       window.__TMH_STORAGE_LOCKED = true;
       window.__TMH_STORAGE_UID = null;
+      window.__TMH_AUTH_CONTEXT = null;
       currentUser = null;
       try { localStorage.removeItem('checklist_user'); } catch (e) {}
       if (typeof updateUserUI === 'function') updateUserUI();
@@ -1458,7 +1460,7 @@ async function checkAuth() {
       catch (vaultError) { console.warn('Device offline storage is unavailable; continuing with standard local save', vaultError); }
     }
     if (authCheckId !== __TMH_AUTH_CHECK_SEQ) return !!currentUser;
-    __tmhApplyUserStorageScope(identity.user.id);
+    __tmhApplyUserStorageScope(identity.user.id, identity.profile.role);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
     var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
     var __tmhBadgeText = document.getElementById('tmhConnectionText');
@@ -1539,7 +1541,7 @@ async function doLogin(login, password) {
   if (result.offlineSetupError && typeof showToast === 'function') {
     showToast('Офлайн-вход не подготовлен: ' + (result.offlineSetupError.message || 'ошибка локального хранилища'));
   }
-  __tmhApplyUserStorageScope(result.user.id);
+  __tmhApplyUserStorageScope(result.user.id, result.profile.role);
   const role = result.profile.role;
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
   try {
