@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { runInNewContext } from "node:vm";
 
-const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+const html = (await readFile(new URL("../index.html", import.meta.url), "utf8")) + (await Promise.all([
+  "../prototype/embedded/tt.js",
+  "../prototype/embedded/bi.js",
+  "../prototype/embedded/hydro.js",
+].map((path) => readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
 const auth = await readFile(new URL("../prototype/supabase-auth.js", import.meta.url), "utf8");
 
 function count(source, token) {
