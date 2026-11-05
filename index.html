@@ -2749,17 +2749,7 @@ if(button){
       if(typeof getContext!=='function')throw new Error('Не удалось получить данные открытого чек-листа');
       const api=window.parent&&window.parent.TMHAuth;
       if(!api)throw new Error('Авторизация Supabase недоступна');
-      await __psEnsureCloudReady();
-      const photoSync=createChecklistPhotoSync({authApi:api});
-      const backup=createChecklistCloudBackup({
-        authApi:api,
-        storage:window.localStorage,
-        photoSync,
-        getState:function(){return getContext().state;},
-        getMode:function(){return getContext().mode;},
-        getStorageKey:function(){return getContext().storageKey;},persistState:function(){return getContext().persistState();},getChecklistDefinitions:function(){return getContext().definitions;},getChecklistStats:function(){return getContext().stats;}
-      });
-      const result=await backup.saveCurrent();
+      const result=await window.parent.__TMH_SAVE_CLOUD_BACKUP_CONTEXT(getContext());
       const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
       if(typeof showToast==='function')showToast(message+' · фотографий: '+result.photosUploaded);
       else window.alert(message+'\\nЗагружено фотографий: '+result.photosUploaded);
