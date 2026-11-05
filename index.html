@@ -794,6 +794,12 @@ button,.chip,select,input{touch-action:manipulation;}
 .stat.ok b{color:var(--ok);}
 .stat-bar{position:sticky;top:0;z-index:55;display:flex;align-items:center;gap:0;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:0 2px 10px rgba(10,42,77,0.10);padding:5px 12px;padding-top:max(5px,env(safe-area-inset-top));padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
 .stat-bar::-webkit-scrollbar{display:none;}
+.mini-stat.fill{flex-direction:column;align-items:flex-end;justify-content:center;gap:2px;padding-left:10px;}
+#tmhConnectionBadge{position:static;display:flex;align-items:center;gap:5px;padding:3px 7px;border:1px solid var(--line);border-radius:999px;background:var(--panel2);color:var(--ink-dim);font:600 10px/1.15 var(--sans);white-space:nowrap;box-shadow:none;pointer-events:none;}
+#tmhConnectionDot{display:inline-block;width:7px;height:7px;min-width:7px;border-radius:50%;background:#45d483;}
+.mode-select-list{max-height:min(54vh,480px);overflow-y:auto;overscroll-behavior:contain;padding:3px 8px 3px 3px;scrollbar-width:thin;-webkit-overflow-scrolling:touch;}
+#modeSelectModal .modal{max-height:92dvh;overflow-y:auto;overscroll-behavior:contain;}
+@media(max-width:640px){#modeSelectModal .modal{padding:22px 18px;width:calc(100% - 24px);}#modeSelectModal .modal h2{font-size:20px;}#modeSelectModal .modal p{font-size:13px;margin-bottom:14px;}.mode-select-list{max-height:52vh;gap:9px!important;}.mode-card-btn{padding:12px 13px!important;}}
 .mini-stat{display:flex;align-items:baseline;gap:5px;flex-shrink:0;padding:3px 11px;border-right:1px solid var(--line);white-space:nowrap;}
 .mini-stat:last-of-type{border-right:none;}
 .mini-stat b{font-family:var(--mono);font-weight:700;font-size:14.5px;color:var(--ink);}
@@ -1216,7 +1222,7 @@ if(button){
     <div class="mini-stat"><b id="statTotal">0</b><span>Поз.</span></div>
     <div class="mini-stat ok"><b id="statOk">0</b><span>Без замеч.</span></div>
     <div class="mini-stat bad"><b id="statBad">0</b><span>Несоотв.</span></div>
-    <div class="mini-stat fill"><b id="statFilled">0%</b><span>Заполнено</span></div>
+    <div class="mini-stat fill"><b id="statFilled">0%</b><span>Заполнено</span><div id="tmhConnectionBadge" role="status" aria-live="polite"><span id="tmhConnectionDot" aria-hidden="true"></span><span id="tmhConnectionText">Проверяем связь…</span></div></div>
     <div class="mini-progress"><div class="mini-progress-fill" id="statProgressFill"></div></div>
 </div>
 <div class="wrap">
@@ -1273,7 +1279,7 @@ if(button){
     <div class="modal" style="max-width:600px;">
         <h2 id="modeModalTitle">📋 Выберите чек-лист</h2>
         <p id="modeModalSubtitle">Какой чек-лист вы хотите заполнить? Данные каждого режима сохраняются отдельно — переключение ничего не теряет.</p>
-        <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+        <div class="mode-select-list" style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
             <button class="btn primary mode-card-btn" id="modeComplexBtn">
                 <span class="mode-card-head">🔧 <b>Комплексный чек-лист</b></span>
                 <small>Чек-лист комплексный при выполнении ТР-50, ТР-250, ТР-500</small>
@@ -6884,15 +6890,14 @@ html[data-theme="dark"] #xlTable tr.err td{background:#3a1d1a}html[data-theme="d
   function mount(){
     if(!document.body)return;
     var badge=document.getElementById('tmhConnectionBadge');
-    if(!badge){
+    var progressStat=document.querySelector('.mini-stat.fill');
+    if(!badge&&progressStat){
       badge=document.createElement('div');badge.id='tmhConnectionBadge';
       badge.setAttribute('role','status');badge.setAttribute('aria-live','polite');
       badge.innerHTML='<span id="tmhConnectionDot" aria-hidden="true"></span><span id="tmhConnectionText">Проверяем связь…</span>';
-      document.body.appendChild(badge);
+      progressStat.appendChild(badge);
     }
-    badge.style.cssText='position:fixed;top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);right:12px;z-index:2147483000;display:flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:#17324f;color:#fff;box-shadow:0 3px 14px rgba(0,0,0,.24);font:600 12px/1.2 system-ui,sans-serif;pointer-events:none;white-space:nowrap;visibility:visible;opacity:1';
     var dot=document.getElementById('tmhConnectionDot');
-    if(dot)dot.style.cssText='display:inline-block;width:9px;height:9px;min-width:9px;border-radius:50%;background:#45d483;box-shadow:0 0 0 2px rgba(255,255,255,.16)';
     window.__TMH_SET_CONNECTION_STATUS=function(mode){
       lastMode=mode==='offline'?'offline':mode==='online'?'online':'unknown';
       paint(lastMode==='offline'||(lastMode==='unknown'&&navigator.onLine===false));
