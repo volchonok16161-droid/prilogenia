@@ -72,7 +72,7 @@ test("the browser auth client validates the server identity and profile role", (
   assert.match(auth, /client\.auth\.getUser\(\)/);
   assert.match(auth, /\.from\("profiles"\)/);
   assert.match(auth, /\.eq\("id", user\.id\)/);
-  assert.match(auth, /new Set\(\["employee", "admin", "developer"\]\)/);
+  assert.match(auth, /new Set\(\["employee", "assistant", "admin", "developer"\]\)/);
   assert.match(auth, /const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_/);
   assert.doesNotMatch(auth, /const\s+SUPABASE_SERVICE_ROLE_KEY\s*=/i);
 });
