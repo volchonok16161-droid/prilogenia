@@ -31,5 +31,5 @@ for (const path of embeddedPaths) {
 test("the native cloud backup context is available for native save, restore and Excel export", () => {
   assert.match(main, /window\.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function\(\)/);
   assert.match(main, /window\.__TMH_SAVE_CLOUD_BACKUP_CONTEXT = async function\(context\)/);
-  assert.match(main, /window\.__TMH_SAVE_CLOUD_BACKUP_CONTEXT\(__getContext\(\)\)/);
+  assert.match(main, /__saveCloud\(__getContext\(\)\)/);
 });
