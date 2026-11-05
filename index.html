@@ -3673,7 +3673,7 @@ saveState = function(silent) {
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       __tmhOfflineSaveError = null;
-      return api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot);
+      return (typeof api.saveOfflineChecklistForActiveInstance === 'function' ? api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot) : api.saveOfflineChecklist(LS_KEY, snapshot));
     }).then(function() {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
       return true;
@@ -3694,7 +3694,7 @@ saveState = function(silent) {
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       __tmhOfflineSaveError = null;
-      return api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot);
+      return (typeof api.saveOfflineChecklistForActiveInstance === 'function' ? api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot) : api.saveOfflineChecklist(LS_KEY, snapshot));
     }).catch(function(error) {
       __tmhOfflineSaveError = error;
       console.error('Encrypted offline save failed', error);
@@ -7776,7 +7776,7 @@ saveState = function(silent) {
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       __tmhOfflineSaveError = null;
-      return api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot);
+      return (typeof api.saveOfflineChecklistForActiveInstance === 'function' ? api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot) : api.saveOfflineChecklist(LS_KEY, snapshot));
     }).then(function() {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
       return true;
@@ -7797,7 +7797,7 @@ saveState = function(silent) {
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       __tmhOfflineSaveError = null;
-      return api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot);
+      return (typeof api.saveOfflineChecklistForActiveInstance === 'function' ? api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot) : api.saveOfflineChecklist(LS_KEY, snapshot));
     }).catch(function(error) {
       __tmhOfflineSaveError = error;
       console.error('Encrypted offline save failed', error);
@@ -12361,7 +12361,7 @@ saveState = function(silent) {
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       __tmhOfflineSaveError = null;
-      return api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot);
+      return (typeof api.saveOfflineChecklistForActiveInstance === 'function' ? api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot) : api.saveOfflineChecklist(LS_KEY, snapshot));
     }).then(function() {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
       return true;
@@ -12382,7 +12382,7 @@ saveState = function(silent) {
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       __tmhOfflineSaveError = null;
-      return api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot);
+      return (typeof api.saveOfflineChecklistForActiveInstance === 'function' ? api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot) : api.saveOfflineChecklist(LS_KEY, snapshot));
     }).catch(function(error) {
       __tmhOfflineSaveError = error;
       console.error('Encrypted offline save failed', error);
@@ -16386,7 +16386,7 @@ saveState = function(silent) {
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       __tmhOfflineSaveError = null;
-      return api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot);
+      return (typeof api.saveOfflineChecklistForActiveInstance === 'function' ? api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot) : api.saveOfflineChecklist(LS_KEY, snapshot));
     }).then(function() {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
       return true;
@@ -16407,7 +16407,7 @@ saveState = function(silent) {
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       __tmhOfflineSaveError = null;
-      return api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot);
+      return (typeof api.saveOfflineChecklistForActiveInstance === 'function' ? api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot) : api.saveOfflineChecklist(LS_KEY, snapshot));
     }).catch(function(error) {
       __tmhOfflineSaveError = error;
       console.error('Encrypted offline save failed', error);
@@ -18563,7 +18563,7 @@ saveState = function(silent) {
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       __tmhOfflineSaveError = null;
-      return api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot);
+      return (typeof api.saveOfflineChecklistForActiveInstance === 'function' ? api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot) : api.saveOfflineChecklist(LS_KEY, snapshot));
     }).then(function() {
       if (!silent && typeof showToast === 'function') showToast('Сохранено в зашифрованном офлайн-хранилище');
       return true;
@@ -18584,7 +18584,7 @@ saveState = function(silent) {
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
       __tmhOfflineSaveError = null;
-      return api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot);
+      return (typeof api.saveOfflineChecklistForActiveInstance === 'function' ? api.saveOfflineChecklistForActiveInstance(LS_KEY, snapshot) : api.saveOfflineChecklist(LS_KEY, snapshot));
     }).catch(function(error) {
       __tmhOfflineSaveError = error;
       console.error('Encrypted offline save failed', error);
