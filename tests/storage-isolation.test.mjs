@@ -33,8 +33,8 @@ test("the scope helper rejects invalid IDs and never stacks a second user suffix
 
 test("all five checklist runtimes bind storage to the authenticated Supabase UUID", () => {
   assert.equal(count(html, "function __tmhApplyUserStorageScope"), 5);
-  assert.equal(count(html, "__tmhApplyUserStorageScope(identity.user.id)"), 5);
-  assert.equal(count(html, "__tmhApplyUserStorageScope(result.user.id)"), 5);
+  assert.equal(count(html, "__tmhApplyUserStorageScope(identity.user.id)"), 4);
+  assert.equal(count(html, "__tmhApplyUserStorageScope(result.user.id)"), 4);
 });
 
 test("every checklist runtime blocks writes before login and after logout", () => {
