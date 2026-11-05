@@ -2,7 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+const html = (await readFile(new URL("../index.html", import.meta.url), "utf8")) + (await Promise.all([
+  "../prototype/embedded/tt.js",
+  "../prototype/embedded/bi.js",
+  "../prototype/embedded/hydro.js",
+].map((path) => readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
 
 function count(source, token) {
   return source.split(token).length - 1;
@@ -12,7 +16,7 @@ test("the explicit cloud backup button is injected into embedded checklist footb
   assert.equal(count(html, "function __tmhAttachCloudBackup(source, mode)"), 1);
   assert.match(html, /id="tmhCloudBackupBtn" type="button">☁️ Сохранить в облако/);
   assert.match(html, /source\.replace\(footbar,footbar\+/);
-  assert.equal(count(html, "frame.srcdoc=window.__tmhAttachCloudBackup(getEmbeddedSource(mode),mode);"), 1);
+  assert.match(html, /const source=await getEmbeddedSource\(mode\);[\s\S]*?window\.__tmhAttachCloudBackup\(source,mode\)/);
 });
 
 test("the embedded bridge exposes live checklist state and the scoped storage key", () => {
@@ -55,7 +59,8 @@ test("the primary checklist screen exposes its own explicit cloud backup action"
 
 
 test("all embedded modes pass their active mode into the backup bridge", () => {
-  assert.equal(count(html, "__tmhAttachCloudBackup(getEmbeddedSource(mode),mode)"), 1);
+  assert.equal(count(html, "window.__tmhAttachCloudBackup(source,mode)"), 1);
+  assert.match(html, /await getEmbeddedSource\(mode\)/);
   for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
     assert.ok(html.includes(mode + ":'"), "mode name is registered: " + mode);
   }
