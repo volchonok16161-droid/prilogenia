@@ -1822,6 +1822,7 @@ async function exportWithPhotos(){ try{await __psReady();}catch(e){}
           const __saveCloud = window.parent && window.parent.__TMH_SAVE_CLOUD_BACKUP_CONTEXT;
           const __getContext = window.__TMH_GET_CLOUD_BACKUP_CONTEXT;
           if (typeof __saveCloud !== 'function' || typeof __getContext !== 'function') throw new Error('Облачное сохранение чек-листа не подключено');
+          await __psEnsureCloudReady();
           const __cloudResult = await __saveCloud(__getContext());
           __tmhExcelCloudSaved = true;
           console.info('Excel export cloud backup completed', { id: __cloudResult.row.id, revision: __cloudResult.row.revision });
