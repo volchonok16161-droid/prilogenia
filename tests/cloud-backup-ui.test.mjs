@@ -24,7 +24,7 @@ test("the embedded bridge exposes live checklist state and the scoped storage ke
   assert.match(html, /window\.__TMH_GET_CLOUD_BACKUP_CONTEXT=function\(\)/);
   assert.match(html, /state:STATE,stats:\(typeof computeStats===.function.\?computeStats\(\):null\),persistState:/);
   assert.match(html, /state:STATE,stats:\(typeof computeStats===.function.\?computeStats\(\):null\),persistState:/);
-  assert.match(html, /getStorageKey:function\(\)\{return getContext\(\)\.storageKey;\}/);
+  assert.match(html, /storageKey:LS_KEY/);
   assert.match(html, /authApi:api/);
 });
 
@@ -121,7 +121,7 @@ test("native and embedded cloud save/restore wire the private photo Storage adap
 
 
 test("cloud photo actions fail closed when IndexedDB photo hydration or its queue fails", () => {
-  assert.equal(count(html, "await __psEnsureCloudReady();"), 8);
+  assert.equal(count(html, "await __psEnsureCloudReady();"), 9);
   assert.equal(count(html, "__PS.restoreFailed=true;"), 4);
   assert.match(html, /if\(__PS\.restoreFailed\)throw new Error\('Не удалось прочитать фотографии из IndexedDB/);
   assert.match(html, /if\(ok===false\)throw new Error\('Не удалось завершить очередь фотографий IndexedDB/);
