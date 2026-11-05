@@ -19664,9 +19664,25 @@ if ('serviceWorker' in navigator) {
   'use strict';
   if (window.__OKNOK_PARENT__) return;
   window.__OKNOK_PARENT__ = true;
+  (function syncSupabaseExampleRole(){
+    var auth = window.TMHAuth;
+    if (!auth || typeof auth.getCurrentIdentity !== 'function') { setTimeout(syncSupabaseExampleRole, 200); return; }
+    function update(){ auth.getCurrentIdentity().then(function(identity){
+      var role = identity && identity.profile && identity.profile.role;
+      window.__TMH_OKNOK_ROLE__ = role === 'developer' || role === 'assistant' ? role : null;
+      window.__TMH_OKNOK_AUTHOR__ = identity && identity.profile && (identity.profile.display_name || (identity.user && identity.user.email)) || '';
+    }).catch(function(){ window.__TMH_OKNOK_ROLE__ = null; window.__TMH_OKNOK_AUTHOR__ = ''; }); }
+    update();
+    if (typeof auth.onAuthStateChange === 'function') auth.onAuthStateChange(function(){ setTimeout(update, 0); });
+  })();
 
   var FILE = 'examples.json', DIR = 'examples/', LS_CACHE = 'oknok_examples_cache_v1';
   var DATA = { items: {}, local: {}, rev: 0 };
+  // Учётная запись «Редактор примеров»: задаётся скриптом tools/make_editor.py (пока пусто — роль выключена).
+  var EDITOR = { login: '', passHash: '' };
+  // Учётная запись «Помощник»: только предлагает фото (без токена), разработчик принимает и публикует.
+  // Задаётся скриптом tools/make_contributor.py.
+  var CONTRIB = { login: '', passHash: '' };
   try {
     var c = JSON.parse(localStorage.getItem(LS_CACHE) || 'null');
     if (c && c.items) DATA.items = c.items;
@@ -19805,12 +19821,81 @@ if ('serviceWorker' in navigator) {
     });
   }
 
+  /* ---------- черновики помощника (хранятся только на его устройстве) ---------- */
+  var DR = {}, idbP = null;
+  function idb(){
+    if (idbP) return idbP;
+    idbP = new Promise(function(res){
+      try {
+        var rq = indexedDB.open('oknok_drafts', 1);
+        rq.onupgradeneeded = function(){ rq.result.createObjectStore('d', { keyPath: 'id' }); };
+        rq.onsuccess = function(){ res(rq.result); };
+        rq.onerror = function(){ res(null); };
+      } catch (e) { res(null); }
+    });
+    return idbP;
+  }
+  function idbOp(mode, fn){
+    return idb().then(function(db){
+      if (!db) return null;
+      return new Promise(function(res){
+        try {
+          var tx = db.transaction('d', mode), rq = fn(tx.objectStore('d'));
+          tx.oncomplete = function(){ res(rq ? rq.result : true); };
+          tx.onerror = tx.onabort = function(){ res(null); };
+        } catch (e) { res(null); }
+      });
+    });
+  }
+  idbOp('readonly', function(st){ return st.getAll(); }).then(function(list){
+    (list || []).forEach(function(d){ DR[d.id] = d; });
+    if (list && list.length) commit();
+  });
+  function draftPut(key, side, title, blob){
+    var d = { id: key + '|' + side, key: key, side: side, title: title || '', blob: blob, ts: Date.now() };
+    if (DR[d.id] && DR[d.id].url){ try { URL.revokeObjectURL(DR[d.id].url); } catch (e) {} }
+    DR[d.id] = d; commit();
+    return idbOp('readwrite', function(st){ return st.put({ id: d.id, key: d.key, side: d.side, title: d.title, blob: d.blob, ts: d.ts }); }).then(function(r){
+      if (r === null) throw new Error('Не удалось сохранить фото в памяти устройства. Оно останется только до закрытия страницы — отправьте файл разработчику сразу.');
+      return true;
+    });
+  }
+  function draftDel(key, side){
+    var id = key + '|' + side, d = DR[id];
+    if (d && d.url){ try { URL.revokeObjectURL(d.url); } catch (e) {} }
+    delete DR[id]; commit();
+    return idbOp('readwrite', function(st){ return st['delete'](id); });
+  }
+  function clearDrafts(){
+    Object.keys(DR).forEach(function(k){ var d = DR[k]; if (d && d.url){ try { URL.revokeObjectURL(d.url); } catch (e) {} } });
+    DR = {}; commit();
+    return idbOp('readwrite', function(st){ return st.clear(); });
+  }
+  function exportDrafts(author){
+    var list = Object.keys(DR).map(function(k){ return DR[k]; });
+    if (!list.length) return Promise.reject(new Error('Нет фото для отправки.'));
+    return Promise.all(list.map(function(d){
+      return new Promise(function(res, rej){
+        var r = new FileReader();
+        r.onload = function(){ res({ key: d.key, side: d.side, title: d.title, dataUrl: String(r.result) }); };
+        r.onerror = function(){ rej(new Error('Не удалось прочитать фото')); };
+        r.readAsDataURL(d.blob);
+      });
+    })).then(function(items){
+      function pad(n){ return (n < 10 ? '0' : '') + n; }
+      var t = new Date();
+      var name = 'foto_' + String(author || 'user').replace(/[^A-Za-z0-9_.\-]/g, '') + '_' + t.getFullYear() + pad(t.getMonth() + 1) + pad(t.getDate()) + '_' + pad(t.getHours()) + pad(t.getMinutes()) + '.json';
+      var json = JSON.stringify({ type: 'oknok-proposals', version: 1, author: author || '', created: t.toISOString(), items: items });
+      return new File([json], name, { type: 'application/json' });
+    });
+  }
+
   window.__OKNOK_API__ = {
-    get: function(key){ return DATA.items[key] || null; },
-    src: function(p){ return DATA.local[p] || abs(p); },
-    rev: function(){ return DATA.rev; },
-    save: save,
-    remove: remove
+    get: function(key){ return DATA.items[key] || null; }, src: function(p){ return DATA.local[p] || abs(p); }, rev: function(){ return DATA.rev; },
+    draftPut: draftPut, draftDel: draftDel, clearDrafts: clearDrafts, exportDrafts: exportDrafts,
+    draftHas: function(key, side){ return !!DR[key + '|' + side]; },
+    draftUrl: function(key, side){ var d = DR[key + '|' + side]; if (!d) return ''; if (!d.url) d.url = URL.createObjectURL(d.blob); return d.url; },
+    draftCount: function(){ return Object.keys(DR).length; }, save: save, remove: remove
   };
 
   /* ---------- часть, которая работает внутри чек-листа (iframe) ---------- */
@@ -19831,9 +19916,14 @@ if ('serviceWorker' in navigator) {
       if (/_hydro_/.test(k)) return 'hy';
       return 'cx';           // комплексный, КМБ и новые чек-листы из конструктора
     }
-    function isDev(){
-      try { var u = JSON.parse(localStorage.getItem('checklist_user') || 'null'); return !!(u && u.dev === true); } catch (e) { return false; }
+    function role(){
+      try { var root = window; if (window.parent && window.parent !== window) root = window.parent;
+        if (root.__TMH_OKNOK_ROLE__ === 'developer') return 'dev';
+        if (root.__TMH_OKNOK_ROLE__ === 'assistant') return 'ct';
+      } catch (e) {}
+      return null;
     }
+    function isDev(){ return role() !== null; }
     function el(tag, cls, txt){
       var e = document.createElement(tag);
       if (cls) e.className = cls;
@@ -19866,7 +19956,15 @@ if ('serviceWorker' in navigator) {
         '.oknok-st.bad{color:var(--bad,#c0392b);}.oknok-st.ok{color:var(--ok,#1f9d55);}',
         '.oknok-act{display:flex;gap:8px;padding:10px 12px 12px;flex-wrap:wrap;justify-content:flex-end;}',
         '.oknok-act button{font:600 13px/1 inherit;padding:9px 14px;border-radius:8px;border:1px solid var(--line,#cfe0f0);background:var(--panel2,#f2f7fc);color:var(--ink,#16324f);cursor:pointer;}',
-        '.oknok-act button[disabled]{opacity:.5;cursor:default;}'
+        '.oknok-act button[disabled]{opacity:.5;cursor:default;}',
+        '.oknok-fld{font-size:12px;color:var(--ink-dim,#5b7690);}',
+        '.oknok-inp{width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--line,#cfe0f0);border-radius:8px;background:var(--panel2,#f2f7fc);color:var(--ink,#16324f);font-size:14px;margin:4px 0 12px;}',
+        '.oknok-note{font-size:12px;color:var(--warn,#b9770e);padding:4px 6px 0;}',
+        '.oknok-list{overflow:auto;padding:6px 12px;flex:1;text-align:left;}',
+        '.oknok-row{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line,#cfe0f0);font-size:13px;}',
+        '.oknok-thumb{width:72px;height:54px;object-fit:cover;border-radius:6px;flex:none;}',
+        '.oknok-badge{display:inline-block;font-weight:700;font-size:11px;padding:1px 6px;border-radius:4px;margin-right:6px;color:#fff;}',
+        '.oknok-badge.ok{background:var(--ok,#1f9d55);}.oknok-badge.nok{background:var(--bad,#c0392b);}'
       ].join('');
       (document.head || document.documentElement).appendChild(st);
     }
@@ -19896,10 +19994,94 @@ if ('serviceWorker' in navigator) {
     }
     function onKey(e){ if (e.key === 'Escape') closeViewer(); }
 
+    /* ---------- отправка и приём пакета с фото помощника ---------- */
+    function downloadFile(file){
+      var u = URL.createObjectURL(file), a = document.createElement('a');
+      a.href = u; a.download = file.name; document.body.appendChild(a); a.click();
+      setTimeout(function(){ a.remove(); URL.revokeObjectURL(u); }, 2500);
+    }
+    function deliver(file){
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })){
+        return navigator.share({ files: [file], title: 'Фото-примеры OK/NOK' }).then(function(){ return 'shared'; }, function(e){
+          if (e && e.name === 'AbortError') return 'cancel';
+          downloadFile(file); return 'downloaded';
+        });
+      }
+      downloadFile(file); return Promise.resolve('downloaded');
+    }
+    var KEYRE = /^(tt|bi|hy|cx)\|[^|\s]{1,100}\|[^|\s]{1,160}$/;
+    function dataToBlob(u){
+      var b = atob(u.split(',')[1]), a = new Uint8Array(b.length);
+      for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i);
+      return new Blob([a], { type: 'image/jpeg' });
+    }
+    function parsePack(text){
+      var data; try { data = JSON.parse(String(text)); } catch (e) { return { err: 'Не удалось прочитать файл. Нужен файл foto_….json от помощника.' }; }
+      if (!data || data.type !== 'oknok-proposals' || !Array.isArray(data.items)) return { err: 'Это не пакет фото-примеров (нужен файл foto_….json).' };
+      var items = data.items.filter(function(x){
+        return x && KEYRE.test(String(x.key)) && (x.side === 'ok' || x.side === 'nok') && typeof x.dataUrl === 'string' && x.dataUrl.indexOf('data:image/jpeg;base64,') === 0 && x.dataUrl.length < 4000000;
+      });
+      if (!items.length) return { err: 'В файле нет подходящих фото.' };
+      return { items: items, author: data.author };
+    }
+    function openImport(A){       // выбрать файл вручную (запасной путь)
+      var inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+      inp.addEventListener('change', function(){
+        var f = inp.files && inp.files[0]; if (!f) return;
+        var rd = new FileReader();
+        rd.onload = function(){ var pk = parsePack(rd.result); if (pk.err){ alert(pk.err); return; } showReview(A, pk.items, pk.author); };
+        rd.readAsText(f);
+      });
+      inp.click();
+    }
+    function showReview(A, items, author){
+      closeViewer();
+      var ov = el('div', 'oknok-ov'); current = ov;
+      var box = el('div', 'oknok-box'); ov.appendChild(box);
+      box.appendChild(el('div', 'oknok-t', '📥 Фото от помощника' + (author ? ' (' + author + ')' : '') + ': ' + items.length + ' шт. Снимите галочки с лишнего и опубликуйте.'));
+      var list = el('div', 'oknok-list'); box.appendChild(list);
+      var checks = [];
+      items.forEach(function(x){
+        var row = el('label', 'oknok-row'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; checks.push(cb);
+        var im = new Image(); im.className = 'oknok-thumb'; im.src = x.dataUrl;
+        var tx = el('div', ''), bd = el('span', 'oknok-badge ' + x.side, x.side === 'ok' ? 'OK' : 'NOK');
+        tx.appendChild(bd); tx.appendChild(document.createTextNode(String(x.title || x.key).slice(0, 140)));
+        var ex = A.get(x.key); if (ex && ex[x.side]) tx.appendChild(el('div', 'oknok-note', '⚠ заменит уже опубликованное фото'));
+        row.appendChild(cb); row.appendChild(im); row.appendChild(tx); list.appendChild(row);
+      });
+      var st = el('div', 'oknok-st'); box.appendChild(st);
+      var act = el('div', 'oknok-act'); box.appendChild(act);
+      var bGo = el('button', '', '🚀 Опубликовать выбранные'), bX = el('button', '', 'Закрыть'); bGo.type = bX.type = 'button';
+      act.appendChild(bGo); act.appendChild(bX);
+      var busy = false;
+      function say(cls, t){ st.className = 'oknok-st ' + (cls || ''); st.textContent = t || ''; }
+      bX.addEventListener('click', function(){ if (!busy) closeViewer(); });
+      bGo.addEventListener('click', function(){
+        if (busy) return;
+        var todo = items.filter(function(x, i){ return checks[i].checked; }), total = todo.length;
+        if (!total){ say('bad', 'Ничего не выбрано.'); return; }
+        busy = true; bGo.disabled = true; var done = 0;
+        (function next(){
+          var x = todo.shift();
+          if (!x){
+            busy = false; say('ok', '✅ Опубликовано: ' + done + '. У пользователей появится через 1–3 минуты.'); rescan(true);
+
+            return;
+          }
+          say('', 'Публикую ' + (done + 1) + ' из ' + total + '…');
+          A.save(x.key, x.side, dataToBlob(x.dataUrl)).then(function(){ done++; next(); }).catch(function(e){
+            busy = false; bGo.disabled = false; say('bad', '❌ Остановлено на «' + (x.title || x.key) + '»: ' + (e && e.message || e) + '\nОпубликовано до этого: ' + done + '. Исправьте причину и нажмите ещё раз — уже опубликованные можно снять галочкой.');
+          });
+        })();
+      });
+      document.body.appendChild(ov);
+      document.addEventListener('keydown', onKey, true);
+    }
+
     function openViewer(key, side, title){
       var A = api(); if (!A) return;
       closeViewer();
-      var dev = isDev(), busy = false;
+      var rl = role(), dev = rl !== null, ct = rl === 'ct', pub = rl === 'dev', busy = false;
       var ov = el('div', 'oknok-ov'); current = ov;
       ov.addEventListener('click', function(e){ if (e.target === ov) closeViewer(); });
       var box = el('div', 'oknok-box'); ov.appendChild(box);
@@ -19913,26 +20095,36 @@ if ('serviceWorker' in navigator) {
       var act = el('div', 'oknok-act'); box.appendChild(act);
 
       var file = document.createElement('input'); file.type = 'file'; file.accept = 'image/*'; file.style.display = 'none';
-      var bUp = el('button', '', ''), bDel = el('button', '', '🗑 Удалить'), bClose = el('button', '', 'Закрыть');
-      bUp.type = bDel.type = bClose.type = 'button';
-      if (dev){ act.appendChild(file); act.appendChild(bUp); act.appendChild(bDel); }
+      var bUp = el('button', '', ''), bDel = el('button', '', '🗑 Удалить'), bClose = el('button', '', 'Закрыть'), bImp = el('button', '', '📥 Принять фото от помощника'), bFile = el('button', '', '💾 Файлом');
+      bUp.type = bDel.type = bClose.type = bImp.type = bFile.type = 'button';
+      if (dev){ act.appendChild(file); }
+      if (pub){ act.appendChild(bImp); }
+      if (ct){ act.appendChild(bFile); }
+      if (dev){ act.appendChild(bUp); act.appendChild(bDel); }
       act.appendChild(bClose);
 
       function say(cls, t){ st.className = 'oknok-st ' + (cls || ''); st.textContent = t || ''; }
       function render(){
-        var it = A.get(key), p = it && it[side];
+        var it = A.get(key), p = it && it[side], d = ct && A.draftHas(key, side);
         tOk.classList.toggle('on', side === 'ok'); tNok.classList.toggle('on', side === 'nok');
         body.innerHTML = '';
-        if (p){
+        if (d || p){
           var img = new Image(); img.className = 'oknok-img'; img.alt = side === 'ok' ? 'Пример OK' : 'Пример NOK';
           img.onerror = function(){ body.innerHTML = ''; body.appendChild(el('div', 'oknok-msg', 'Не удалось загрузить фото (нет сети?). Откройте пример при наличии интернета — дальше он будет доступен офлайн.')); };
           img.addEventListener('click', function(){ img.classList.toggle('oknok-zoom'); });
-          img.src = A.src(p); body.appendChild(img);
+          img.src = d ? A.draftUrl(key, side) : A.src(p); body.appendChild(img);
+          if (d) body.appendChild(el('div', 'oknok-note', '✎ Ваше фото. Оно ещё не отправлено разработчику — нажмите «Отправить разработчику».'));
         } else {
           body.appendChild(el('div', 'oknok-msg', dev ? 'Пример ещё не добавлен.' : 'Для этого варианта пример не добавлен.'));
         }
-        bUp.textContent = p ? '📷 Заменить фото' : '📷 Загрузить фото';
-        bDel.style.display = p ? '' : 'none';
+        if (ct){
+          bUp.textContent = (d || p) ? '📷 Предложить своё фото' : '📷 Предложить фото';
+          bDel.textContent = '🗑 Убрать моё фото'; bDel.style.display = d ? '' : 'none';
+          var n = A.draftCount(); bFile.disabled = busy || !n;
+        } else {
+          bUp.textContent = p ? '📷 Заменить фото' : '📷 Загрузить фото';
+          bDel.textContent = '🗑 Удалить'; bDel.style.display = p ? '' : 'none';
+        }
         bUp.disabled = bDel.disabled = busy;
       }
       tOk.addEventListener('click', function(){ side = 'ok'; say(); render(); });
@@ -19942,16 +20134,46 @@ if ('serviceWorker' in navigator) {
       file.addEventListener('change', function(){
         var f = file.files && file.files[0]; file.value = '';
         if (!f) return;
-        var s = side; busy = true; render(); say('', 'Сжимаю и публикую фото…');
+        var s = side; busy = true; render();
+        if (ct){
+          say('', 'Сжимаю и сохраняю фото…');
+          resize(f).then(function(b){ return A.draftPut(key, s, title, b); }).then(function(){
+            busy = false; render(); say('ok', '✅ Фото сохранено на этом устройстве. Когда загрузите всё нужное — нажмите «Отправить разработчику».'); rescan(true);
+          }).catch(function(e){ busy = false; render(); say('bad', '❌ ' + (e && e.message || e)); });
+          return;
+        }
+        say('', 'Сжимаю и публикую фото…');
         resize(f).then(function(b){ return A.save(key, s, b); }).then(function(){
           busy = false; render(); say('ok', '✅ Опубликовано. У других пользователей появится через 1–3 минуты.'); rescan(true);
         }).catch(function(e){ busy = false; render(); say('bad', '❌ ' + (e && e.message || e)); });
       });
       bDel.addEventListener('click', function(){
-        if (busy || !confirm('Удалить этот пример?')) return;
-        var s = side; busy = true; render(); say('', 'Удаляю…');
+        if (busy) return;
+        var s = side;
+        if (ct){
+          if (!confirm('Убрать ваше фото (оно ещё не отправлено)?')) return;
+          A.draftDel(key, s).then(function(){ render(); say('ok', 'Фото убрано.'); rescan(true); });
+          return;
+        }
+        if (!confirm('Удалить этот пример?')) return;
+        busy = true; render(); say('', 'Удаляю…');
         A.remove(key, s).then(function(){ busy = false; render(); say('ok', 'Удалено.'); rescan(true); })
           .catch(function(e){ busy = false; render(); say('bad', '❌ ' + (e && e.message || e)); });
+      });
+      bFile.addEventListener('click', function(){
+        if (busy) return;
+        var author = ''; try { author = (window.parent && window.parent.__TMH_OKNOK_AUTHOR__) || window.__TMH_OKNOK_AUTHOR__ || ''; } catch (e) {}
+        busy = true; render(); say('', 'Готовлю файл…');
+        A.exportDrafts(author).then(function(f){ return deliver(f); }).then(function(r){
+          busy = false;
+          if (r === 'cancel'){ render(); say('', 'Отправка отменена. Фото остались на устройстве.'); return; }
+          render(); say('ok', r === 'downloaded' ? '✅ Файл сохранён на устройстве (папка «Загрузки»). Отправьте его разработчику через мессенджер или почту.' : '✅ Файл отправлен.');
+          setTimeout(function(){
+            if (confirm('Файл создан. Убрать отправленные фото с этого устройства?\n\nНажмите «Отмена», если ещё не отправили файл разработчику.')){
+              A.clearDrafts().then(function(){ render(); say('ok', 'Отправленные фото убраны с устройства.'); rescan(true); });
+            }
+          }, 300);
+        }).catch(function(e){ busy = false; render(); say('bad', '❌ ' + (e && e.message || e)); });
       });
       render();
       document.body.appendChild(ov);
@@ -19987,11 +20209,12 @@ if ('serviceWorker' in navigator) {
       return bar;
     }
     function paint(bar){
-      var A = api(), it = A && A.get(bar.dataset.oknokKey), dev = isDev(), any = false;
+      var A = api(), key = bar.dataset.oknokKey, it = A && A.get(key), dev = isDev(), any = false;
       Array.prototype.forEach.call(bar.querySelectorAll('.oknok-btn'), function(b){
-        var has = !!(it && it[b.dataset.side]);
+        var sd = b.dataset.side, has = !!(it && it[sd]), dr = !!(dev && A.draftHas && A.draftHas(key, sd));
         if (has) any = true;
-        b.classList.toggle('oknok-empty', !has);
+        b.classList.toggle('oknok-empty', !has && !dr);
+        b.textContent = (sd === 'ok' ? '✅ OK' : '❌ NOK') + (dr ? ' ✎' : '');
         b.style.display = (has || dev) ? '' : 'none';
       });
       bar.style.display = (any || dev) ? '' : 'none';
@@ -20023,6 +20246,8 @@ if ('serviceWorker' in navigator) {
     }
     if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
   }
+
+  try { INJECTABLE.call(window); } catch (e) {}      // вход редактора нужен и в оболочке
 
   function injectInto(win, doc){
     try {
