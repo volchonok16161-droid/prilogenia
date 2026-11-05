@@ -498,6 +498,20 @@ function __tmhApplyUserStorageScope(uid) {
   window.__TMH_STORAGE_LOCKED = false;
 }
 
+function __tmhIsEmbeddedRuntime() {
+  try { return Boolean(window.parent && window.parent !== window); } catch (e) { return false; }
+}
+function __tmhShowLoginModal() {
+  if (__tmhIsEmbeddedRuntime()) {
+    try {
+      var parentModal = window.parent.document.getElementById('loginModal');
+      if (parentModal) { parentModal.style.display = 'flex'; return; }
+    } catch (e) {}
+  }
+  var modal = document.getElementById('loginModal');
+  if (modal) modal.style.display = 'flex';
+}
+
 function __tmhInstallAuthWatcher(api) {
   if (window.__TMH_AUTH_WATCHER_INSTALLED || !api || typeof api.onAuthStateChange !== 'function') return;
   window.__TMH_AUTH_WATCHER_INSTALLED = true;
@@ -512,7 +526,7 @@ function __tmhInstallAuthWatcher(api) {
       try { localStorage.removeItem('checklist_user'); } catch (e) {}
       if (typeof updateUserUI === 'function') updateUserUI();
       var loginModal = document.getElementById('loginModal');
-      if (loginModal) loginModal.style.display = 'flex';
+      __tmhShowLoginModal();
       return;
     }
     if (event === 'SIGNED_IN' && session && session.user && session.user.id) {
@@ -528,7 +542,7 @@ function __tmhInstallAuthWatcher(api) {
         try { localStorage.removeItem('checklist_user'); } catch (e) {}
         if (typeof updateUserUI === 'function') updateUserUI();
         var loginModal = document.getElementById('loginModal');
-        if (loginModal) loginModal.style.display = 'flex';
+        __tmhShowLoginModal();
         return;
       }
     }
@@ -544,6 +558,19 @@ function __getTMHAuthApi() {
 }
 
 async function checkAuth() {
+  if (__tmhIsEmbeddedRuntime()) {
+    try {
+      var sharedAuth = window.parent.__TMH_AUTH_CONTEXT;
+      if (sharedAuth && /^[0-9a-f-]{36}$/i.test(String(sharedAuth.userId || '')) &&
+          ['admin','developer','user'].includes(sharedAuth.role)) {
+        __tmhApplyUserStorageScope(sharedAuth.userId);
+        currentUser = (sharedAuth.role === 'admin' || sharedAuth.role === 'developer') ? 'admin' : 'user';
+        window.__TMH_OFFLINE_MODE = Boolean(sharedAuth.offlineMode);
+        updateUserUI();
+        return true;
+      }
+    } catch (e) {}
+  }
   const api = __getTMHAuthApi();
   if (!api) { currentUser = null; return false; }
   __tmhInstallAuthWatcher(api);
@@ -1896,7 +1923,7 @@ async function selectModeAndStart(mode){
     closeModeModal();
     if(EMBEDDED_MODES.indexOf(mode)!==-1){
         const hasAuth = await checkAuth();
-        if(!hasAuth){document.getElementById('loginModal').style.display='flex';updateModePicker();return;}
+        if(!hasAuth){__tmhShowLoginModal();updateModePicker();return;}
         const requestedLocalId = new URLSearchParams(window.location.search).get('openLocalChecklist');
         const api = __getTMHAuthApi();
         if(requestedLocalId && api && typeof api.activateOfflineChecklistInstance === 'function'){
@@ -1911,7 +1938,7 @@ async function selectModeAndStart(mode){
     updateModeTitle();
     updateModePicker();
     const hasAuth = await checkAuth();
-    if(!hasAuth)document.getElementById('loginModal').style.display='flex';
+    if(!hasAuth)__tmhShowLoginModal();
     else {
         const requestedLocalId = new URLSearchParams(window.location.search).get('openLocalChecklist');
         const api = __getTMHAuthApi();
@@ -1977,7 +2004,7 @@ function updateModePicker(){
 // ========================================================================
 let dialogShown=false;
 async function showContinueDialogOrStart(){
-    if(!window.__TMH_STORAGE_UID){document.getElementById('loginModal').style.display='flex';return;}
+    if(!window.__TMH_STORAGE_UID){__tmhShowLoginModal();return;}
     if(dialogShown)return;
     let hasSaved = localStorage.getItem(LS_KEY) !== null;
             const api = typeof __getTMHAuthApi === 'function' ? __getTMHAuthApi() : null;
@@ -2255,7 +2282,7 @@ async function init(){
     initPhotoModal();
     updateModeTitle();
     const hasAuth = await checkAuth();
-    if(!hasAuth)document.getElementById('loginModal').style.display='flex';
+    if(!hasAuth)__tmhShowLoginModal();
     else showContinueDialogOrStart();
     setupCommonHandlers();
 }
