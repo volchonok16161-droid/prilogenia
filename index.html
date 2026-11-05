@@ -2925,6 +2925,23 @@ async function checkAuth() {
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
     var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
+    var __tmhBadgeText = document.getElementById('tmhConnectionText');
+    var __tmhBadgeDot = document.getElementById('tmhConnectionDot');
+    if (__tmhBadgeText) __tmhBadgeText.textContent = window.__TMH_OFFLINE_MODE || navigator.onLine === false ? 'Офлайн · локально' : 'Онлайн';
+    if (__tmhBadgeDot) __tmhBadgeDot.style.background = window.__TMH_OFFLINE_MODE || navigator.onLine === false ? '#ffbd4a' : '#45d483';
+    if (!window.__TMH_BADGE_EVENTS_BOUND) {
+      window.__TMH_BADGE_EVENTS_BOUND = true;
+      window.addEventListener('offline', function() {
+        var text = document.getElementById('tmhConnectionText'), dot = document.getElementById('tmhConnectionDot');
+        if (text) text.textContent = 'Офлайн · локально';
+        if (dot) dot.style.background = '#ffbd4a';
+      });
+      window.addEventListener('online', function() {
+        var text = document.getElementById('tmhConnectionText'), dot = document.getElementById('tmhConnectionDot');
+        if (text) text.textContent = 'Онлайн';
+        if (dot) dot.style.background = '#45d483';
+      });
+    }
     if (__tmhConnectionLabel) {
       __tmhConnectionLabel.textContent = window.__TMH_OFFLINE_MODE ? 'Офлайн · локально' : (navigator.onLine === false ? 'Нет сети' : 'Онлайн');
       __tmhConnectionLabel.title = window.__TMH_OFFLINE_MODE ? 'Изменения сохраняются на этом устройстве' : 'Доступность сети; синхронизация требует действующей сессии';
@@ -6677,6 +6694,23 @@ async function checkAuth() {
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
     var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
+    var __tmhBadgeText = document.getElementById('tmhConnectionText');
+    var __tmhBadgeDot = document.getElementById('tmhConnectionDot');
+    if (__tmhBadgeText) __tmhBadgeText.textContent = window.__TMH_OFFLINE_MODE || navigator.onLine === false ? 'Офлайн · локально' : 'Онлайн';
+    if (__tmhBadgeDot) __tmhBadgeDot.style.background = window.__TMH_OFFLINE_MODE || navigator.onLine === false ? '#ffbd4a' : '#45d483';
+    if (!window.__TMH_BADGE_EVENTS_BOUND) {
+      window.__TMH_BADGE_EVENTS_BOUND = true;
+      window.addEventListener('offline', function() {
+        var text = document.getElementById('tmhConnectionText'), dot = document.getElementById('tmhConnectionDot');
+        if (text) text.textContent = 'Офлайн · локально';
+        if (dot) dot.style.background = '#ffbd4a';
+      });
+      window.addEventListener('online', function() {
+        var text = document.getElementById('tmhConnectionText'), dot = document.getElementById('tmhConnectionDot');
+        if (text) text.textContent = 'Онлайн';
+        if (dot) dot.style.background = '#45d483';
+      });
+    }
     if (__tmhConnectionLabel) {
       __tmhConnectionLabel.textContent = window.__TMH_OFFLINE_MODE ? 'Офлайн · локально' : (navigator.onLine === false ? 'Нет сети' : 'Онлайн');
       __tmhConnectionLabel.title = window.__TMH_OFFLINE_MODE ? 'Изменения сохраняются на этом устройстве' : 'Доступность сети; синхронизация требует действующей сессии';
@@ -10012,6 +10046,23 @@ async function checkAuth() {
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
     var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
+    var __tmhBadgeText = document.getElementById('tmhConnectionText');
+    var __tmhBadgeDot = document.getElementById('tmhConnectionDot');
+    if (__tmhBadgeText) __tmhBadgeText.textContent = window.__TMH_OFFLINE_MODE || navigator.onLine === false ? 'Офлайн · локально' : 'Онлайн';
+    if (__tmhBadgeDot) __tmhBadgeDot.style.background = window.__TMH_OFFLINE_MODE || navigator.onLine === false ? '#ffbd4a' : '#45d483';
+    if (!window.__TMH_BADGE_EVENTS_BOUND) {
+      window.__TMH_BADGE_EVENTS_BOUND = true;
+      window.addEventListener('offline', function() {
+        var text = document.getElementById('tmhConnectionText'), dot = document.getElementById('tmhConnectionDot');
+        if (text) text.textContent = 'Офлайн · локально';
+        if (dot) dot.style.background = '#ffbd4a';
+      });
+      window.addEventListener('online', function() {
+        var text = document.getElementById('tmhConnectionText'), dot = document.getElementById('tmhConnectionDot');
+        if (text) text.textContent = 'Онлайн';
+        if (dot) dot.style.background = '#45d483';
+      });
+    }
     if (__tmhConnectionLabel) {
       __tmhConnectionLabel.textContent = window.__TMH_OFFLINE_MODE ? 'Офлайн · локально' : (navigator.onLine === false ? 'Нет сети' : 'Онлайн');
       __tmhConnectionLabel.title = window.__TMH_OFFLINE_MODE ? 'Изменения сохраняются на этом устройстве' : 'Доступность сети; синхронизация требует действующей сессии';
@@ -14693,6 +14744,23 @@ async function checkAuth() {
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
     var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
+    var __tmhBadgeText = document.getElementById('tmhConnectionText');
+    var __tmhBadgeDot = document.getElementById('tmhConnectionDot');
+    if (__tmhBadgeText) __tmhBadgeText.textContent = window.__TMH_OFFLINE_MODE || navigator.onLine === false ? 'Офлайн · локально' : 'Онлайн';
+    if (__tmhBadgeDot) __tmhBadgeDot.style.background = window.__TMH_OFFLINE_MODE || navigator.onLine === false ? '#ffbd4a' : '#45d483';
+    if (!window.__TMH_BADGE_EVENTS_BOUND) {
+      window.__TMH_BADGE_EVENTS_BOUND = true;
+      window.addEventListener('offline', function() {
+        var text = document.getElementById('tmhConnectionText'), dot = document.getElementById('tmhConnectionDot');
+        if (text) text.textContent = 'Офлайн · локально';
+        if (dot) dot.style.background = '#ffbd4a';
+      });
+      window.addEventListener('online', function() {
+        var text = document.getElementById('tmhConnectionText'), dot = document.getElementById('tmhConnectionDot');
+        if (text) text.textContent = 'Онлайн';
+        if (dot) dot.style.background = '#45d483';
+      });
+    }
     if (__tmhConnectionLabel) {
       __tmhConnectionLabel.textContent = window.__TMH_OFFLINE_MODE ? 'Офлайн · локально' : (navigator.onLine === false ? 'Нет сети' : 'Онлайн');
       __tmhConnectionLabel.title = window.__TMH_OFFLINE_MODE ? 'Изменения сохраняются на этом устройстве' : 'Доступность сети; синхронизация требует действующей сессии';
@@ -16900,6 +16968,23 @@ async function checkAuth() {
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
     var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
+    var __tmhBadgeText = document.getElementById('tmhConnectionText');
+    var __tmhBadgeDot = document.getElementById('tmhConnectionDot');
+    if (__tmhBadgeText) __tmhBadgeText.textContent = window.__TMH_OFFLINE_MODE || navigator.onLine === false ? 'Офлайн · локально' : 'Онлайн';
+    if (__tmhBadgeDot) __tmhBadgeDot.style.background = window.__TMH_OFFLINE_MODE || navigator.onLine === false ? '#ffbd4a' : '#45d483';
+    if (!window.__TMH_BADGE_EVENTS_BOUND) {
+      window.__TMH_BADGE_EVENTS_BOUND = true;
+      window.addEventListener('offline', function() {
+        var text = document.getElementById('tmhConnectionText'), dot = document.getElementById('tmhConnectionDot');
+        if (text) text.textContent = 'Офлайн · локально';
+        if (dot) dot.style.background = '#ffbd4a';
+      });
+      window.addEventListener('online', function() {
+        var text = document.getElementById('tmhConnectionText'), dot = document.getElementById('tmhConnectionDot');
+        if (text) text.textContent = 'Онлайн';
+        if (dot) dot.style.background = '#45d483';
+      });
+    }
     if (__tmhConnectionLabel) {
       __tmhConnectionLabel.textContent = window.__TMH_OFFLINE_MODE ? 'Офлайн · локально' : (navigator.onLine === false ? 'Нет сети' : 'Онлайн');
       __tmhConnectionLabel.title = window.__TMH_OFFLINE_MODE ? 'Изменения сохраняются на этом устройстве' : 'Доступность сети; синхронизация требует действующей сессии';
