@@ -74,7 +74,7 @@ export function createOfflineChecklistInstances({
     };
   }
 
-  async function save(instanceId, mode, state, { create = false } = {}) {
+  async function persist(instanceId, mode, state, { create = false } = {}) {
     const key = storageId(instanceId);
     const normalizedMode = assertMode(mode);
     assertState(state);
@@ -134,6 +134,22 @@ export function createOfflineChecklistInstances({
         syncDeferred: true, syncError: error?.message || "Could not enqueue cloud sync",
         cloudId, ...instance,
       };
+    }
+  }
+
+  // Serialize writes per checklist instance. Autosaves can overlap while
+  // encryption/IndexedDB work is pending; without this queue an older snapshot
+  // may finish last and overwrite a newer edit.
+  const saveChains = new Map();
+  async function save(instanceId, mode, state, options = {}) {
+    const key = storageId(instanceId);
+    const previous = saveChains.get(key) || Promise.resolve();
+    const current = previous.catch(() => {}).then(() => persist(instanceId, mode, state, options));
+    saveChains.set(key, current);
+    try {
+      return await current;
+    } finally {
+      if (saveChains.get(key) === current) saveChains.delete(key);
     }
   }
 
