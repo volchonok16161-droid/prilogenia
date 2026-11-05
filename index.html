@@ -943,6 +943,10 @@ html[data-theme="dark"] .inst.notice-needed{border-color:var(--gold);box-shadow:
 .user-info{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-dim);border-left:1px solid var(--line);padding-left:14px;}
 .user-info .role{font-weight:600;color:var(--amber);}
 .user-info .role.dim{color:var(--ink-dim);}
+.user-info .connection-status{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border:1px solid var(--line);border-radius:999px;font-size:11px;white-space:nowrap;color:var(--ink-dim);}
+.user-info .connection-status::before{content:'';width:7px;height:7px;border-radius:50%;background:#d69e36;display:inline-block;flex:0 0 7px;}
+.user-info .connection-status:not(:empty){color:var(--ink-dim);}
+html[data-theme="tmh"] .user-info .connection-status{border-color:#ffffff40;color:#fff;}
 .user-info .logout-btn{background:none;border:1px solid var(--line);color:var(--ink-dim);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-family:var(--sans);}
 .user-info .logout-btn:hover{border-color:var(--bad);color:var(--bad);}
 .sub-fields{margin-top:8px;padding-left:10px;border-left:2px solid var(--line);display:none;}
@@ -2750,6 +2754,7 @@ const EMBED_TT_HTML=`<!DOCTYPE html>
         <div class="user-info" id="userInfo" style="display:none;">
             <span>👤 <span id="userName">Пользователь</span></span>
             <span class="role" id="userRole">(user)</span>
+            <span class="role connection-status" id="offlineSyncStatus" aria-live="polite" title="Состояние подключения и синхронизации">Проверяем связь…</span>
             <button class="logout-btn" id="logoutBtn">Выход</button>
         </div>
     </div>
@@ -2916,6 +2921,11 @@ async function checkAuth() {
     }
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
+    var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
+    if (__tmhConnectionLabel) {
+      __tmhConnectionLabel.textContent = window.__TMH_OFFLINE_MODE ? 'Офлайн · локально' : (navigator.onLine === false ? 'Нет сети' : 'Онлайн');
+      __tmhConnectionLabel.title = window.__TMH_OFFLINE_MODE ? 'Изменения сохраняются на этом устройстве' : 'Доступность сети; синхронизация требует действующей сессии';
+    }
     var __tmhStatusOwner = window;
     try { if (window.parent && window.parent !== window) __tmhStatusOwner = window.parent; } catch (e) {}
     if (typeof __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS === 'function') {
@@ -6498,6 +6508,7 @@ const EMBED_BI_HTML=`<!DOCTYPE html>
         <div class="user-info" id="userInfo" style="display:none;">
             <span>👤 <span id="userName">Пользователь</span></span>
             <span class="role" id="userRole">(user)</span>
+            <span class="role connection-status" id="offlineSyncStatus" aria-live="polite" title="Состояние подключения и синхронизации">Проверяем связь…</span>
             <button class="logout-btn" id="logoutBtn">Выход</button>
         </div>
     </div>
@@ -6662,6 +6673,11 @@ async function checkAuth() {
     }
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
+    var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
+    if (__tmhConnectionLabel) {
+      __tmhConnectionLabel.textContent = window.__TMH_OFFLINE_MODE ? 'Офлайн · локально' : (navigator.onLine === false ? 'Нет сети' : 'Онлайн');
+      __tmhConnectionLabel.title = window.__TMH_OFFLINE_MODE ? 'Изменения сохраняются на этом устройстве' : 'Доступность сети; синхронизация требует действующей сессии';
+    }
     var __tmhStatusOwner = window;
     try { if (window.parent && window.parent !== window) __tmhStatusOwner = window.parent; } catch (e) {}
     if (typeof __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS === 'function') {
@@ -9824,6 +9840,7 @@ html[data-theme="dark"] .frow.unfilled-highlight,html[data-theme="dark"] .field.
   <div class="user-info" id="userInfo" style="display:none;">
     <span>👤 <span id="userName">Пользователь</span></span>
     <span class="role" id="userRole">(user)</span>
+    <span class="role connection-status" id="offlineSyncStatus" aria-live="polite" title="Состояние подключения и синхронизации">Проверяем связь…</span>
     <button class="logout-btn" id="logoutBtn">Выход</button>
   </div>
 </div>
@@ -9991,6 +10008,11 @@ async function checkAuth() {
     }
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
+    var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
+    if (__tmhConnectionLabel) {
+      __tmhConnectionLabel.textContent = window.__TMH_OFFLINE_MODE ? 'Офлайн · локально' : (navigator.onLine === false ? 'Нет сети' : 'Онлайн');
+      __tmhConnectionLabel.title = window.__TMH_OFFLINE_MODE ? 'Изменения сохраняются на этом устройстве' : 'Доступность сети; синхронизация требует действующей сессии';
+    }
     var __tmhStatusOwner = window;
     try { if (window.parent && window.parent !== window) __tmhStatusOwner = window.parent; } catch (e) {}
     if (typeof __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS === 'function') {
@@ -14667,6 +14689,11 @@ async function checkAuth() {
     }
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
+    var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
+    if (__tmhConnectionLabel) {
+      __tmhConnectionLabel.textContent = window.__TMH_OFFLINE_MODE ? 'Офлайн · локально' : (navigator.onLine === false ? 'Нет сети' : 'Онлайн');
+      __tmhConnectionLabel.title = window.__TMH_OFFLINE_MODE ? 'Изменения сохраняются на этом устройстве' : 'Доступность сети; синхронизация требует действующей сессии';
+    }
     var __tmhStatusOwner = window;
     try { if (window.parent && window.parent !== window) __tmhStatusOwner = window.parent; } catch (e) {}
     if (typeof __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS === 'function') {
@@ -16869,6 +16896,11 @@ async function checkAuth() {
     }
     __tmhApplyUserStorageScope(identity.user.id);
     window.__TMH_OFFLINE_MODE = identity.mode === 'offline-local-unlock' || identity.mode === 'offline-local-cache';
+    var __tmhConnectionLabel = document.getElementById('offlineSyncStatus');
+    if (__tmhConnectionLabel) {
+      __tmhConnectionLabel.textContent = window.__TMH_OFFLINE_MODE ? 'Офлайн · локально' : (navigator.onLine === false ? 'Нет сети' : 'Онлайн');
+      __tmhConnectionLabel.title = window.__TMH_OFFLINE_MODE ? 'Изменения сохраняются на этом устройстве' : 'Доступность сети; синхронизация требует действующей сессии';
+    }
     var __tmhStatusOwner = window;
     try { if (window.parent && window.parent !== window) __tmhStatusOwner = window.parent; } catch (e) {}
     if (typeof __tmhStatusOwner.__TMH_SET_CONNECTION_STATUS === 'function') {
