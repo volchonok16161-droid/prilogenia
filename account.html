@@ -72,6 +72,7 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
   </div>
   </section>
   <section class="panel"><h2>Мои облачные чек-листы</h2><div id="checklists"><div class="empty">Загрузка списка…</div></div></section>
+  <section class="panel"><h2>Локальные чек-листы на этом устройстве</h2><div id="localOfflineChecklists"><div class="empty">Проверяем локальное хранилище…</div></div><p class="muted" style="font-size:12px;margin:10px 0 0">Локальные копии зашифрованы на устройстве. Для отправки в облако требуется действующая онлайн-сессия того же сотрудника.</p></section>
   <section class="panel hidden" id="adminPanel" aria-labelledby="adminHeading">
    <h2 id="adminHeading">Управление сотрудниками</h2>
    <p class="muted" style="margin:0 0 12px">Доступно администраторам и разработчикам. Создавайте аккаунты с любыми логинами и управляйте доступом сотрудников прямо из личного кабинета.</p>
@@ -204,6 +205,56 @@ async function loadEmployees(api, requestId = cabinetLoadSequence) {
     status.className = "error";
   }
 }
+async function renderLocalOfflineChecklists(api, requestId) {
+  const host = $("localOfflineChecklists");
+  host.replaceChildren();
+  if (typeof api.isOfflineVaultUnlocked !== "function" || !api.isOfflineVaultUnlocked() ||
+      typeof api.listOfflineChecklistInstances !== "function") {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Локальное хранилище ещё не разблокировано на этом устройстве. Выполните вход онлайн, чтобы подключить его.";
+    host.append(empty);
+    return;
+  }
+  try {
+    const entries = await api.listOfflineChecklistInstances();
+    if (requestId !== cabinetLoadSequence) return;
+    if (!entries.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "На этом устройстве пока нет локальных чек-листов.";
+      host.append(empty);
+      return;
+    }
+    const labels = { complex: "Комплексный чек-лист", housings: "КМБ", tt: "ТТ", bi: "БИ", hydro: "Гидродемпферы" };
+    for (const entry of entries) {
+      const item = document.createElement("article");
+      item.className = "item";
+      const icon = document.createElement("div");
+      icon.className = "item-icon";
+      icon.textContent = "▤";
+      const info = document.createElement("div");
+      info.className = "item-info";
+      const title = document.createElement("strong");
+      title.textContent = entry.title || labels[entry.mode] || "Локальный чек-лист";
+      const meta = document.createElement("small");
+      const equipment = [entry.state?.general?.type, entry.state?.general?.number ? "№ " + entry.state.general.number : ""].filter(Boolean).join(" ");
+      meta.textContent = (labels[entry.mode] || entry.mode) + (equipment ? " · " + equipment : "") + " · Изменён " + formatDate(entry.updatedAt);
+      const status = document.createElement("span");
+      status.className = "status-pill " + (entry.sync === "synced" ? "done" : "progress");
+      status.textContent = entry.sync === "synced" ? "✓ В облаке" : entry.sync === "pending-sync" ? "Ожидает синхронизации" : "Только на устройстве";
+      info.append(title, meta, status);
+      item.append(icon, info);
+      host.append(item);
+    }
+  } catch (error) {
+    if (requestId !== cabinetLoadSequence) return;
+    const message = document.createElement("div");
+    message.className = "empty";
+    message.textContent = "Не удалось прочитать локальные чек-листы: " + (error?.message || "ошибка хранилища");
+    host.append(message);
+  }
+}
 async function loadCabinet() {
   const requestId = ++cabinetLoadSequence;
   $("loading").classList.remove("hidden");
@@ -221,6 +272,8 @@ async function loadCabinet() {
     return;
   }
   const { user, profile } = identity;
+  await renderLocalOfflineChecklists(api, requestId);
+  if (requestId !== cabinetLoadSequence) return;
   activeCabinetUserId = user.id;
   const rows = [];
   const pageSize = 500;
