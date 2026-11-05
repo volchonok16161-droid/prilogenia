@@ -8895,10 +8895,14 @@ saveState = function(silent) {
            ======================================================================== */
         let dialogShown = false;
 
-        function showContinueDialogOrStart() {
+        async function showContinueDialogOrStart() {
             if (!window.__TMH_STORAGE_UID) { document.getElementById('loginModal').style.display = 'flex'; return; }
             if (dialogShown) return;
-            const hasSaved = localStorage.getItem(LS_KEY) !== null;
+            let hasSaved = localStorage.getItem(LS_KEY) !== null;
+            const api = typeof __getTMHAuthApi === 'function' ? __getTMHAuthApi() : null;
+            if (api && api.isOfflineVaultUnlocked?.() && typeof api.hasOfflineChecklist === 'function') {
+                hasSaved = hasSaved || await api.hasOfflineChecklist(LS_KEY);
+            }
             if (typeof __EMBEDDED_STATE !== 'undefined' && __EMBEDDED_STATE) {
                 startApp(false);
                 return;
@@ -8911,14 +8915,25 @@ saveState = function(silent) {
             }
         }
 
-        function startApp(useNew) {
+        async function __tmhRestoreActiveOfflineState() {
+  const api = typeof __getTMHAuthApi === 'function' ? __getTMHAuthApi() : null;
+  if (!api || typeof api.hasOfflineChecklist !== 'function' || !api.isOfflineVaultUnlocked?.()) return false;
+  if (!await api.hasOfflineChecklist(LS_KEY)) return false;
+  const snapshot = await api.loadOfflineChecklist(LS_KEY);
+  if (!snapshot || typeof snapshot !== 'object' || !snapshot.general || !snapshot.values) {
+    throw new Error('Зашифрованная локальная копия чек-листа повреждена');
+  }
+  STATE = snapshot;
+  return true;
+}
+async function startApp(useNew) {
             if (useNew) {
                 fullClearState();
             } else {
-                if (!STATE.general.type && !localStorage.getItem(LS_KEY)) {
-                    fullClearState();
-                } else {
-                    loadState();
+                const restored = await __tmhRestoreActiveOfflineState();
+                if (!restored) {
+                    if (!STATE.general.type && !localStorage.getItem(LS_KEY)) fullClearState();
+                    else loadState();
                 }
             }
             // Автоматически подставить приписку при загрузке
@@ -13982,10 +13997,14 @@ function saveAsHtmlFile() {
    ======================================================================== */
 let dialogShown = false;
 
-function showContinueDialogOrStart() {
+async function showContinueDialogOrStart() {
   if (!window.__TMH_STORAGE_UID) { document.getElementById('loginModal').style.display = 'flex'; return; }
   if (dialogShown) return;
-  const hasSaved = localStorage.getItem(LS_KEY) !== null;
+  let hasSaved = localStorage.getItem(LS_KEY) !== null;
+            const api = typeof __getTMHAuthApi === 'function' ? __getTMHAuthApi() : null;
+            if (api && api.isOfflineVaultUnlocked?.() && typeof api.hasOfflineChecklist === 'function') {
+                hasSaved = hasSaved || await api.hasOfflineChecklist(LS_KEY);
+            }
   if (typeof __EMBEDDED_STATE !== 'undefined' && __EMBEDDED_STATE) {
     startApp(false);
     return;
@@ -13998,14 +14017,25 @@ function showContinueDialogOrStart() {
   }
 }
 
-function startApp(useNew) {
+async function __tmhRestoreActiveOfflineState() {
+  const api = typeof __getTMHAuthApi === 'function' ? __getTMHAuthApi() : null;
+  if (!api || typeof api.hasOfflineChecklist !== 'function' || !api.isOfflineVaultUnlocked?.()) return false;
+  if (!await api.hasOfflineChecklist(LS_KEY)) return false;
+  const snapshot = await api.loadOfflineChecklist(LS_KEY);
+  if (!snapshot || typeof snapshot !== 'object' || !snapshot.general || !snapshot.values) {
+    throw new Error('Зашифрованная локальная копия чек-листа повреждена');
+  }
+  STATE = snapshot;
+  return true;
+}
+async function startApp(useNew) {
   if (useNew) {
     fullClearState();
   } else {
-    if (!STATE.general.type && !localStorage.getItem(LS_KEY)) {
-      fullClearState();
-    } else {
-      loadState();
+    const restored = await __tmhRestoreActiveOfflineState();
+    if (!restored) {
+      if (!STATE.general.type && !localStorage.getItem(LS_KEY)) fullClearState();
+      else loadState();
     }
   }
   const type = STATE.general.type || '';
@@ -16161,10 +16191,14 @@ function updateModePicker(){
 // ДИАЛОГ "ПРОДОЛЖИТЬ / НОВЫЙ"
 // ========================================================================
 let dialogShown=false;
-function showContinueDialogOrStart(){
+async function showContinueDialogOrStart(){
     if(!window.__TMH_STORAGE_UID){document.getElementById('loginModal').style.display='flex';return;}
     if(dialogShown)return;
-    const hasSaved=localStorage.getItem(LS_KEY)!==null;
+    let hasSaved = localStorage.getItem(LS_KEY) !== null;
+            const api = typeof __getTMHAuthApi === 'function' ? __getTMHAuthApi() : null;
+            if (api && api.isOfflineVaultUnlocked?.() && typeof api.hasOfflineChecklist === 'function') {
+                hasSaved = hasSaved || await api.hasOfflineChecklist(LS_KEY);
+            }
     if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){
         startApp(false);
         return;
@@ -16176,9 +16210,20 @@ function showContinueDialogOrStart(){
         startApp(true);
     }
 }
-function startApp(useNew){
+async function __tmhRestoreActiveOfflineState() {
+  const api = typeof __getTMHAuthApi === 'function' ? __getTMHAuthApi() : null;
+  if (!api || typeof api.hasOfflineChecklist !== 'function' || !api.isOfflineVaultUnlocked?.()) return false;
+  if (!await api.hasOfflineChecklist(LS_KEY)) return false;
+  const snapshot = await api.loadOfflineChecklist(LS_KEY);
+  if (!snapshot || typeof snapshot !== 'object' || !snapshot.general || !snapshot.values) {
+    throw new Error('Зашифрованная локальная копия чек-листа повреждена');
+  }
+  STATE = snapshot;
+  return true;
+}
+async function startApp(useNew){
     if(useNew)fullClearState();
-    else{if(!STATE.general.type&&!localStorage.getItem(LS_KEY))fullClearState();else loadState();}
+    else{const restored=await __tmhRestoreActiveOfflineState();if(!restored){if(!STATE.general.type&&!localStorage.getItem(LS_KEY))fullClearState();else loadState();}}
     const type=STATE.general.type||'';
     buildEquipment(type);
     renderGeneral();
@@ -18431,10 +18476,14 @@ function updateModePicker(){
 // ДИАЛОГ "ПРОДОЛЖИТЬ / НОВЫЙ"
 // ========================================================================
 let dialogShown=false;
-function showContinueDialogOrStart(){
+async function showContinueDialogOrStart(){
     if(!window.__TMH_STORAGE_UID){document.getElementById('loginModal').style.display='flex';return;}
     if(dialogShown)return;
-    const hasSaved=localStorage.getItem(LS_KEY)!==null;
+    let hasSaved = localStorage.getItem(LS_KEY) !== null;
+            const api = typeof __getTMHAuthApi === 'function' ? __getTMHAuthApi() : null;
+            if (api && api.isOfflineVaultUnlocked?.() && typeof api.hasOfflineChecklist === 'function') {
+                hasSaved = hasSaved || await api.hasOfflineChecklist(LS_KEY);
+            }
     if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){
         startApp(false);
         return;
@@ -18446,9 +18495,20 @@ function showContinueDialogOrStart(){
         startApp(true);
     }
 }
-function startApp(useNew){
+async function __tmhRestoreActiveOfflineState() {
+  const api = typeof __getTMHAuthApi === 'function' ? __getTMHAuthApi() : null;
+  if (!api || typeof api.hasOfflineChecklist !== 'function' || !api.isOfflineVaultUnlocked?.()) return false;
+  if (!await api.hasOfflineChecklist(LS_KEY)) return false;
+  const snapshot = await api.loadOfflineChecklist(LS_KEY);
+  if (!snapshot || typeof snapshot !== 'object' || !snapshot.general || !snapshot.values) {
+    throw new Error('Зашифрованная локальная копия чек-листа повреждена');
+  }
+  STATE = snapshot;
+  return true;
+}
+async function startApp(useNew){
     if(useNew)fullClearState();
-    else{if(!STATE.general.type&&!localStorage.getItem(LS_KEY))fullClearState();else loadState();}
+    else{const restored=await __tmhRestoreActiveOfflineState();if(!restored){if(!STATE.general.type&&!localStorage.getItem(LS_KEY))fullClearState();else loadState();}}
     const type=STATE.general.type||'';
     buildEquipment(type);
     renderGeneral();
