@@ -54,7 +54,7 @@ export function createOfflineChecklistRuntime({
     const identity = await authApi.getCurrentIdentity();
     if (identity?.error || identity?.user?.id?.toLowerCase() !== uid ||
         identity?.profile?.id !== identity?.user?.id ||
-        !["employee", "admin", "developer"].includes(identity?.profile?.role)) {
+        !["employee", "assistant", "admin", "developer"].includes(identity?.profile?.role)) {
       const error = new Error("Online sign-in and an enabled employee profile are required to start sync");
       error.code = "AUTH_REQUIRED";
       throw error;
