@@ -156,16 +156,12 @@ test("account cabinet invalidates stale loads and clears prior-account content o
   assert.match(html, /\$\("checklists"\)\.replaceChildren\(\)/);
 });
 
-test("account cabinet is opened from the role entry in the exit dropdown", async () => {
+test("checklist views link to the account cabinet; sign-out is available inside the cabinet", async () => {
   const main = await readFile(new URL("../index.html", import.meta.url), "utf8");
-  assert.match(main, /id="logoutBtn"[^>]*aria-controls="accountMenu"/);
-  assert.match(main, /id="accountMenu" hidden/);
-  assert.match(main, /id="accountCabinetLink" href="\.\/account\.html"/);
-  assert.match(main, /id="logoutConfirmBtn"/);
-  assert.match(main, /\.account-menu-role[\s\S]*?text-decoration:none/);
-  assert.match(main, /\.account-menu-toggle/);
-  assert.match(main, /accountMenuToggle\.setAttribute\('aria-expanded',String\(willOpen\)\)/);
-  assert.match(main, /id="iframeAccountCabinetLink"/);
+  assert.match(main, /<a class="logout-btn btn account-cabinet-btn" id="accountCabinetLink" href="\.\/account\.html">/);
+  assert.match(main, /<a class="btn iframe-account-cabinet-btn" id="iframeAccountCabinetLink" href="\.\/account\.html">/);
+  assert.match(html, /<button class="btn secondary" id="logoutBtn" type="button">Выйти<\/button>/);
+  assert.match(html, /window\.TMHAuth\.signOut\(\)/);
 });
 
 test("account cabinet list and actions adapt to narrow screens", () => {
