@@ -372,6 +372,10 @@ async function getCachedOfflineIdentity(cause) {
 async function saveOfflineChecklist(id, snapshot) {
   if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
   if (typeof id !== "string" || !id) throw new TypeError("Checklist storage id is required");
+  const baseId = String(id).split("::user:")[0];
+  if (["checklist_2es5k_v1", "checklist_housings_v4", "checklist_tt_v1", "checklist_msud_v1", "checklist_hydro_v1"].includes(baseId)) {
+    return saveOfflineChecklistForActiveInstance(id, snapshot);
+  }
   const userId = activeOfflineUserId;
   const localEncrypted = await activeOfflineVault.encrypt(snapshot);
   await offlineVault.database.putRecord({ id, userId, kind: "checklist-snapshot", encrypted: localEncrypted });
