@@ -4862,7 +4862,7 @@ function fullClearState() { __psClear();
             if (!window.__TMH_STORAGE_UID) { document.getElementById('loginModal').style.display = 'flex'; return; }
             if (dialogShown) return;
             let hasSaved = localStorage.getItem(LS_KEY) !== null;
-            if (window.__TMH_OFFLINE_MODE) {
+            if (window.__TMH_OFFLINE_MODE || window.__TMH_STORAGE_UID) {
                 const api = __getTMHAuthApi();
                 if (api && typeof api.hasOfflineChecklist === 'function') {
                     hasSaved = hasSaved || await api.hasOfflineChecklist(LS_KEY);
@@ -4885,7 +4885,7 @@ function fullClearState() { __psClear();
                 fullClearState();
             } else {
                 let restoredEncrypted = false;
-                if (window.__TMH_OFFLINE_MODE) {
+                if (window.__TMH_OFFLINE_MODE || window.__TMH_STORAGE_UID) {
                     const api = __getTMHAuthApi();
                     if (api && typeof api.hasOfflineChecklist === 'function' &&
                         await api.hasOfflineChecklist(LS_KEY)) {
@@ -16075,10 +16075,15 @@ async function selectModeAndStart(mode){
     try{localStorage.setItem(MODE_KEY,mode);}catch(e){}
     closeModeModal();
     if(EMBEDDED_MODES.indexOf(mode)!==-1){
-        // Keep the selected checklist visible before and after login; auth gates data writes, not the UI.
-        showEmbeddedApp(mode);
         const hasAuth = await checkAuth();
         if(!hasAuth){document.getElementById('loginModal').style.display='flex';updateModePicker();return;}
+        const requestedLocalId = new URLSearchParams(window.location.search).get('openLocalChecklist');
+        const api = __getTMHAuthApi();
+        if(requestedLocalId && api && typeof api.activateOfflineChecklistInstance === 'function'){
+            try{await api.activateOfflineChecklistInstance(LS_KEY,requestedLocalId);}
+            catch(error){showToast(error.message||'Не удалось открыть локальный чек-лист');}
+        }
+        showEmbeddedApp(mode);
         updateModePicker();
         return;
     }
@@ -16087,7 +16092,15 @@ async function selectModeAndStart(mode){
     updateModePicker();
     const hasAuth = await checkAuth();
     if(!hasAuth)document.getElementById('loginModal').style.display='flex';
-    else showContinueDialogOrStart();
+    else {
+        const requestedLocalId = new URLSearchParams(window.location.search).get('openLocalChecklist');
+        const api = __getTMHAuthApi();
+        if(requestedLocalId && api && typeof api.activateOfflineChecklistInstance === 'function'){
+            try{await api.activateOfflineChecklistInstance(LS_KEY,requestedLocalId);}
+            catch(error){showToast(error.message||'Не удалось открыть локальный чек-лист');}
+        }
+        showContinueDialogOrStart();
+    }
 }
 function openModeModal(isSwitch){
     const modal=document.getElementById('modeSelectModal');
