@@ -72,6 +72,20 @@ test("autosave updates only the selected instance and coalesces against its clou
   assert.equal(f.records.size, 2);
 });
 
+test("saving an existing instance retains its cloud entity identity", async () => {
+  const f = fixture();
+  f.meta.set("offline:cloud-sync-enabled:" + UID, true);
+  const first = await f.instances.create("tt", state("11"));
+  const second = await f.instances.create("tt", state("22"));
+  await f.instances.save(first.instanceId, "tt", state("12"));
+  assert.equal(f.queue.length, 3);
+  assert.equal(f.queue[0].entityId, f.queue[2].entityId);
+  assert.notEqual(f.queue[0].entityId, f.queue[1].entityId);
+  assert.equal(f.queue[2].operation, "create");
+  assert.equal((await f.instances.load(first.instanceId)).state.general.number, "12");
+  assert.equal((await f.instances.load(second.instanceId)).state.general.number, "22");
+});
+
 test("instance cannot be overwritten by another mode", async () => {
   const f = fixture();
   const first = await f.instances.create("bi", state("1"));

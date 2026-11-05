@@ -432,11 +432,25 @@ async function getOfflineChecklistInstances() {
   return offlineChecklistInstances;
 }
 
+function requestOfflineSyncAfterInstanceSave(result) {
+  // Saving is already durable locally. Kick the queue in the background only
+  // when this write was queued and the browser currently has a network path.
+  // The coordinator performs a fresh Supabase identity/role check before upload.
+  if (result?.queued && globalThis.navigator?.onLine !== false && offlineSyncCoordinator) {
+    void offlineSyncCoordinator.syncNow().catch((error) => {
+      console.warn("Offline checklist sync will retry later", error);
+    });
+  }
+  return result;
+}
+
 async function createOfflineChecklistInstance(mode, snapshot) {
-  return (await getOfflineChecklistInstances()).create(mode, snapshot);
+  const result = await (await getOfflineChecklistInstances()).create(mode, snapshot);
+  return requestOfflineSyncAfterInstanceSave(result);
 }
 async function saveOfflineChecklistInstance(instanceId, mode, snapshot) {
-  return (await getOfflineChecklistInstances()).save(instanceId, mode, snapshot);
+  const result = await (await getOfflineChecklistInstances()).save(instanceId, mode, snapshot);
+  return requestOfflineSyncAfterInstanceSave(result);
 }
 async function loadOfflineChecklistInstance(instanceId) {
   return (await getOfflineChecklistInstances()).load(instanceId);
