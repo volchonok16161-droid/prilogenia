@@ -113,7 +113,7 @@ test("concurrent autosaves are serialized so an older encryption cannot overwrit
   let encryptCalls = 0;
   f.vault.encrypt = async value => {
     encryptCalls += 1;
-    if (encryptCalls === 2) {
+    if (encryptCalls === 1) {
       olderStarted();
       await new Promise(resolve => { releaseOlder = resolve; });
     }
@@ -124,7 +124,7 @@ test("concurrent autosaves are serialized so an older encryption cannot overwrit
   await started;
   const newerSave = f.instances.save(first.instanceId, "complex", state("102"));
   await Promise.resolve();
-  assert.equal(encryptCalls, 2, "newer save waits behind the in-flight older save");
+  assert.equal(encryptCalls, 1, "newer save waits behind the in-flight older save");
 
   releaseOlder();
   await Promise.all([olderSave, newerSave]);
