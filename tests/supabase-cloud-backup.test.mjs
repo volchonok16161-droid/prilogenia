@@ -533,3 +533,33 @@ test("cleanup skips malformed paths even when owner, checklist and revision pref
   assert.equal(removed, false);
   assert.deepEqual(result.photosCleanup, { removed: 0, warning: false });
 });
+
+
+test("createSnapshot reuses an identical prior safety copy instead of creating duplicates", async () => {
+  const h = makeHarness();
+  const rows = [];
+  const calls = [];
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem: (key) => h.values.get(key) ?? null, setItem: (key, value) => h.values.set(key, String(value)) },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    idFactory: () => ROW,
+    cloudApi: {
+      async list() { return rows; },
+      async create(input) {
+        calls.push(input);
+        const row = { id: input.id, title: input.title, equipment_type: input.equipmentType, payload: input.payload, revision: 1 };
+        rows.push(row);
+        return row;
+      },
+    },
+  });
+  const first = await backup.createSnapshot({ label: "Автокопия перед восстановлением" });
+  const second = await backup.createSnapshot({ label: "Автокопия перед восстановлением" });
+  assert.equal(calls.length, 1);
+  assert.equal(first.row.id, second.row.id);
+  assert.equal(second.reused, true);
+  assert.equal(second.photosUploaded, 0);
+});
