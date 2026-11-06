@@ -2771,23 +2771,51 @@ var bridge=`<script>
         applyState:async function(incoming,metadata){
           if(!metadata||typeof metadata.id!=='string'||!Number.isSafeInteger(metadata.revision)||metadata.revision<1)throw new Error('Некорректная версия облачной записи');
           await __psEnsureCloudReady();
-          var current=STATE||{},next=structuredClone(incoming);
+          var current=STATE||{},previousState=structuredClone(current),previousLocal=localStorage.getItem(LS_KEY);
+          var previousCloudRefKey=previousState.__cloudChecklistId?LS_KEY+'::cloud-ref::'+previousState.__cloudChecklistId:null;
+          var previousCloudRef=previousCloudRefKey?localStorage.getItem(previousCloudRefKey):null;
+          var next=structuredClone(incoming);
           var oldValues=current.values||{},newValues=next.values||(next.values={});
           Object.keys(oldValues).forEach(function(iid){
             var oldItem=oldValues[iid]||{},newItem=newValues[iid]||(newValues[iid]={});
             Object.keys(oldItem).forEach(function(key){if(/_photo$/i.test(key)&&oldItem[key]&&!newItem[key])newItem[key]=oldItem[key];});
           });
-          next.__cloudChecklistId=crypto.randomUUID();
-          STATE=next;
-          var saved=saveState(true);
-          if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
-          await __psEnsureCloudReady();
-          if(typeof __tmhOfflineSaveChain!=='undefined'&&__tmhOfflineSaveChain)await __tmhOfflineSaveChain;
-          if(typeof __tmhOfflineSaveError!=='undefined'&&__tmhOfflineSaveError)throw new Error('Не удалось сохранить восстановленное состояние в зашифрованном офлайн-хранилище');
-          localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId,JSON.stringify({id:metadata.id,revision:metadata.revision}));
-          if(typeof buildEquipment==='function')buildEquipment(STATE.general&&STATE.general.type||'');
-          if(typeof renderGeneral==='function')renderGeneral();if(typeof renderPicker==='function')renderPicker();if(typeof renderEquip==='function')renderEquip();if(typeof updateStats==='function')updateStats();
-          return true;
+          try{
+            next.__cloudChecklistId=crypto.randomUUID();
+            STATE=next;
+            var saved=saveState(true);
+            if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
+            if(typeof __PS!=='undefined'&&__PS.chain){
+              var photoSaveResult=await __PS.chain;
+              if(photoSaveResult===false)throw new Error('Не удалось сохранить восстановленные фотографии в IndexedDB');
+            }
+            await __psEnsureCloudReady();
+            if(typeof __tmhOfflineSaveChain!=='undefined'&&__tmhOfflineSaveChain)await __tmhOfflineSaveChain;
+            if(typeof __tmhOfflineSaveError!=='undefined'&&__tmhOfflineSaveError)throw new Error('Не удалось сохранить восстановленное состояние в зашифрованном офлайн-хранилище');
+            localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId,JSON.stringify({id:metadata.id,revision:metadata.revision}));
+            if(typeof buildEquipment==='function')buildEquipment(STATE.general&&STATE.general.type||'');
+            if(typeof renderGeneral==='function')renderGeneral();if(typeof renderPicker==='function')renderPicker();if(typeof renderEquip==='function')renderEquip();if(typeof updateStats==='function')updateStats();
+            return true;
+          }catch(restoreError){
+            STATE=previousState;
+            try{
+              if(previousLocal===null)localStorage.removeItem(LS_KEY);else localStorage.setItem(LS_KEY,previousLocal);
+              if(previousCloudRefKey)localStorage.removeItem(previousCloudRefKey);
+              if(previousCloudRefKey&&previousCloudRef!==null)localStorage.setItem(previousCloudRefKey,previousCloudRef);
+              var rollbackSaved=saveState(true);
+              if(rollbackSaved===false)throw new Error('Не удалось восстановить локальное состояние');
+              if(typeof __PS!=='undefined'&&__PS.chain&&await __PS.chain===false)throw new Error('Не удалось восстановить фотографии IndexedDB');
+              if(typeof __tmhOfflineSaveChain!=='undefined'&&__tmhOfflineSaveChain){
+                await __tmhOfflineSaveChain;
+                if(__tmhOfflineSaveError)throw __tmhOfflineSaveError;
+              }
+              if(typeof buildEquipment==='function')buildEquipment(STATE.general&&STATE.general.type||'');
+              if(typeof renderGeneral==='function')renderGeneral();if(typeof renderPicker==='function')renderPicker();if(typeof renderEquip==='function')renderEquip();if(typeof updateStats==='function')updateStats();
+            }catch(rollbackError){
+              throw new Error('Восстановление не завершено, автоматический откат тоже не удался: '+String(rollbackError&&rollbackError.message||rollbackError),{cause:restoreError});
+            }
+            throw restoreError;
+          }
         }
       };
     };
