@@ -49,7 +49,7 @@ test("embedded runtimes wait for the parent auth context and never start a secon
   for (const path of embeddedPaths) {
     const source = await readFile(new URL(path, import.meta.url), "utf8");
     const start = source.indexOf("async function checkAuth()");
-    const end = source.indexOf("\\nasync function doLogin", start);
+    const end = source.indexOf("\nasync function doLogin", start);
     assert.ok(start >= 0 && end > start, path + " has a bounded checkAuth function");
     const checkAuth = source.slice(start, end);
     assert.match(checkAuth, /for \(var authWait = 0; authWait < 40; authWait \+= 1\)/);
