@@ -876,7 +876,7 @@ async function checkAuth() {
   if (__tmhIsEmbeddedRuntime()) {
     // The parent page is the single auth owner. Wait briefly for its verified
     // context, but never create a second auth flow from inside the iframe.
-    for (var authWait = 0; authWait < 40; authWait += 1) {
+    for (var authWait = 0; authWait < 160; authWait += 1) {
       try {
         var sharedAuth = window.parent.__TMH_AUTH_CONTEXT;
         if (sharedAuth && /^[0-9a-f-]{36}$/i.test(String(sharedAuth.userId || '')) &&
@@ -5019,6 +5019,16 @@ function findAndScrollToUnfilled() {
 async function init() {
   const hasAuth = await checkAuth();
   if (!hasAuth) {
+    if (__tmhIsEmbeddedRuntime()) {
+      var pendingModal = document.getElementById('loginModal');
+      if (pendingModal) pendingModal.style.display = 'none';
+      var pending = document.createElement('div');
+      pending.id = 'tmhParentAuthPending';
+      pending.textContent = 'Ожидаем подтверждение авторизации основной страницы. Повторный вход здесь отключён.';
+      pending.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;background:var(--bg,#fff);color:var(--ink,#222);font:16px/1.5 system-ui;z-index:99999;';
+      document.body.appendChild(pending);
+      return;
+    }
     __tmhShowLoginModal();
   } else {
     showContinueDialogOrStart();
