@@ -535,8 +535,9 @@ test("cleanup skips malformed paths even when owner, checklist and revision pref
 });
 
 
-test("createSnapshot reuses an identical prior safety copy instead of creating duplicates", async () => {
+test("createSnapshot reuses an identical prior safety copy without photos instead of creating duplicates", async () => {
   const h = makeHarness();
+  delete h.state.values.item1.front_photo;
   const rows = [];
   const calls = [];
   const backup = createChecklistCloudBackup({
