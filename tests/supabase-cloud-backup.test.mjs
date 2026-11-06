@@ -563,3 +563,51 @@ test("createSnapshot reuses an identical prior safety copy instead of creating d
   assert.equal(second.reused, true);
   assert.equal(second.photosUploaded, 0);
 });
+
+
+test("createSnapshot does not reuse a photo-free duplicate when local photos need a safety copy", async () => {
+  const h = makeHarness();
+  const calls = [];
+  const existing = {
+    id: ROW,
+    title: "Before restore — ВЛ80 — 123",
+    equipment_type: "complex",
+    payload: {
+      mode: "complex",
+      state: {
+        general: { type: "ВЛ80", number: "123", notes: "ok" },
+        values: { item1: { status: "ok" } },
+      },
+    },
+  };
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: h.values,
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    photoSync: {
+      async uploadState(input) {
+        calls.push(["upload", input.revision]);
+        return {
+          manifest: [{ itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/1/cccccccc-cccc-4ccc-8ccc-cccccccccccc", contentType: "image/jpeg" }],
+          uploaded: 1,
+        };
+      },
+      async removeManifest(manifest) { calls.push(["remove", manifest.length]); },
+    },
+    idFactory: () => "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+    cloudApi: {
+      async list() { calls.push(["list"]); return [existing]; },
+      async create(input) {
+        calls.push(["create", input.payload.photos.length]);
+        return { id: input.id, revision: 1 };
+      },
+    },
+  });
+
+  const snapshot = await backup.createSnapshot({ label: "Before restore" });
+  assert.equal(snapshot.reused, undefined);
+  assert.equal(snapshot.photosUploaded, 1);
+  assert.deepEqual(calls, [["upload", 1], ["create", 1]]);
+});
