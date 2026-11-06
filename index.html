@@ -1692,7 +1692,16 @@ window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
         _photoMigrationPromise=null;
       }
       if(typeof _photoWriteChain!=='undefined'&&_photoWriteChain)await _photoWriteChain;
-      var current=STATE||{},next=structuredClone(incoming);
+      var current=STATE||{},previousState=structuredClone(current),previousLocal=localStorage.getItem(LS_KEY);
+      var previousPhotos=[];
+      Object.keys(previousState.values||{}).forEach(function(iid){
+        Object.keys(previousState.values[iid]||{}).forEach(function(key){
+          var value=previousState.values[iid][key];
+          if(/_photo$/i.test(key)&&value)previousPhotos.push({iid:iid,key:key,dataUrl:value});
+        });
+      });
+      var attemptedPhotos=[];
+      var next=structuredClone(incoming);
       var oldValues=current.values||{},newValues=next.values||(next.values={});
       Object.keys(oldValues).forEach(function(iid){
         var oldItem=oldValues[iid]||{},newItem=newValues[iid]||(newValues[iid]={});
@@ -1705,18 +1714,37 @@ window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
           if(/_photo$/i.test(key)&&item[key])photosToPersist.push({iid:iid,key:key,dataUrl:item[key]});
         });
       });
-      await idbPutPhotosBatch(LS_KEY,photosToPersist);
-      next.__cloudChecklistId=crypto.randomUUID();
-      STATE=next;
-      var saved=saveState(true);
-      if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
-      if(typeof __tmhOfflineSaveChain!=='undefined'&&__tmhOfflineSaveChain)await __tmhOfflineSaveChain;
-      if(typeof __tmhOfflineSaveError!=='undefined'&&__tmhOfflineSaveError)throw new Error('Не удалось сохранить восстановленное состояние в зашифрованном офлайн-хранилище');
-      await __psEnsureCloudReady();
-      localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId,JSON.stringify({id:metadata.id,revision:metadata.revision}));
-      buildEquipment(STATE.general&&STATE.general.type||'');
-      renderGeneral();renderPicker();renderEquip();updateStats();
-      return true;
+      attemptedPhotos=photosToPersist;
+      try{
+        await idbPutPhotosBatch(LS_KEY,photosToPersist);
+        next.__cloudChecklistId=crypto.randomUUID();
+        STATE=next;
+        var saved=saveState(true);
+        if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
+        if(typeof __tmhOfflineSaveChain!=='undefined'&&__tmhOfflineSaveChain)await __tmhOfflineSaveChain;
+        if(typeof __tmhOfflineSaveError!=='undefined'&&__tmhOfflineSaveError)throw new Error('Не удалось сохранить восстановленное состояние в зашифрованном офлайн-хранилище');
+        await __psEnsureCloudReady();
+        localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId,JSON.stringify({id:metadata.id,revision:metadata.revision}));
+        buildEquipment(STATE.general&&STATE.general.type||'');
+        renderGeneral();renderPicker();renderEquip();updateStats();
+        return true;
+      }catch(restoreError){
+        STATE=previousState;
+        try{
+          await idbRollbackPhotosBatch(LS_KEY,previousPhotos,attemptedPhotos);
+          if(previousLocal===null)localStorage.removeItem(LS_KEY);else localStorage.setItem(LS_KEY,previousLocal);
+          if(typeof __tmhOfflineSaveChain!=='undefined'&&__tmhOfflineSaveChain){
+            saveState(true);
+            await __tmhOfflineSaveChain;
+            if(__tmhOfflineSaveError)throw __tmhOfflineSaveError;
+          }
+          buildEquipment(STATE.general&&STATE.general.type||'');
+          renderGeneral();renderPicker();renderEquip();updateStats();
+        }catch(rollbackError){
+          throw new Error('Восстановление не завершено, и автоматический откат локальных данных тоже не удался: '+String(rollbackError&&rollbackError.message||rollbackError),{cause:restoreError});
+        }
+        throw restoreError;
+      }
     }
   };
 };
@@ -1780,6 +1808,30 @@ function idbPutPhotosBatch(namespace,photos){
             tx.oncomplete=function(){resolve(true);};
             tx.onerror=function(){reject(tx.error||new Error('Не удалось сохранить фотографии в IndexedDB'));};
             tx.onabort=function(){reject(tx.error||new Error('Сохранение фотографий в IndexedDB отменено'));};
+        });
+    });
+}
+function idbRollbackPhotosBatch(namespace,previousPhotos,attemptedPhotos){
+    previousPhotos=Array.isArray(previousPhotos)?previousPhotos:[];
+    attemptedPhotos=Array.isArray(attemptedPhotos)?attemptedPhotos:[];
+    const previousKeys=new Set(previousPhotos.map(function(photo){return photoDbKey(namespace,photo.iid,photo.key);}));
+    return openPhotoDB().then(function(db){
+        return new Promise(function(resolve,reject){
+            let tx;
+            try{
+                tx=db.transaction(IDB_STORE,'readwrite');
+                const store=tx.objectStore(IDB_STORE);
+                attemptedPhotos.forEach(function(photo){
+                    const key=photoDbKey(namespace,photo.iid,photo.key);
+                    if(!previousKeys.has(key))store.delete(key);
+                });
+                previousPhotos.forEach(function(photo){
+                    store.put(photo.dataUrl,photoDbKey(namespace,photo.iid,photo.key));
+                });
+            }catch(error){try{if(tx)tx.abort();}catch(e){}reject(error);return;}
+            tx.oncomplete=function(){resolve(true);};
+            tx.onerror=function(){reject(tx.error||new Error('Не удалось откатить фотографии IndexedDB'));};
+            tx.onabort=function(){reject(tx.error||new Error('Откат фотографий IndexedDB отменён'));};
         });
     });
 }
