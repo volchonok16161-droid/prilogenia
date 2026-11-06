@@ -2303,6 +2303,22 @@ async function init(){
           pending.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;background:var(--bg,#fff);color:var(--ink,#222);font:16px/1.5 system-ui;z-index:99999;';
           document.body.appendChild(pending);
         }
+        // The parent may finish its session check after this iframe's first
+        // bounded wait. Resume from its verified event without a second login.
+        if (!window.__TMH_PARENT_AUTH_RESUME_INSTALLED) {
+          window.__TMH_PARENT_AUTH_RESUME_INSTALLED = true;
+          var resumeFromParent = async function() {
+            if (await checkAuth()) {
+              var waiting = document.getElementById('tmhParentAuthPending');
+              if (waiting) waiting.remove();
+              showContinueDialogOrStart();
+            }
+          };
+          try {
+            window.parent.addEventListener('tmh:auth-ready', resumeFromParent, { once: true });
+            resumeFromParent();
+          } catch (e) {}
+        }
         return;
       }
       __tmhShowLoginModal();
