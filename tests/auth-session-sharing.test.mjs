@@ -13,6 +13,8 @@ const embeddedPaths = [
 test("the parent publishes one verified auth context after successful login and session checks", () => {
   assert.match(main, /window\.__TMH_AUTH_CONTEXT = Object\.freeze\(\{ userId: uid, role: profileRole/);
   assert.match(main, /window\.__TMH_AUTH_CONTEXT = Object\.freeze\(\{ userId: identity\.user\.id, role: identity\.profile\.role/);
+  assert.match(main, /__tmhApplyUserStorageScope\(result\.user\.id, result\.profile\.role\);[\s\S]{0,500}window\.__TMH_AUTH_CONTEXT = Object\.freeze\(\{ userId: result\.user\.id, role: role, offlineMode: false \}\)/);
+  assert.match(main, /tmh:auth-ready/);
   assert.match(main, /window\.__TMH_AUTH_CONTEXT = null/);
 });
 
