@@ -806,6 +806,8 @@ window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
       var saved=saveState(true);
       if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
       await __psEnsureCloudReady();
+      if(typeof __tmhOfflineSaveChain!=='undefined'&&__tmhOfflineSaveChain)await __tmhOfflineSaveChain;
+      if(typeof __tmhOfflineSaveError!=='undefined'&&__tmhOfflineSaveError)throw new Error('Не удалось сохранить восстановленное состояние в зашифрованном офлайн-хранилище');
       localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId,JSON.stringify({id:metadata.id,revision:metadata.revision}));
       buildEquipment(STATE.general&&STATE.general.type||'');
       renderGeneral();renderPicker();renderEquip();updateStats();
