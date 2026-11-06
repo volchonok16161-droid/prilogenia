@@ -1702,7 +1702,7 @@ window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
           if(/_photo$/i.test(key)&&value)previousPhotos.push({iid:iid,key:key,dataUrl:value});
         });
       });
-      var attemptedPhotos=[];
+      var attemptedPhotos=[],attemptedCloudRefKey=null;
       var next=structuredClone(incoming);
       var oldValues=current.values||{},newValues=next.values||(next.values={});
       Object.keys(oldValues).forEach(function(iid){
@@ -1720,6 +1720,7 @@ window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
       try{
         await idbPutPhotosBatch(LS_KEY,photosToPersist);
         next.__cloudChecklistId=crypto.randomUUID();
+        attemptedCloudRefKey=LS_KEY+'::cloud-ref::'+next.__cloudChecklistId;
         STATE=next;
         var saved=saveState(true);
         if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
@@ -1735,6 +1736,7 @@ window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
         try{
           await idbRollbackPhotosBatch(LS_KEY,previousPhotos,attemptedPhotos);
           if(previousLocal===null)localStorage.removeItem(LS_KEY);else localStorage.setItem(LS_KEY,previousLocal);
+          if(attemptedCloudRefKey&&attemptedCloudRefKey!==previousCloudRefKey)localStorage.removeItem(attemptedCloudRefKey);
           if(previousCloudRefKey)localStorage.removeItem(previousCloudRefKey);
           if(previousCloudRefKey&&previousCloudRef!==null)localStorage.setItem(previousCloudRefKey,previousCloudRef);
           if(typeof __tmhOfflineSaveChain!=='undefined'&&__tmhOfflineSaveChain){
