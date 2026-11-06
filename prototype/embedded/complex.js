@@ -1833,14 +1833,14 @@ async function exportWithPhotos(){ try{await __psReady();}catch(e){}
           await __psEnsureCloudReady();
           const __cloudResult = await __saveCloud(__getContext());
           __tmhExcelCloudSaved = true;
-          console.info('Excel export cloud backup completed', { id: __cloudResult.row.id, revision: __cloudResult.row.revision });
+          console.info('Checklist cloud backup completed during Excel export', { id: __cloudResult.row.id, revision: __cloudResult.row.revision });
         } catch (__cloudError) {
           console.error('Excel export cloud backup failed', __cloudError);
         }
         a.href=url;
         a.click();
         URL.revokeObjectURL(url);
-        showToast(__tmhExcelCloudSaved ? '☁️ Excel сохранён в облако и загружен' : '⚠️ Excel скачан, но не сохранён в облако. Проверьте вход и подключение.');
+        showToast(__tmhExcelCloudSaved ? '☁️ Резервная копия чек-листа и фото сохранена в облако; Excel скачан' : '⚠️ Excel скачан, но облачная копия чек-листа не обновлена. Проверьте вход и подключение.');
     }catch(e){
         console.error(e);
         showToast('⚠️ Ошибка при экспорте: '+e.message);
