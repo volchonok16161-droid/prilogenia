@@ -24,7 +24,7 @@ for (const file of modes) {
     assert.match(source.slice(save, click), /__getContext\(\)/);
     assert.match(source.slice(save, click), /await __psEnsureCloudReady\(\)/, "embedded photo writes are flushed before the shared backup runs");
     assert.match(source.slice(save, click), /catch \(__cloudError\)/);
-    assert.match(source.slice(click, click + 280), /Excel скачан, но не сохранён в облако/);
+    assert.match(source.slice(click, click + 280), /Excel скачан, но облачная копия чек-листа не обновлена/);
   });
 }
 
@@ -40,4 +40,10 @@ test("native complex checklist Excel export calls the same cloud backup function
 test("native and embedded save buttons use the same shared backup entry point", () => {
   assert.match(main, /const result=await window\.__TMH_SAVE_CLOUD_BACKUP_CONTEXT\(getContext\(\)\)/);
   assert.match(main, /window\.parent\.__TMH_SAVE_CLOUD_BACKUP_CONTEXT\(getContext\(\)\)/);
+});
+
+test("Excel export success messaging distinguishes the local workbook from the cloud checklist backup", () => {
+  const sources = [main, ...modes.map(() => "")];
+  assert.match(main, /Резервная копия чек-листа и фото сохранена в облако; Excel скачан/);
+  assert.match(main, /Excel скачан, но облачная копия чек-листа не обновлена/);
 });
