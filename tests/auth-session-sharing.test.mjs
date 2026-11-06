@@ -15,6 +15,8 @@ test("the parent publishes one verified auth context after successful login and 
   assert.match(main, /window\.__TMH_AUTH_CONTEXT = Object\.freeze\(\{ userId: identity\.user\.id, role: identity\.profile\.role/);
   assert.match(main, /__tmhApplyUserStorageScope\(result\.user\.id, result\.profile\.role\);[\s\S]{0,500}window\.__TMH_AUTH_CONTEXT = Object\.freeze\(\{ userId: result\.user\.id, role: role, offlineMode: false \}\)/);
   assert.match(main, /tmh:auth-ready/);
+  assert.match(main, /hideEmbeddedApp\(\);showEmbeddedApp\(MODE\)/);
+  assert.match(main, /Reopen it after auth instead of short-circuiting the[\s\S]{0,180}same-mode guard in showEmbeddedApp/);
   assert.match(main, /window\.__TMH_AUTH_CONTEXT = null/);
 });
 
