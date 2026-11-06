@@ -185,3 +185,20 @@ test("embedded restore waits for encrypted offline persistence before advancing 
   const refWrite = bridge.indexOf("localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId");
   assert.ok(refWrite > bridge.indexOf("await __tmhOfflineSaveChain"));
 });
+
+
+test("native cloud restore rolls back checklist, photos and cloud revision pointer if durable persistence fails", () => {
+  assert.match(html, /function idbRollbackPhotosBatch\(namespace,previousPhotos,attemptedPhotos\)/);
+  assert.match(html, /var previousState=structuredClone\(current\),previousLocal=localStorage\.getItem\(LS_KEY\)/);
+  assert.match(html, /var previousCloudRef=previousCloudRefKey\?localStorage\.getItem\(previousCloudRefKey\):null/);
+  assert.match(html, /await idbRollbackPhotosBatch\(LS_KEY,previousPhotos,attemptedPhotos\)/);
+  assert.match(html, /if\(previousLocal===null\)localStorage\.removeItem\(LS_KEY\);else localStorage\.setItem\(LS_KEY,previousLocal\)/);
+  assert.match(html, /if\(previousCloudRefKey\)localStorage\.removeItem\(previousCloudRefKey\)/);
+  assert.match(html, /if\(previousCloudRefKey&&previousCloudRef!==null\)localStorage\.setItem\(previousCloudRefKey,previousCloudRef\)/);
+  const start = html.indexOf("applyState:async function(incoming,metadata)");
+  const end = html.indexOf("/* ===== Хранилище фото", start);
+  const apply = html.slice(start, end);
+  assert.ok(apply.indexOf("await idbPutPhotosBatch") < apply.indexOf("STATE=next"));
+  assert.ok(apply.indexOf("catch(restoreError)") > apply.indexOf("localStorage.setItem(LS_KEY+'::cloud-ref::'"));
+  assert.ok(apply.indexOf("await idbRollbackPhotosBatch") > apply.indexOf("catch(restoreError)"));
+});
