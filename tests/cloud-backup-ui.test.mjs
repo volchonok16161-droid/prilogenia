@@ -160,3 +160,17 @@ test("generated srcdoc scripts are syntactically valid in every embedded mode", 
     }
   }
 });
+
+
+test("native cloud restore persists every restored and preserved photo to IndexedDB before replacing live state", () => {
+  assert.match(html, /function idbPutPhotosBatch\(namespace,photos\)/);
+  assert.match(html, /await idbPutPhotosBatch\(LS_KEY,photosToPersist\)/);
+  assert.match(html, /await _photoMigrationPromise/);
+  assert.match(html, /await _photoWriteChain/);
+  assert.match(html, /await __tmhOfflineSaveChain/);
+  const start = html.indexOf("applyState:async function(incoming,metadata)");
+  const end = html.indexOf("buildEquipment(STATE.general", start);
+  const apply = html.slice(start, end);
+  assert.ok(apply.indexOf("await idbPutPhotosBatch") < apply.indexOf("STATE=next"));
+  assert.ok(apply.indexOf("await __tmhOfflineSaveChain") < apply.indexOf("localStorage.setItem(LS_KEY+'::cloud-ref::'"));
+});
