@@ -2998,7 +2998,13 @@ function setupCommonHandlers(){
         const p=document.getElementById('passwordInput').value;
         const err=document.getElementById('loginError');
         if(!l||!p){err.textContent='Заполните все поля';err.classList.add('show');return;}
-        if (await doLogin(l,p)){err.classList.remove('show');if(MODE&&EMBEDDED_MODES.indexOf(MODE)!==-1)showEmbeddedApp(MODE);else showContinueDialogOrStart();}
+        if (await doLogin(l,p)){err.classList.remove('show');if(MODE&&EMBEDDED_MODES.indexOf(MODE)!==-1){
+          // The embedded srcdoc may have initialized before login and rendered an
+          // empty checklist. Reopen it after auth instead of short-circuiting the
+          // same-mode guard in showEmbeddedApp(). This reruns checkAuth/startApp
+          // under the now-confirmed user storage scope.
+          hideEmbeddedApp();showEmbeddedApp(MODE);
+        }else showContinueDialogOrStart();}
         else{err.textContent='Неверный логин или пароль';err.classList.add('show');}
     };
     document.getElementById('loginInput').onkeypress=function(e){if(e.key==='Enter')document.getElementById('loginBtn').click();};
