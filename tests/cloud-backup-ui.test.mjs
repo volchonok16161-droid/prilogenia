@@ -202,3 +202,16 @@ test("native cloud restore rolls back checklist, photos and cloud revision point
   assert.ok(apply.indexOf("catch(restoreError)") > apply.indexOf("localStorage.setItem(LS_KEY+'::cloud-ref::'"));
   assert.ok(apply.indexOf("await idbRollbackPhotosBatch") > apply.indexOf("catch(restoreError)"));
 });
+
+
+test("embedded restore waits for IndexedDB photo writes and rolls back local state on persistence failure", () => {
+  const start = html.indexOf("function __tmhAttachCloudBackup(source, mode)");
+  const end = html.indexOf("window.__tmhAttachCloudBackup", start);
+  const bridge = html.slice(start, end);
+  assert.match(bridge, /var previousState=structuredClone\(current\),previousLocal=localStorage\.getItem\(LS_KEY\)/);
+  assert.match(bridge, /var photoSaveResult=await __PS\.chain/);
+  assert.match(bridge, /catch\(restoreError\)/);
+  assert.match(bridge, /STATE=previousState/);
+  assert.match(bridge, /var rollbackSaved=saveState\(true\)/);
+  assert.match(bridge, /Не удалось восстановить фотографии IndexedDB/);
+});
