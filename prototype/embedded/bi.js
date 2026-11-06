@@ -1522,7 +1522,7 @@ async function checkAuth() {
     try {
       var sharedAuth = window.parent.__TMH_AUTH_CONTEXT;
       if (sharedAuth && /^[0-9a-f-]{36}$/i.test(String(sharedAuth.userId || '')) &&
-          ['admin','developer','user'].includes(sharedAuth.role)) {
+          ['admin','developer','employee','assistant','user'].includes(sharedAuth.role)) {
         __tmhApplyUserStorageScope(sharedAuth.userId);
         currentUser = (sharedAuth.role === 'admin' || sharedAuth.role === 'developer') ? 'admin' : 'user';
         window.__TMH_OFFLINE_MODE = Boolean(sharedAuth.offlineMode);
