@@ -52,8 +52,22 @@ test("embedded runtimes wait for the parent auth context and never start a secon
     const end = source.indexOf("\nasync function doLogin", start);
     assert.ok(start >= 0 && end > start, path + " has a bounded checkAuth function");
     const checkAuth = source.slice(start, end);
-    assert.match(checkAuth, /for \(var authWait = 0; authWait < 40; authWait \+= 1\)/);
+    assert.match(checkAuth, /for \(var authWait = 0; authWait < 160; authWait \+= 1\)/);
     assert.match(checkAuth, /await new Promise\(function\(resolve\) \{ setTimeout\(resolve, 50\); \}\)/);
     assert.match(checkAuth, /if \(__tmhIsEmbeddedRuntime\(\)\) \{[\s\S]*?return false;\s*\}\s*const api = __getTMHAuthApi\(\);/);
+  }
+});
+
+test("embedded startup never presents a second login form when the parent context is delayed", async () => {
+  for (const path of embeddedPaths) {
+    const source = await readFile(new URL(path, import.meta.url), "utf8");
+    const start = source.lastIndexOf("async function init");
+    assert.ok(start >= 0, path + " has an init function");
+    const init = source.slice(start, start + 2400);
+    assert.match(init, /if\s*\(!hasAuth\)\s*\{[\s\S]*?__tmhIsEmbeddedRuntime\(\)/);
+    assert.match(init, /tmhParentAuthPending/);
+    assert.match(init, /Повторный вход здесь отключён/);
+    assert.match(init, /pendingModal\.style\.display\s*=\s*'none'/);
+    assert.match(init, /return;/);
   }
 });
