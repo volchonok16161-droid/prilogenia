@@ -291,7 +291,10 @@ export function createChecklistCloudBackup({
     // Reuse an identical safety snapshot instead of creating another cloud row
     // every time the same restore is opened/retried. If listing fails, preserve
     // the original safety behavior and create a fresh snapshot.
-    if (typeof cloud.list === "function") {
+    // A photo-free state signature cannot prove that two snapshots contain the
+    // same photos. Never reuse a deduplicated snapshot when local photos exist:
+    // upload a fresh manifest so the pre-restore safety copy protects them too.
+    if (stats.removed === 0 && typeof cloud.list === "function") {
       try {
         const existingRows = await cloud.list();
         const stateSignature = stableJson(snapshotState);
