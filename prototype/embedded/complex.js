@@ -559,17 +559,25 @@ function __getTMHAuthApi() {
 
 async function checkAuth() {
   if (__tmhIsEmbeddedRuntime()) {
-    try {
-      var sharedAuth = window.parent.__TMH_AUTH_CONTEXT;
-      if (sharedAuth && /^[0-9a-f-]{36}$/i.test(String(sharedAuth.userId || '')) &&
-          ['admin','developer','employee','assistant','user'].includes(sharedAuth.role)) {
-        __tmhApplyUserStorageScope(sharedAuth.userId);
-        currentUser = (sharedAuth.role === 'admin' || sharedAuth.role === 'developer') ? 'admin' : 'user';
-        window.__TMH_OFFLINE_MODE = Boolean(sharedAuth.offlineMode);
-        updateUserUI();
-        return true;
-      }
-    } catch (e) {}
+    // The parent page is the single auth owner. Wait briefly for its verified
+    // context, but never create a second auth flow from inside the iframe.
+    for (var authWait = 0; authWait < 40; authWait += 1) {
+      try {
+        var sharedAuth = window.parent.__TMH_AUTH_CONTEXT;
+        if (sharedAuth && /^[0-9a-f-]{36}$/i.test(String(sharedAuth.userId || '')) &&
+            ['admin','developer','employee','assistant','user'].includes(sharedAuth.role)) {
+          __tmhApplyUserStorageScope(sharedAuth.userId);
+          currentUser = (sharedAuth.role === 'admin' || sharedAuth.role === 'developer') ? 'admin' : 'user';
+          window.__TMH_OFFLINE_MODE = Boolean(sharedAuth.offlineMode);
+          updateUserUI();
+          return true;
+        }
+      } catch (e) {}
+      await new Promise(function(resolve) { setTimeout(resolve, 50); });
+    }
+    currentUser = null;
+    updateUserUI();
+    return false;
   }
   const api = __getTMHAuthApi();
   if (!api) { currentUser = null; return false; }
