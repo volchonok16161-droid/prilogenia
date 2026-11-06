@@ -2775,6 +2775,7 @@ var bridge=`<script>
           await __psEnsureCloudReady();
           var current=STATE||{},previousState=structuredClone(current),previousLocal=localStorage.getItem(LS_KEY);
           var previousCloudRefKey=previousState.__cloudChecklistId?LS_KEY+'::cloud-ref::'+previousState.__cloudChecklistId:null;
+          var attemptedCloudRefKey=null;
           var previousCloudRef=previousCloudRefKey?localStorage.getItem(previousCloudRefKey):null;
           var next=structuredClone(incoming);
           var oldValues=current.values||{},newValues=next.values||(next.values={});
@@ -2784,6 +2785,7 @@ var bridge=`<script>
           });
           try{
             next.__cloudChecklistId=crypto.randomUUID();
+            attemptedCloudRefKey=LS_KEY+'::cloud-ref::'+next.__cloudChecklistId;
             STATE=next;
             var saved=saveState(true);
             if(saved===false)throw new Error('Не удалось сохранить восстановленное состояние локально');
@@ -2802,6 +2804,7 @@ var bridge=`<script>
             STATE=previousState;
             try{
               if(previousLocal===null)localStorage.removeItem(LS_KEY);else localStorage.setItem(LS_KEY,previousLocal);
+              if(attemptedCloudRefKey&&attemptedCloudRefKey!==previousCloudRefKey)localStorage.removeItem(attemptedCloudRefKey);
               if(previousCloudRefKey)localStorage.removeItem(previousCloudRefKey);
               if(previousCloudRefKey&&previousCloudRef!==null)localStorage.setItem(previousCloudRefKey,previousCloudRef);
               var rollbackSaved=saveState(true);
