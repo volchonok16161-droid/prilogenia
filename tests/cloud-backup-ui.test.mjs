@@ -174,3 +174,14 @@ test("native cloud restore persists every restored and preserved photo to Indexe
   assert.ok(apply.indexOf("await idbPutPhotosBatch") < apply.indexOf("STATE=next"));
   assert.ok(apply.indexOf("await __tmhOfflineSaveChain") < apply.indexOf("localStorage.setItem(LS_KEY+'::cloud-ref::'"));
 });
+
+
+test("embedded restore waits for encrypted offline persistence before advancing the cloud revision", () => {
+  const start = html.indexOf("function __tmhAttachCloudBackup(source, mode)");
+  const end = html.indexOf("function getEmbeddedSource(mode)", start);
+  const bridge = html.slice(start, end);
+  assert.match(bridge, /await __tmhOfflineSaveChain/);
+  assert.match(bridge, /__tmhOfflineSaveError/);
+  const refWrite = bridge.indexOf("localStorage.setItem(LS_KEY+'::cloud-ref::'+STATE.__cloudChecklistId");
+  assert.ok(refWrite > bridge.indexOf("await __tmhOfflineSaveChain"));
+});
