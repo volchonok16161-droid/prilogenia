@@ -37,3 +37,10 @@ test("the native cloud backup context is available for native save, restore and 
   assert.match(main, /window\.__TMH_SAVE_CLOUD_BACKUP_CONTEXT = async function\(context\)/);
   assert.match(main, /__saveCloud\(__getContext\(\)\)/);
 });
+
+test("embedded auth accepts every supported Supabase profile role from parent context", async () => {
+  for (const path of embeddedPaths) {
+    const source = await readFile(new URL(path, import.meta.url), "utf8");
+    assert.match(source, /\['admin','developer','employee','assistant','user'\]\.includes\(sharedAuth\.role\)/);
+  }
+});
