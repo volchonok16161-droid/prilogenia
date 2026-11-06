@@ -4013,6 +4013,21 @@ async function startApp(useNew) {
                     pending.textContent = 'Ожидаем подтверждение авторизации основной страницы. Повторный вход здесь отключён.';
                     pending.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;background:var(--bg,#fff);color:var(--ink,#222);font:16px/1.5 system-ui;z-index:99999;';
                     document.body.appendChild(pending);
+      // Resume when the parent publishes its verified session after our first wait.
+      if (!window.__TMH_PARENT_AUTH_RESUME_INSTALLED) {
+        window.__TMH_PARENT_AUTH_RESUME_INSTALLED = true;
+        var resumeFromParent = async function() {
+          if (await checkAuth()) {
+            var waiting = document.getElementById('tmhParentAuthPending');
+            if (waiting) waiting.remove();
+            showContinueDialogOrStart();
+          }
+        };
+        try {
+          window.parent.addEventListener('tmh:auth-ready', resumeFromParent, { once: true });
+          resumeFromParent();
+        } catch (e) {}
+      }
                     return;
                 }
                 __tmhShowLoginModal();
