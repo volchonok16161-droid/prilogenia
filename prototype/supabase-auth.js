@@ -19,6 +19,8 @@ const STORAGE_KEY = "tmh-supabase-auth-v1";
 // runtimes access it through parent.TMHAuth without opening separate databases.
 const offlineVault = createOfflineVault();
 let activeOfflineIdentity = null;
+// A deliberate offline logout must not be undone by the cached-device fallback.
+let offlineLogoutRequested = false;
 let activeOfflineVault = null;
 let activeOfflineUserId = null;
 let offlineChecklistStore = null;
@@ -186,6 +188,7 @@ async function resolveLoginEmail(identifier) {
 }
 
 async function signIn(email, password) {
+  offlineLogoutRequested = false;
   activeOfflineIdentity = null;
   activeOfflineVault = null;
   activeOfflineUserId = null;
@@ -281,6 +284,7 @@ async function getCurrentIdentityForOfflineUnlock(timeoutMs = 1800) {
 }
 
 async function unlockOffline(userId, pin) {
+  offlineLogoutRequested = false;
   // Local PIN unlock is deliberately separate from signIn/getCurrentIdentity.
   const result = await offlineVault.session.unlockOffline(userId, pin);
   activeOfflineVault = result.vault;
@@ -316,6 +320,9 @@ async function unlockOffline(userId, pin) {
 }
 
 async function getCachedOfflineIdentity(cause) {
+  // Explicit logout wins over automatic device-key recovery. Only a deliberate
+  // fresh online login or PIN unlock may activate the offline identity again.
+  if (offlineLogoutRequested) return null;
   let reportedOffline = globalThis.__TMH_CONNECTION_MODE === "offline";
   try {
     reportedOffline = reportedOffline ||
@@ -561,6 +568,7 @@ async function hasOfflineSetup(userId) {
 }
 
 async function signOut() {
+  offlineLogoutRequested = true;
   if (activeOfflineIdentity) {
     activeOfflineIdentity = null;
     activeOfflineVault = null;
