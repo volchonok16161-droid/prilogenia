@@ -208,7 +208,7 @@ test("embedded restore waits for IndexedDB photo writes and rolls back local sta
   const start = html.indexOf("function __tmhAttachCloudBackup(source, mode)");
   const end = html.indexOf("window.__tmhAttachCloudBackup", start);
   const bridge = html.slice(start, end);
-  assert.match(bridge, /var previousState=structuredClone\(current\),previousLocal=localStorage\.getItem\(LS_KEY\)/);
+  assert.match(bridge, /var current=STATE\|\|\{\},previousState=structuredClone\(current\),previousLocal=localStorage\.getItem\(LS_KEY\)/);
   assert.match(bridge, /var photoSaveResult=await __PS\.chain/);
   assert.match(bridge, /catch\(restoreError\)/);
   assert.match(bridge, /STATE=previousState/);
