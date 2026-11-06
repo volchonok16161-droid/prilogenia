@@ -43,7 +43,6 @@ test("native and embedded save buttons use the same shared backup entry point", 
 });
 
 test("Excel export success messaging distinguishes the local workbook from the cloud checklist backup", () => {
-  const sources = [main, ...modes.map(() => "")];
   assert.match(main, /Резервная копия чек-листа и фото сохранена в облако; Excel скачан/);
   assert.match(main, /Excel скачан, но облачная копия чек-листа не обновлена/);
 });
