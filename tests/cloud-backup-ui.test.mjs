@@ -189,7 +189,7 @@ test("embedded restore waits for encrypted offline persistence before advancing 
 
 test("native cloud restore rolls back checklist, photos and cloud revision pointer if durable persistence fails", () => {
   assert.match(html, /function idbRollbackPhotosBatch\(namespace,previousPhotos,attemptedPhotos\)/);
-  assert.match(html, /var previousState=structuredClone\(current\),previousLocal=localStorage\.getItem\(LS_KEY\)/);
+  assert.match(html, /var current=STATE\|\|\{\},previousState=structuredClone\(current\),previousLocal=localStorage\.getItem\(LS_KEY\)/);
   assert.match(html, /var previousCloudRef=previousCloudRefKey\?localStorage\.getItem\(previousCloudRefKey\):null/);
   assert.match(html, /await idbRollbackPhotosBatch\(LS_KEY,previousPhotos,attemptedPhotos\)/);
   assert.match(html, /if\(previousLocal===null\)localStorage\.removeItem\(LS_KEY\);else localStorage\.setItem\(LS_KEY,previousLocal\)/);
