@@ -1693,6 +1693,8 @@ window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
       }
       if(typeof _photoWriteChain!=='undefined'&&_photoWriteChain)await _photoWriteChain;
       var current=STATE||{},previousState=structuredClone(current),previousLocal=localStorage.getItem(LS_KEY);
+      var previousCloudRefKey=previousState.__cloudChecklistId?LS_KEY+'::cloud-ref::'+previousState.__cloudChecklistId:null;
+      var previousCloudRef=previousCloudRefKey?localStorage.getItem(previousCloudRefKey):null;
       var previousPhotos=[];
       Object.keys(previousState.values||{}).forEach(function(iid){
         Object.keys(previousState.values[iid]||{}).forEach(function(key){
@@ -1733,6 +1735,8 @@ window.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT=function(){
         try{
           await idbRollbackPhotosBatch(LS_KEY,previousPhotos,attemptedPhotos);
           if(previousLocal===null)localStorage.removeItem(LS_KEY);else localStorage.setItem(LS_KEY,previousLocal);
+          if(previousCloudRefKey)localStorage.removeItem(previousCloudRefKey);
+          if(previousCloudRefKey&&previousCloudRef!==null)localStorage.setItem(previousCloudRefKey,previousCloudRef);
           if(typeof __tmhOfflineSaveChain!=='undefined'&&__tmhOfflineSaveChain){
             saveState(true);
             await __tmhOfflineSaveChain;
