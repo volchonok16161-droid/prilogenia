@@ -54,6 +54,6 @@ test("embedded runtimes wait for the parent auth context and never start a secon
     const checkAuth = source.slice(start, end);
     assert.match(checkAuth, /for \(var authWait = 0; authWait < 40; authWait \+= 1\)/);
     assert.match(checkAuth, /await new Promise\(function\(resolve\) \{ setTimeout\(resolve, 50\); \}\)/);
-    assert.match(checkAuth, /if \(__tmhIsEmbeddedRuntime\(\)\) \{[\\s\\S]*?return false;\\s*\\}\\s*const api = __getTMHAuthApi\(\);/);
+    assert.match(checkAuth, /if \(__tmhIsEmbeddedRuntime\(\)\) \{[\s\S]*?return false;\s*\}\s*const api = __getTMHAuthApi\(\);/);
   }
 });
