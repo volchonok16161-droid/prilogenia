@@ -215,3 +215,14 @@ test("embedded restore waits for IndexedDB photo writes and rolls back local sta
   assert.match(bridge, /var rollbackSaved=saveState\(true\)/);
   assert.match(bridge, /Не удалось восстановить фотографии IndexedDB/);
 });
+
+
+test("failed native and embedded restores remove the attempted cloud reference before restoring the prior pointer", () => {
+  assert.match(html, /attemptedCloudRefKey=LS_KEY\+'::cloud-ref::'\+next\.__cloudChecklistId/);
+  assert.match(html, /if\(attemptedCloudRefKey&&attemptedCloudRefKey!==previousCloudRefKey\)localStorage\.removeItem\(attemptedCloudRefKey\)/);
+  const bridgeStart = html.indexOf("function __tmhAttachCloudBackup(source, mode)");
+  const bridgeEnd = html.indexOf("window.__tmhAttachCloudBackup", bridgeStart);
+  const bridge = html.slice(bridgeStart, bridgeEnd);
+  assert.match(bridge, /attemptedCloudRefKey=LS_KEY\+'::cloud-ref::'\+next\.__cloudChecklistId/);
+  assert.match(bridge, /if\(attemptedCloudRefKey&&attemptedCloudRefKey!==previousCloudRefKey\)localStorage\.removeItem\(attemptedCloudRefKey\)/);
+});
