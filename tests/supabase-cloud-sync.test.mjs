@@ -123,3 +123,9 @@ test("get reports inaccessible or missing records without exposing other owners"
   const { sync } = makeSync({ responses: [{ data: null, error: null }] });
   await assert.rejects(sync.get(ROW_ID), (error) => error.code === "NOT_FOUND");
 });
+
+test("auth integration passes the TMHAuth API directly to createCloudSync", async () => {
+  const source = await readFile(new URL("../prototype/supabase-auth.js", import.meta.url), "utf8");
+  assert.match(source, /createCloudSync\(api\)/);
+  assert.doesNotMatch(source, /createCloudSync\(\{\s*authApi:\s*api\s*\}\)/);
+});

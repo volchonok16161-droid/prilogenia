@@ -14,14 +14,16 @@ test("account cabinet uses the shared Supabase Auth module", () => {
 test("account cabinet loads only the signed-in user's cloud checklists", () => {
   assert.match(html, /\.from\("checklists"\)/);
   assert.match(html, /\.eq\("owner_id", user\.id\)/);
-  assert.match(html, /\.select\("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode"\)/);
-  assert.match(html, /\.limit\(50\)/);
+  assert.match(html, /\.select\("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode,checklist_type:payload->>checklistType,stats:payload->stats"\)/);
+  assert.match(html, /const pageSize = 500/);
+  assert.match(html, /\.range\(offset, offset \+ pageSize - 1\)/);
+  assert.doesNotMatch(html, /\.limit\(50\)/);
 });
 
 test("account cabinet renders database content as text, not injected HTML", () => {
   assert.match(html, /title\.textContent = row\.title/);
   assert.match(html, /meta\.textContent =/);
-  assert.match(html, /info\.append\(title, meta\)/);
+  assert.match(html, /info\.append\(title, category, status, meta\)/);
   assert.doesNotMatch(html, /innerHTML\s*=/);
 });
 
@@ -132,4 +134,47 @@ test("email confirmation callback refreshes profile status without a manual relo
 test("initial profile render clears stale confirmation status and hides resend after confirmation", () => {
   assert.match(html, /const emailConfirmed = Boolean\(user\.email_confirmed_at\)/);
   assert.match(html, /emailConfirmStatus"\)\.textContent = emailConfirmed \? "Адрес электронной почты подтверждён\."/);
+});
+
+test("account cabinet displays saved checklist completion and deviation metrics", () => {
+  assert.match(html, /stats:payload->stats/);
+  assert.match(html, /Заполнение: /);
+  assert.match(html, /Несоответствия: /);
+  assert.match(html, /progress-fill/);
+  assert.match(html, /checklist_type:payload->>checklistType/);
+  assert.match(html, /row\.checklist_type \|\| categoryByMode\[row\.mode\]/);
+});
+
+test("account cabinet invalidates stale loads and clears prior-account content on auth changes", () => {
+  assert.match(html, /let cabinetLoadSequence = 0/);
+  assert.match(html, /const requestId = \+\+cabinetLoadSequence/);
+  assert.match(html, /requestId !== cabinetLoadSequence/);
+  assert.match(html, /function clearCabinet\(\)/);
+  assert.match(html, /if \(event === "SIGNED_OUT"\)/);
+  assert.match(html, /activeCabinetUserId !== session\.user\.id/);
+  assert.match(html, /latestIdentity\?\.user\?\.id !== user\.id/);
+  assert.match(html, /\$\("checklists"\)\.replaceChildren\(\)/);
+});
+
+test("checklist views link to the account cabinet; sign-out is available inside the cabinet", async () => {
+  const main = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(main, /<a class="logout-btn btn account-cabinet-btn" id="accountCabinetLink" href="\.\/account\.html">/);
+  assert.match(main, /<a class="btn iframe-account-cabinet-btn" id="iframeAccountCabinetLink" href="\.\/account\.html">/);
+  assert.match(html, /<button class="btn secondary" id="logoutBtn" type="button">Выйти<\/button>/);
+  assert.match(html, /window\.TMHAuth\.signOut\(\)/);
+});
+
+test("account cabinet list and actions adapt to narrow screens", () => {
+  assert.match(html, /@media\(max-width:620px\)/);
+  assert.match(html, /\.top>\.actions\{width:100%/);
+  assert.match(html, /\.item\{display:grid;grid-template-columns:37px minmax\(0,1fr\)/);
+  assert.match(html, /\.item>div:last-child \.btn\{flex:1 1 110px/);
+});
+
+
+test("account cabinet opens the selected encrypted local checklist in its matching form", () => {
+  assert.match(html, /api\.activateDeviceVault\(identity\)/);
+  assert.match(html, /api\.listOfflineChecklistInstances\(\)/);
+  assert.match(html, /open\.href = "\.\/index\.html\?mode=" \+ encodeURIComponent\(entry\.mode\) \+ "&openLocalChecklist=" \+ encodeURIComponent\(entry\.instanceId\)/);
+  assert.match(html, /open\.textContent = "Открыть"/);
 });

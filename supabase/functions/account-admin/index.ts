@@ -75,6 +75,53 @@ Deno.serve(async (req: Request) => {
     return json({ employees });
   }
 
+  if (body.action === "create_named_employee") {
+    const username = typeof body.username === "string" ? body.username.trim() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    const accounts: Record<string, { email: string; displayName: string }> = {
+      "ЦГиСПЛ-Карасук": { email: "cgspl-karasuk@accounts.invalid", displayName: "ЦГиСПЛ-Карасук" },
+      "ЦГиСПЛ-Тимашевск": { email: "cgspl-timashevsk@accounts.invalid", displayName: "ЦГиСПЛ-Тимашевск" },
+    };
+    const account = accounts[username];
+    if (!account) return json({ error: "Неизвестный логин сотрудника" }, 400);
+    if (password.length < 8 || password.length > 128) {
+      return json({ error: "Пароль должен содержать от 8 до 128 символов" }, 400);
+    }
+
+    const { count, error: countError } = await admin
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "employee");
+    if (countError) return json({ error: "Не удалось проверить лимит сотрудников" }, 500);
+    if ((count ?? 0) >= 15) return json({ error: "Достигнут лимит в 15 сотрудников" }, 409);
+
+    const { data: created, error: createError } = await admin.auth.admin.createUser({
+      email: account.email,
+      password,
+      email_confirm: true,
+      user_metadata: { display_name: account.displayName },
+    });
+    if (createError || !created.user) {
+      return json({ error: createError?.message ?? "Не удалось создать аккаунт" }, 409);
+    }
+
+    const { error: profileError } = await admin.from("profiles").upsert({
+      id: created.user.id,
+      display_name: account.displayName,
+      role: "employee",
+    }, { onConflict: "id" });
+
+    if (profileError) {
+      await admin.auth.admin.deleteUser(created.user.id);
+      return json({ error: "Не удалось создать профиль сотрудника; учётная запись Auth отменена" }, 500);
+    }
+
+    return json({
+      success: true,
+      employee: { id: created.user.id, display_name: account.displayName, role: "employee" },
+    }, 201);
+  }
+
   if (body.action === "invite_employee") {
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const displayName = typeof body.display_name === "string" ? body.display_name.trim() : "";

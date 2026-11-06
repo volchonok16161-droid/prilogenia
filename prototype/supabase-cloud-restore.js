@@ -7,11 +7,13 @@ export function createChecklistCloudRestore({
   applyState,
   beforeApply,
   hydrateState,
+  getCurrentState,
 } = {}) {
   if (!authApi || typeof authApi.getCurrentIdentity !== "function" ||
       typeof getMode !== "function" || typeof applyState !== "function" ||
       (beforeApply !== undefined && typeof beforeApply !== "function") ||
-      (hydrateState !== undefined && typeof hydrateState !== "function")) {
+      (hydrateState !== undefined && typeof hydrateState !== "function") ||
+      (getCurrentState !== undefined && typeof getCurrentState !== "function")) {
     throw new Error("Для восстановления нужны Auth, режим и функция безопасного применения состояния");
   }
 
@@ -59,11 +61,7 @@ export function createChecklistCloudRestore({
       throw error;
     }
 
-    // Optional caller hook can create an immutable safety snapshot before overwrite.
-    if (beforeApply) await beforeApply(Object.freeze({ id: row.id, revision: row.revision }));
-
-    // The UI must explicitly decide how to apply data. This module never writes
-    // LocalStorage/IndexedDB and never touches the photo fields stored locally.
+    // Prepare and validate all remote assets before creating a safety copy.
     const metadata = Object.freeze({
       id: row.id,
       revision: row.revision,
@@ -72,8 +70,56 @@ export function createChecklistCloudRestore({
     });
     const clonedState = structuredClone(payload.state);
     const hydratedState = hydrateState
-      ? await hydrateState(clonedState, metadata, Array.isArray(payload.photos) ? payload.photos : [])
+      ? await hydrateState(clonedState, metadata, Array.isArray(payload.photoManifest) ? payload.photoManifest : (Array.isArray(payload.photos) ? payload.photos : []))
       : clonedState;
+
+    // Opening an already-restored checklist (for example after login/page reload)
+    // must not create another cloud snapshot. Ignore the local-only identity marker.
+    let stateChanged = true;
+    if (getCurrentState) {
+      const currentState = getCurrentState();
+      if (currentState && typeof currentState === "object" && !Array.isArray(currentState)) {
+        const comparable = (value) => {
+          if (Array.isArray(value)) return value.map(comparable);
+          if (!value || typeof value !== "object") return value;
+          return Object.keys(value).sort().reduce((result, key) => {
+            if (key !== "__cloudChecklistId") result[key] = comparable(value[key]);
+            return result;
+          }, {});
+        };
+
+        // applyState preserves local photos when the cloud payload has no photo
+        // for that field. Copy only actual local photo values into the comparison
+        // state; do not add an empty values object when there are no local photos.
+        const stateToApply = structuredClone(hydratedState);
+        const oldValues = currentState.values;
+        if (oldValues && typeof oldValues === "object" && !Array.isArray(oldValues)) {
+          let newValues = stateToApply.values;
+          Object.keys(oldValues).forEach((itemId) => {
+            const oldItem = oldValues[itemId] || {};
+            Object.keys(oldItem).forEach((key) => {
+              if (!/_photo$/i.test(key) || !oldItem[key]) return;
+              const newItem = newValues && typeof newValues === "object" && !Array.isArray(newValues)
+                ? newValues[itemId]
+                : null;
+              if (newItem && newItem[key]) return;
+              if (!newValues || typeof newValues !== "object" || Array.isArray(newValues)) {
+                newValues = stateToApply.values = {};
+              }
+              const targetItem = newValues[itemId] || (newValues[itemId] = {});
+              targetItem[key] = oldItem[key];
+            });
+          });
+        }
+        stateChanged = JSON.stringify(comparable(currentState)) !== JSON.stringify(comparable(stateToApply));
+      }
+    }
+    if (stateChanged && beforeApply) {
+      await beforeApply(Object.freeze({ id: row.id, revision: row.revision }));
+    }
+
+    // The UI must explicitly decide how to apply data. This module never writes
+    // LocalStorage/IndexedDB and never touches the photo fields stored locally.
     await applyState(hydratedState, metadata);
 
     return Object.freeze({

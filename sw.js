@@ -1,14 +1,38 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v21';
+const CACHE_VERSION = 'checklist-cache-v78';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
 const APP_SHELL = [
   './',
   './index.html',
+  './account.html',
+  './examples.json',
+  './oborudovanie.json',
+  './zona_riska.xlsx',
   './instruction.html',
   './manifest.json',
+  './prototype/embedded/tt.js',
+  './prototype/embedded/bi.js',
+  './prototype/embedded/hydro.js',
+  './prototype/embedded/complex.js',
+  './prototype/offline-vault-crypto.js',
+  './prototype/offline-vault-db.js',
+  './prototype/offline-vault-session.js',
+  './prototype/offline-vault.js',
+  './prototype/offline-checklist-store.js',
+  './prototype/offline-checklist-instances.js',
+  './prototype/offline-sync-runner.js',
+  './prototype/offline-sync-coordinator.js',
+  './prototype/offline-cloud-mapper.js',
+  './prototype/offline-checklist-runtime.js',
+  './prototype/offline-checklist-schema.js',
+  './prototype/supabase-auth.js',
+  './prototype/supabase-cloud-sync.js',
+  './prototype/supabase-cloud-photos.js',
+  './prototype/supabase-cloud-backup.js',
+  './prototype/supabase-cloud-restore.js',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-192.png',
@@ -21,41 +45,102 @@ const APP_SHELL = [
 // Кэшируются здесь же при установке — если в момент установки есть интернет,
 // то Excel-экспорт будет работать и офлайн.
 const CDN_LIBS = [
-  'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'
+  'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+  'https://esm.sh/@supabase/supabase-js@2.118.0'
 ];
 
+// Критический минимум: без этих двух URL приложение нельзя открыть офлайн.
+const REQUIRED_APP_SHELL = ['./', './index.html'];
+// Остальные ресурсы загружаются независимо: один отсутствующий файл не отменяет
+// установку всего Service Worker. Ошибки сохраняются в диагностическом отчёте.
+const OPTIONAL_APP_SHELL = APP_SHELL.filter((path) => !REQUIRED_APP_SHELL.includes(path));
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => {
-      // Кэшируем оболочку — критично для работы офлайн.
-      const shellPromise = cache.addAll(APP_SHELL);
-      // Кэшируем CDN-библиотеки best-effort: если сети нет прямо сейчас,
-      // не проваливаем установку — просто попробуем закэшировать их
-      // позже, при первом успешном запросе (см. fetch-обработчик ниже).
-      const cdnPromise = Promise.all(
-        CDN_LIBS.map((url) =>
-          fetch(url, { mode: 'cors' })
-            .then((resp) => (resp && resp.ok ? cache.put(url, resp) : null))
-            .catch(() => null)
-        )
-      );
-      return Promise.all([shellPromise, cdnPromise]);
-    })
-  );
-  self.skipWaiting();
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_VERSION);
+    const requiredResults = await Promise.allSettled(
+      REQUIRED_APP_SHELL.map(async (path) => {
+        const response = await fetch(path, { cache: 'no-cache' });
+        if (!response.ok) throw new Error(path + ': HTTP ' + response.status);
+        await cache.put(path, response);
+        return path;
+      })
+    );
+    const requiredFailures = requiredResults
+      .map((result, index) => result.status === 'rejected'
+        ? { path: REQUIRED_APP_SHELL[index], error: String(result.reason) }
+        : null)
+      .filter(Boolean);
+    if (requiredFailures.length) {
+      // Не активируем новую версию, если главная страница не сохранена.
+      throw new Error('Не удалось сохранить обязательные файлы: ' +
+        requiredFailures.map((item) => item.path).join(', '));
+    }
+
+    const optionalResults = await Promise.allSettled(
+      OPTIONAL_APP_SHELL.map(async (path) => {
+        const response = await fetch(path, { cache: 'no-cache' });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        await cache.put(path, response);
+        return path;
+      })
+    );
+    const failedOptional = optionalResults
+      .map((result, index) => result.status === 'rejected'
+        ? { path: OPTIONAL_APP_SHELL[index], error: String(result.reason) }
+        : null)
+      .filter(Boolean);
+
+    const cdnResults = await Promise.allSettled(CDN_LIBS.map(async (url) => {
+      const response = await fetch(url, { mode: 'cors', cache: 'no-cache' });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      await cache.put(url, response);
+    }));
+    const failedCdn = cdnResults
+      .map((result, index) => result.status === 'rejected'
+        ? { url: CDN_LIBS[index], error: String(result.reason) }
+        : null)
+      .filter(Boolean);
+
+    const report = {
+      version: CACHE_VERSION,
+      checkedAt: new Date().toISOString(),
+      requiredCached: REQUIRED_APP_SHELL,
+      optionalCached: (await Promise.all(OPTIONAL_APP_SHELL.map(async (path) =>
+        (await cache.match(path)) ? path : null))).filter(Boolean),
+      failedOptional,
+      failedCdn
+    };
+    await cache.put('./__offline-cache-report.json', new Response(JSON.stringify(report), {
+      headers: { 'Content-Type': 'application/json' }
+    }));
+    self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_VERSION)
-          .map((key) => caches.delete(key))
-      )
-    )
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const current = await caches.open(CACHE_VERSION);
+    const indexReady = !!(await current.match('./index.html'));
+    if (indexReady) {
+      const keys = await caches.keys();
+      await Promise.all(keys
+        .filter((key) => key.startsWith('checklist-cache-') && key !== CACHE_VERSION)
+        .map((key) => caches.delete(key)));
+    }
+    await self.clients.claim();
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const reportResponse = await current.match('./__offline-cache-report.json');
+    let report = null;
+    if (reportResponse) {
+      try { report = await reportResponse.json(); } catch (e) {}
+    }
+    windows.forEach((client) => client.postMessage({
+      type: 'offline-cache-status',
+      ready: indexReady,
+      report
+    }));
+  })());
 });
 
 self.addEventListener('fetch', (event) => {
@@ -65,7 +150,13 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-  const isCdnLib = CDN_LIBS.includes(req.url);
+  // Supabase JS is an ESM graph: cache the package entry during install and
+  // cache its versioned @supabase/* module imports as they are fetched online.
+  // This allows the first (online) sign-in to warm the complete dependency graph.
+  const isSupabaseEsm = url.origin === 'https://esm.sh' &&
+    (url.pathname === '/@supabase/supabase-js@2.118.0' ||
+     url.pathname.startsWith('/@supabase/'));
+  const isCdnLib = CDN_LIBS.includes(req.url) || isSupabaseEsm;
   const isSameOrigin = url.origin === self.location.origin;
 
   if (!isSameOrigin && !isCdnLib) {
@@ -73,23 +164,32 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Файл «Зона риска» редактируется вручную и должен обновляться сразу:
-  // сначала сеть (в обход HTTP-кэша), при отсутствии сети — последняя сохранённая копия.
+  // Справочники должны быстро открываться из локальной копии даже при
+  // медленном интернете. Сеть проверяем ограниченное время, а обновление кэша
+  // продолжается в фоне. Если сеть недоступна, используем последнюю копию.
   if (isSameOrigin && /\/(zona_riska\.xlsx|oborudovanie\.json|examples\.json)$/.test(url.pathname)) {
     const key = new Request(url.origin + url.pathname);
-    event.respondWith(
-      fetch(req, { cache: 'no-store' })
-        .then((resp) => {
-          if (resp && resp.ok) {
-            const copy = resp.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(key, copy));
-          }
-          return resp;
-        })
-        .catch(() =>
-          caches.match(key).then((cached) => cached || new Response('', { status: 504, statusText: 'Offline' }))
-        )
-    );
+    const networkPromise = fetch(req, { cache: 'no-store' }).then(async (resp) => {
+      if (resp && resp.ok) {
+        const cache = await caches.open(CACHE_VERSION);
+        await cache.put(key, resp.clone());
+      }
+      return resp;
+    });
+    // Продлеваем жизнь Service Worker до завершения фонового обновления.
+    event.waitUntil(networkPromise.catch(() => {}));
+    event.respondWith((async () => {
+      const cached = await caches.match(key);
+      const timeoutMs = cached ? 1200 : 4000;
+      const outcome = await Promise.race([
+        networkPromise.then((response) => ({ response })).catch((error) => ({ error })),
+        new Promise((resolve) => setTimeout(() => resolve({ timeout: true }), timeoutMs))
+      ]);
+      if (outcome.response) return outcome.response;
+      if (cached) return cached;
+      if (outcome.error) throw outcome.error;
+      return new Response('', { status: 504, statusText: 'Offline cache is not ready' });
+    })());
     return;
   }
 
