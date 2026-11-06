@@ -71,3 +71,12 @@ test("embedded startup never presents a second login form when the parent contex
     assert.match(init, /return;/);
   }
 });
+
+test("embedded startup resumes when the parent publishes auth after the initial wait", async () => {
+  for (const path of embeddedPaths) {
+    const source = await readFile(new URL(path, import.meta.url), "utf8");
+    assert.match(source, /window\.parent\.addEventListener\('tmh:auth-ready', resumeFromParent, \{ once: true \}\)/);
+    assert.match(source, /if \(await checkAuth\(\)\) \{[\s\S]*?showContinueDialogOrStart\(\)/);
+    assert.match(source, /if \(waiting\) waiting\.remove\(\)/);
+  }
+});
