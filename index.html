@@ -1537,6 +1537,11 @@ async function doLogin(login, password) {
   }
   __tmhApplyUserStorageScope(result.user.id, result.profile.role);
   const role = result.profile.role;
+  // Publish the authenticated identity immediately: embedded srcdoc checklists
+  // are recreated right after login and must not race Supabase session propagation.
+  window.__TMH_OFFLINE_MODE = false;
+  window.__TMH_AUTH_CONTEXT = Object.freeze({ userId: result.user.id, role: role, offlineMode: false });
+  try { window.dispatchEvent(new CustomEvent('tmh:auth-ready', { detail: window.__TMH_AUTH_CONTEXT })); } catch (e) {}
   currentUser = (role === 'admin' || role === 'developer') ? 'admin' : 'user';
   try {
     localStorage.setItem('checklist_user', JSON.stringify({
