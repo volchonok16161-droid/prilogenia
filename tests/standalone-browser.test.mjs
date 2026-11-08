@@ -87,13 +87,9 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
         patches: ids.filter((id) => !!document.getElementById(id)),
         hasCloudContext: typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT === "function",
         runtimeErrors: window.__standaloneTestErrors,
-        inlineSyntaxErrors: Array.from(document.scripts).flatMap((script, index) => {
+        inlineScripts: Array.from(document.scripts).flatMap((script, index) => {
           if (script.src || script.type === "module" || !script.textContent.trim()) return [];
-          try { parse(script.textContent, { ecmaVersion: "latest", sourceType: "script" }); return []; }
-          catch (error) {
-            const pos = Number.isInteger(error.pos) ? error.pos : 0;
-            return [{ id: script.id || "inline-" + index, error: error.message, loc: error.loc, snippet: script.textContent.slice(Math.max(0, pos - 120), pos + 120), charCode: script.textContent.charCodeAt(pos) }];
-          }
+          return [{ id: script.id || "inline-" + index, code: script.textContent }];
         })
       }), PATCH_IDS);
       assert.equal(state.selectedMode, mode);
@@ -104,6 +100,14 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       assert.equal(state.cloudRestore, true);
       assert.deepEqual(state.patches, PATCH_IDS);
       assert.equal(state.hasCloudContext, true);
+      state.inlineSyntaxErrors = state.inlineScripts.flatMap((script) => {
+        try { parse(script.code, { ecmaVersion: "latest", sourceType: "script" }); return []; }
+        catch (error) {
+          const pos = Number.isInteger(error.pos) ? error.pos : 0;
+          return [{ id: script.id, error: error.message, loc: error.loc, snippet: script.code.slice(Math.max(0, pos - 120), pos + 120), charCode: script.code.charCodeAt(pos) }];
+        }
+      });
+      delete state.inlineScripts;
       assert.deepEqual(state.inlineSyntaxErrors, []);
       assert.deepEqual(state.runtimeErrors, []);
       assert.deepEqual(pageErrors, []);
