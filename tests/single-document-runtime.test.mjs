@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const html = await readFile(new URL("../checklist.html", import.meta.url), "utf8");
+const html = await readFile(new URL("../prototype/checklist/index.html", import.meta.url), "utf8");
 const runtime = await readFile(new URL("../prototype/checklist-runtime.js", import.meta.url), "utf8");
 const risk = await readFile(new URL("../prototype/checklist-risk-core.js", import.meta.url), "utf8");
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
@@ -37,4 +37,10 @@ test("the unified route is included in the offline app shell", () => {
   assert.match(sw, /\.\/checklist\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/checklist-risk-core\.js/);
+});
+
+test("the runtime and extracted risk registry are syntactically valid JavaScript modules", () => {
+  const executableRuntime = runtime.replace(/^import .*;\\s*$/gm, "");
+  assert.doesNotThrow(() => new Function(executableRuntime));
+  assert.doesNotThrow(() => new Function(risk));
 });
