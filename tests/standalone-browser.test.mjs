@@ -144,8 +144,21 @@ test("service worker reopens the standalone checklist after network loss", { tim
     await page.waitForSelector("#tmhUnifiedModeSelect", { timeout: 45000 });
     await page.evaluate(async () => {
       if (!("serviceWorker" in navigator)) throw new Error("Service Worker is unavailable");
-      await navigator.serviceWorker.ready;
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      const worker = registration.installing || registration.waiting || registration.active;
+      if (!worker) throw new Error("Service Worker registration has no worker");
+      if (worker.state !== "activated") {
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error("Service Worker activation timed out: " + worker.state)), 30000);
+          worker.addEventListener("statechange", () => {
+            if (worker.state === "activated") { clearTimeout(timeout); resolve(); }
+            if (worker.state === "redundant") { clearTimeout(timeout); reject(new Error("Service Worker became redundant")); }
+          });
+        });
+      }
     });
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.waitForSelector("#tmhUnifiedModeSelect", { timeout: 45000 });
     await page.waitForFunction(() => !!navigator.serviceWorker.controller, { timeout: 30000 });
     await context.setOffline(true);
     await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
