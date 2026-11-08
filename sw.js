@@ -256,7 +256,7 @@ self.addEventListener('fetch', (event) => {
           }
           return resp;
         })
-        .catch(() => {
+        .catch(async () => {
           // Сети нет и в кэше нет — для навигации отдаём главную страницу,
           // чтобы приложение хотя бы открылось.
           if (req.mode === 'navigate') {
