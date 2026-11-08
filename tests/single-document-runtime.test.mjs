@@ -58,7 +58,7 @@ test("offline checklist boot does not statically depend on the remote Supabase S
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v87/);
+  assert.match(sw, /checklist-cache-v88/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/standalone-patches\.js/);
@@ -95,6 +95,7 @@ test("root entry, account, employee login and installed PWA open the unified che
 
 test("standalone cloud restore uses its own auth context and hydrates local state before applying remote data", () => {
   assert.ok(runtime.includes("source.replaceAll") && runtime.includes("window.parent"));
+  assert.ok(runtime.includes('patch.code.replaceAll("window.parent", "window")'));
   assert.match(runtime, /const parentWindow=window;/);
   assert.match(runtime, /await startApp\(false\)[\s\S]*__TMH_GET_CLOUD_BACKUP_CONTEXT[\s\S]*button\.click\(\)/);
   assert.match(runtime, /window\.__TMH_SAVE_CLOUD_BACKUP_CONTEXT\(getContext\(\)\)/);
