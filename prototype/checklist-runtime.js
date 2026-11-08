@@ -4,6 +4,8 @@ import complexTemplate from "./embedded/complex.js";
 import ttTemplate from "./embedded/tt.js";
 import biTemplate from "./embedded/bi.js";
 import hydroTemplate from "./embedded/hydro.js";
+import { createChecklistCloudBackup } from "./supabase-cloud-backup.js";
+import { createChecklistPhotoSync } from "./supabase-cloud-photos.js";
 
 const NB514_OLD_JS = "instances(){const out=[];for(const section of sections){for(const blk of['M1','M2','M3','M4'])out.push({section,block:blk});}return out;}}";
 const NB514_NEW_JS = "instances(){const out=[];sections.forEach(section=>{const secNum=parseInt(String(section).replace(/[^\\d]/g,''),10)||1;for(let m=1;m<=4;m++){out.push({section,block:'M'+((secNum-1)*4+m)});}});return out;}}";
@@ -163,6 +165,27 @@ if(bodyCloseIndex===-1)return source;
 return source.slice(0,bodyCloseIndex)+bridge+'</body>'+source.slice(bodyCloseIndex+'</body>'.length);
 }
 window.__tmhAttachCloudBackup = __tmhAttachCloudBackup;
+window.__TMH_SAVE_CLOUD_BACKUP_CONTEXT = async function(context) {
+  if (!context || !context.state || typeof context.mode !== "string" ||
+      typeof context.storageKey !== "string" || typeof context.persistState !== "function") {
+    throw new Error("Не удалось получить состояние чек-листа для облачного сохранения");
+  }
+  if (typeof __psEnsureCloudReady === "function") await __psEnsureCloudReady();
+  const api = window.TMHAuthReady ? await window.TMHAuthReady : window.TMHAuth;
+  if (!api) throw new Error("Авторизация Supabase недоступна");
+  const photoSync = createChecklistPhotoSync({ authApi: api });
+  const backup = createChecklistCloudBackup({
+    authApi: api, storage: window.localStorage, photoSync,
+    getState: () => context.state, getMode: () => context.mode,
+    getStorageKey: () => context.storageKey,
+    persistState: () => context.persistState(),
+    getChecklistDefinitions: () => context.definitions || [],
+    getChecklistStats: () => context.stats || null,
+    getChecklistType: () => context.checklistType || ""
+  });
+  return backup.saveCurrent();
+};
+
 
 const MODE_LABELS = { complex:"Комплексный", housings:"КМБ", tt:"Тяговый трансформатор", bi:"БИ (МСУД-015)", hydro:"Гидродемпферы" };
 function escapeHtml(value) {
