@@ -74,7 +74,7 @@ test("all checklist runtimes react to auth changes in other tabs", () => {
 });
 
 test("the browser auth client validates the server identity and profile role", () => {
-  assert.match(auth, /client\.auth\.getUser\(\)/);
+  assert.match(auth, /supabase\.auth\.getUser\(\)/);
   assert.match(auth, /\.from\("profiles"\)/);
   assert.match(auth, /\.eq\("id", user\.id\)/);
   assert.match(auth, /new Set\(\["employee", "assistant", "admin", "developer"\]\)/);
