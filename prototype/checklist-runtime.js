@@ -1,9 +1,5 @@
 import "./supabase-auth.js";
 import "./checklist-risk-core.js";
-import complexTemplate from "./embedded/complex.js";
-import ttTemplate from "./embedded/tt.js";
-import biTemplate from "./embedded/bi.js";
-import hydroTemplate from "./embedded/hydro.js";
 import { createChecklistCloudBackup } from "./supabase-cloud-backup.js";
 import { createChecklistPhotoSync } from "./supabase-cloud-photos.js";
 
@@ -253,10 +249,10 @@ async function main() {
   const known = availableModes().map(function(item){ return item.id; });
   if (known.indexOf(mode) < 0) mode = "complex";
   let source;
-  if (mode === "tt") source = ttTemplate;
-  else if (mode === "bi") source = biTemplate;
-  else if (mode === "hydro") source = hydroTemplate;
-  else source = complexTemplate;
+  if (mode === "tt") source = (await import("./embedded/tt.js")).default;
+  else if (mode === "bi") source = (await import("./embedded/bi.js")).default;
+  else if (mode === "hydro") source = (await import("./embedded/hydro.js")).default;
+  else source = (await import("./embedded/complex.js")).default;
   if (mode === "complex" || mode === "housings" || /^k_/.test(String(mode))) {
     window.__EMBEDDED_MODE__ = mode;
     source = source.replace(/if\(window\.parent&&window\.parent!==window&&window\.parent\.__EMBEDDED_MODE__\)\{\s*m=window\.parent\.__EMBEDDED_MODE__;\s*\}/,
