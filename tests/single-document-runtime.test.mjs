@@ -12,6 +12,7 @@ const standalonePatches = JSON.parse(standalonePatchesSource.replace(/^export co
 const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url), "utf8"));
 const account = await readFile(new URL("../account.html", import.meta.url), "utf8");
 const employeeLogin = await readFile(new URL("../employee-login.html", import.meta.url), "utf8");
+const examples = JSON.parse(await readFile(new URL("../examples.json", import.meta.url), "utf8"));
 const templates = await Promise.all(
   ["tt", "bi", "hydro", "complex"].map((mode) =>
     readFile(new URL("../prototype/embedded/" + mode + ".js", import.meta.url), "utf8")
@@ -48,7 +49,7 @@ test("the unified runtime keeps auth, risk registry, NB514 compatibility and clo
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v83/);
+  assert.match(sw, /checklist-cache-v84/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/standalone-patches\.js/);
@@ -109,6 +110,14 @@ test("standalone runtime restores the legacy feature patches and includes them i
   assert.ok(runtime.includes("source.lastIndexOf(\"</body>\")"));
   assert.ok(runtime.includes("source.lastIndexOf(\"</head>\""));
   assert.ok(sw.includes("'./prototype/standalone-patches.js'"));
+});
+
+
+test("all reference example photos exist in the offline app shell", () => {
+  const paths = [...new Set(Object.values(examples.items).flatMap((item) => Object.values(item)))];
+  for (const path of paths) {
+    assert.ok(sw.includes("'./" + path + "'"), "offline shell caches " + path);
+  }
 });
 
 test("the runtime and extracted risk registry are syntactically valid JavaScript modules", () => {
