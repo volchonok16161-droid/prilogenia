@@ -37,7 +37,7 @@
 </form>
 </section>
 <section class="card">
-<a class="link secondary" href="./index.html">Перейти к чек-листам</a>
+<a class="link secondary" href="./prototype/checklist/">Перейти к чек-листам</a>
 </section>
 </main>
 <script type="module">
@@ -62,7 +62,7 @@ $("loginForm").addEventListener("submit", async (event) => {
       setStatus("loginStatus", "Вход выполнен. Можно управлять аккаунтами.", "success");
       await showAdmin(result);
     } else {
-      location.replace("./index.html");
+      location.replace("./prototype/checklist/");
     }
   } catch (error) {
     setStatus("loginStatus", error?.message || "Не удалось войти.", "error");
