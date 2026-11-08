@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-08T08:36:39.756Z",
+  "updated": "2026-11-08T08:38:16.320Z",
   "items": {
     "cx|vb8|zav": {
       "ok": "examples/e_11hwbr_ok_mvurndpt.jpg"
@@ -57,7 +57,8 @@
       "ok": "examples/e_xt23tv_ok_mw7kw1nl.jpg"
     },
     "cx|housings|leak": {
-      "ok": "examples/e_1bsfymh_ok_mw7kuj7s.jpg"
+      "ok": "examples/e_1bsfymh_ok_mw7kuj7s.jpg",
+      "nok": "examples/e_1bsfymh_nok_mw7ky4gj.jpg"
     }
   }
 }
