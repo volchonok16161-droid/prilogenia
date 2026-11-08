@@ -70,6 +70,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       })
     );
     try {
+      await page.addInitScript(() => { window.__standaloneTestErrors = []; window.addEventListener("error", (event) => window.__standaloneTestErrors.push({ message: event.message, filename: event.filename, line: event.lineno, column: event.colno })); });
       await page.goto(origin + "/prototype/checklist/?mode=" + mode, { waitUntil: "domcontentloaded", timeout: 45000 });
       await page.waitForSelector("#tmhUnifiedModeSelect", { timeout: 45000 });
       await page.waitForFunction(() => document.readyState === "complete");
@@ -82,7 +83,13 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
         cloudBackup: !!document.getElementById("tmhCloudBackupBtn"),
         cloudRestore: !!document.getElementById("tmhCloudRestoreBtn"),
         patches: ids.filter((id) => !!document.getElementById(id)),
-        hasCloudContext: typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT === "function"
+        hasCloudContext: typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT === "function",
+        runtimeErrors: window.__standaloneTestErrors,
+        inlineSyntaxErrors: Array.from(document.scripts).flatMap((script, index) => {
+          if (script.src || script.type === "module" || !script.textContent.trim()) return [];
+          try { new Function(script.textContent); return []; }
+          catch (error) { return [{ id: script.id || "inline-" + index, error: error.message, snippet: script.textContent.slice(0, 500) }]; }
+        })
       }), PATCH_IDS);
       assert.equal(state.selectedMode, mode);
       assert.equal(state.iframes, 0);
@@ -92,6 +99,8 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       assert.equal(state.cloudRestore, true);
       assert.deepEqual(state.patches, PATCH_IDS);
       assert.equal(state.hasCloudContext, true);
+      assert.deepEqual(state.inlineSyntaxErrors, []);
+      assert.deepEqual(state.runtimeErrors, []);
       assert.deepEqual(pageErrors, []);
     } finally {
       await page.close();
