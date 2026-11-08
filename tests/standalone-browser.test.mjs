@@ -1,0 +1,99 @@
+import test, { before, after } from "node:test";
+import assert from "node:assert/strict";
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium } from "playwright";
+
+const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const PATCH_IDS = [
+  "__UNIVERSAL_PATCH_V2__", "__ORDER_CTOR_V4__", "__ROUTE_FIX_V1__",
+  "__ROUTE_REGROUP_V2__", "__MFG_REF_PHOTOS_V5__", "__OKNOK_EXAMPLES_V1__",
+  "__ACT_PRINT_V5__", "__EXPORT_PHOTO_GUARD_V2__", "__ADMIN_NO_LIMITS_V1__",
+  "__MULTI_JSON_FIX_V5__"
+];
+const MIME = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".css": "text/css; charset=utf-8"
+};
+let server;
+let browser;
+let origin;
+
+before(async () => {
+  server = createServer(async (req, res) => {
+    try {
+      let pathname = decodeURIComponent(new URL(req.url, "http://127.0.0.1").pathname);
+      if (pathname.endsWith("/")) pathname += "index.html";
+      const file = resolve(ROOT, "." + pathname);
+      if (!file.startsWith(ROOT + sep)) {
+        res.writeHead(403).end("Forbidden");
+        return;
+      }
+      const body = await readFile(file);
+      const ext = file.slice(file.lastIndexOf("."));
+      res.writeHead(200, { "content-type": MIME[ext] || "application/octet-stream" });
+      res.end(body);
+    } catch {
+      res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+      res.end("Not found");
+    }
+  });
+  await new Promise((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+  origin = "http://127.0.0.1:" + server.address().port;
+  browser = await chromium.launch({ headless: true });
+});
+
+after(async () => {
+  if (browser) await browser.close();
+  if (server) await new Promise((resolveClose) => server.close(resolveClose));
+});
+
+for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
+  test("standalone browser boots " + mode + " mode with no iframe or parent-auth dependency", async () => {
+    const page = await browser.newPage();
+    const pageErrors = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+    await page.route("https://fecigiwjtbtabnsfsdym.supabase.co/**", (route) =>
+      route.fulfill({
+        status: 401,
+        contentType: "application/json",
+        body: JSON.stringify({ message: "Browser test: no signed-in user", code: "invalid_token" })
+      })
+    );
+    try {
+      await page.goto(origin + "/prototype/checklist/?mode=" + mode, { waitUntil: "domcontentloaded", timeout: 45000 });
+      await page.waitForSelector("#tmhUnifiedModeSelect", { timeout: 45000 });
+      await page.waitForFunction(() => document.readyState === "complete");
+      await page.waitForTimeout(350);
+      const state = await page.evaluate((ids) => ({
+        selectedMode: document.querySelector("#tmhUnifiedModeSelect")?.value || null,
+        iframes: document.querySelectorAll("iframe").length,
+        parentAuthPending: !!document.getElementById("tmhParentAuthPending"),
+        topbar: !!document.querySelector(".topbar"),
+        cloudBackup: !!document.getElementById("tmhCloudBackupBtn"),
+        cloudRestore: !!document.getElementById("tmhCloudRestoreBtn"),
+        patches: ids.filter((id) => !!document.getElementById(id)),
+        hasCloudContext: typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT === "function"
+      }), PATCH_IDS);
+      assert.equal(state.selectedMode, mode);
+      assert.equal(state.iframes, 0);
+      assert.equal(state.parentAuthPending, false);
+      assert.equal(state.topbar, true);
+      assert.equal(state.cloudBackup, true);
+      assert.equal(state.cloudRestore, true);
+      assert.deepEqual(state.patches, PATCH_IDS);
+      assert.equal(state.hasCloudContext, true);
+      assert.deepEqual(pageErrors, []);
+    } finally {
+      await page.close();
+    }
+  });
+}
