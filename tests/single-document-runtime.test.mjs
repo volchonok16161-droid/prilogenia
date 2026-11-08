@@ -51,18 +51,19 @@ test("the unified route is included in the offline app shell", () => {
 
 test("all runtime templates are standalone documents without iframe elements", () => {
   for (const template of templates) {
-    assert.doesNotMatch(template, /<iframe\\b/i);
-    assert.match(template, /<body[\\s>]/i);
-    assert.match(template, /<\\/html>/i);
+    assert.equal((template.match(/<iframe\b/gi) || []).length, 0);
+    assert.ok(template.includes("<body"), "template has a body");
+    assert.ok(template.includes("</html>"), "template closes its document");
     const executableTemplate = template.replace(/^export default /, "return ");
     assert.doesNotThrow(() => new Function(executableTemplate));
   }
 });
 
 test("the unified route is a required offline entry and offline navigation stays on that route", () => {
-  assert.match(sw, /const REQUIRED_APP_SHELL = \\[[^\\]]*prototype\\/checklist\\/index\\.html/);
-  assert.match(sw, /prototype\\/checklist\\/\\(\?:\\/\\|\$\\)/);
-  assert.match(sw, /caches\\.match\\('\\.\\/prototype\\/checklist\\/index\\.html'\\)/);
+  assert.ok(sw.includes("'./prototype/checklist/index.html'"));
+  assert.ok(sw.includes("const REQUIRED_APP_SHELL = ['./', './index.html', './prototype/checklist/index.html'];"));
+  assert.ok(sw.includes("url.pathname === '/prototype/checklist/'"));
+  assert.ok(sw.includes("caches.match('./prototype/checklist/index.html')"));
 });
 
 test("the runtime and extracted risk registry are syntactically valid JavaScript modules", () => {

@@ -242,7 +242,7 @@ self.addEventListener('fetch', (event) => {
           if (req.mode === 'navigate') {
             // Keep the unified checklist route on its own cached entry point.
             // Falling back to the legacy root page would silently reopen the old iframe app.
-            if (/\\/prototype\\/checklist(?:\\/|$)/.test(url.pathname)) {
+            if (url.pathname === '/prototype/checklist/' || url.pathname === '/prototype/checklist') {
               return (await caches.match('./prototype/checklist/index.html')) ||
                 caches.match('./index.html');
             }
