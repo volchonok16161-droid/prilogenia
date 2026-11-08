@@ -211,7 +211,11 @@ function injectUnifiedChrome(source, mode) {
     '#modePickerBtn{display:none!important}' +
     '@media(max-width:720px){#tmhUnifiedModeSwitch{width:100%;margin:0;justify-content:flex-end}#tmhUnifiedModeSelect{max-width:58vw;min-width:130px}}' +
     '</style>';
-  source = source.replace("</head>", '<base href="/">' + style + "</head>");
+  const bodyStart = source.search(/<body\\b/i);
+  const headCloseIndex = source.lastIndexOf("</head>", bodyStart >= 0 ? bodyStart : source.length);
+  if (headCloseIndex >= 0) {
+    source = source.slice(0, headCloseIndex) + '<base href="/">' + style + "</head>" + source.slice(headCloseIndex + "</head>".length);
+  }
   const topbarPattern = /<\/div>\s*(<div class="stat-bar")/i;
   if (topbarPattern.test(source)) source = source.replace(topbarPattern, chrome + "</div>\n$1");
   else source = source.replace(/<body[^>]*>/i, function(tag) { return tag + chrome; });
@@ -234,7 +238,10 @@ function injectUnifiedChrome(source, mode) {
       'if(params.get("openChecklist")&&!window.__TMH_ROUTE_CLOUD_RESTORE_TRIGGERED){window.__TMH_ROUTE_CLOUD_RESTORE_TRIGGERED=true;try{if(typeof startApp!=="function")throw new Error("Не удалось загрузить состояние чек-листа");await startApp(false);if(typeof __PS!=="undefined"&&__PS.chain)await __PS.chain;if(typeof __tmhOfflineSaveChain!=="undefined"&&__tmhOfflineSaveChain)await __tmhOfflineSaveChain;if(typeof __tmhOfflineSaveError!=="undefined"&&__tmhOfflineSaveError)throw new Error("Не удалось завершить локальное сохранение перед восстановлением");var context=typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT==="function"?window.__TMH_GET_CLOUD_BACKUP_CONTEXT():null;if(!context||!context.state||!context.state.general||!context.state.values)throw new Error("Локальное состояние не загружено полностью; облачное восстановление отменено");var button=document.getElementById("tmhCloudRestoreBtn");if(!button)throw new Error("Кнопка восстановления облачной копии недоступна");button.click();}catch(error){console.error("Cloud restore preparation failed",error);if(typeof showToast==="function")showToast(error&&error.message||"Не удалось подготовить локальную копию");}return true;}' +
       'return await original.apply(this,arguments);};}' +
   '})();</script>';
-  source = source.replace(/<\/body>/i, routeScript + "</body>");
+  const routeBodyCloseIndex = source.lastIndexOf("</body>");
+  if (routeBodyCloseIndex >= 0) {
+    source = source.slice(0, routeBodyCloseIndex) + routeScript + "</body>" + source.slice(routeBodyCloseIndex + "</body>".length);
+  }
   return source;
 }
 
@@ -270,7 +277,10 @@ async function main() {
   const migratedPatches = STANDALONE_PATCHES.map(function(patch) {
     return '<script id="' + patch.id + '">' + patch.code + '</script>';
   }).join("\n");
-  source = source.replace(/<\/body>/i, migratedPatches + "</body>");
+  const patchBodyCloseIndex = source.lastIndexOf("</body>");
+  if (patchBodyCloseIndex >= 0) {
+    source = source.slice(0, patchBodyCloseIndex) + migratedPatches + "</body>" + source.slice(patchBodyCloseIndex + "</body>".length);
+  }
   document.open();
   document.write(source);
   document.close();
