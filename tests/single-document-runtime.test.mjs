@@ -23,6 +23,9 @@ test("all five built-in modes share one top-level runtime and one mode switcher"
 
 test("the unified runtime keeps auth, risk registry, NB514 compatibility and cloud backup integration", () => {
   assert.match(runtime, /supabase-auth\.js/);
+  assert.match(runtime, /await import\("\.\/embedded\/tt\.js"\)/);
+  assert.match(runtime, /await import\("\.\/embedded\/bi\.js"\)/);
+  assert.match(runtime, /await import\("\.\/embedded\/hydro\.js"\)/);
   assert.match(runtime, /checklist-risk-core\.js/);
   assert.match(runtime, /applyRegistry\(source, mode\)/);
   assert.match(runtime, /NB514_OLD_JS/);
@@ -34,13 +37,13 @@ test("the unified runtime keeps auth, risk registry, NB514 compatibility and clo
 
 test("the unified route is included in the offline app shell", () => {
   assert.match(sw, /checklist-cache-v80/);
-  assert.match(sw, /\.\/checklist\.html/);
+  assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/checklist-risk-core\.js/);
 });
 
 test("the runtime and extracted risk registry are syntactically valid JavaScript modules", () => {
-  const executableRuntime = runtime.replace(/^import .*;\\s*$/gm, "");
+  const executableRuntime = runtime.replace(/^import .*;\s*$/gm, "");
   assert.doesNotThrow(() => new Function(executableRuntime));
   assert.doesNotThrow(() => new Function(risk));
 });
