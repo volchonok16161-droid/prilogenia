@@ -2,7 +2,7 @@
   "name": "Чек-лист ТМХ/НЭВЗ",
   "short_name": "Чек-лист",
   "description": "Чек-лист проверки локомотивов при ТР-50, ТР-250, ТР-500",
-  "start_url": "./index.html",
+  "start_url": "./prototype/checklist/",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
