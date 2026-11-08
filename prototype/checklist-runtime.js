@@ -211,7 +211,7 @@ function injectUnifiedChrome(source, mode) {
     '#modePickerBtn{display:none!important}' +
     '@media(max-width:720px){#tmhUnifiedModeSwitch{width:100%;margin:0;justify-content:flex-end}#tmhUnifiedModeSelect{max-width:58vw;min-width:130px}}' +
     '</style>';
-  const bodyStart = source.search(/<body\\b/i);
+  const bodyStart = source.search(/<body\b/i);
   const headCloseIndex = source.lastIndexOf("</head>", bodyStart >= 0 ? bodyStart : source.length);
   if (headCloseIndex >= 0) {
     source = source.slice(0, headCloseIndex) + '<base href="/">' + style + "</head>" + source.slice(headCloseIndex + "</head>".length);
