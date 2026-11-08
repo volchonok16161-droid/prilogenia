@@ -8,7 +8,7 @@ test("account cabinet uses the shared Supabase Auth module", () => {
   assert.match(html, /prototype\/supabase-auth\.js/);
   assert.match(html, /await window\.TMHAuthReady/);
   assert.match(html, /getCurrentIdentity\(\)/);
-  assert.match(html, /location\.replace\("\.\/index\.html"\)/);
+  assert.match(html, /location\.replace\("\.\/prototype\/checklist\/"\)/);
 });
 
 test("account cabinet loads only the signed-in user's cloud checklists", () => {
@@ -29,7 +29,7 @@ test("account cabinet renders database content as text, not injected HTML", () =
 
 test("account cabinet exposes a real Supabase sign-out action", () => {
   assert.match(html, /window\.TMHAuth\.signOut\(\)/);
-  assert.match(html, /location\.replace\("\.\/index\.html"\)/);
+  assert.match(html, /location\.replace\("\.\/prototype\/checklist\/"\)/);
 });
 
 test("account cabinet allows deleting only the selected cloud checklist owned by the current user", () => {
@@ -175,6 +175,6 @@ test("account cabinet list and actions adapt to narrow screens", () => {
 test("account cabinet opens the selected encrypted local checklist in its matching form", () => {
   assert.match(html, /api\.activateDeviceVault\(identity\)/);
   assert.match(html, /api\.listOfflineChecklistInstances\(\)/);
-  assert.match(html, /open\.href = "\.\/index\.html\?mode=" \+ encodeURIComponent\(entry\.mode\) \+ "&openLocalChecklist=" \+ encodeURIComponent\(entry\.instanceId\)/);
+  assert.match(html, /open\.href = "\.\/prototype\/checklist\/\?mode=" \+ encodeURIComponent\(entry\.mode\) \+ "&openLocalChecklist=" \+ encodeURIComponent\(entry\.instanceId\)/);
   assert.match(html, /open\.textContent = "Открыть"/);
 });
