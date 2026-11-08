@@ -36,7 +36,7 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
 <div class="app">
 <header class="top">
  <div class="brand"><div class="logo">ЧК</div><div>Рабочая система<br><span class="muted">Личный кабинет</span></div></div>
- <div class="actions"><a class="btn secondary" href="./index.html">К чек-листам</a><button class="btn secondary" id="refreshBtn" type="button">Обновить</button><button class="btn secondary" id="logoutBtn" type="button">Выйти</button></div>
+ <div class="actions"><a class="btn secondary" href="./prototype/checklist/">К чек-листам</a><button class="btn secondary" id="refreshBtn" type="button">Обновить</button><button class="btn secondary" id="logoutBtn" type="button">Выйти</button></div>
 </header>
 <main>
  <section class="welcome"><h1 id="greeting">Личный кабинет</h1><div class="muted" id="subtitle">Загрузка данных аккаунта…</div></section>
@@ -284,7 +284,7 @@ async function renderLocalOfflineChecklists(api, requestId) {
       const open = document.createElement("a");
       open.className = "btn secondary";
       open.textContent = "Открыть";
-      open.href = "./index.html?mode=" + encodeURIComponent(entry.mode) + "&openLocalChecklist=" + encodeURIComponent(entry.instanceId);
+      open.href = "./prototype/checklist/?mode=" + encodeURIComponent(entry.mode) + "&openLocalChecklist=" + encodeURIComponent(entry.instanceId);
       open.setAttribute("aria-label", "Открыть " + (entry.title || "локальный чек-лист"));
       actions.append(open);
       item.append(icon, info, actions);
@@ -311,7 +311,7 @@ async function loadCabinet() {
   if (requestId !== cabinetLoadSequence) return;
   if (identity?.error) throw identity.error;
   if (!identity?.user || !identity?.profile) {
-    location.replace("./index.html");
+    location.replace("./prototype/checklist/");
     return;
   }
   const { user, profile } = identity;
@@ -385,7 +385,7 @@ async function loadCabinet() {
   if (latestIdentity?.error) throw latestIdentity.error;
   if (latestIdentity?.user?.id !== user.id) {
     clearCabinet();
-    location.replace("./index.html");
+    location.replace("./prototype/checklist/");
     return;
   }
   $("greeting").textContent = profile.display_name ? "Здравствуйте, " + profile.display_name + "!" : "Личный кабинет";
@@ -479,7 +479,7 @@ async function loadCabinet() {
       open.className = "btn";
       open.textContent = "Открыть";
       const mode = typeof row.mode === "string" ? row.mode : "";
-      open.href = "./index.html?openChecklist=" + encodeURIComponent(row.id) + (mode ? "&mode=" + encodeURIComponent(mode) : "");
+      open.href = "./prototype/checklist/?openChecklist=" + encodeURIComponent(row.id) + (mode ? "&mode=" + encodeURIComponent(mode) : "");
       open.style.padding = "8px 12px";
       open.style.fontSize = "13px";
       const remove = document.createElement("button");
@@ -636,7 +636,7 @@ await window.TMHAuthReady;
 window.TMHAuth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_OUT") {
     clearCabinet();
-    location.replace("./index.html");
+    location.replace("./prototype/checklist/");
     return;
   }
   if (!session?.user || !["SIGNED_IN", "USER_UPDATED", "TOKEN_REFRESHED"].includes(event)) return;
@@ -743,7 +743,7 @@ $("logoutBtn").addEventListener("click", async () => {
     await window.TMHAuthReady;
     const result = await window.TMHAuth.signOut();
     if (result?.error) throw result.error;
-    location.replace("./index.html");
+    location.replace("./prototype/checklist/");
   } catch (error) {
     button.disabled = false;
     showError(error?.message || "Не удалось завершить сеанс.");
