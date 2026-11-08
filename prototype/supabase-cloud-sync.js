@@ -74,8 +74,17 @@ function unwrap(result, operation) {
 }
 
 export function createCloudSync(authApi) {
-  if (!authApi?.client?.from || typeof authApi.getCurrentIdentity !== "function") {
+  if ((!authApi?.client?.from && typeof authApi?.getClient !== "function") ||
+      typeof authApi.getCurrentIdentity !== "function") {
     fail("INVALID_CLIENT", "Не передан действующий клиент TMHAuth");
+  }
+
+  async function getClient() {
+    const client = typeof authApi.getClient === "function" ? await authApi.getClient() : authApi.client;
+    if (!client || typeof client.from !== "function") {
+      fail("INVALID_CLIENT", "Клиент Supabase недоступен");
+    }
+    return client;
   }
 
   async function getOwnerId() {
@@ -88,7 +97,7 @@ export function createCloudSync(authApi) {
 
   async function list() {
     const ownerId = await getOwnerId();
-    const result = await authApi.client
+    const result = await (await getClient())
       .from(TABLE)
       .select(COLUMNS)
       .eq("owner_id", ownerId)
@@ -100,7 +109,7 @@ export function createCloudSync(authApi) {
   async function get(id) {
     const ownerId = await getOwnerId();
     validateUuid(id);
-    const result = await authApi.client
+    const result = await (await getClient())
       .from(TABLE)
       .select(COLUMNS)
       .eq("id", id)
@@ -122,7 +131,7 @@ export function createCloudSync(authApi) {
       payload: inspectPayload(input.payload ?? {}),
     };
 
-    const result = await authApi.client
+    const result = await (await getClient())
       .from(TABLE)
       .insert(row)
       .select(COLUMNS)
@@ -147,7 +156,7 @@ export function createCloudSync(authApi) {
       updated_at: new Date().toISOString(),
     };
 
-    const result = await authApi.client
+    const result = await (await getClient())
       .from(TABLE)
       .update(changes)
       .eq("id", id)
@@ -166,7 +175,7 @@ export function createCloudSync(authApi) {
   async function remove(id) {
     const ownerId = await getOwnerId();
     validateUuid(id);
-    const result = await authApi.client
+    const result = await (await getClient())
       .from(TABLE)
       .delete()
       .eq("id", id)
