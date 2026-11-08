@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+import { parse } from "acorn";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const PATCH_IDS = [
@@ -77,6 +78,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       await page.waitForTimeout(350);
       const state = await page.evaluate((ids) => ({
         selectedMode: document.querySelector("#tmhUnifiedModeSelect")?.value || null,
+        baseURI: document.baseURI,
         iframes: document.querySelectorAll("iframe").length,
         parentAuthPending: !!document.getElementById("tmhParentAuthPending"),
         topbar: !!document.querySelector(".topbar"),
@@ -87,8 +89,11 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
         runtimeErrors: window.__standaloneTestErrors,
         inlineSyntaxErrors: Array.from(document.scripts).flatMap((script, index) => {
           if (script.src || script.type === "module" || !script.textContent.trim()) return [];
-          try { new Function(script.textContent); return []; }
-          catch (error) { return [{ id: script.id || "inline-" + index, error: error.message, snippet: script.textContent.slice(0, 500) }]; }
+          try { parse(script.textContent, { ecmaVersion: "latest", sourceType: "script" }); return []; }
+          catch (error) {
+            const pos = Number.isInteger(error.pos) ? error.pos : 0;
+            return [{ id: script.id || "inline-" + index, error: error.message, loc: error.loc, snippet: script.textContent.slice(Math.max(0, pos - 120), pos + 120), charCode: script.textContent.charCodeAt(pos) }];
+          }
         })
       }), PATCH_IDS);
       assert.equal(state.selectedMode, mode);
