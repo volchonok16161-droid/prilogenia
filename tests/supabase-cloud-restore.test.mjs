@@ -251,3 +251,16 @@ test("real checklist changes still create a safety snapshot when local photos ar
   await restore.restore(ROW);
   assert.equal(snapshots, 1);
 });
+
+
+test("restore constructor rejects non-function optional callbacks", () => {
+  const base = {
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return null; }, async list() { return []; } },
+    getMode: () => "complex",
+    async applyState() {},
+  };
+  for (const key of ["beforeApply", "hydrateState", "getCurrentState"]) {
+    assert.throws(() => createChecklistCloudRestore({ ...base, [key]: true }), /Для восстановления/);
+  }
+});
