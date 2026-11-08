@@ -33,7 +33,7 @@ test("the unified runtime keeps auth, risk registry, NB514 compatibility and clo
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v79/);
+  assert.match(sw, /checklist-cache-v80/);
   assert.match(sw, /\.\/checklist\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/checklist-risk-core\.js/);
