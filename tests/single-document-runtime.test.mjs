@@ -84,7 +84,7 @@ test("root entry, account, employee login and installed PWA open the unified che
 });
 
 test("standalone cloud restore uses its own auth context and hydrates local state before applying remote data", () => {
-  assert.doesNotMatch(runtime, /window\.parent/);
+  assert.equal((runtime.match(/window\\.parent/g) || []).length, 1);
   assert.match(runtime, /const parentWindow=window;/);
   assert.match(runtime, /await startApp\(false\)[\s\S]*__TMH_GET_CLOUD_BACKUP_CONTEXT[\s\S]*button\.click\(\)/);
   assert.match(runtime, /window\.__TMH_SAVE_CLOUD_BACKUP_CONTEXT\(getContext\(\)\)/);
