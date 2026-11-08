@@ -55,6 +55,7 @@ test("offline checklist boot does not statically depend on the remote Supabase S
   assert.ok(auth.includes('import("https://esm.sh/@supabase/supabase-js@2.118.0")'));
   assert.ok(auth.includes("function subscribeAuthState(callback)"));
   assert.ok(auth.includes("get client() { return client; }"));
+  assert.ok(auth.includes("getClient() { return getSupabaseClient(); }"));
 });
 
 
@@ -64,7 +65,7 @@ test("Service Worker parses as valid JavaScript before registration", () => {
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v89/);
+  assert.match(sw, /checklist-cache-v90/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/standalone-patches\.js/);
