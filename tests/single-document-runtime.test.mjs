@@ -49,7 +49,7 @@ test("the unified runtime keeps auth, risk registry, NB514 compatibility and clo
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v84/);
+  assert.match(sw, /checklist-cache-v85/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/standalone-patches\.js/);
@@ -110,6 +110,7 @@ test("standalone runtime restores the legacy feature patches and includes them i
   assert.ok(runtime.includes("source.lastIndexOf(\"</body>\")"));
   assert.ok(runtime.includes("source.lastIndexOf(\"</head>\""));
   assert.ok(sw.includes("'./prototype/standalone-patches.js'"));
+  assert.match(standalonePatches.find((patch) => patch.id === "__OKNOK_EXAMPLES_V1__").code, /new URL\(p, document\.baseURI\)/);
 });
 
 
