@@ -116,7 +116,7 @@ test("standalone runtime restores the legacy feature patches and includes them i
 test("all reference example photos exist in the offline app shell", () => {
   const paths = [...new Set(Object.values(examples.items).flatMap((item) => Object.values(item)))];
   for (const path of paths) {
-    assert.ok(sw.includes("'./" + path + "'"), "offline shell caches " + path);
+    assert.ok(sw.includes("'./" + path.replace(/^\\//, "") + "'"), "offline shell caches " + path);
   }
 });
 
