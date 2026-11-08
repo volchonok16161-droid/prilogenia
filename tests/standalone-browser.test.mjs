@@ -93,6 +93,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
         })
       }), PATCH_IDS);
       assert.equal(state.selectedMode, mode);
+      assert.equal(state.baseURI, origin + "/");
       assert.equal(state.iframes, 0);
       assert.equal(state.parentAuthPending, false);
       assert.equal(state.topbar, true);
