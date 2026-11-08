@@ -77,7 +77,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       await page.waitForSelector("#tmhUnifiedModeSelect", { timeout: 45000 });
       await page.waitForFunction(() => document.readyState === "complete");
       await page.waitForTimeout(350);
-      const state = await page.evaluate((ids) => ({
+      const state = await page.evaluate(async (ids) => ({
         selectedMode: document.querySelector("#tmhUnifiedModeSelect")?.value || null,
         baseURI: document.baseURI,
         examplePhotoChecks: await (async () => {
