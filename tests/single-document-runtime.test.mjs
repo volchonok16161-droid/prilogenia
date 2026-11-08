@@ -59,6 +59,15 @@ test("offline checklist boot does not statically depend on the remote Supabase S
 });
 
 
+
+test("mobile runtime compacts header, keeps primary save and moves secondary actions to menu", () => {
+  assert.match(runtime, /grid-template-columns:1fr 1fr/);
+  assert.match(runtime, /mobile-more-grid/);
+  assert.match(runtime, /Ещё действия/);
+  assert.match(runtime, /btnSaveHtml.*btnExport.*btnExportJson.*btnImportJson/);
+  assert.match(runtime, /\.footbar #btnSave\{grid-column:1;grid-row:1\}/);
+});
+
 test("Service Worker parses as valid JavaScript before registration", () => {
   assert.doesNotThrow(() => new Function(sw));
   assert.match(sw, /\.catch\(async \(\) => \{/);
