@@ -105,7 +105,7 @@ test("standalone runtime restores the legacy feature patches and includes them i
   }
   assert.match(runtime, /source\.replaceAll\("window\.parent", "window"\)/);
   assert.match(runtime, /STANDALONE_PATCHES\.map/);
-  assert.match(runtime, /source\.replace\(\/<\\/body>\/i, migratedPatches/);
+  assert.ok(runtime.includes("migratedPatches + \"</body>\""));
   assert.ok(sw.includes("'./prototype/standalone-patches.js'"));
 });
 
