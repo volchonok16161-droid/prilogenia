@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const html = await readFile(new URL("../prototype/checklist/index.html", import.meta.url), "utf8");
+const rootHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const runtime = await readFile(new URL("../prototype/checklist-runtime.js", import.meta.url), "utf8");
 const risk = await readFile(new URL("../prototype/checklist-risk-core.js", import.meta.url), "utf8");
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
@@ -70,7 +71,9 @@ test("the unified route is a required offline entry and offline navigation stays
 });
 
 
-test("account, employee login and installed PWA open the unified checklist route", () => {
+test("root entry, account, employee login and installed PWA open the unified checklist route", () => {
+  assert.match(rootHtml, /location\.pathname==="\/"\|\|location\.pathname\.endsWith\("\/index\.html"\)/);
+  assert.match(rootHtml, /location\.replace\("\.\/prototype\/checklist\/"\+location\.search\+location\.hash\)/);
   assert.equal(manifest.start_url, "./prototype/checklist/");
   assert.match(account, /href="\.\/prototype\/checklist\//);
   assert.match(employeeLogin, /href="\.\/prototype\/checklist\//);
