@@ -1,7 +1,6 @@
 // Shared Supabase Auth client for the checklist application.
 // This file is loaded by the parent page and same-origin srcdoc checklists.
 // Only the publishable key belongs here; never add a service_role/secret key.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.118.0";
 import { createOfflineVault } from "./offline-vault.js";
 import { createOfflineChecklistStore } from "./offline-checklist-store.js";
 import { createOfflineSyncRunner } from "./offline-sync-runner.js";
@@ -76,14 +75,65 @@ function ensureOfflineSync() {
   return offlineChecklistStore;
 }
 
-const client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    storageKey: STORAGE_KEY,
-  },
-});
+// Keep the checklist shell bootable when the device is offline. Supabase JS is
+// loaded only when a real cloud/auth operation is requested; offline PIN unlock
+// and the local checklist never depend on the external esm.sh host.
+let client = null;
+let clientPromise = null;
+const authStateListeners = new Map();
+
+function attachAuthStateListeners() {
+  if (!client) return;
+  for (const [callback, entry] of authStateListeners) {
+    if (entry.subscription) continue;
+    try {
+      const result = client.auth.onAuthStateChange(callback);
+      entry.subscription = result?.data?.subscription || null;
+    } catch (error) {
+      console.warn("Supabase auth listener could not be attached yet", error);
+    }
+  }
+}
+
+async function getSupabaseClient() {
+  if (client) return client;
+  if (!clientPromise) {
+    clientPromise = import("https://esm.sh/@supabase/supabase-js@2.118.0")
+      .then(({ createClient }) => {
+        client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            storageKey: STORAGE_KEY,
+          },
+        });
+        attachAuthStateListeners();
+        return client;
+      })
+      .catch((error) => {
+        clientPromise = null;
+        throw error;
+      });
+  }
+  return clientPromise;
+}
+
+function subscribeAuthState(callback) {
+  const entry = { subscription: null };
+  authStateListeners.set(callback, entry);
+  if (client) attachAuthStateListeners();
+  return {
+    data: {
+      subscription: {
+        unsubscribe() {
+          try { entry.subscription?.unsubscribe(); } catch {}
+          authStateListeners.delete(callback);
+        },
+      },
+    },
+  };
+}
 
 const ALLOWED_ROLES = new Set(["employee", "assistant", "admin", "developer"]);
 
@@ -102,7 +152,8 @@ async function getProfileWithRetry(user, attempts = 2) {
 async function getProfileForUser(user) {
   if (!user?.id) return { profile: null, error: new Error("Сессия не найдена"), reason: "missing_user" };
 
-  const { data, error } = await client
+  const supabase = await getSupabaseClient();
+  const { data, error } = await supabase
     .from("profiles")
     .select("id, display_name, role")
     .eq("id", user.id)
@@ -117,7 +168,8 @@ async function getProfileForUser(user) {
 }
 
 async function getCurrentIdentity() {
-  const { data, error } = await client.auth.getUser();
+  const supabase = await getSupabaseClient();
+  const { data, error } = await supabase.auth.getUser();
   if (error || !data?.user) return { user: null, profile: null, error: error || null };
 
   const result = await getProfileWithRetry(data.user);
@@ -125,7 +177,7 @@ async function getCurrentIdentity() {
     // Keep the Auth session on transient profile-query failures; revoke only when
     // the profile is confirmed missing or its role is not allowed.
     if (result.reason === "profile_not_authorized") {
-      await client.auth.signOut({ scope: "local" });
+      await supabase.auth.signOut({ scope: "local" });
       return { user: null, profile: null, error: result.error };
     }
     return { user: data.user, profile: null, error: result.error };
@@ -202,8 +254,10 @@ async function signIn(email, password) {
 
   let data = null;
   let error = null;
+  let supabase = null;
   try {
-    const response = await client.auth.signInWithPassword({
+    supabase = await getSupabaseClient();
+    const response = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
       password: String(password),
     });
@@ -220,7 +274,7 @@ async function signIn(email, password) {
   const result = await getProfileWithRetry(data.user);
   if (result.error) {
     if (result.reason === "profile_not_authorized") {
-      await client.auth.signOut({ scope: "local" });
+      await supabase.auth.signOut({ scope: "local" });
       return { user: null, profile: null, error: result.error };
     }
     // signIn succeeded; preserve the session so a transient profile lookup
@@ -584,12 +638,13 @@ async function signOut() {
   offlineChecklistStore = null;
   offlineSyncCoordinator?.stop();
   offlineSyncCoordinator = null;
-  const { error } = await client.auth.signOut();
+  const supabase = await getSupabaseClient();
+  const { error } = await supabase.auth.signOut();
   return { error: error || null };
 }
 
 const api = Object.freeze({
-  client,
+  get client() { return client; },
   offlineVault,
   setupOfflinePin,
   unlockOffline,
@@ -618,7 +673,7 @@ const api = Object.freeze({
   signIn,
   signOut,
   onAuthStateChange(callback) {
-    return client.auth.onAuthStateChange(callback);
+    return subscribeAuthState(callback);
   },
 });
 
