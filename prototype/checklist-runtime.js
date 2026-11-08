@@ -1,5 +1,6 @@
 import "./supabase-auth.js";
 import "./checklist-risk-core.js";
+import { STANDALONE_PATCHES } from "./standalone-patches.js";
 import { createChecklistCloudBackup } from "./supabase-cloud-backup.js";
 import { createChecklistPhotoSync } from "./supabase-cloud-photos.js";
 
@@ -258,9 +259,18 @@ async function main() {
       "if(window.__EMBEDDED_MODE__){m=window.__EMBEDDED_MODE__;}");
     source = source.split(NB514_OLD_JS).join(NB514_NEW_JS);
   }
+  // Templates were originally authored for srcdoc/iframe embedding. In the standalone
+  // runtime their parent window is the application window itself; normalize every
+  // legacy bridge before evaluating the template so auth, storage and navigation
+  // resolve locally rather than waiting for a non-existent host shell.
+  source = source.replaceAll("window.parent", "window");
   source = risk.applyRegistry(source, mode) || source;
   source = __tmhAttachCloudBackup(source, mode);
   source = injectUnifiedChrome(source, mode);
+  const migratedPatches = STANDALONE_PATCHES.map(function(patch) {
+    return '<script id="' + patch.id + '">' + patch.code + '</script>';
+  }).join("\n");
+  source = source.replace(/<\/body>/i, migratedPatches + "</body>");
   document.open();
   document.write(source);
   document.close();
