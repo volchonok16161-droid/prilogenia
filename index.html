@@ -1012,6 +1012,10 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     }
 }
 
+
+/* Прокрутка списка чек-листов в окне выбора */
+#modeSelectModal .modal > div[style*="flex-direction:column"]{max-height:min(54vh,480px);overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;touch-action:pan-y;scrollbar-width:thin;-webkit-overflow-scrolling:touch;}
+@media(max-width:640px){#modeSelectModal .modal > div[style*="flex-direction:column"]{max-height:52vh;}}
 /* ===== Карточки выбора чек-листа в модалке ===== */
 .mode-card-btn{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:16px 18px!important;font-size:14px!important;line-height:1.4!important;border-radius:10px!important;width:100%;position:relative;}
 .mode-card-btn small{display:block;font-weight:400;font-size:11.5px;opacity:0.92;margin-top:6px;line-height:1.45;}
@@ -13625,6 +13629,10 @@ html[data-theme="tmh"] .mode-picker-btn:hover{
     }
 }
 
+
+/* Прокрутка списка чек-листов в окне выбора */
+#modeSelectModal .modal > div[style*="flex-direction:column"]{max-height:min(54vh,480px);overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain;touch-action:pan-y;scrollbar-width:thin;-webkit-overflow-scrolling:touch;}
+@media(max-width:640px){#modeSelectModal .modal > div[style*="flex-direction:column"]{max-height:52vh;}}
 /* ===== Карточки выбора чек-листа в модалке ===== */
 .mode-card-btn{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:16px 18px!important;font-size:14px!important;line-height:1.4!important;border-radius:10px!important;width:100%;position:relative;}
 .mode-card-btn small{display:block;font-weight:400;font-size:11.5px;opacity:0.92;margin-top:6px;line-height:1.45;}
