@@ -61,7 +61,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
     const page = await browser.newPage();
     const pageErrors = [];
     page.on("pageerror", (error) => pageErrors.push(error.stack || error.message));
-    page.on("console", (message) => { if (message.type() === "error") pageErrors.push("console: " + message.text()); });
+    page.on("console", (message) => { if (message.type() === "error") pageErrors.push("console: " + message.text() + " @ " + JSON.stringify(message.location())); });
     await page.route("https://fecigiwjtbtabnsfsdym.supabase.co/**", (route) =>
       route.fulfill({
         status: 401,
