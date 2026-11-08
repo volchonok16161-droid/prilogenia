@@ -58,7 +58,7 @@ test("offline checklist boot does not statically depend on the remote Supabase S
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v85/);
+  assert.match(sw, /checklist-cache-v86/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/standalone-patches\.js/);
