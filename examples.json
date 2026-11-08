@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-08T08:33:49.147Z",
+  "updated": "2026-11-08T08:35:28.243Z",
   "items": {
     "cx|vb8|zav": {
       "ok": "examples/e_11hwbr_ok_mvurndpt.jpg"
@@ -54,6 +54,9 @@
     },
     "bi|msud|zashchita_disks": {
       "nok": "examples/e_xt23tv_nok_mw7ksfa9.jpg"
+    },
+    "cx|housings|leak": {
+      "ok": "examples/e_1bsfymh_ok_mw7kuj7s.jpg"
     }
   }
 }
