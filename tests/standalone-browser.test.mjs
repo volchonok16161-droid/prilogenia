@@ -80,6 +80,16 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       const state = await page.evaluate((ids) => ({
         selectedMode: document.querySelector("#tmhUnifiedModeSelect")?.value || null,
         baseURI: document.baseURI,
+        examplePhotoChecks: await (async () => {
+          const response = await fetch("/examples.json");
+          if (!response.ok) return [{ path: "/examples.json", status: response.status }];
+          const manifest = await response.json();
+          const paths = [...new Set(Object.values(manifest.items || {}).flatMap((item) => Object.values(item)))];
+          return Promise.all(paths.map(async (path) => {
+            const result = await fetch(path);
+            return { path, status: result.status };
+          }));
+        })(),
         iframes: document.querySelectorAll("iframe").length,
         parentAuthPending: !!document.getElementById("tmhParentAuthPending"),
         topbar: !!document.querySelector(".topbar"),
@@ -96,6 +106,8 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       }), PATCH_IDS);
       assert.equal(state.selectedMode, mode);
       assert.equal(state.baseURI, origin + "/");
+      assert.ok(state.examplePhotoChecks.length > 0);
+      assert.ok(state.examplePhotoChecks.every((item) => item.status === 200), JSON.stringify(state.examplePhotoChecks));
       assert.equal(state.iframes, 0);
       assert.equal(state.parentAuthPending, false);
       assert.equal(state.topbar, true);
@@ -165,16 +177,18 @@ test("service worker reopens the standalone checklist after network loss", { tim
     await context.setOffline(true);
     await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
     await page.waitForSelector("#tmhUnifiedModeSelect", { timeout: 45000 });
-    const state = await page.evaluate(() => ({
+    const state = await page.evaluate(async () => ({
       mode: document.querySelector("#tmhUnifiedModeSelect")?.value || null,
       offline: navigator.onLine === false,
       controlled: !!navigator.serviceWorker.controller,
-      iframes: document.querySelectorAll("iframe").length
+      iframes: document.querySelectorAll("iframe").length,
+      cachedPhotoStatus: (await fetch("/examples/e_11hwbr_ok_mvurndpt.jpg")).status
     }));
     assert.equal(state.mode, "hydro");
     assert.equal(state.offline, true);
     assert.equal(state.controlled, true);
     assert.equal(state.iframes, 0);
+    assert.equal(state.cachedPhotoStatus, 200);
     assert.deepEqual(errors, []);
   } finally {
     await context.setOffline(false).catch(() => {});
