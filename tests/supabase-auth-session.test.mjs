@@ -13,7 +13,7 @@ test("temporary profile lookup errors preserve the authenticated session", () =>
 
 test("confirmed missing or disallowed profiles are still denied", () => {
   assert.match(source, /reason: "profile_not_authorized"/);
-  assert.match(source, /await client\.auth\.signOut\(\{ scope: "local" \}\)/);
+  assert.match(source, /await supabase\.auth\.signOut\(\{ scope: "local" \}\)/);
   assert.match(source, /ALLOWED_ROLES\.has\(data\.role\)/);
 });
 
