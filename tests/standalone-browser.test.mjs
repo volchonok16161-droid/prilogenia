@@ -118,3 +118,51 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
     }
   });
 }
+
+test("service worker reopens the standalone checklist after network loss", { timeout: 120000 }, async () => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.stack || error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error" &&
+        !message.text().includes("Auth check failed") &&
+        !message.text().includes("Failed to load resource")) {
+      errors.push(message.text());
+    }
+  });
+  await page.route("https://esm.sh/**", (route) => route.abort());
+  await page.route("https://fecigiwjtbtabnsfsdym.supabase.co/**", (route) =>
+    route.fulfill({
+      status: 401,
+      contentType: "application/json",
+      body: JSON.stringify({ message: "Browser test: no signed-in user", code: "invalid_token" })
+    })
+  );
+  try {
+    await page.goto(origin + "/prototype/checklist/?mode=hydro", { waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.waitForSelector("#tmhUnifiedModeSelect", { timeout: 45000 });
+    await page.evaluate(async () => {
+      if (!("serviceWorker" in navigator)) throw new Error("Service Worker is unavailable");
+      await navigator.serviceWorker.ready;
+    });
+    await page.waitForFunction(() => !!navigator.serviceWorker.controller, { timeout: 30000 });
+    await context.setOffline(true);
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.waitForSelector("#tmhUnifiedModeSelect", { timeout: 45000 });
+    const state = await page.evaluate(() => ({
+      mode: document.querySelector("#tmhUnifiedModeSelect")?.value || null,
+      offline: navigator.onLine === false,
+      controlled: !!navigator.serviceWorker.controller,
+      iframes: document.querySelectorAll("iframe").length
+    }));
+    assert.equal(state.mode, "hydro");
+    assert.equal(state.offline, true);
+    assert.equal(state.controlled, true);
+    assert.equal(state.iframes, 0);
+    assert.deepEqual(errors, []);
+  } finally {
+    await context.setOffline(false).catch(() => {});
+    await context.close();
+  }
+});
