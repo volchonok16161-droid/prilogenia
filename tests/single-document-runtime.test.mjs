@@ -6,6 +6,7 @@ const html = await readFile(new URL("../prototype/checklist/index.html", import.
 const rootHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const runtime = await readFile(new URL("../prototype/checklist-runtime.js", import.meta.url), "utf8");
 const risk = await readFile(new URL("../prototype/checklist-risk-core.js", import.meta.url), "utf8");
+const auth = await readFile(new URL("../prototype/supabase-auth.js", import.meta.url), "utf8");
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
 const standalonePatchesSource = await readFile(new URL("../prototype/standalone-patches.js", import.meta.url), "utf8");
 const standalonePatches = JSON.parse(standalonePatchesSource.replace(/^export const STANDALONE_PATCHES = /, "").trim().replace(/;$/, ""));
@@ -46,6 +47,14 @@ test("the unified runtime keeps auth, risk registry, NB514 compatibility and clo
   assert.match(runtime, /__TMH_SAVE_CLOUD_BACKUP_CONTEXT/);
   assert.match(risk, /window\.__RISK_CORE__/);
   assert.match(risk, /function ready\(ms\)/);
+});
+
+
+test("offline checklist boot does not statically depend on the remote Supabase SDK", () => {
+  assert.doesNotMatch(auth, /^import\\s+\\{\\s*createClient\\s*\\}\\s+from\\s+["']https:\\/\\/esm\\.sh/m);
+  assert.match(auth, /async function getSupabaseClient\\(\\)[\\s\\S]*import\\(["']https:\\/\\/esm\\.sh\\/@supabase\\/supabase-js/);
+  assert.match(auth, /function subscribeAuthState\\(callback\\)[\\s\\S]*authStateListeners\\.set/);
+  assert.match(auth, /get client\\(\\) \\{ return client; \\}/);
 });
 
 test("the unified route is included in the offline app shell", () => {
