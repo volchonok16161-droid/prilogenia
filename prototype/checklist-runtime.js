@@ -210,7 +210,7 @@ function injectUnifiedChrome(source, mode) {
     '#modePickerBtn{display:none!important}' +
     '@media(max-width:720px){#tmhUnifiedModeSwitch{width:100%;margin:0;justify-content:flex-end}#tmhUnifiedModeSelect{max-width:58vw;min-width:130px}}' +
     '</style>';
-  source = source.replace("</head>", style + "</head>");
+  source = source.replace("</head>", '<base href="/">' + style + "</head>");
   const topbarPattern = /<\/div>\s*(<div class="stat-bar")/i;
   if (topbarPattern.test(source)) source = source.replace(topbarPattern, chrome + "</div>\n$1");
   else source = source.replace(/<body[^>]*>/i, function(tag) { return tag + chrome; });

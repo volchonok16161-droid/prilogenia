@@ -17,6 +17,7 @@ test("the unified checklist has a top-level document entry and no nested browsin
 test("all five built-in modes share one top-level runtime and one mode switcher", () => {
   for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) assert.ok(runtime.includes(mode), "runtime registers " + mode);
   assert.match(runtime, /tmhUnifiedModeSelect/);
+  assert.match(runtime, /<base href=\"\/\">/);
   assert.match(runtime, /account\.html/);
   assert.match(runtime, /checklist_mode_v2/);
 });
