@@ -53,7 +53,7 @@ const CDN_LIBS = [
 ];
 
 // Критический минимум: без этих двух URL приложение нельзя открыть офлайн.
-const REQUIRED_APP_SHELL = ['./', './index.html'];
+const REQUIRED_APP_SHELL = ['./', './index.html', './prototype/checklist/index.html'];
 // Остальные ресурсы загружаются независимо: один отсутствующий файл не отменяет
 // установку всего Service Worker. Ошибки сохраняются в диагностическом отчёте.
 const OPTIONAL_APP_SHELL = APP_SHELL.filter((path) => !REQUIRED_APP_SHELL.includes(path));
@@ -240,6 +240,12 @@ self.addEventListener('fetch', (event) => {
           // Сети нет и в кэше нет — для навигации отдаём главную страницу,
           // чтобы приложение хотя бы открылось.
           if (req.mode === 'navigate') {
+            // Keep the unified checklist route on its own cached entry point.
+            // Falling back to the legacy root page would silently reopen the old iframe app.
+            if (/\\/prototype\\/checklist(?:\\/|$)/.test(url.pathname)) {
+              return (await caches.match('./prototype/checklist/index.html')) ||
+                caches.match('./index.html');
+            }
             return caches.match('./index.html');
           }
           return new Response('', { status: 504, statusText: 'Offline' });

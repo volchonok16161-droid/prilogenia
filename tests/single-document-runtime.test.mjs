@@ -6,6 +6,11 @@ const html = await readFile(new URL("../prototype/checklist/index.html", import.
 const runtime = await readFile(new URL("../prototype/checklist-runtime.js", import.meta.url), "utf8");
 const risk = await readFile(new URL("../prototype/checklist-risk-core.js", import.meta.url), "utf8");
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
+const templates = await Promise.all(
+  ["tt", "bi", "hydro", "complex"].map((mode) =>
+    readFile(new URL("../prototype/embedded/" + mode + ".js", import.meta.url), "utf8")
+  )
+);
 
 test("the unified checklist has a top-level document entry and no nested browsing context", () => {
   assert.match(html, /prototype\/checklist-runtime\.js/);
@@ -41,6 +46,23 @@ test("the unified route is included in the offline app shell", () => {
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/checklist-risk-core\.js/);
+});
+
+
+test("all runtime templates are standalone documents without iframe elements", () => {
+  for (const template of templates) {
+    assert.doesNotMatch(template, /<iframe\\b/i);
+    assert.match(template, /<body[\\s>]/i);
+    assert.match(template, /<\\/html>/i);
+    const executableTemplate = template.replace(/^export default /, "return ");
+    assert.doesNotThrow(() => new Function(executableTemplate));
+  }
+});
+
+test("the unified route is a required offline entry and offline navigation stays on that route", () => {
+  assert.match(sw, /const REQUIRED_APP_SHELL = \\[[^\\]]*prototype\\/checklist\\/index\\.html/);
+  assert.match(sw, /prototype\\/checklist\\/\\(\?:\\/\\|\$\\)/);
+  assert.match(sw, /caches\\.match\\('\\.\\/prototype\\/checklist\\/index\\.html'\\)/);
 });
 
 test("the runtime and extracted risk registry are syntactically valid JavaScript modules", () => {
