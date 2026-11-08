@@ -275,7 +275,7 @@ async function main() {
   source = __tmhAttachCloudBackup(source, mode);
   source = injectUnifiedChrome(source, mode);
   const migratedPatches = STANDALONE_PATCHES.map(function(patch) {
-    return '<script id="' + patch.id + '">' + patch.code + '</script>';
+    return '<script id="' + patch.id + '">' + patch.code.replaceAll("window.parent", "window") + '</script>';
   }).join("\n");
   const patchBodyCloseIndex = source.lastIndexOf("</body>");
   if (patchBodyCloseIndex >= 0) {
