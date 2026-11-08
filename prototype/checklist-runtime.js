@@ -79,7 +79,7 @@ import { createChecklistCloudBackup } from './prototype/supabase-cloud-backup.js
 import { createChecklistCloudRestore } from './prototype/supabase-cloud-restore.js';
 import { createChecklistPhotoSync } from './prototype/supabase-cloud-photos.js';
 const restoreButton=document.getElementById('tmhCloudRestoreBtn');
-const __autoOpenChecklistId=(function(){try{return new URLSearchParams(window.parent.location.search).get('openChecklist');}catch(e){return null;}})();
+const __autoOpenChecklistId=(function(){try{return new URLSearchParams(window.location.search).get('openChecklist');}catch(e){return null;}})();
 if(restoreButton){
   restoreButton.addEventListener('click',async function(){
     if(restoreButton.disabled)return;
@@ -89,7 +89,7 @@ if(restoreButton){
     try{
       const getContext=window.__TMH_GET_CLOUD_BACKUP_CONTEXT;
       if(typeof getContext!=='function')throw new Error('Не удалось получить состояние встроенного чек-листа');
-      const parentWindow=window.parent;
+      const parentWindow=window;
       const api=parentWindow&&(parentWindow.TMHAuthReady?await parentWindow.TMHAuthReady:parentWindow.TMHAuth);
       if(!api)throw new Error('Авторизация Supabase недоступна');
       // The srcdoc module runs before DOMContentLoaded. Scope local storage to the
@@ -100,10 +100,10 @@ if(restoreButton){
       const photoSync=createChecklistPhotoSync({authApi:api});
       const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,photoSync,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;},persistState:function(){return context.persistState();},getChecklistDefinitions:function(){return context.definitions;},getChecklistType:function(){return context.checklistType;}});
       const restore=createChecklistCloudRestore({authApi:api,getMode:function(){return context.mode;},getCurrentState:function(){return context.state;},beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},hydrateState:async function(state,metadata,manifest){return (await photoSync.restoreState({state,checklistId:metadata.id,manifest})).state;},applyState:context.applyState});
-      const __openId=(function(){try{return new URLSearchParams(window.parent.location.search).get('openChecklist');}catch(e){return null;}})();
+      const __openId=(function(){try{return new URLSearchParams(window.location.search).get('openChecklist');}catch(e){return null;}})();
       if(__openId){
         await restore.restore(__openId);
-        try{window.parent.history.replaceState(null,'',window.parent.location.pathname+window.parent.location.hash);}catch(e){}
+        try{window.history.replaceState(null,'',window.location.pathname+window.location.hash);}catch(e){}
         if(typeof showToast==='function')showToast('Чек-лист открыт из личного кабинета');
         return;
       }
@@ -122,8 +122,8 @@ if(restoreButton){
   });
   // The parent page owns the native restore flow when available. Do not
   // auto-restore the same URL from the embedded srcdoc as well.
-  const __parentOwnsCloudRestore=(function(){try{return typeof window.parent.__TMH_GET_NATIVE_CLOUD_BACKUP_CONTEXT==='function';}catch(e){return false;}})();
-  if(__autoOpenChecklistId&&!__parentOwnsCloudRestore){Promise.resolve().then(function(){restoreButton.click();});}
+  const __parentOwnsCloudRestore=false;
+  /* Auto-open is coordinated by the runtime after local state hydration. */
 }
 const button=document.getElementById('tmhCloudBackupBtn');
 if(button){
@@ -136,9 +136,9 @@ if(button){
     try{
       const getContext=window.__TMH_GET_CLOUD_BACKUP_CONTEXT;
       if(typeof getContext!=='function')throw new Error('Не удалось получить данные открытого чек-листа');
-      const api=window.parent&&window.parent.TMHAuth;
+      const api=window.TMHAuthReady?await window.TMHAuthReady:window.TMHAuth;
       if(!api)throw new Error('Авторизация Supabase недоступна');
-      const result=await window.parent.__TMH_SAVE_CLOUD_BACKUP_CONTEXT(getContext());
+      const result=await window.__TMH_SAVE_CLOUD_BACKUP_CONTEXT(getContext());
       const message=result.created?'Облачная копия создана':'Облачная копия обновлена';
       if(typeof showToast==='function')showToast(message+' · фотографий: '+result.photosUploaded);
       else window.alert(message+'\\nЗагружено фотографий: '+result.photosUploaded);
@@ -231,7 +231,7 @@ function injectUnifiedChrome(source, mode) {
       'var params=new URLSearchParams(location.search);var localId=params.get("openLocalChecklist");' +
       'if(localId&&!window.__TMH_ROUTE_LOCAL_ACTIVATED){var api=window.TMHAuth;if(!api||typeof api.activateOfflineChecklistInstance!=="function")throw new Error("Офлайн-запись недоступна");await api.activateOfflineChecklistInstance(LS_KEY,localId);window.__TMH_ROUTE_LOCAL_ACTIVATED=true;}' +
       'var result=await original.apply(this,arguments);' +
-      'if(params.get("openChecklist")&&!window.__TMH_ROUTE_CLOUD_RESTORE_TRIGGERED){window.__TMH_ROUTE_CLOUD_RESTORE_TRIGGERED=true;setTimeout(function(){var button=document.getElementById("tmhCloudRestoreBtn");if(button)button.click();},0);}' +
+      'if(params.get("openChecklist")&&!window.__TMH_ROUTE_CLOUD_RESTORE_TRIGGERED){window.__TMH_ROUTE_CLOUD_RESTORE_TRIGGERED=true;(async function(){try{if(typeof startApp==="function")await startApp(false);if(typeof __PS!=="undefined"&&__PS.chain)await __PS.chain;if(typeof __tmhOfflineSaveChain!=="undefined"&&__tmhOfflineSaveChain)await __tmhOfflineSaveChain;if(typeof __tmhOfflineSaveError!=="undefined"&&__tmhOfflineSaveError)throw new Error("Не удалось завершить локальное сохранение перед восстановлением");var context=typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT==="function"?window.__TMH_GET_CLOUD_BACKUP_CONTEXT():null;if(!context||!context.state||!context.state.general||!context.state.values)throw new Error("Локальное состояние не загружено полностью; облачное восстановление отменено");var button=document.getElementById("tmhCloudRestoreBtn");if(!button)throw new Error("Кнопка восстановления облачной копии недоступна");button.click();}catch(error){console.error("Cloud restore preparation failed",error);if(typeof showToast==="function")showToast(error&&error.message||"Не удалось подготовить локальную копию");}})();}' +
       'return result;};}' +
   '})();</script>';
   source = source.replace(/<\/body>/i, routeScript + "</body>");
@@ -256,7 +256,7 @@ async function main() {
   if (mode === "complex" || mode === "housings" || /^k_/.test(String(mode))) {
     window.__EMBEDDED_MODE__ = mode;
     source = source.replace(/if\(window\.parent&&window\.parent!==window&&window\.parent\.__EMBEDDED_MODE__\)\{\s*m=window\.parent\.__EMBEDDED_MODE__;\s*\}/,
-      "if(window.__EMBEDDED_MODE__){m=window.__EMBEDDED_MODE__;}else if(window.parent&&window.parent!==window&&window.parent.__EMBEDDED_MODE__){m=window.parent.__EMBEDDED_MODE__;}");
+      "if(window.__EMBEDDED_MODE__){m=window.__EMBEDDED_MODE__;}");
     source = source.split(NB514_OLD_JS).join(NB514_NEW_JS);
   }
   source = risk.applyRegistry(source, mode) || source;
@@ -268,7 +268,7 @@ async function main() {
 }
 main().catch(function(error) {
   console.error("Unified checklist runtime failed", error);
-  document.body.innerHTML = '<main style="max-width:720px;margin:10vh auto;padding:24px;font:16px/1.5 system-ui"><h1>Не удалось открыть чек-лист</h1><p></p><a href="./index.html">Вернуться к приложению</a></main>';
+  document.body.innerHTML = '<main style="max-width:720px;margin:10vh auto;padding:24px;font:16px/1.5 system-ui"><h1>Не удалось открыть чек-лист</h1><p></p><a href="./prototype/checklist/">Вернуться к приложению</a></main>';
   const paragraph = document.querySelector("main p");
   if (paragraph) paragraph.textContent = String(error && error.message || error);
 });
