@@ -6,6 +6,9 @@ const html = await readFile(new URL("../prototype/checklist/index.html", import.
 const runtime = await readFile(new URL("../prototype/checklist-runtime.js", import.meta.url), "utf8");
 const risk = await readFile(new URL("../prototype/checklist-risk-core.js", import.meta.url), "utf8");
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
+const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url), "utf8"));
+const account = await readFile(new URL("../account.html", import.meta.url), "utf8");
+const employeeLogin = await readFile(new URL("../employee-login.html", import.meta.url), "utf8");
 const templates = await Promise.all(
   ["tt", "bi", "hydro", "complex"].map((mode) =>
     readFile(new URL("../prototype/embedded/" + mode + ".js", import.meta.url), "utf8")
@@ -42,7 +45,7 @@ test("the unified runtime keeps auth, risk registry, NB514 compatibility and clo
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v80/);
+  assert.match(sw, /checklist-cache-v81/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/checklist-risk-core\.js/);
@@ -64,6 +67,21 @@ test("the unified route is a required offline entry and offline navigation stays
   assert.ok(sw.includes("const REQUIRED_APP_SHELL = ['./', './index.html', './prototype/checklist/index.html'];"));
   assert.ok(sw.includes("url.pathname === '/prototype/checklist/'"));
   assert.ok(sw.includes("caches.match('./prototype/checklist/index.html')"));
+});
+
+
+test("account, employee login and installed PWA open the unified checklist route", () => {
+  assert.equal(manifest.start_url, "./prototype/checklist/");
+  assert.match(account, /href="\.\/prototype\/checklist\//);
+  assert.match(employeeLogin, /href="\.\/prototype\/checklist\//);
+  assert.match(employeeLogin, /location\.replace\("\.\/prototype\/checklist\/"\)/);
+});
+
+test("standalone cloud restore uses its own auth context and hydrates local state before applying remote data", () => {
+  assert.doesNotMatch(runtime, /window\.parent/);
+  assert.match(runtime, /const parentWindow=window;/);
+  assert.match(runtime, /await startApp\(false\)[\s\S]*__TMH_GET_CLOUD_BACKUP_CONTEXT[\s\S]*button\.click\(\)/);
+  assert.match(runtime, /window\.__TMH_SAVE_CLOUD_BACKUP_CONTEXT\(getContext\(\)\)/);
 });
 
 test("the runtime and extracted risk registry are syntactically valid JavaScript modules", () => {
