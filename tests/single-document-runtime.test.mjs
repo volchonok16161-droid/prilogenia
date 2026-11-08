@@ -54,7 +54,7 @@ test("all runtime templates are standalone documents without iframe elements", (
     assert.equal((template.match(/<iframe\b/gi) || []).length, 0);
     assert.ok(template.includes("<body"), "template has a body");
     assert.ok(template.includes("</html>"), "template closes its document");
-    const executableTemplate = template.replace(/^export default /, "return ");
+    const executableTemplate = template.replace(/export default\\s+/, "return ");
     assert.doesNotThrow(() => new Function(executableTemplate));
   }
 });
