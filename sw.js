@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v83';
+const CACHE_VERSION = 'checklist-cache-v84';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -43,6 +43,24 @@ const APP_SHELL = [
   './icon-maskable-192.png',
   './icon-maskable-512.png',
   './img/manufacturer_pcp.jpg',
+  './examples/e_11hwbr_ok_mvurndpt.jpg',
+  './examples/e_1f6kjuh_ok_mw3cskr3.jpg',
+  './examples/e_34genw_nok_mw3ctx4g.jpg',
+  './examples/e_34genw_ok_mw3cweof.jpg',
+  './examples/e_4f4g6q_ok_mw3c1xep.jpg',
+  './examples/e_60lj59_ok_mw3bue26.jpg',
+  './examples/e_8xwyuc_ok_mw3bvqck.jpg',
+  './examples/e_97wkjb_ok_mw3cr629.jpg',
+  './examples/e_9hw68a_ok_mw3cnf1c.jpg',
+  './examples/e_bt562a_ok_mw3cyrza.jpg',
+  './examples/e_ccb29u_nok_mw3c5tbl.jpg',
+  './examples/e_mv5ci4_nok_mw3cke16.jpg',
+  './examples/e_mv5ci4_ok_mw3cfvu3.jpg',
+  './examples/e_nf4jw2_ok_mw3c8x03.jpg',
+  './examples/e_wiqyko_ok_mw3caqgz.jpg',
+  './examples/e_xcprnl_nok_mw3d1zxm.jpg',
+  './examples/e_y6okqi_nok_mw3catkd.jpg',
+  './examples/e_ygo6fh_nok_mw3ccza2.jpg',
   './img/manufacturer_nika.jpg'
 ];
 
