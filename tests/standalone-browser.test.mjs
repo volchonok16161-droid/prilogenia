@@ -86,6 +86,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
         cloudBackup: !!document.getElementById("tmhCloudBackupBtn"),
         cloudRestore: !!document.getElementById("tmhCloudRestoreBtn"),
         patches: ids.filter((id) => !!document.getElementById(id)),
+        patchParentRefs: ids.filter((id) => (document.getElementById(id)?.textContent || "").includes("window.parent")),
         hasCloudContext: typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT === "function",
         runtimeErrors: window.__standaloneTestErrors,
         inlineScripts: Array.from(document.scripts).flatMap((script, index) => {
@@ -101,6 +102,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       assert.equal(state.cloudBackup, true);
       assert.equal(state.cloudRestore, true);
       assert.deepEqual(state.patches, PATCH_IDS);
+      assert.deepEqual(state.patchParentRefs, []);
       assert.equal(state.hasCloudContext, true);
       state.inlineSyntaxErrors = state.inlineScripts.flatMap((script) => {
         try { parse(script.code, { ecmaVersion: "latest", sourceType: "script" }); return []; }
