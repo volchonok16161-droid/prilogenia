@@ -217,7 +217,8 @@ export function createOfflineSyncRunner({
           const activePaths = new Set(activeManifest.map((entry) => entry?.path).filter(Boolean));
           const staleManifest = (job.manifest || []).filter((entry) => entry?.path && !activePaths.has(entry.path));
           if (staleManifest.length) await mapOperation.removePhotoManifest(staleManifest);
-          await database.completePhotoCleanup(job.cleanupId, uid, cleanupClaim);
+          const completed = await database.completePhotoCleanup(job.cleanupId, uid, cleanupClaim);
+          if (!completed) throw new Error("Photo cleanup lease expired before acknowledgement");
           cleanupProcessed += 1;
         } catch (error) {
           cleanupFailed += 1;
