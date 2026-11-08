@@ -158,6 +158,7 @@ test("photo cleanup survives a failure and retries without resending the checkli
   let cloudState = { revision: 1, photoManifest: oldManifest };
   let updateCalls = 0;
   let removeCalls = 0;
+  let refuseCleanupCompletion = false;
   const database = {
     async listPending(uid) { return queue.filter(row => row.userId === uid && row.status === "pending").map(row => ({ ...row })); },
     async claimQueueOperation(id, uid, claim, _now, until) {
@@ -192,6 +193,7 @@ test("photo cleanup survives a failure and retries without resending the checkli
       Object.assign(job, changes); return true;
     },
     async completePhotoCleanup(id, uid, claim) {
+      if (refuseCleanupCompletion) return false;
       const index = jobs.findIndex(x => x.cleanupId === id && x.userId === uid && x.leaseClaimId === claim);
       if (index < 0) return false;
       jobs.splice(index, 1); return true;
@@ -221,10 +223,20 @@ test("photo cleanup survives a failure and retries without resending the checkli
   assert.equal(first.cleanupRemaining, 1);
   assert.equal(queue.length, 0);
   assert.equal(jobs.length, 1);
+  refuseCleanupCompletion = true;
   const second = await runner.syncPending({ userId: UID });
   assert.equal(second.synced, 0);
-  assert.equal(second.cleanupProcessed, 1);
-  assert.equal(second.cleanupRemaining, 0);
+  assert.equal(second.cleanupProcessed, 0);
+  assert.equal(second.cleanupFailed, 1);
+  assert.equal(second.cleanupRemaining, 1);
   assert.equal(updateCalls, 1);
   assert.equal(removeCalls, 2);
+
+  refuseCleanupCompletion = false;
+  const third = await runner.syncPending({ userId: UID });
+  assert.equal(third.synced, 0);
+  assert.equal(third.cleanupProcessed, 1);
+  assert.equal(third.cleanupRemaining, 0);
+  assert.equal(updateCalls, 1);
+  assert.equal(removeCalls, 3);
 });
