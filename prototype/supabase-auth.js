@@ -645,6 +645,7 @@ async function signOut() {
 
 const api = Object.freeze({
   get client() { return client; },
+  getClient() { return getSupabaseClient(); },
   offlineVault,
   setupOfflinePin,
   unlockOffline,
