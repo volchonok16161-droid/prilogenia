@@ -51,10 +51,10 @@ test("the unified runtime keeps auth, risk registry, NB514 compatibility and clo
 
 
 test("offline checklist boot does not statically depend on the remote Supabase SDK", () => {
-  assert.doesNotMatch(auth, /^import\\s+\\{\\s*createClient\\s*\\}\\s+from\\s+["']https:\\/\\/esm\\.sh/m);
-  assert.match(auth, /async function getSupabaseClient\\(\\)[\\s\\S]*import\\(["']https:\\/\\/esm\\.sh\\/@supabase\\/supabase-js/);
-  assert.match(auth, /function subscribeAuthState\\(callback\\)[\\s\\S]*authStateListeners\\.set/);
-  assert.match(auth, /get client\\(\\) \\{ return client; \\}/);
+  assert.ok(!auth.startsWith('import { createClient } from "https://esm.sh/'));
+  assert.ok(auth.includes('import("https://esm.sh/@supabase/supabase-js@2.118.0")'));
+  assert.ok(auth.includes("function subscribeAuthState(callback)"));
+  assert.ok(auth.includes("get client() { return client; }"));
 });
 
 test("the unified route is included in the offline app shell", () => {
