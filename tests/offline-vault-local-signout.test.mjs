@@ -6,7 +6,7 @@ const auth = await readFile(new URL("../prototype/supabase-auth.js", import.meta
 
 test("offline sign-out clears only the local PIN identity and vault without network", () => {
   assert.match(auth, /if \(activeOfflineIdentity\) \{[\s\S]*?activeOfflineVault = null;[\s\S]*?activeOfflineUserId = null;[\s\S]*?return \{ error: null, offline: true \};/);
-  assert.match(auth, /const \{ error \} = await client\.auth\.signOut\(\)/);
+  assert.match(auth, /const supabase = await getSupabaseClient\(\);[\s\S]*?const \{ error \} = await supabase\.auth\.signOut\(\)/);
 });
 
 test("explicit logout blocks cached device-key identity recovery until fresh sign-in or PIN unlock", () => {
