@@ -99,7 +99,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
         cloudBackup: !!document.getElementById("tmhCloudBackupBtn"),
         cloudRestore: !!document.getElementById("tmhCloudRestoreBtn"),
         footerMain: Array.from(document.querySelector(".tmh-footer-main")?.children || []).map((element) => element.id || element.className),
-        headerTheme: !!document.querySelector("#tmhUnifiedModeSwitch #themeSwitch"),
+        headerTheme: !!document.querySelector(".topbar > #themeSwitch"),
         headerAccountControls: ["tmh-account-link", "logout-btn"].every((name) => !!document.querySelector("#userInfo ." + name)),
         headerRows: !!document.querySelector(".topbar #tmhUnifiedModeSwitch") && !!document.querySelector(".topbar #userInfo"),
         headerRoute: !!document.querySelector(".topbar > #btnRouteView"),
