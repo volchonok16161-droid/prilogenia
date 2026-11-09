@@ -212,6 +212,56 @@ test("service worker reopens the standalone checklist after network loss", { tim
   }
 });
 
+test("mobile footer keeps primary actions and the unfilled search usable at 360-430px", async () => {
+  const page = await browser.newPage({ viewport: { width: 360, height: 800 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  await page.route("https://esm.sh/**", (route) => route.abort());
+  await page.route("https://fecigiwjtbtabnsfsdym.supabase.co/**", (route) =>
+    route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ message: "No user", code: "invalid_token" }) })
+  );
+  try {
+    await page.goto(origin + "/prototype/checklist/?mode=complex", { waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.waitForSelector(".tmh-footer-main #tmhCloudBackupBtn", { state: "attached", timeout: 45000 });
+    await page.waitForSelector(".tmh-footer-main #actPrintBtnV5", { state: "attached", timeout: 15000 });
+    await page.waitForSelector(".tmh-footer-unfilled #btnFindUnfilled", { state: "attached", timeout: 15000 });
+    for (const width of [360, 390, 430]) {
+      await page.setViewportSize({ width, height: 800 });
+      const layout = await page.evaluate(() => {
+        const footer = document.querySelector(".footbar");
+        const main = document.querySelector(".tmh-footer-main");
+        const primary = ["tmhCloudBackupBtn", "actPrintBtnV5"];
+        const boxes = primary.map((id) => {
+          const rect = document.getElementById(id).getBoundingClientRect();
+          return { id, width: rect.width, height: rect.height, right: rect.right };
+        });
+        const find = document.getElementById("btnFindUnfilled").getBoundingClientRect();
+        return {
+          viewport: document.documentElement.clientWidth,
+          document: document.documentElement.scrollWidth,
+          footerWidth: footer.getBoundingClientRect().width,
+          mainColumns: getComputedStyle(main).gridTemplateColumns.split(" ").length,
+          boxes,
+          findWidth: find.width,
+          findHeight: find.height,
+          findRight: find.right
+        };
+      });
+      assert.equal(layout.document, layout.viewport, "footer must not create horizontal overflow at " + width + "px: " + JSON.stringify(layout));
+      assert.equal(layout.mainColumns, 3, JSON.stringify(layout));
+      assert.ok(layout.boxes.every((box) => box.width >= 80 && box.height >= 44 && box.right <= width), JSON.stringify(layout));
+      assert.ok(layout.findWidth >= width - 24 && layout.findHeight >= 44 && layout.findRight <= width, JSON.stringify(layout));
+    }
+    await page.locator(".tmh-footer-more > summary").click();
+    for (const id of ["btnSave", "btnSaveHtml", "btnExportJson", "btnImportJson", "btnReset", "tmhCloudRestoreBtn"]) {
+      await page.waitForFunction((target) => {
+        const element = document.getElementById(target);
+        return !!element && !!element.closest(".tmh-footer-more-grid");
+      }, id);
+    }
+  } finally {
+    await page.close();
+  }
+});
+
 test("mobile checklist header and form fit a narrow phone viewport", async () => {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
   await page.route("https://esm.sh/**", (route) => route.abort());
