@@ -205,7 +205,8 @@ function __tmhAttachFooterLayout(source){
     '@media(max-width:380px){.tmh-footer-main{gap:5px;}.tmh-footer-main>.btn,.tmh-footer-more>summary{font-size:10.5px;padding:6px 3px;}.tmh-footer-more-grid{grid-template-columns:1fr 1fr;}}'+
     '@media(min-width:641px){.tmh-footer-main>.btn,.tmh-footer-more>summary{min-height:44px;font-size:12.5px;}}'+
     '</style>';
-  if(source.indexOf('</head>')!==-1)source=source.replace('</head>',style+'</head>');
+  const headCloseIndex=source.lastIndexOf("</head>");
+  if(headCloseIndex!==-1)source=source.slice(0,headCloseIndex)+style+"</head>"+source.slice(headCloseIndex+"</head>".length);
   const script='<script id="tmhFooterLayoutScript">(function(){'+
     'var footer=document.querySelector(".footbar");if(!footer)return;'+
     'var main=document.createElement("div");main.className="tmh-footer-main";main.setAttribute("aria-label","Основные действия");'+
@@ -227,7 +228,8 @@ function __tmhAttachFooterLayout(source){
     'mount();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount,{once:true});'+
     'setTimeout(function(){mount();},1200);'+
   '})();<\/script>';
-  if(source.indexOf('</body>')!==-1)source=source.replace('</body>',script+'</body>');
+  const bodyCloseIndex=source.lastIndexOf("</body>");
+  if(bodyCloseIndex!==-1)source=source.slice(0,bodyCloseIndex)+script+"</body>"+source.slice(bodyCloseIndex+"</body>".length);
   return source;
 }
 
