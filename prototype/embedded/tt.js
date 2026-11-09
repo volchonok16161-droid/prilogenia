@@ -2484,6 +2484,9 @@ function fullClearState() { __psClear();
             dateInput.addEventListener('input', () => { STATE.general.date = dateInput.value;
                 saveState(true);
                 updateStats(); });
+            dateInput.addEventListener('change', () => { STATE.general.date = dateInput.value;
+                saveState(true);
+                updateStats(); });
             dateWrap.appendChild(dateInput);
             grid.appendChild(dateWrap);
 
