@@ -98,6 +98,7 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /Сохранить в облако/);
   assert.match(runtime, /Акт на подпись/);
   assert.match(runtime, /Ещё действия/);
+  assert.ok(runtime.includes("})();<\\\\/script>"), "footer layout script closes its injected script element");
   assert.match(runtime, /id="tmhCloudBackupBtn"/);
   assert.match(runtime, /id="tmhCloudRestoreBtn"/);
   assert.match(runtime, /source\\.replace\\(footbar,footbar\\+/);
