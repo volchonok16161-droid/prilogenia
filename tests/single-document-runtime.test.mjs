@@ -73,7 +73,7 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /id="tmhRiskOpenBtn"/);
   assert.match(runtime, /id="riskOverlay"/);
   assert.match(runtime, /checklist-risk-viewer\\.js/);
-  assert.doesNotMatch(runtime, /href="\\/zona_riska\\.xlsx" download=/);
+  assert.doesNotMatch(runtime, /href="\/zona_riska\.xlsx" download=/);
   assert.match(riskViewer, /window.__TMH_ACTIVE_MODE__/);
   assert.match(riskViewer, /__TMH_GET_CLOUD_BACKUP_CONTEXT/);
   assert.doesNotMatch(riskViewer, /embeddedFrame/);
