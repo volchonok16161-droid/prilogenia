@@ -109,6 +109,21 @@ test("generated mode-switch script parses before the button can be used", () => 
   assert.match(body, /catch\(error\)/);
 });
 
+test("compact toolbar mover script parses and keeps all controls in one strip", () => {
+  const start = runtime.indexOf("const compactStripScript = ");
+  assert.ok(start >= 0, "compact toolbar script is injected");
+  const expressionStart = start + "const compactStripScript = ".length;
+  const expressionEnd = runtime.indexOf(";\\n  const compactStripClose", expressionStart);
+  assert.ok(expressionEnd > expressionStart, "compact toolbar script expression is complete");
+  const expression = runtime.slice(expressionStart, expressionEnd);
+  const markup = new Function("mode", "return " + expression)("complex");
+  const body = markup.slice(markup.indexOf(">") + 1, markup.lastIndexOf("<"));
+  assert.doesNotThrow(() => new Function(body), "compact toolbar mover must be valid JavaScript");
+  assert.match(body, /insertBefore\\(theme,risk\\|\\|null\\)/);
+  assert.match(body, /insertBefore\\(route,risk\\|\\|null\\)/);
+  assert.match(body, /MutationObserver/);
+});
+
 test("Service Worker parses as valid JavaScript before registration", () => {
   assert.doesNotThrow(() => new Function(sw));
   assert.match(sw, /\.catch\(async \(\) => \{/);
