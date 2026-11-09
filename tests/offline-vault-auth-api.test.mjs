@@ -4,78 +4,47 @@ import { readFile } from "node:fs/promises";
 
 const auth = await readFile(new URL("../prototype/supabase-auth.js", import.meta.url), "utf8");
 
-test("PIN enrollment rechecks live Supabase identity and server profile", () => {
-  assert.match(auth, /async function setupOfflinePin\(pin\)/);
-  assert.match(auth, /const identity = await getCurrentIdentity\(\)/);
-  assert.match(auth, /identity\?\.user \|\| !identity\?\.profile \|\| identity\.error/);
-  assert.match(auth, /setupAfterVerifiedOnlineLogin\(identity, pin\)/);
+test("Email and password remain the only interactive Supabase sign-in", () => {
+  assert.match(auth, /async function signIn\(email, password\)/);
+  assert.match(auth, /supabase\.auth\.signInWithPassword\(/);
+  assert.match(auth, /email: normalizedEmail/);
+  assert.match(auth, /password: String\(password\)/);
+  assert.doesNotMatch(auth, /setupOfflinePin|unlockOffline|hasOfflineSetup/);
 });
 
-test("offline unlock API remains separate from Supabase sign-in", () => {
-  assert.match(auth, /async function unlockOffline\(userId, pin\)/);
-  assert.match(auth, /offlineVault\.session\.unlockOffline\(userId, pin\)/);
-  assert.match(auth, /  setupOfflinePin,/);
-  assert.match(auth, /  unlockOffline,/);
-  assert.match(auth, /  hasOfflineSetup,/);
-});
-
-test("cloud sync is opt-in and existing local snapshots are not queued automatically", () => {
-  assert.match(auth, /offline:cloud-sync-enabled:/);
-  assert.match(auth, /cloudEnabled !== true/);
-  assert.match(auth, /database\.putRecord\(/);
-  assert.match(auth, /queued: false, status: "local-only"/);
-  assert.match(auth, /async function enableOfflineCloudSync\(\)/);
-  assert.match(auth, /await getCurrentIdentity\(\)/);
-  assert.match(auth, /enableOfflineCloudSync,/);
-});
-
-test("PIN unlock does not wait indefinitely for the online session probe", () => {
-  assert.match(auth, /async function getCurrentIdentityForOfflineUnlock\(timeoutMs = 1800\)/);
-  assert.match(auth, /Promise\.race\(\[/);
-  assert.match(auth, /timer = setTimeout\(/);
-  assert.match(auth, /finally \{[\s\S]*?clearTimeout\(timer\)/);
-  assert.match(auth, /const candidate = await getCurrentIdentityForOfflineUnlock\(\)/);
-  assert.match(auth, /before any upload/);
-});
-
-
-
-test("device vault enrollment verifies the encrypted identity before marking the vault active", () => {
+test("device vault enrollment requires a verified online identity and profile", () => {
   const start = auth.indexOf("async function activateDeviceVault(identity)");
   const end = auth.indexOf("\nasync function resolveLoginEmail", start);
   const body = auth.slice(start, end);
   assert.ok(start >= 0 && end > start);
-  assert.match(body, /setMeta\("offline:identity:" \+ setup\.userId, encryptedIdentity\)/);
-  assert.match(body, /getMeta\("offline:identity:" \+ setup\.userId\)/);
+  assert.match(body, /setupDeviceKeyAfterVerifiedOnlineLogin\(identity\)/);
   assert.match(body, /session\.unlockDeviceKey\(setup\.userId\)/);
+  assert.match(body, /verifiedIdentity/);
   assert.ok(body.indexOf("verifiedIdentity") < body.indexOf("activeOfflineVault ="));
-  assert.doesNotMatch(body, /if \(activeOfflineVault && activeOfflineUserId/);
 });
 
-
-test("encrypted local checklist snapshot is committed before cloud queue work", () => {
-  const start = auth.indexOf("async function saveOfflineChecklist(id, snapshot)");
-  const end = auth.indexOf("\nasync function migrateLegacyChecklist", start);
-  const body = auth.slice(start, end);
-  assert.ok(start >= 0 && end > start);
-  const localWrite = body.indexOf("database.putRecord(");
-  const cloudQueue = body.indexOf("store.saveChecklist(");
-  assert.ok(localWrite >= 0 && cloudQueue > localWrite);
-  assert.match(body, /catch \(syncError\)/);
-  assert.match(body, /syncDeferred: true/);
-  assert.match(body, /saved: true, encrypted: true, queued: false/);
+test("cloud sync rechecks online identity and local checklist data is committed before queue work", () => {
+  assert.match(auth, /offline:cloud-sync-enabled:/);
+  assert.match(auth, /database\.putRecord\(/);
+  assert.match(auth, /store\.saveChecklist\(/);
+  assert.match(auth, /catch \(syncError\)/);
+  assert.match(auth, /syncDeferred: true/);
+  assert.match(auth, /async function enableOfflineCloudSync\(\)/);
+  assert.match(auth, /await getCurrentIdentity\(\)/);
 });
 
-
-test("cached device login follows the app's active connection probe state", () => {
+test("cached device identity is recovered only for network failures and explicit logout blocks it", () => {
+  assert.match(auth, /async function getCachedOfflineIdentity\(cause\)/);
+  assert.match(auth, /if \(offlineLogoutRequested\) return null/);
+  assert.match(auth, /session\.unlockDeviceKey\(userId\)/);
+  assert.match(auth, /offline:identity:/);
   assert.match(auth, /globalThis\.__TMH_CONNECTION_MODE === "offline"/);
   assert.match(auth, /parent\?\.__TMH_CONNECTION_MODE === "offline"/);
-  assert.match(auth, /failed to load\|load failed/i);
 });
 
-test("network exceptions from Supabase sign-in are returned for offline fallback", () => {
+test("network exceptions from Supabase sign-in are returned for the app's offline recovery path", () => {
   const start = auth.indexOf("async function signIn(email, password)");
-  const end = auth.indexOf("\nasync function setupOfflinePin", start);
+  const end = auth.indexOf("\nasync function getCachedOfflineIdentity", start);
   const body = auth.slice(start, end);
   assert.match(body, /catch \(authError\)/);
   assert.match(body, /error = authError/);
