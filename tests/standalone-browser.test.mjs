@@ -276,7 +276,9 @@ test("mobile checklist header and form fit a narrow phone viewport", async () =>
     await page.waitForSelector("#modeSelectModal", { state: "attached" });
     const layout = await page.evaluate(() => {
       const select = document.querySelector("#modePickerBtn");
-      const input = document.querySelector(".field input, .field select");
+      const loginModal = document.querySelector("#loginModal");
+      if (loginModal) loginModal.style.display = "flex";
+      const input = document.querySelector("#loginModal .field input, #loginModal .field select");
       const header = document.querySelector(".topbar");
       return {
         viewport: document.documentElement.clientWidth,
