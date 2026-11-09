@@ -94,9 +94,11 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /tmh-footer-main/);
   assert.match(runtime, /tmh-footer-unfilled/);
   assert.match(runtime, /tmh-footer-more/);
+  assert.match(runtime, /summary::after/);
+  assert.match(runtime, /transform:rotate\(180deg\)/);
   assert.match(runtime, /Сохранить в облако/);
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /Акт на подпись/);
-  assert.match(runtime, /ЕЩЁ ДЕЙСТВИЯ/);
+  assert.match(runtime, /Ещё действия/);
   assert.ok(runtime.includes("})();<" + String.fromCharCode(92) + "/script>"), "footer layout script closes its injected script element");
   assert.match(runtime, /id="tmhCloudBackupBtn"/);
   assert.match(runtime, /id="tmhCloudRestoreBtn"/);
@@ -165,16 +167,15 @@ test("responsive footer injector produces valid HTML and executable JavaScript",
   assert.match(script, /if\(backup&&act&&excel&&find\)/);
 });
 
-test("three-row header layout keeps account actions separate and adjacent", () => {
+test("compact header keeps brand, controls and account actions in the existing user row", () => {
   assert.ok(runtime.includes("function __tmhAttachHeaderLayout(source)"));
   assert.ok(runtime.includes("source = __tmhAttachHeaderLayout(source)"));
-  assert.match(runtime, /#tmhAccountActions \.tmh-account-link,#tmhAccountActions \.logout-btn/);
-  assert.match(runtime, /top\.appendChild\(actions\)/);
-  assert.match(runtime, /actions\.appendChild\(account\)/);
-  assert.match(runtime, /actions\.appendChild\(logout\)/);
-  assert.match(runtime, /grid-row:1/);
-  assert.match(runtime, /grid-row:2/);
-  assert.match(runtime, /grid-row:3/);
+  assert.match(runtime, /\.topbar\.brand/);
+  assert.match(runtime, /#tmhUnifiedModeSwitch\{display:flex!important;grid-column:1\/-1;grid-row:2/);
+  assert.match(runtime, /\.topbar>\.user-info/);
+  assert.doesNotMatch(runtime, /tmhAccountActions/);
+  assert.match(runtime, /grid-template-rows:auto auto/);
+  assert.match(runtime, /@media\(max-width:640px\)/);
 });
 
 test("generated mode-switch script parses before the button can be used", () => {
