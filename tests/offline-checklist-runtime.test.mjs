@@ -21,7 +21,7 @@ test("runtime requires a verified account UUID and unlocked encrypted vault", ()
   assert.match(source, /vault: unlockedVault/);
 });
 
-test("sync start checks server profile and never starts from a local PIN alone", () => {
+test("sync start checks server profile and never starts from a local device identity alone", () => {
   assert.match(source, /authApi\.getCurrentIdentity\(\)/);
   assert.match(source, /identity\?\.profile\?\.id !== identity\?\.user\?\.id/);
   assert.match(source, /Online sign-in and an enabled employee profile are required/);
