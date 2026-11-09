@@ -74,6 +74,8 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.doesNotMatch(runtime, /tmhUnifiedModeSelect/);
   assert.match(runtime, /grid-template-rows:auto auto auto auto auto/);
   assert.match(runtime, /Ещё действия/);
+  assert.match(runtime, /tmhCloudRestoreBtn","btnReset/);
+  assert.doesNotMatch(runtime, /"btnReset","themeSwitch"/);
   assert.doesNotMatch(runtime, /tmhActSignBtn|Формирование акта на подпись пока не подключено/);
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /actPrintBtnV5/);
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /function makeAct\(\)/);
