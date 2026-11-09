@@ -14,7 +14,7 @@ test("device keys are non-extractable AES-GCM keys", async () => {
   assert.equal(key.type, "secret");
   assert.equal(key.algorithm.name, "AES-GCM");
   assert.equal(key.extractable, false);
-  assert.deepEqual(key.usages, ["encrypt", "decrypt"]);
+  assert.deepEqual([...key.usages].sort(), ["decrypt", "encrypt"]);
 });
 
 test("device key encrypts and decrypts JSON and binary data", async () => {
