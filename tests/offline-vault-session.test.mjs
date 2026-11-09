@@ -59,7 +59,9 @@ test("another account and another device cannot open this account's local data",
   const first = makeSession(database);
   const setup = await first.setupDeviceKeyAfterVerifiedOnlineLogin(identity);
   await assert.rejects(first.unlockDeviceKey(OTHER_USER), /not configured/);
-  const secondDevice = makeSession(database, DEVICE_B);
+  const secondDatabase = makeDatabase();
+  await secondDatabase.setMeta("offline:device-key:" + USER, database.values.get("offline:device-key:" + USER));
+  const secondDevice = makeSession(secondDatabase, DEVICE_B);
   const other = await secondDevice.unlockDeviceKey(USER);
   const encrypted = await setup.vault.encrypt({ private: true });
   await assert.rejects(other.vault.decrypt(encrypted));
