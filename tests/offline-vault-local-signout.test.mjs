@@ -13,6 +13,9 @@ test("explicit logout blocks automatic device-key recovery until fresh online si
   assert.match(auth, /let offlineLogoutRequested = false;/);
   assert.match(auth, /async function signOut\(\) \{\s*offlineLogoutRequested = true;/);
   assert.match(auth, /if \(offlineLogoutRequested\) return null/);
+  assert.match(auth, /offline:logout-requested", true/);
+  assert.match(auth, /tmh-offline-logout-requested/);
+  assert.match(auth, /client\.auth\.signOut\(\{ scope: "local" \}\)/);
   assert.match(auth, /async function signIn\(email, password\)/);
   assert.match(auth, /offline:logout-requested", false/);
   assert.match(auth, /offline:logout-requested", true/);
