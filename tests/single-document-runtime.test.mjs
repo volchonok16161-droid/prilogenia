@@ -69,6 +69,9 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /modal\.style\.display="flex"/);
   assert.match(runtime, /Зона риска/);
   assert.match(runtime, /Инструкция/);
+  assert.match(runtime, /href="\\/zona_riska\\.xlsx" download="zona_riska\\.xlsx"/);
+  assert.match(runtime, /href="\\/instruction\\.html"/);
+  assert.ok(runtime.includes("'})();<\\/script>'"), "injected route script closes with a real script tag");
   assert.match(runtime, /tmh-account-link/);
   assert.match(runtime, /#tmhUnifiedModeSwitch\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
   assert.doesNotMatch(runtime, /tmhUnifiedModeSelect/);
