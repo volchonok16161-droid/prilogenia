@@ -220,7 +220,7 @@ function injectUnifiedChrome(source, mode) {
   }).join("");
   const chrome = '<div id="tmhUnifiedModeSwitch" aria-label="Управление приложением">' +
     '<button class="tmh-head-action primary" id="modePickerBtn" type="button"><span aria-hidden="true">⇄</span><span id="modePickerLabel">Сменить чек-лист</span></button>' +
-    '<a class="tmh-head-action" href="/zona_riska.xlsx" target="_blank" rel="noopener">📍 Зона риска</a>' +
+    '<a class="tmh-head-action" href="/zona_riska.xlsx" download="zona_riska.xlsx">📍 Зона риска</a>' +
     '<a class="tmh-head-action" href="/instruction.html">📖 Инструкция</a></div>';
   const style = `<style id="tmhUnifiedRuntimeStyles">
 #tmhUnifiedModeSwitch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:8px;flex:1 1 520px;min-width:0;max-width:760px;margin:0 0 0 auto}
@@ -325,7 +325,7 @@ function injectUnifiedChrome(source, mode) {
     'var restoreButton=document.getElementById("tmhCloudRestoreBtn");if(!restoreButton)throw new Error("Кнопка восстановления облачной копии недоступна");restoreButton.click();',
     '}catch(error){console.error("Cloud restore preparation failed",error);if(typeof showToast==="function")showToast(error&&error.message||"Не удалось подготовить локальную копию");}return true;}',
     'return await original.apply(this,arguments);};}}',
-    '})();<\\/script>'
+    '})();<\/script>'
   ].join("\n");
   const routeBodyCloseIndex = source.lastIndexOf("</body>");
   if (routeBodyCloseIndex >= 0) {
