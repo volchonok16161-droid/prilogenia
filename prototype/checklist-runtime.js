@@ -205,8 +205,8 @@ function __tmhAttachFooterLayout(source){
     '.tmh-footer-main>.btn,.tmh-footer-more>summary{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;min-width:0;min-height:46px;margin:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--ink);font:600 13px/1.25 var(--sans,system-ui);text-align:center;white-space:normal;overflow-wrap:anywhere;cursor:pointer;}'+
     '.tmh-footer-main>#tmhCloudBackupBtn{background:var(--amber);border-color:var(--amber);color:#fff;}'+
     '.tmh-footer-main>#actPrintBtnV5{background:var(--ok);border-color:var(--ok);color:#fff;}'+
-    '.tmh-footer-more{position:relative;min-width:0;}'+
-    '.tmh-footer-more>summary{list-style:none;user-select:none;}'+
+    '.tmh-footer-more{position:relative;min-width:0;width:100%;max-width:1040px;margin:0 auto;}'+
+    '.tmh-footer-more>summary{list-style:none;user-select:none;justify-content:flex-start;text-align:left;font-size:12px;letter-spacing:.06em;}'+
     '.tmh-footer-more>summary::-webkit-details-marker{display:none;}'+
     '.tmh-footer-more[open]>summary{border-color:var(--amber);color:var(--amber);}'+
     '.tmh-footer-more-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;width:100%;padding:10px;margin-top:7px;border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:0 5px 18px #0a2a4d18;}'+
@@ -225,19 +225,19 @@ function __tmhAttachFooterLayout(source){
     'var main=document.createElement("div");main.className="tmh-footer-main";main.setAttribute("aria-label","Основные действия");'+
     'var unfilled=document.createElement("div");unfilled.className="tmh-footer-unfilled";'+
     'var details=document.createElement("details");details.className="tmh-footer-more";'+
-    'var summary=document.createElement("summary");summary.textContent="⋯ Ещё действия";'+
+    'var summary=document.createElement("summary");summary.textContent="ЕЩЁ ДЕЙСТВИЯ";'+
     'var more=document.createElement("div");more.className="tmh-footer-more-grid";'+
-    'details.appendChild(summary);details.appendChild(more);main.appendChild(details);footer.appendChild(main);'+
+    'details.appendChild(summary);details.appendChild(more);footer.appendChild(main);footer.appendChild(details);'+
     'function move(id,target){var el=document.getElementById(id);if(el&&el.parentNode!==target)target.appendChild(el);return el;}'+
     'function mount(){'+
       'var backup=move("tmhCloudBackupBtn",main),act=move("actPrintBtnV5",main),excel=move("btnExport",main)||move("btnExportWithPhotos",main),find=move("btnFindUnfilled",main);'+
-      'if(backup){backup.classList.add("primary");backup.textContent="☁ Облако";backup.setAttribute("aria-label","Сохранить в облако");backup.title="Сохранить в облако";}'+
-      'if(act){act.textContent="✍ Акт";act.setAttribute("aria-label","Акт на подпись");act.title="Акт на подпись";}'+
-      'if(excel){excel.textContent="▦ Excel";excel.setAttribute("aria-label","Экспорт в Excel");excel.title="Экспорт в Excel";}'+
-      'if(find){find.textContent="⌕ Незаполнено";find.setAttribute("aria-label","Найти незаполненное");find.title="Найти незаполненное";}'+
+      'if(backup){backup.classList.add("primary");backup.textContent="☁ Сохранить в облако";backup.setAttribute("aria-label","Сохранить в облако");backup.title="Сохранить в облако";}'+
+      'if(act){act.textContent="✍ Акт на подпись";act.setAttribute("aria-label","Акт на подпись");act.title="Акт на подпись";}'+
+      'if(excel){excel.textContent="▦ Экспорт в Excel";excel.setAttribute("aria-label","Экспорт в Excel");excel.title="Экспорт в Excel";}'+
+      'if(find){find.textContent="⌕ Найти незаполненное";find.setAttribute("aria-label","Найти незаполненное");find.title="Найти незаполненное";}'+
       '["btnSave","btnSaveHtml","btnExportJson","btnImportJson","jsonFileInput","btnPrint","btnReset","tmhCloudRestoreBtn"].forEach(function(id){move(id,more);});'+
       'Array.prototype.slice.call(footer.children).forEach(function(el){if(el!==main&&el!==details&&(el.tagName==="BUTTON"||el.tagName==="INPUT"))more.appendChild(el);});'+
-      'if(backup&&act&&excel&&find){main.appendChild(backup);main.appendChild(act);main.appendChild(excel);main.appendChild(find);main.appendChild(details);}'+
+      'if(backup&&act&&excel&&find){[backup,act,excel,find].forEach(function(el,index){var current=main.children[index]||null;if(current!==el)main.insertBefore(el,current);});if(details.parentNode!==footer)footer.appendChild(details);if(main.nextElementSibling!==details)footer.insertBefore(details,main.nextSibling);}'+
       'return !!(backup&&act&&excel&&find);'+
     '}' +
     'if(!mount()){var observer=new MutationObserver(function(){if(mount())observer.disconnect();});observer.observe(footer,{childList:true,subtree:true});setTimeout(function(){observer.disconnect();},2000);}'+
