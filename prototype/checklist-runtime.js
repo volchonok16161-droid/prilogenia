@@ -449,7 +449,7 @@ async function main() {
   // resolution in the generated checklist document before inserting scripts.
   if (!/<base\b/i.test(source)) {
     const headClose = __tmhFindDocumentHeadClose(source);
-    if (headClose >= 0) source = source.slice(0, headClose) + '<base href="/">\\n' + source.slice(headClose);
+    if (headClose >= 0) source = source.slice(0, headClose) + '<base href="/">\n' + source.slice(headClose);
   }
   if (mode === "complex" || mode === "housings" || /^k_/.test(String(mode))) {
     window.__EMBEDDED_MODE__ = mode;
