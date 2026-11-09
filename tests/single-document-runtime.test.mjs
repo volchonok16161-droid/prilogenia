@@ -91,14 +91,14 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /#tmhUnifiedModeSwitch #btnRouteView/);
   assert.doesNotMatch(runtime, /tmhUnifiedModeSelect/);
   assert.match(runtime, /grid-template-rows:auto auto auto auto/);
-  assert.match(runtime, /__tmhAttachFooterLayout\\(source\\)/, "standalone runtime mounts the unified footer layout");
+  assert.ok(runtime.includes("__tmhAttachFooterLayout(source)"), "standalone runtime mounts the unified footer layout");
   assert.match(runtime, /tmh-footer-main/);
   assert.match(runtime, /tmh-footer-unfilled/);
   assert.match(runtime, /tmh-footer-more/);
   assert.match(runtime, /Сохранить в облако/);
   assert.match(runtime, /Акт на подпись/);
   assert.match(runtime, /Ещё действия/);
-  assert.ok(runtime.includes("})();<\\\\/script>"), "footer layout script closes its injected script element");
+  assert.ok(runtime.includes("})();<" + String.fromCharCode(92) + "/script>"), "footer layout script closes its injected script element");
   assert.match(runtime, /id="tmhCloudBackupBtn"/);
   assert.match(runtime, /id="tmhCloudRestoreBtn"/);
   assert.match(runtime, /source\\.replace\\(footbar,footbar\\+/);
