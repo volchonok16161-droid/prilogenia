@@ -240,10 +240,12 @@ function injectUnifiedChrome(source, mode) {
 .frow select,.frow input[type=text]{min-height:46px;font-size:16px}
 .equip>.eh{padding:10px 12px}.inst{padding:9px}.inst .ih{gap:7px}
 .footbar{position:fixed;left:0;right:0;bottom:0;z-index:45;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;padding:9px 10px calc(9px + env(safe-area-inset-bottom));background:var(--panel);box-shadow:0 -4px 18px #0a2a4d20;border-top:1px solid var(--line)}
-.footbar #tmhCloudBackupBtn{grid-column:1;grid-row:1;min-height:48px;width:100%;font-size:13px;font-weight:700;margin:0}
-.footbar #btnFindUnfilled{grid-column:2;grid-row:1;min-height:48px;width:100%;font-size:13px;font-weight:700;margin:0}
-.footbar .mobile-more{grid-column:1/-1;grid-row:2}
-.footbar .mobile-more summary{min-height:38px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink);background:var(--panel2)}
+.footbar{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+.footbar #tmhCloudBackupBtn{grid-column:1;grid-row:1;min-height:38px;width:100%;font-size:11px;font-weight:700;margin:0;padding:5px 3px}
+.footbar #tmhActSignBtn{grid-column:2;grid-row:1;min-height:38px;width:100%;font-size:11px;font-weight:700;margin:0;padding:5px 3px}
+.footbar .mobile-more{grid-column:3;grid-row:1;min-height:38px}
+.footbar #btnFindUnfilled{grid-column:1/-1;grid-row:2;min-height:42px;width:100%;font-size:13px;font-weight:700;margin:0}
+.footbar .mobile-more summary{min-height:38px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;color:var(--ink);background:var(--panel2)}
 .footbar .mobile-more[open] .mobile-more-grid{display:grid}
 .footbar .mobile-more-grid{display:none;grid-template-columns:1fr 1fr;gap:7px;padding:8px 0 2px}
 .footbar .mobile-more-grid .btn{width:100%;min-height:42px;white-space:normal;font-size:12px}
