@@ -568,12 +568,18 @@ async function signOut() {
   offlineChecklistStore = null;
   offlineSyncCoordinator?.stop();
   offlineSyncCoordinator = null;
-  const supabase = await getSupabaseClient();
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    try { await supabase.auth.signOut({ scope: "local" }); } catch {}
+  try {
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      try { await supabase.auth.signOut({ scope: "local" }); } catch {}
+      try { globalThis.localStorage?.removeItem(STORAGE_KEY); } catch {}
+    }
+    return { error: error || null };
+  } catch (error) {
+    try { globalThis.localStorage?.removeItem(STORAGE_KEY); } catch {}
+    return { error };
   }
-  return { error: error || null };
 }
 
 const api = Object.freeze({
