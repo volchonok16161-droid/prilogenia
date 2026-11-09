@@ -124,6 +124,7 @@ test("compact toolbar mover script parses and keeps all controls in one strip", 
   assert.doesNotThrow(() => new Function(body), "compact toolbar mover must be valid JavaScript");
   assert.match(body, /insertBefore\\(theme,risk\\|\\|null\\)/);
   assert.match(body, /insertBefore\\(route,risk\\|\\|null\\)/);
+  assert.match(body, /insertBefore\\(bar,userInfo\\)/, "toolbar must be placed immediately before the account/logout row");
   assert.match(body, /MutationObserver/);
 });
 
