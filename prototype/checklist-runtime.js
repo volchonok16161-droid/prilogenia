@@ -200,32 +200,40 @@ function injectUnifiedChrome(source, mode) {
     return '<option value="' + escapeHtml(item.id) + '"' + (item.id === mode ? " selected" : "") + '>' + escapeHtml(item.title) + '</option>';
   }).join("");
   const chrome = '<div id="tmhUnifiedModeSwitch" aria-label="Управление приложением">' +
-    '<select id="tmhUnifiedModeSelect" aria-label="Выбрать чек-лист">' + options + '</select>' +
-    '<a class="btn tmh-account-link" href="./account.html" aria-label="Личный кабинет" title="Личный кабинет"><span aria-hidden="true">👤</span><span class="tmh-account-label">Кабинет</span></a></div>';
+    '<label class="tmh-mode-control"><span class="tmh-control-icon">⇄</span><select id="tmhUnifiedModeSelect" aria-label="Сменить чек-лист">' + options + '</select></label>' +
+    '<a class="tmh-head-action" href="/zona_riska.xlsx" target="_blank" rel="noopener">📍 Зона риска</a>' +
+    '<a class="tmh-head-action" href="/instruction.html" target="_blank" rel="noopener">📖 Инструкция</a></div>';
   const style = `<style id="tmhUnifiedRuntimeStyles">
-#tmhUnifiedModeSwitch{display:flex;align-items:center;gap:8px;margin-left:auto;padding:0;flex:0 0 auto}
-#tmhUnifiedModeSelect{font:600 13px/1.2 var(--sans,system-ui);width:220px;max-width:28vw;min-width:170px;min-height:38px;padding:8px 30px 8px 12px;border:1px solid #ffffff55;border-radius:9px;background:#ffffff18;color:#fff}
+#tmhUnifiedModeSwitch{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr);align-items:stretch;gap:8px;width:100%;margin:0;padding:0;flex:0 0 auto}
+#tmhUnifiedModeSwitch .tmh-mode-control,#tmhUnifiedModeSwitch .tmh-head-action{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:44px;padding:8px 9px;border:1px solid #ffffff75;border-radius:11px;background:#ffffff18;color:#fff;text-decoration:none;font:600 14px/1.2 var(--sans,system-ui);text-align:center}
+#tmhUnifiedModeSelect{appearance:auto;width:100%;min-width:0;border:0;background:transparent;color:#fff;font:600 14px/1.2 var(--sans,system-ui);outline:none}
 #tmhUnifiedModeSelect option{color:#16324f;background:#fff}
-#tmhUnifiedModeSwitch .tmh-account-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;padding:8px 12px;border:1px solid #ffffff55;border-radius:9px;color:#fff;background:#ffffff18;text-decoration:none;white-space:nowrap}
-#tmhUnifiedModeSwitch .tmh-account-link:hover{background:#ffffff30}
+#tmhUnifiedModeSwitch .tmh-head-action:hover,#tmhUnifiedModeSwitch .tmh-mode-control:focus-within{background:#ffffff30}
 #modePickerBtn{display:none!important}
-@media(max-width:720px){#tmhUnifiedModeSwitch{gap:7px;width:auto;margin:0;padding:0;border:0}#tmhUnifiedModeSelect{width:clamp(150px,48vw,230px);max-width:none;min-width:0;min-height:42px;font-size:14px}#tmhUnifiedModeSwitch .tmh-account-link{min-height:42px;padding:8px 11px;font-size:13px}}
+@media(max-width:720px){#tmhUnifiedModeSwitch{gap:7px}#tmhUnifiedModeSwitch .tmh-mode-control,#tmhUnifiedModeSwitch .tmh-head-action{min-height:44px;font-size:13px;padding:7px 5px}}
 @media(max-width:640px){
-.topbar{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:9px 12px}
-.topbar .brand{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:7px;width:100%;min-width:0}
-.topbar .brand .logo-block{grid-column:1;grid-row:1;display:flex;align-items:center;gap:5px}
-.topbar .brand .tmh-logo .tmh,.topbar .brand .nevz-logo .nevz{font-size:17px}
-.topbar .brand .tmh-sub,.topbar .brand .nevz-sub,.topbar .brand .divider{display:none}
-.topbar .brand .tag{grid-column:1;grid-row:2;font-size:11px;padding:3px 6px;margin-top:2px}
-.topbar .brand .title-block{grid-column:2;grid-row:1/3;min-width:0}
-.topbar .brand .title-block h1{font-size:13px;line-height:1.25;white-space:normal;margin:0}
-.topbar .brand .title-block small{display:block;font-size:10px;line-height:1.25;margin-top:3px}
-#tmhUnifiedModeSwitch{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
-#tmhUnifiedModeSelect{width:100%;max-width:none;min-height:44px;font-size:16px}
-#tmhUnifiedModeSwitch .tmh-account-link{min-width:92px;min-height:44px}
-.tmh-account-label{display:inline}
-.theme-switch{display:none!important}\n.topbar .user-info{display:none!important}
-.stat-bar{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:8px 10px;position:sticky;top:0;z-index:35;background:var(--panel);box-shadow:0 2px 8px #0b315012}
+.topbar{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto auto;gap:9px 8px;padding:10px 12px 11px;background:linear-gradient(180deg,#0a5eb0,#0c4a8c 92%);border-bottom:2px solid #083058}
+.topbar .brand{display:contents}
+.topbar .brand .logo-block{grid-column:1;grid-row:1;display:flex;align-items:center;gap:8px;min-width:0}
+.topbar .brand .logo-block .tmh-logo .tmh,.topbar .brand .logo-block .nevz-logo .nevz{font-size:21px}
+.topbar .brand .tmh-sub,.topbar .brand .nevz-sub{display:none}
+.topbar .brand .logo-block .divider{height:34px}
+.topbar .brand .tag{grid-column:2;grid-row:1;align-self:center;font-size:15px;padding:7px 12px;margin:0;border-radius:8px}
+#tmhUnifiedModeSwitch{grid-column:1/-1;grid-row:2;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr);gap:7px;width:100%;margin:0}
+#tmhUnifiedModeSwitch .tmh-mode-control,#tmhUnifiedModeSwitch .tmh-head-action{min-height:48px;padding:6px 5px;font-size:13px;line-height:1.15}
+#tmhUnifiedModeSelect{font-size:14px;min-height:36px}
+.topbar .brand .title-block{grid-column:1/-1;grid-row:3;min-width:0}
+.topbar .brand .title-block h1{font-size:17px;line-height:1.25;white-space:normal;margin:0;color:#fff}
+.topbar .brand .title-block small{display:block;font-size:12px;line-height:1.3;margin-top:4px;color:#cfe4f7}
+.theme-switch{grid-column:1/-1;grid-row:4;display:flex!important;justify-self:stretch;justify-content:space-between;max-width:none;padding:3px 5px}
+.theme-switch button{min-height:36px;padding:6px 12px;font-size:13px}
+.topbar .user-info{grid-column:1/-1;grid-row:5;display:flex!important;align-items:center;gap:7px;flex-wrap:wrap;padding:5px 0 0;border-left:0;border-top:1px solid #ffffff30;font-size:12px}
+.topbar .user-info .logout-btn{min-height:34px;padding:5px 10px}
+.topbar .user-info .tmh-account-link{min-height:34px;padding:5px 10px;border:1px solid #ffffff55;border-radius:8px;color:#fff;text-decoration:none}
+#modePickerBtn{display:none!important}
+}
+@media(prefers-reduced-motion:reduce){.footbar,.tmh-account-link{transition:none!important}}
+</style>.stat-bar{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:8px 10px;position:sticky;top:0;z-index:35;background:var(--panel);box-shadow:0 2px 8px #0b315012}
 .stat-bar .mini-stat{display:flex;align-items:baseline;gap:4px;padding:0 5px;border:0!important;white-space:nowrap;font-size:10px}
 .stat-bar .mini-stat b{font-size:15px;line-height:1.2}
 .stat-bar .mini-stat span{font-size:10px}
