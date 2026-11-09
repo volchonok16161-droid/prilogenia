@@ -76,7 +76,7 @@ function ensureOfflineSync() {
 }
 
 // Keep the checklist shell bootable when the device is offline. Supabase JS is
-// loaded only when a real cloud/auth operation is requested; offline PIN unlock
+// loaded only when a real cloud/auth operation is requested; device-key offline recovery
 // and the local checklist never depend on the external esm.sh host.
 let client = null;
 let clientPromise = null;
@@ -291,91 +291,9 @@ async function signIn(email, password) {
   return { user: data.user, profile: result.profile, error: null, offlineSetupError };
 }
 
-async function setupOfflinePin(pin) {
-  // Re-verify both the live Supabase session and the server-side profile.
-  // A stale local checklist_user value is never accepted as enrollment authority.
-  const identity = await getCurrentIdentity();
-  if (!identity?.user || !identity?.profile || identity.error) {
-    throw new Error("Для создания офлайн-PIN требуется действующий онлайн-вход");
-  }
-  const enrollment = await offlineVault.session.setupAfterVerifiedOnlineLogin(identity, pin);
-  const unlocked = await offlineVault.session.unlockOffline(identity.user.id, pin);
-  const safeIdentity = {
-    user: { id: identity.user.id, email: identity.user.email || "" },
-    profile: {
-      id: identity.profile.id,
-      display_name: identity.profile.display_name || "",
-      role: identity.profile.role,
-    },
-  };
-  const encryptedIdentity = await unlocked.vault.encrypt(safeIdentity);
-  await offlineVault.database.setMeta("offline:identity:" + identity.user.id, encryptedIdentity);
-  await offlineVault.database.setMeta("offline:last-user-id", identity.user.id);
-  activeOfflineIdentity = null;
-  activeOfflineVault = unlocked.vault;
-  activeOfflineUserId = identity.user.id;
-  offlineChecklistStore = null; offlineSyncCoordinator?.stop(); offlineSyncCoordinator = null;
-  ensureOfflineSync();
-  void offlineSyncCoordinator.start();
-  return enrollment;
-}
-
-async function getCurrentIdentityForOfflineUnlock(timeoutMs = 1800) {
-  // PIN unlock must remain usable when the network is absent or captive.
-  // A timed-out server check does not authenticate the user; the sync runner
-  // will perform its own fresh server-side check before any upload.
-  let timer;
-  try {
-    return await Promise.race([
-      getCurrentIdentity(),
-      new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error("Онлайн-проверка временно недоступна")), timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timer !== undefined) clearTimeout(timer);
-  }
-}
-
-async function unlockOffline(userId, pin) {
-  offlineLogoutRequested = false;
-  // Local PIN unlock is deliberately separate from signIn/getCurrentIdentity.
-  const result = await offlineVault.session.unlockOffline(userId, pin);
-  activeOfflineVault = result.vault;
-  activeOfflineUserId = result.userId;
-  offlineChecklistStore = null; offlineSyncCoordinator?.stop(); offlineSyncCoordinator = null;
-  const encryptedIdentity = await offlineVault.database.getMeta("offline:identity:" + result.userId);
-  if (!encryptedIdentity) throw new Error("Офлайн-профиль не найден. Войдите онлайн и настройте PIN заново");
-  const identity = await result.vault.decrypt(encryptedIdentity);
-  if (identity?.user?.id !== result.userId ||
-      identity?.profile?.id !== result.userId ||
-      !["employee", "assistant", "admin", "developer"].includes(identity?.profile?.role)) {
-    throw new Error("Сохранённый офлайн-профиль недействителен");
-  }
-  // A PIN unlock only opens the local encryption key. If the server session
-  // is currently valid, retain online identity; otherwise expose the explicitly
-  // local-only offline identity.
-  let onlineIdentity = null;
-  try {
-    const candidate = await getCurrentIdentityForOfflineUnlock();
-    if (!candidate?.error && candidate?.user?.id === result.userId && candidate?.profile?.id === result.userId) {
-      onlineIdentity = candidate;
-    }
-  } catch {}
-  activeOfflineIdentity = onlineIdentity ? null : Object.freeze({
-    user: Object.freeze(identity.user),
-    profile: Object.freeze(identity.profile),
-    mode: "offline-local-unlock",
-    supabaseAuthenticated: false,
-  });
-  ensureOfflineSync();
-  void offlineSyncCoordinator.start();
-  return onlineIdentity || activeOfflineIdentity;
-}
-
 async function getCachedOfflineIdentity(cause) {
   // Explicit logout wins over automatic device-key recovery. Only a deliberate
-  // fresh online login or PIN unlock may activate the offline identity again.
+  // fresh online login or device-key recovery may activate the offline identity again.
   if (offlineLogoutRequested) return null;
   let reportedOffline = globalThis.__TMH_CONNECTION_MODE === "offline";
   try {
@@ -447,9 +365,9 @@ async function saveOfflineChecklist(id, snapshot) {
   try {
     const store = ensureOfflineSync();
     const mode = getChecklistMode(id);
-    const mappingKey = "offline:cloud-id:" + userId + ":" + id;
-    let cloudId = await offlineVault.database.getMeta(mappingKey);
-    if (!cloudId) { cloudId = crypto.randomUUID(); await offlineVault.database.setMeta(mappingKey, cloudId); }
+    const mapdevice keygKey = "offline:cloud-id:" + userId + ":" + id;
+    let cloudId = await offlineVault.database.getMeta(mapdevice keygKey);
+    if (!cloudId) { cloudId = crypto.randomUUID(); await offlineVault.database.setMeta(mapdevice keygKey, cloudId); }
     const cloudState = await offlineVault.database.getCloudState(userId, cloudId);
     const { buildOfflineCloudEnvelope } = await import("./offline-checklist-schema.js");
     const envelope = buildOfflineCloudEnvelope({
@@ -549,7 +467,7 @@ async function listOfflineChecklistInstances() {
 
 async function migrateLegacyChecklist(storageId, snapshot, confirmed = false) {
   if (!activeOfflineVault || !activeOfflineUserId) {
-    throw new Error("Сначала разблокируйте офлайн-хранилище PIN-кодом");
+    throw new Error("Сначала разблокируйте офлайн-хранилище после входа в учётную запись");
   }
   getChecklistMode(storageId);
   if (confirmed !== true) throw new Error("Требуется явное подтверждение переноса");
@@ -569,7 +487,7 @@ async function migrateLegacyChecklist(storageId, snapshot, confirmed = false) {
 
 async function enableOfflineCloudSync() {
   if (!activeOfflineVault || !activeOfflineUserId) {
-    throw new Error("Сначала разблокируйте офлайн-хранилище PIN-кодом");
+    throw new Error("Сначала разблокируйте офлайн-хранилище после входа в учётную запись");
   }
   const identity = await getCurrentIdentity();
   if (!identity?.user || identity.user.id !== activeOfflineUserId ||
@@ -617,10 +535,6 @@ async function getLastOfflineUserId() {
   return offlineVault.database.getMeta("offline:last-user-id");
 }
 
-async function hasOfflineSetup(userId) {
-  return offlineVault.session.hasOfflineSetup(userId);
-}
-
 async function signOut() {
   offlineLogoutRequested = true;
   if (activeOfflineIdentity) {
@@ -647,9 +561,7 @@ const api = Object.freeze({
   get client() { return client; },
   getClient() { return getSupabaseClient(); },
   offlineVault,
-  setupOfflinePin,
-  unlockOffline,
-  hasOfflineSetup,
+
   getOfflineIdentity,
   activateDeviceVault,
   getCachedOfflineIdentity,
