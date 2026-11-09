@@ -84,10 +84,10 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.ok(runtime.includes('if (userInfoPattern.test(source)) source = source.replace(userInfoPattern, chrome + "$1")'));
   assert.match(runtime, /#tmhUnifiedModeSwitch\{display:flex/);
   assert.match(runtime, /id="tmhCompactControlStrip"/);
-  assert.match(runtime, /insertBefore\(theme,risk\|\|null\)/);
-  assert.match(runtime, /insertBefore\(route,risk\|\|null\)/);
-  assert.match(runtime, /#tmhUnifiedModeSwitch #themeSwitch/);
-  assert.match(runtime, /#tmhUnifiedModeSwitch #btnRouteView/);
+  assert.match(runtime, /\.topbar>\.theme-switch,#themeSwitch\{grid-column:2;grid-row:2/);
+  assert.match(runtime, /\.topbar>#btnRouteView\{grid-column:1\/-1;grid-row:3/);
+  assert.doesNotMatch(runtime, /insertBefore\(theme,risk\|\|null\)/);
+  assert.doesNotMatch(runtime, /insertBefore\(route,risk\|\|null\)/);
   assert.doesNotMatch(runtime, /tmhUnifiedModeSelect/);
   assert.match(runtime, /grid-template-rows:auto auto auto auto/);
   assert.ok(runtime.includes("__tmhAttachFooterLayout(source)"), "standalone runtime mounts the unified footer layout");
@@ -203,8 +203,9 @@ test("compact toolbar mover script parses and keeps all controls in one strip", 
   const markup = new Function("mode", "return " + expression)("complex");
   const body = markup.slice(markup.indexOf(">") + 1, markup.lastIndexOf("<"));
   assert.doesNotThrow(() => new Function(body), "compact toolbar mover must be valid JavaScript");
-  assert.match(body, /insertBefore\(theme,risk\|\|null\)/);
-  assert.match(body, /insertBefore\(route,risk\|\|null\)/);
+  assert.match(body, /var theme=document.getElementById\("themeSwitch"\);var route=document.getElementById\("btnRouteView"\);return !!theme/);
+  assert.doesNotMatch(body, /insertBefore\(theme,risk\|\|null\)/);
+  assert.doesNotMatch(body, /insertBefore\(route,risk\|\|null\)/);
   assert.match(body, /insertBefore\(bar,userInfo\)/, "toolbar must be placed immediately before the account/logout row");
   assert.match(body, /MutationObserver/);
 });
