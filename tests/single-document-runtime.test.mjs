@@ -96,7 +96,7 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /tmh-footer-more/);
   assert.match(runtime, /Сохранить в облако/);
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /Акт на подпись/);
-  assert.match(runtime, /Ещё действия/);
+  assert.match(runtime, /ЕЩЁ ДЕЙСТВИЯ/);
   assert.ok(runtime.includes("})();<" + String.fromCharCode(92) + "/script>"), "footer layout script closes its injected script element");
   assert.match(runtime, /id="tmhCloudBackupBtn"/);
   assert.match(runtime, /id="tmhCloudRestoreBtn"/);
@@ -213,7 +213,7 @@ test("Service Worker parses as valid JavaScript before registration", () => {
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v104/);
+  assert.match(sw, /checklist-cache-v105/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/standalone-patches\.js/);
