@@ -258,6 +258,41 @@ function availableModes() {
   return Object.keys(MODE_LABELS).map(function(id) { return { id:id, title:MODE_LABELS[id] }; })
     .concat(custom.map(function(item) { return { id:item.id, title:item.title || item.id }; }));
 }
+
+function __tmhAttachHeaderLayout(source){
+  if(typeof source!=="string"||!source||source.indexOf('id="tmhHeaderLayoutStyles"')!==-1)return source;
+  const css='<style id="tmhHeaderLayoutStyles">'+
+    '.topbar{display:grid!important;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto;align-items:center;gap:8px 16px;padding:12px clamp(12px,2vw,24px)!important;}'+
+    '.topbar .brand{display:grid!important;grid-template-columns:auto auto minmax(180px,1fr);grid-template-rows:auto;align-items:center;gap:10px 14px;grid-column:1;grid-row:1;min-width:0;}'+
+    '.topbar .brand .logo-block{grid-column:1;grid-row:1;min-width:0;}'+
+    '.topbar .brand .tag{grid-column:2;grid-row:1;align-self:center;margin:0;white-space:nowrap;}'+
+    '.topbar .brand .title-block{grid-column:3;grid-row:1;min-width:0;}'+
+    '.topbar .brand .title-block h1{margin:0;font-size:clamp(15px,1.5vw,19px);line-height:1.25;}'+
+    '.topbar .brand .title-block small{display:block;margin-top:3px;line-height:1.3;}'+
+    '.topbar>.user-info{display:flex!important;grid-column:2;grid-row:1;align-items:center;justify-content:flex-end;gap:7px;min-width:0;margin:0;padding:0;border:0;flex-wrap:wrap;}'+
+    '#tmhUnifiedModeSwitch{display:flex!important;grid-column:1/-1;grid-row:2;align-items:center;justify-content:flex-start;gap:8px;flex-wrap:wrap;width:100%;max-width:none;margin:0;padding:8px 10px;border-radius:9px;overflow:visible;}'+
+    '#tmhUnifiedModeSwitch #themeSwitch{order:1;}#tmhUnifiedModeSwitch #btnRouteView{order:2;}#tmhUnifiedModeSwitch #modePickerBtn{order:0;}#tmhUnifiedModeSwitch #tmhRiskOpenBtn{order:3;}#tmhUnifiedModeSwitch a{order:4;}'+
+    '#tmhAccountActions{display:flex;grid-column:1/-1;grid-row:3;align-items:center;justify-content:flex-end;gap:8px;width:100%;min-height:36px;padding-top:7px;border-top:1px solid #ffffff35;}'+
+    '#tmhAccountActions .tmh-account-link,#tmhAccountActions .logout-btn{display:inline-flex!important;align-items:center;justify-content:center;min-height:36px;box-sizing:border-box;margin:0;padding:7px 14px;border:1px solid #ffffff75;border-radius:8px;background:#ffffff18;color:#fff;text-decoration:none;font:600 12px/1.2 var(--sans,system-ui);white-space:nowrap;}'+
+    '#tmhAccountActions .logout-btn{cursor:pointer;}'+
+    '.topbar #tmhUnifiedModeSwitch{flex-basis:auto;}'+
+    '@media(max-width:900px){.topbar{grid-template-columns:minmax(0,1fr);}.topbar .brand{grid-column:1;grid-row:1;}.topbar>.user-info{grid-column:1;grid-row:2;justify-content:flex-start;}#tmhUnifiedModeSwitch{grid-column:1;grid-row:3;}#tmhAccountActions{grid-column:1;grid-row:4;justify-content:flex-start;}}'+
+    '@media(max-width:640px){.topbar{display:grid!important;grid-template-columns:minmax(0,1fr);gap:7px;padding:9px 10px!important;}.topbar .brand{display:grid!important;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;gap:6px 8px;}.topbar .brand .logo-block{grid-column:1;grid-row:1;display:flex;gap:7px;}.topbar .brand .logo-block .tmh-logo .tmh,.topbar .brand .logo-block .nevz-logo .nevz{font-size:19px;}.topbar .brand .logo-block .divider{height:30px;}.topbar .brand .tag{grid-column:2;grid-row:1;font-size:12px;padding:6px 8px;white-space:normal;text-align:center;}.topbar .brand .title-block{grid-column:1/-1;grid-row:2;}.topbar .brand .title-block h1{font-size:16px;}.topbar .brand .title-block small{font-size:11px;}.topbar>.user-info{grid-row:2;gap:5px;font-size:11px;}#tmhUnifiedModeSwitch{grid-row:3;display:flex!important;flex-wrap:wrap;gap:5px;padding:6px!important;}#tmhUnifiedModeSwitch #themeSwitch{flex:1 1 100%;width:100%;justify-content:space-between;}#tmhUnifiedModeSwitch #themeSwitch button{flex:1 1 0;min-width:0;padding:6px 4px;font-size:10px;}#tmhUnifiedModeSwitch .tmh-head-action{min-height:36px;flex:1 1 auto;padding:6px 7px;font-size:11px;white-space:normal;}#tmhUnifiedModeSwitch #btnRouteView{flex:1 1 100%;order:5;}#tmhAccountActions{grid-row:4;justify-content:flex-end;padding-top:6px;}#tmhAccountActions .tmh-account-link,#tmhAccountActions .logout-btn{min-height:40px;flex:0 1 auto;padding:8px 12px;font-size:12px;}}'+
+    '@media(prefers-reduced-motion:reduce){.topbar *{scroll-behavior:auto!important;}}'+
+    '</style>';
+  const close=__tmhFindDocumentHeadClose(source);
+  if(close>=0)source=source.slice(0,close)+css+"</head>"+source.slice(close+"</head>".length);
+  const script='<script id="tmhHeaderLayoutScript">(function(){'+
+    'var top=document.querySelector(".topbar"),user=document.getElementById("userInfo"),bar=document.getElementById("tmhUnifiedModeSwitch");if(!top||!user||!bar)return;'+
+    'var actions=document.getElementById("tmhAccountActions");if(!actions){actions=document.createElement("div");actions.id="tmhAccountActions";actions.setAttribute("aria-label","Действия пользователя");top.appendChild(actions);}'+
+    'var account=user.querySelector(".tmh-account-link");if(!account){account=document.createElement("a");account.className="tmh-account-link";account.href="/account.html";account.textContent="Личный кабинет";}'+
+    'var logout=user.querySelector(".logout-btn");if(account.parentNode!==actions)actions.appendChild(account);if(logout&&logout.parentNode!==actions)actions.appendChild(logout);'+
+    '})();<\\/script>';
+  const body=__tmhFindDocumentBodyClose(source);
+  if(body>=0)source=source.slice(0,body)+script+"</body>"+source.slice(body+"</body>".length);
+  return source;
+}
+
 function injectUnifiedChrome(source, mode) {
   const options = availableModes().map(function(item) {
     return '<option value="' + escapeHtml(item.id) + '"' + (item.id === mode ? " selected" : "") + '>' + escapeHtml(item.title) + '</option>';
@@ -461,6 +496,7 @@ async function main() {
   source = __tmhAttachCloudBackup(source, mode);
   source = __tmhAttachFooterLayout(source);
   source = injectUnifiedChrome(source, mode);
+  source = __tmhAttachHeaderLayout(source);
   window.__TMH_ACTIVE_MODE__ = mode;
   const migratedPatches = STANDALONE_PATCHES.map(function(patch) {
     return '<script id="' + patch.id + '">' + patch.code.replaceAll("window.parent", "window") + '</script>';
