@@ -6,6 +6,7 @@ const html = await readFile(new URL("../prototype/checklist/index.html", import.
 const rootHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const runtime = await readFile(new URL("../prototype/checklist-runtime.js", import.meta.url), "utf8");
 const risk = await readFile(new URL("../prototype/checklist-risk-core.js", import.meta.url), "utf8");
+const riskViewer = await readFile(new URL("../prototype/checklist-risk-viewer.js", import.meta.url), "utf8");
 const auth = await readFile(new URL("../prototype/supabase-auth.js", import.meta.url), "utf8");
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
 const standalonePatchesSource = await readFile(new URL("../prototype/standalone-patches.js", import.meta.url), "utf8");
@@ -69,7 +70,13 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /modal\.style\.display="flex"/);
   assert.match(runtime, /Зона риска/);
   assert.match(runtime, /Инструкция/);
-  assert.match(runtime, /href="\\/zona_riska\\.xlsx" download="zona_riska\\.xlsx"/);
+  assert.match(runtime, /id="tmhRiskOpenBtn"/);
+  assert.match(runtime, /id="riskOverlay"/);
+  assert.match(runtime, /checklist-risk-viewer\\.js/);
+  assert.doesNotMatch(runtime, /href="\\/zona_riska\\.xlsx" download=/);
+  assert.match(riskViewer, /window.__TMH_ACTIVE_MODE__/);
+  assert.match(riskViewer, /__TMH_GET_CLOUD_BACKUP_CONTEXT/);
+  assert.doesNotMatch(riskViewer, /embeddedFrame/);
   assert.match(runtime, /href="\\/instruction\\.html"/);
   assert.ok(runtime.includes("'})();<\\/script>'"), "injected route script closes with a real script tag");
   assert.match(runtime, /tmh-account-link/);
@@ -89,7 +96,7 @@ test("Service Worker parses as valid JavaScript before registration", () => {
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v95/);
+  assert.match(sw, /checklist-cache-v96/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/standalone-patches\.js/);
