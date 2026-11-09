@@ -60,20 +60,19 @@ test("offline checklist boot does not statically depend on the remote Supabase S
 
 
 
-test("mobile header follows TMH reference and keeps compact fixed actions", () => {
-  assert.match(runtime, /tmh-head-action/);
+test("unified header uses the native main-style mode modal without an inner checklist frame", () => {
+  assert.match(runtime, /id="modePickerBtn"/);
+  assert.match(runtime, /modeSelectModal/);
+  assert.match(runtime, /modal\.style\.display="flex"/);
   assert.match(runtime, /Зона риска/);
   assert.match(runtime, /Инструкция/);
-  assert.match(runtime, /tmhUnifiedModeSelect/);
   assert.match(runtime, /tmh-account-link/);
-  assert.match(runtime, /grid-template-columns:minmax\\(0,1\\.1fr\\) minmax\\(0,1fr\\) minmax\\(0,1fr\\)/);
-  assert.match(runtime, /grid-template-rows:auto auto auto auto/);
-  assert.match(runtime, /mobile-more-grid/);
+  assert.match(runtime, /#tmhUnifiedModeSwitch\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.doesNotMatch(runtime, /tmhUnifiedModeSelect/);
+  assert.match(runtime, /grid-template-rows:auto auto auto auto auto/);
   assert.match(runtime, /Ещё действия/);
   assert.match(runtime, /tmhActSignBtn/);
-  assert.match(runtime, /\\.footbar #tmhCloudBackupBtn\\{grid-column:1;grid-row:1/);
-  assert.match(runtime, /\\.footbar #tmhActSignBtn\\{grid-column:2;grid-row:1/);
-  assert.match(runtime, /\\.footbar #btnFindUnfilled\\{grid-column:1\\/-1;grid-row:2/);
+  assert.match(runtime, /\.footbar #btnFindUnfilled\{grid-column:1\\/-1;grid-row:2/);
 });
 test("Service Worker parses as valid JavaScript before registration", () => {
   assert.doesNotThrow(() => new Function(sw));
