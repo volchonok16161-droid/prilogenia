@@ -315,7 +315,7 @@ function injectUnifiedChrome(source, mode) {
     '});});}',
     'if(matchMedia("(max-width:640px)").matches){var bar=document.querySelector(".footbar");if(bar&&!bar.querySelector(".mobile-more")){',
     'var more=document.createElement("details");more.className="mobile-more";var summary=document.createElement("summary");summary.textContent="Ещё действия ▾";more.appendChild(summary);var grid=document.createElement("div");grid.className="mobile-more-grid";more.appendChild(grid);',
-    '["btnSave","btnSaveHtml","btnExport","btnExportWithPhotos","btnExportJson","btnImportJson","tmhCloudBackupBtn","tmhCloudRestoreBtn","btnReset","themeSwitch"].forEach(function(id){var element=document.getElementById(id);if(element)grid.appendChild(element);});bar.appendChild(more);}}',
+    '["btnSave","btnSaveHtml","btnExport","btnExportWithPhotos","btnExportJson","btnImportJson","tmhCloudBackupBtn","tmhCloudRestoreBtn","btnReset"].forEach(function(id){var element=document.getElementById(id);if(element)grid.appendChild(element);});bar.appendChild(more);}}',
     'var original=window.showContinueDialogOrStart;if(typeof original==="function"&&!window.__TMH_ROUTE_START_WRAPPED){window.__TMH_ROUTE_START_WRAPPED=true;window.showContinueDialogOrStart=async function(){',
     'var params=new URLSearchParams(location.search),localId=params.get("openLocalChecklist");',
     'if(localId&&!window.__TMH_ROUTE_LOCAL_ACTIVATED){var api=window.TMHAuthReady?await window.TMHAuthReady:window.TMHAuth;if(!api||typeof api.activateOfflineChecklistInstance!=="function")throw new Error("Офлайн-запись недоступна");await api.activateOfflineChecklistInstance(LS_KEY,localId);window.__TMH_ROUTE_LOCAL_ACTIVATED=true;}',
