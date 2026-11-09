@@ -116,6 +116,28 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /actPrintBtnV5/);
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /function makeAct\(\)/);
 });
+test("responsive footer injector produces valid HTML and executable JavaScript", () => {
+  const start = runtime.indexOf("function __tmhAttachFooterLayout(source){");
+  const end = runtime.indexOf("\n\nconst MODE_LABELS", start);
+  assert.ok(start >= 0 && end > start, "footer injector function is present");
+  const attach = new Function(runtime.slice(start, end) + "; return __tmhAttachFooterLayout;")();
+  const sample = '<!doctype html><html><head></head><body><div class="footbar"><button id="btnFindUnfilled"></button></div></body></html>';
+  const output = attach(sample);
+  assert.match(output, /tmhFooterLayoutStyles/);
+  assert.match(output, /tmhFooterLayoutScript/);
+  assert.match(output, /tmh-footer-main/);
+  const scriptStart = output.indexOf('<script id="tmhFooterLayoutScript">') + '<script id="tmhFooterLayoutScript">'.length;
+  const scriptEnd = output.indexOf("</script>", scriptStart);
+  assert.ok(scriptEnd > scriptStart, "footer script is closed");
+  assert.doesNotThrow(() => new Function(output.slice(scriptStart, scriptEnd)), "footer mover script is valid JavaScript");
+  const script = output.slice(scriptStart, scriptEnd);
+  assert.match(script, /tmhCloudBackupBtn/);
+  assert.match(script, /actPrintBtnV5/);
+  assert.match(script, /btnFindUnfilled/);
+  assert.match(script, /tmhCloudRestoreBtn/);
+  assert.match(script, /MutationObserver/);
+});
+
 test("generated mode-switch script parses before the button can be used", () => {
   const start = runtime.indexOf("  const routeScript = [");
   assert.ok(start >= 0, "mode-switch script source is present");
