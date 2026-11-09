@@ -138,6 +138,8 @@ test("responsive footer injector produces valid HTML and executable JavaScript",
   assert.match(script, /btnFindUnfilled/);
   assert.match(script, /tmhCloudRestoreBtn/);
   assert.match(script, /MutationObserver/);
+  assert.match(script, /backup\.nextElementSibling!==details/);
+  assert.match(script, /act\.nextElementSibling!==details/);
 });
 
 test("generated mode-switch script parses before the button can be used", () => {
