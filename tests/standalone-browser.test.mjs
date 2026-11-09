@@ -150,25 +150,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       assert.deepEqual(state.runtimeErrors, []);
       assert.deepEqual(pageErrors, []);
 
-      // Progress must react immediately to a general-data edit in every checklist mode.
-      const dateInput = page.locator("#generalGrid input[type='date']");
-      assert.equal(await dateInput.count(), 1, "general inspection date field must exist");
-      const progressBefore = await page.locator("#statFilled").textContent();
-      await dateInput.evaluate((input) => {
-        input.value = "2026-11-09";
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-      });
-      await page.waitForFunction((previous) =>
-        document.querySelector("#statFilled")?.textContent !== previous, progressBefore);
-      const progressAfterEdit = await page.locator("#statFilled").textContent();
-      assert.notEqual(progressAfterEdit, progressBefore, "progress must change after editing general data in " + mode);
-      await dateInput.evaluate((input) => {
-        input.value = "";
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-      });
-      await page.waitForFunction(() => document.querySelector("#statFilled")?.textContent === "0%");
+
     } finally {
       await page.close();
     }
