@@ -1,6 +1,6 @@
 // Browser event coordinator for the encrypted offline queue.
 // It deliberately requires a fresh server-verified identity before invoking
-// the runner; a local PIN unlock is never sufficient authorization.
+// the runner; a local device-key unlock is never sufficient authorization.
 const ALLOWED_ROLES = new Set(["employee", "assistant", "admin", "developer"]);
 
 function isVerifiedIdentity(identity) {
