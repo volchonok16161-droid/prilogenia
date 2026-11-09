@@ -84,7 +84,7 @@ test("Service Worker parses as valid JavaScript before registration", () => {
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v93/);
+  assert.match(sw, /checklist-cache-v94/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/standalone-patches\.js/);
