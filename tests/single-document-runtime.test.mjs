@@ -6,7 +6,7 @@ const html = await readFile(new URL("../prototype/checklist/index.html", import.
 const rootHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const runtime = await readFile(new URL("../prototype/checklist-runtime.js", import.meta.url), "utf8");
 const risk = await readFile(new URL("../prototype/checklist-risk-core.js", import.meta.url), "utf8");
-  assert.match(runtime, /checklist-risk-viewer\.js/);
+const riskViewer = await readFile(new URL("../prototype/checklist-risk-viewer.js", import.meta.url), "utf8");
 const auth = await readFile(new URL("../prototype/supabase-auth.js", import.meta.url), "utf8");
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
 const standalonePatchesSource = await readFile(new URL("../prototype/standalone-patches.js", import.meta.url), "utf8");
@@ -215,7 +215,7 @@ test("standalone cloud restore uses its own auth context and hydrates local stat
   assert.ok(runtime.includes("source.replaceAll") && runtime.includes("window.parent"));
   assert.ok(runtime.includes('patch.code.replaceAll("window.parent", "window")'));
   assert.match(runtime, /const parentWindow=window;/);
-  assert.match(runtime, /await startApp\(false\)[\s\S]*__TMH_GET_CLOUD_BACKUP_CONTEXT[\s\S]*button\.click\(\)/);
+  assert.match(runtime, /await startApp\(false\)[\s\S]*__TMH_GET_CLOUD_BACKUP_CONTEXT[\s\S]*restoreButton\.click\(\)/);
   assert.match(runtime, /window\.__TMH_SAVE_CLOUD_BACKUP_CONTEXT\(getContext\(\)\)/);
 });
 
