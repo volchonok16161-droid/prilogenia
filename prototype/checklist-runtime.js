@@ -283,10 +283,11 @@ function __tmhAttachHeaderLayout(source){
   const close=__tmhFindDocumentHeadClose(source);
   if(close>=0)source=source.slice(0,close)+css+"</head>"+source.slice(close+"</head>".length);
   const script='<script id="tmhHeaderLayoutScript">(function(){'+
-    'var top=document.querySelector(".topbar"),user=document.getElementById("userInfo"),bar=document.getElementById("tmhUnifiedModeSwitch");if(!top||!bar)return;'+
+    'function mount(){var top=document.querySelector(".topbar"),user=document.getElementById("userInfo"),bar=document.getElementById("tmhUnifiedModeSwitch");if(!top||!bar)return false;'+
     'var actions=document.getElementById("tmhAccountActions");if(!actions){actions=document.createElement("div");actions.id="tmhAccountActions";actions.setAttribute("aria-label","Действия пользователя");top.appendChild(actions);}'+
     'var account=user&&user.querySelector(".tmh-account-link");if(!account){account=document.createElement("a");account.className="tmh-account-link";account.href="/account.html";account.textContent="Личный кабинет";}'+
-    'var logout=user&&user.querySelector(".logout-btn");if(account.parentNode!==actions)actions.appendChild(account);if(logout&&logout.parentNode!==actions)actions.appendChild(logout);'+
+    'var logout=user&&user.querySelector(".logout-btn");if(account.parentNode!==actions)actions.appendChild(account);if(logout&&logout.parentNode!==actions)actions.appendChild(logout);return true;}'+
+    'if(!mount()){var observer=new MutationObserver(function(){if(mount())observer.disconnect();});observer.observe(document.documentElement,{childList:true,subtree:true});setTimeout(function(){observer.disconnect();},5000);}'+
     '})();<\\/script>';
   const body=__tmhFindDocumentBodyClose(source);
   if(body>=0)source=source.slice(0,body)+script+"</body>"+source.slice(body+"</body>".length);
