@@ -170,7 +170,7 @@ test("responsive footer injector produces valid HTML and executable JavaScript",
 test("compact header keeps brand, controls and account actions in the existing user row", () => {
   assert.ok(runtime.includes("function __tmhAttachHeaderLayout(source)"));
   assert.ok(runtime.includes("source = __tmhAttachHeaderLayout(source)"));
-  assert.match(runtime, /\.topbar\.brand/);
+  assert.match(runtime, /\\.topbar \\.brand/);
   assert.match(runtime, /#tmhUnifiedModeSwitch\{display:flex!important;grid-column:1\/-1;grid-row:2/);
   assert.match(runtime, /\.topbar>\.user-info/);
   assert.doesNotMatch(runtime, /tmhAccountActions/);
