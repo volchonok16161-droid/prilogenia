@@ -280,27 +280,30 @@ test("mobile checklist header and form fit a narrow phone viewport", async () =>
   try {
     await page.goto(origin + "/prototype/checklist/?mode=complex", { waitUntil: "domcontentloaded" });
     await page.waitForSelector("#modeSelectModal", { state: "attached" });
-    const layout = await page.evaluate(() => {
-      const select = document.querySelector("#modePickerBtn");
-      const loginModal = document.querySelector("#loginModal");
-      if (loginModal) loginModal.style.display = "flex";
-      const input = document.querySelector("#loginModal .field input, #loginModal .field select");
-      const header = document.querySelector(".topbar");
-      return {
-        viewport: document.documentElement.clientWidth,
-        document: document.documentElement.scrollWidth,
-        modeSelect: select ? Math.round(select.getBoundingClientRect().width) : 0,
-        modeHeight: select ? Math.round(select.getBoundingClientRect().height) : 0,
-        inputWidth: input ? Math.round(input.getBoundingClientRect().width) : 0,
-        headerWidth: header ? Math.round(header.getBoundingClientRect().width) : 0,
-        modeFont: select ? getComputedStyle(select).fontSize : null
-      };
-    });
-    assert.equal(layout.document, layout.viewport, "mobile page must not scroll horizontally");
-    assert.ok(layout.modeSelect >= 100, JSON.stringify(layout));
-    assert.ok(layout.modeHeight >= 32, JSON.stringify(layout));
-    assert.ok(layout.inputWidth > 0 && layout.inputWidth <= layout.viewport, JSON.stringify(layout));
-    assert.ok(parseFloat(layout.modeFont) >= 11, JSON.stringify(layout));
+    await page.evaluate(() => { const modal = document.getElementById("loginModal"); if (modal) modal.style.display = "flex"; });
+    for (const width of [360, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      const layout = await page.evaluate(() => {
+        const select = document.querySelector("#modePickerBtn");
+        const input = document.querySelector("#loginModal .field input, #loginModal .field select");
+        const header = document.querySelector(".topbar");
+        return {
+          viewport: document.documentElement.clientWidth,
+          document: document.documentElement.scrollWidth,
+          modeSelect: select ? Math.round(select.getBoundingClientRect().width) : 0,
+          modeHeight: select ? Math.round(select.getBoundingClientRect().height) : 0,
+          inputWidth: input ? Math.round(input.getBoundingClientRect().width) : 0,
+          headerWidth: header ? Math.round(header.getBoundingClientRect().width) : 0,
+          modeFont: select ? getComputedStyle(select).fontSize : null
+        };
+      });
+      assert.equal(layout.document, layout.viewport, "mobile page must not scroll horizontally at " + width + "px: " + JSON.stringify(layout));
+      assert.ok(layout.modeSelect >= 100, JSON.stringify(layout));
+      assert.ok(layout.modeHeight >= 32, JSON.stringify(layout));
+      assert.ok(layout.inputWidth > 0 && layout.inputWidth <= layout.viewport, JSON.stringify(layout));
+      assert.ok(parseFloat(layout.modeFont) >= 11, JSON.stringify(layout));
+      assert.ok(layout.headerWidth <= layout.viewport, JSON.stringify(layout));
+    }
   } finally {
     await page.close();
   }
