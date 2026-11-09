@@ -373,9 +373,9 @@ async function saveOfflineChecklist(id, snapshot) {
   try {
     const store = ensureOfflineSync();
     const mode = getChecklistMode(id);
-    const mapdevice keygKey = "offline:cloud-id:" + userId + ":" + id;
-    let cloudId = await offlineVault.database.getMeta(mapdevice keygKey);
-    if (!cloudId) { cloudId = crypto.randomUUID(); await offlineVault.database.setMeta(mapdevice keygKey, cloudId); }
+    const mappingKey = "offline:cloud-id:" + userId + ":" + id;
+    let cloudId = await offlineVault.database.getMeta(mappingKey);
+    if (!cloudId) { cloudId = crypto.randomUUID(); await offlineVault.database.setMeta(mappingKey, cloudId); }
     const cloudState = await offlineVault.database.getCloudState(userId, cloudId);
     const { buildOfflineCloudEnvelope } = await import("./offline-checklist-schema.js");
     const envelope = buildOfflineCloudEnvelope({
