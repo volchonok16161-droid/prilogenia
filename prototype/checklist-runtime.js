@@ -235,8 +235,8 @@ function __tmhAttachFooterLayout(source){
       'if(act){act.textContent="✍ Акт";act.setAttribute("aria-label","Акт на подпись");act.title="Акт на подпись";}'+
       'if(excel){excel.textContent="▦ Excel";excel.setAttribute("aria-label","Экспорт в Excel");excel.title="Экспорт в Excel";}'+
       'if(find){find.textContent="⌕ Незаполнено";find.setAttribute("aria-label","Найти незаполненное");find.title="Найти незаполненное";}'+
-      '[backup,act,excel,find].forEach(function(el){if(el)main.insertBefore(el,details);});'+
-      '["btnSave","btnSaveHtml","btnExportJson","btnImportJson","jsonFileInput","btnPrint","btnReset","tmhCloudRestoreBtn"].forEach(function(id){move(id,more);});'+
+      '[backup,act,excel,find].forEach(function(el){if(el)main.insertBefore(el,details);});
+      ["btnSave","btnSaveHtml","btnExportJson","btnImportJson","jsonFileInput","btnPrint","btnReset","tmhCloudRestoreBtn"].forEach(function(id){move(id,more);});'+
       'Array.prototype.slice.call(footer.children).forEach(function(el){if(el!==main&&el!==details&&(el.tagName==="BUTTON"||el.tagName==="INPUT"))more.appendChild(el);});'+
       'return !!(backup&&act&&excel&&find);'+
     '}' +'var observer=new MutationObserver(function(){mount();});observer.observe(footer,{childList:true,subtree:true});'+
