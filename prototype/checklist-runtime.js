@@ -227,7 +227,7 @@ function __tmhAttachFooterLayout(source){
     'var details=document.createElement("details");details.className="tmh-footer-more";'+
     'var summary=document.createElement("summary");summary.textContent="⋯ Ещё действия";'+
     'var more=document.createElement("div");more.className="tmh-footer-more-grid";'+
-    'details.appendChild(summary);details.appendChild(more);footer.appendChild(main);footer.appendChild(details);'+
+    'details.appendChild(summary);details.appendChild(more);main.appendChild(details);footer.appendChild(main);'+
     'function move(id,target){var el=document.getElementById(id);if(el&&el.parentNode!==target)target.appendChild(el);return el;}'+
     'function mount(){'+
       'var backup=move("tmhCloudBackupBtn",main),act=move("actPrintBtnV5",main),excel=move("btnExport",main)||move("btnExportWithPhotos",main),find=move("btnFindUnfilled",main);'+
@@ -237,6 +237,7 @@ function __tmhAttachFooterLayout(source){
       'if(find){find.textContent="⌕ Незаполнено";find.setAttribute("aria-label","Найти незаполненное");find.title="Найти незаполненное";}'+
       '["btnSave","btnSaveHtml","btnExportJson","btnImportJson","jsonFileInput","btnPrint","btnReset","tmhCloudRestoreBtn"].forEach(function(id){move(id,more);});'+
       'Array.prototype.slice.call(footer.children).forEach(function(el){if(el!==main&&el!==details&&(el.tagName==="BUTTON"||el.tagName==="INPUT"))more.appendChild(el);});'+
+      'if(backup&&act&&excel&&find){main.appendChild(backup);main.appendChild(act);main.appendChild(excel);main.appendChild(find);main.appendChild(details);}'+
       'return !!(backup&&act&&excel&&find);'+
     '}' +
     'if(!mount()){var observer=new MutationObserver(function(){if(mount())observer.disconnect();});observer.observe(footer,{childList:true,subtree:true});setTimeout(function(){observer.disconnect();},2000);}'+
