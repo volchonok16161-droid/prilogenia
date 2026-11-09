@@ -699,7 +699,6 @@ async function doLogin(login, password) {
   return true;
 }
 
-function __tmhBindOfflinePinControls() {}
 
 async function doLogout() {
   try {
