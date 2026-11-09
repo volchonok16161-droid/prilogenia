@@ -220,7 +220,7 @@ function injectUnifiedChrome(source, mode) {
   }).join("");
   const chrome = '<div id="tmhUnifiedModeSwitch" aria-label="Управление приложением">' +
     '<button class="tmh-head-action primary" id="modePickerBtn" type="button"><span aria-hidden="true">⇄</span><span id="modePickerLabel">Сменить чек-лист</span></button>' +
-    '<a class="tmh-head-action" href="/zona_riska.xlsx" download="zona_riska.xlsx">📍 Зона риска</a>' +
+    '<button class="tmh-head-action" id="tmhRiskOpenBtn" type="button">📍 Зона риска</button>' +
     '<a class="tmh-head-action" href="/instruction.html">📖 Инструкция</a></div>';
   const style = `<style id="tmhUnifiedRuntimeStyles">
 #tmhUnifiedModeSwitch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:8px;flex:1 1 520px;min-width:0;max-width:760px;margin:0 0 0 auto}
@@ -284,6 +284,35 @@ function injectUnifiedChrome(source, mode) {
   const topbarPattern = /<\/div>\s*(<div class="stat-bar")/i;
   if (topbarPattern.test(source)) source = source.replace(topbarPattern, chrome + "</div>\n$1");
   else source = source.replace(/<body[^>]*>/i, function(tag) { return tag + chrome; });
+  const riskMarkup = `<style>#riskOverlay{position:fixed;inset:0;z-index:3100;display:none;flex-direction:column;background:var(--bg,#eef4fb);color:var(--ink,#16324f);font-family:var(--sans,system-ui,sans-serif)}
+#riskOverlay.open{display:flex}
+#riskBar{display:flex;align-items:center;gap:12px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));background:#0a5eb0;color:#fff}
+#riskBar b{flex:1;font-size:15px}
+#riskBody{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:14px 16px calc(28px + env(safe-area-inset-bottom));width:100%;max-width:920px;margin:0 auto;box-sizing:border-box}
+.rz-box{background:var(--panel,#fff);border:1px solid var(--line,#cfe0f0);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.rz-box summary{cursor:pointer;font-weight:700}
+.rz-box p{margin:8px 0 0;line-height:1.45;white-space:pre-wrap}
+.rz-controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:560px){.rz-controls{grid-template-columns:1fr}}
+.rz-controls label{display:block;font-size:12px;color:var(--ink-dim,#6d84a0);margin-bottom:4px}
+.rz-controls select,.rz-controls input{width:100%;box-sizing:border-box;padding:10px 12px;font-size:16px;border:1px solid var(--line,#cfe0f0);border-radius:8px;background:var(--panel2,#f2f7fc);color:var(--ink,#16324f)}
+.rz-meta{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:var(--ink-dim,#6d84a0);margin:2px 2px 10px}
+.rz-meta button{font-size:13px}
+.rz-banner{border-radius:10px;padding:10px 14px;margin-bottom:12px;font-weight:700}
+.rz-banner.info{background:#e8f2fb;color:#0c2f52;border:1px solid #0a5eb0}
+.rz-banner.warn{background:#fff4e0;color:#7a4b00;border:1px solid #d4a017}
+.rz-card{background:var(--panel,#fff);border:1px solid var(--line,#cfe0f0);border-left:5px solid #0a5eb0;border-radius:10px;padding:10px 14px;margin-bottom:10px}
+.rz-card.hit{outline:2px solid #0a5eb0;background:#eef6fc}
+html[data-theme="dark"] .rz-card.hit{background:#14283d}
+.rz-place{margin-top:6px;line-height:1.45}
+.rz-place small{color:var(--ink-dim,#6d84a0)}
+.rz-h{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.rz-h b{font-size:16px}
+.rz-depot{font-size:13px;color:var(--ink-dim,#6d84a0)}
+.rz-comm{margin-top:6px;font-size:13px;color:var(--ink-dim,#6d84a0);line-height:1.4;white-space:pre-wrap}
+#riskBtnBar{font-weight:700}
+@media(max-width:560px){#iframeBar{flex-wrap:wrap;gap:6px;padding-left:8px;padding-right:8px}#iframeModeLabel{order:3;flex:1 1 100%;font-size:12.5px}#iframeBar .btn{flex:1 1 0;min-width:0;padding:6px 6px;font-size:12px;line-height:1.2;white-space:normal;text-align:center}#riskBtnBar{margin-left:0!important}}</style><div id="riskOverlay" role="dialog" aria-label="Зона риска" aria-modal="true"><div id="riskBar"><b id="riskTitle">📍 Зона риска</b><button class="btn" id="riskClose" type="button">✕ Закрыть</button></div><div id="riskBody"></div></div>`;
+  const riskViewerScript = '<script src="prototype/checklist-risk-viewer.js?v=1"></script>';
   const modeModal = '<div class="modal-overlay" id="modeSelectModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="modeModalTitle" tabindex="-1">' +
     '<div class="tmh-mode-modal"><h2 id="modeModalTitle">Сменить чек-лист</h2>' +
     '<p id="modeModalSubtitle">Выберите режим. Данные каждого режима сохраняются отдельно.</p>' +
@@ -303,8 +332,9 @@ function injectUnifiedChrome(source, mode) {
     'var label=button.querySelector(".tmh-mode-copy b"),nextName=label?label.textContent:nextMode;',
     'if(!window.confirm("Переключить чек-лист на «"+nextName+"»? Текущие данные и фотографии будут сохранены на этом устройстве."))return;',
     'modal.querySelectorAll("[data-tmh-mode]").forEach(function(item){item.disabled=true;});button.classList.add("saving");',
-    'try{if(typeof saveState!=="function")throw new Error("Функция сохранения чек-листа недоступна");',
-    'if(saveState(true)===false)throw new Error("Не удалось сохранить текущий чек-лист. Переключение отменено.");',
+    'var context=typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT==="function"?window.__TMH_GET_CLOUD_BACKUP_CONTEXT():null,activeState=context&&context.state;',
+    'var hasData=!!(activeState&&activeState.general&&(activeState.general.type||activeState.general.number||Object.keys(activeState.values||{}).length||(activeState.selectedSections||[]).length||(activeState.selected||[]).length));',
+    'if(hasData){if(typeof saveState!=="function")throw new Error("Функция сохранения чек-листа недоступна");if(saveState(true)===false)throw new Error("Не удалось сохранить текущий чек-лист. Проверьте авторизацию и локальное хранилище.");}',
     'if(typeof __PS!=="undefined"&&__PS.chain){var photoResult=await __PS.chain;if(photoResult===false)throw new Error("Не удалось завершить сохранение фотографий. Переключение отменено.");}',
     'if(typeof _photoMigrationPromise!=="undefined"&&_photoMigrationPromise)await _photoMigrationPromise;if(typeof _photoWriteChain!=="undefined"&&_photoWriteChain)await _photoWriteChain;',
     'if(typeof __tmhOfflineSaveChain!=="undefined"&&__tmhOfflineSaveChain)await __tmhOfflineSaveChain;if(typeof __tmhOfflineSaveError!=="undefined"&&__tmhOfflineSaveError)throw new Error("Не удалось завершить зашифрованное локальное сохранение. Переключение отменено.");',
@@ -329,7 +359,7 @@ function injectUnifiedChrome(source, mode) {
   ].join("\n");
   const routeBodyCloseIndex = source.lastIndexOf("</body>");
   if (routeBodyCloseIndex >= 0) {
-    source = source.slice(0, routeBodyCloseIndex) + modeModal + routeScript + "</body>" + source.slice(routeBodyCloseIndex + "</body>".length);
+    source = source.slice(0, routeBodyCloseIndex) + modeModal + riskMarkup + routeScript + riskViewerScript + "</body>" + source.slice(routeBodyCloseIndex + "</body>".length);
   }
   return source;
 }
@@ -363,6 +393,7 @@ async function main() {
   source = risk.applyRegistry(source, mode) || source;
   source = __tmhAttachCloudBackup(source, mode);
   source = injectUnifiedChrome(source, mode);
+  window.__TMH_ACTIVE_MODE__ = mode;
   const migratedPatches = STANDALONE_PATCHES.map(function(patch) {
     return '<script id="' + patch.id + '">' + patch.code.replaceAll("window.parent", "window") + '</script>';
   }).join("\n");
