@@ -444,6 +444,13 @@ async function main() {
   else if (mode === "bi") source = (await import("./embedded/bi.js")).default;
   else if (mode === "hydro") source = (await import("./embedded/hydro.js")).default;
   else source = (await import("./embedded/complex.js")).default;
+  // The standalone entry page lives at /prototype/checklist/ and its <base>
+  // is discarded by document.open()/document.write(). Restore root-relative
+  // resolution in the generated checklist document before inserting scripts.
+  if (!/<base\\b/i.test(source)) {
+    const headClose = __tmhFindDocumentHeadClose(source);
+    if (headClose >= 0) source = source.slice(0, headClose) + '<base href="/">\\n' + source.slice(headClose);
+  }
   if (mode === "complex" || mode === "housings" || /^k_/.test(String(mode))) {
     window.__EMBEDDED_MODE__ = mode;
     source = source.replace(/if\(window\.parent&&window\.parent!==window&&window\.parent\.__EMBEDDED_MODE__\)\{\s*m=window\.parent\.__EMBEDDED_MODE__;\s*\}/,
