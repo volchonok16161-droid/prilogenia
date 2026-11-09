@@ -6,13 +6,12 @@
 export function isChecklistComplete(stats) {
   if (!stats || typeof stats !== "object" || Array.isArray(stats)) return false;
   const percent = Number(stats.completionPercent);
-  if (!Number.isFinite(percent) || percent < 100) return false;
+  if (!Number.isFinite(percent) || percent !== 100) return false;
 
   const total = Number(stats.totalFields ?? stats.total);
   const filled = Number(stats.filledTotal ?? stats.answered);
-  if (Number.isFinite(total)) {
-    if (total <= 0 || !Number.isFinite(filled) || filled < total) return false;
-  }
+  if (!Number.isSafeInteger(total) || total <= 0 ||
+      !Number.isSafeInteger(filled) || filled !== total) return false;
   return true;
 }
 
