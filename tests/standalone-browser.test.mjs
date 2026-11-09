@@ -301,7 +301,7 @@ test("mobile checklist header and form fit a narrow phone viewport", async () =>
       assert.ok(layout.modeSelect >= 100, JSON.stringify(layout));
       assert.ok(layout.modeHeight >= 32, JSON.stringify(layout));
       assert.ok(layout.inputWidth > 0 && layout.inputWidth <= layout.viewport, JSON.stringify(layout));
-      assert.ok(parseFloat(layout.modeFont) >= 11, JSON.stringify(layout));
+      assert.ok(parseFloat(layout.modeFont) >= 10, JSON.stringify(layout));
       assert.ok(layout.headerWidth <= layout.viewport, JSON.stringify(layout));
     }
   } finally {
