@@ -12,6 +12,10 @@ test("only a fully completed saved checklist is marked complete", () => {
   assert.equal(isChecklistComplete({ completionPercent: 101, totalFields: 12, filledTotal: 12 }), false);
   assert.equal(isChecklistComplete({ completionPercent: 100, totalFields: 12, filledTotal: 13 }), false);
   assert.equal(isChecklistComplete({ completionPercent: 100, totalFields: "invalid", filledTotal: 12 }), false);
+  assert.equal(isChecklistComplete({ completionPercent: 100 }), false);
+  assert.equal(isChecklistComplete({ completionPercent: 101, totalFields: 12, filledTotal: 12 }), false);
+  assert.equal(isChecklistComplete({ completionPercent: 100, totalFields: 12, filledTotal: 13 }), false);
+  assert.equal(isChecklistComplete({ completionPercent: 100, totalFields: "invalid", filledTotal: 12 }), false);
 });
 
 test("missing or invalid legacy stats are conservatively marked in progress", () => {
