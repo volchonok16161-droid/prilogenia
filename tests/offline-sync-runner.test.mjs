@@ -42,7 +42,7 @@ function fixture({ identity, online=true, cloud={} } = {}) {
   return {runner,queue,conflicts,calls,get cloudState(){return cloudState;}};
 }
 
-test("refuses to sync a local PIN identity without a verified server profile", async()=>{
+test("refuses to sync a local device identity without a verified server profile", async()=>{
  const {runner,calls}=fixture({identity:{user:{id:UID},profile:null,error:null}});
  await assert.rejects(runner.syncPending({userId:UID}),e=>e.code==="AUTH_REQUIRED");
  assert.equal(calls.length,0);
