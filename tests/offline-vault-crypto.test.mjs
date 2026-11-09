@@ -7,53 +7,42 @@ const userA = "11111111-1111-4111-8111-111111111111";
 const userB = "22222222-2222-4222-8222-222222222222";
 const deviceA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const deviceB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
-const vault = createOfflineVaultCrypto({ cryptoImpl: webcrypto });
+const cryptoVault = createOfflineVaultCrypto({ cryptoImpl: webcrypto });
 
-test("PIN descriptor is salted and never stores the PIN", async () => {
-  const first = await vault.createDescriptor({ pin: "123456", userId: userA, deviceId: deviceA });
-  const second = await vault.createDescriptor({ pin: "123456", userId: userA, deviceId: deviceA });
-  assert.notEqual(first.salt, second.salt);
-  assert.notEqual(first.verifier.ciphertext, second.verifier.ciphertext);
-  assert.equal(JSON.stringify(first).includes("123456"), false);
-  assert.equal(first.iterations, 310000);
-  assert.equal(first.cipher, "AES-256-GCM");
+test("device keys are non-extractable AES-GCM keys", async () => {
+  const key = await cryptoVault.createDeviceKey();
+  assert.equal(key.type, "secret");
+  assert.equal(key.algorithm.name, "AES-GCM");
+  assert.equal(key.extractable, false);
+  assert.deepEqual(key.usages, ["encrypt", "decrypt"]);
 });
 
-test("PIN unlock encrypts and decrypts JSON", async () => {
-  const descriptor = await vault.createDescriptor({ pin: "804216", userId: userA, deviceId: deviceA });
-  const session = await vault.unlock({ pin: "804216", descriptor, userId: userA, deviceId: deviceA });
+test("device key encrypts and decrypts JSON and binary data", async () => {
+  const key = await cryptoVault.createDeviceKey();
+  const vault = cryptoVault.unlockWithDeviceKey({ key, userId: userA, deviceId: deviceA });
   const source = { checklist: "tt", checked: [1, 3], note: "локально" };
-  const encrypted = await session.encrypt(source);
+  const encrypted = await vault.encrypt(source);
   assert.equal(JSON.stringify(encrypted).includes("локально"), false);
-  assert.deepEqual(await session.decrypt(encrypted), source);
-});
-
-test("wrong PIN, another user, and another device are rejected", async () => {
-  const descriptor = await vault.createDescriptor({ pin: "123456", userId: userA, deviceId: deviceA });
-  await assert.rejects(vault.unlock({ pin: "654321", descriptor, userId: userA, deviceId: deviceA }));
-  await assert.rejects(vault.unlock({ pin: "123456", descriptor, userId: userB, deviceId: deviceA }));
-  await assert.rejects(vault.unlock({ pin: "123456", descriptor, userId: userA, deviceId: deviceB }));
-});
-
-test("AES-GCM detects tampering and account/device substitution", async () => {
-  const descriptor = await vault.createDescriptor({ pin: "123456", userId: userA, deviceId: deviceA });
-  const session = await vault.unlock({ pin: "123456", descriptor, userId: userA, deviceId: deviceA });
-  const record = await session.encrypt({ value: "private" });
-  const changed = { ...record, ciphertext: (record.ciphertext[0] === "A" ? "B" : "A") + record.ciphertext.slice(1) };
-  await assert.rejects(session.decrypt(changed));
-});
-
-test("PIN and PBKDF2 configuration are validated", async () => {
-  await assert.rejects(vault.createDescriptor({ pin: "1234", userId: userA, deviceId: deviceA }), /PIN/);
-  assert.throws(() => createOfflineVaultCrypto({ cryptoImpl: webcrypto, iterations: 1000 }), /iterations/);
-  await assert.rejects(vault.createDescriptor({ pin: "123456", userId: "not-a-uuid", deviceId: deviceA }), /userId/);
-});
-
-test("binary photo bytes can be encrypted without data URLs or plaintext", async () => {
-  const descriptor = await vault.createDescriptor({ pin: "123456", userId: userA, deviceId: deviceA });
-  const session = await vault.unlock({ pin: "123456", descriptor, userId: userA, deviceId: deviceA });
+  assert.deepEqual(await vault.decrypt(encrypted), source);
   const bytes = new Uint8Array([0, 1, 2, 255, 128, 64]);
-  const encrypted = await session.encryptBytes(bytes);
-  assert.equal(JSON.stringify(encrypted).includes("255"), false);
-  assert.deepEqual(await session.decryptBytes(encrypted), bytes);
+  const encryptedBytes = await vault.encryptBytes(bytes);
+  assert.deepEqual(await vault.decryptBytes(encryptedBytes), bytes);
+});
+
+test("device key and authenticated data are bound to one account and device", async () => {
+  const key = await cryptoVault.createDeviceKey();
+  const vault = cryptoVault.unlockWithDeviceKey({ key, userId: userA, deviceId: deviceA });
+  const record = await vault.encrypt({ private: true });
+  const otherUser = cryptoVault.unlockWithDeviceKey({ key, userId: userB, deviceId: deviceA });
+  const otherDevice = cryptoVault.unlockWithDeviceKey({ key, userId: userA, deviceId: deviceB });
+  await assert.rejects(otherUser.decrypt(record));
+  await assert.rejects(otherDevice.decrypt(record));
+  await assert.rejects(vault.decrypt({ ...record, ciphertext: "AA" }));
+});
+
+test("invalid or exportable encryption keys and invalid identities are rejected", async () => {
+  const key = await cryptoVault.createDeviceKey();
+  assert.throws(() => cryptoVault.unlockWithDeviceKey({ key: {}, userId: userA, deviceId: deviceA }), /Invalid device encryption key/);
+  assert.throws(() => cryptoVault.unlockWithDeviceKey({ key, userId: "not-a-uuid", deviceId: deviceA }), /userId/);
+  assert.throws(() => cryptoVault.unlockWithDeviceKey({ key, userId: userA, deviceId: "not-a-uuid" }), /deviceId/);
 });
