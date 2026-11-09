@@ -129,7 +129,7 @@ test("transient cloud failure rolls back uploads but leaves encrypted operation 
   assert.equal(f.conflicts.length, 0);
 });
 
-test("PIN-only local identity is rejected before any photo reaches Storage", async () => {
+test("local-only identity is rejected before any photo reaches Storage", async () => {
   const f = fixture({ identity: false });
   await assert.rejects(f.runner.syncPending({ userId: UID }), error => error.code === "AUTH_REQUIRED");
   assert.equal(f.uploads.length, 0);
