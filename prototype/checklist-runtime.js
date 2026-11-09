@@ -224,7 +224,7 @@ function injectUnifiedChrome(source, mode) {
 #tmhUnifiedModeSelect{width:100%;max-width:none;min-height:44px;font-size:15px}
 #tmhUnifiedModeSwitch .tmh-account-link{min-width:92px;min-height:44px}
 .tmh-account-label{display:inline}
-.theme-switch{display:none!important}
+.theme-switch{display:none!important}\n.topbar .user-info{display:none!important}
 .stat-bar{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:8px 10px;position:sticky;top:0;z-index:35;background:var(--panel);box-shadow:0 2px 8px #0b315012}
 .stat-bar .mini-stat{display:flex;align-items:baseline;gap:4px;padding:0 5px;border:0!important;white-space:nowrap;font-size:10px}
 .stat-bar .mini-stat b{font-size:15px;line-height:1.2}
