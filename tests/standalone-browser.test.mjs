@@ -74,7 +74,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
     try {
       await page.addInitScript(() => { window.__standaloneTestErrors = []; window.addEventListener("error", (event) => window.__standaloneTestErrors.push({ message: event.message, filename: event.filename, line: event.lineno, column: event.colno })); });
       await page.goto(origin + "/prototype/checklist/?mode=" + mode, { waitUntil: "domcontentloaded", timeout: 45000 });
-      await page.waitForSelector("#modeSelectModal", { timeout: 45000 });
+      await page.waitForSelector("#modeSelectModal", { state: "attached", timeout: 45000 });
       await page.waitForFunction(() => document.readyState === "complete");
       await page.waitForTimeout(350);
       const state = await page.evaluate(async (ids) => ({
@@ -155,7 +155,7 @@ test("service worker reopens the standalone checklist after network loss", { tim
   );
   try {
     await page.goto(origin + "/prototype/checklist/?mode=hydro", { waitUntil: "domcontentloaded", timeout: 45000 });
-    await page.waitForSelector("#modeSelectModal", { timeout: 45000 });
+    await page.waitForSelector("#modeSelectModal", { state: "attached", timeout: 45000 });
     await page.evaluate(async () => {
       if (!("serviceWorker" in navigator)) throw new Error("Service Worker is unavailable");
       const registration = await navigator.serviceWorker.register("/sw.js");
@@ -172,11 +172,11 @@ test("service worker reopens the standalone checklist after network loss", { tim
       }
     });
     await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
-    await page.waitForSelector("#modeSelectModal", { timeout: 45000 });
+    await page.waitForSelector("#modeSelectModal", { state: "attached", timeout: 45000 });
     await page.waitForFunction(() => !!navigator.serviceWorker.controller, { timeout: 30000 });
     await context.setOffline(true);
     await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
-    await page.waitForSelector("#modeSelectModal", { timeout: 45000 });
+    await page.waitForSelector("#modeSelectModal", { state: "attached", timeout: 45000 });
     const state = await page.evaluate(async () => ({
       mode: document.querySelector("#modeSelectModal [data-tmh-mode][aria-current=\"page\"]")?.getAttribute("data-tmh-mode") || null,
       offline: navigator.onLine === false,
@@ -204,7 +204,7 @@ test("mobile checklist header and form fit a narrow phone viewport", async () =>
   );
   try {
     await page.goto(origin + "/prototype/checklist/?mode=complex", { waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#modeSelectModal");
+    await page.waitForSelector("#modeSelectModal", { state: "attached" });
     const layout = await page.evaluate(() => {
       const select = document.querySelector("#modePickerBtn");
       const input = document.querySelector(".field input, .field select");
