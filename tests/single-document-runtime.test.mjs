@@ -6,7 +6,7 @@ const html = await readFile(new URL("../prototype/checklist/index.html", import.
 const rootHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const runtime = await readFile(new URL("../prototype/checklist-runtime.js", import.meta.url), "utf8");
 const risk = await readFile(new URL("../prototype/checklist-risk-core.js", import.meta.url), "utf8");
-const riskViewer = await readFile(new URL("../prototype/checklist-risk-viewer.js", import.meta.url), "utf8");
+  assert.match(runtime, /checklist-risk-viewer\.js/);
 const auth = await readFile(new URL("../prototype/supabase-auth.js", import.meta.url), "utf8");
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
 const standalonePatchesSource = await readFile(new URL("../prototype/standalone-patches.js", import.meta.url), "utf8");
@@ -77,11 +77,11 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(riskViewer, /window.__TMH_ACTIVE_MODE__/);
   assert.match(riskViewer, /__TMH_GET_CLOUD_BACKUP_CONTEXT/);
   assert.doesNotMatch(riskViewer, /embeddedFrame/);
-  assert.match(runtime, /href="\\/instruction\\.html"/);
-  assert.ok(runtime.includes("'})();<\\/script>'"), "injected route script closes with a real script tag");
+  assert.ok(runtime.includes('href="/instruction.html"'));
+  assert.ok(runtime.includes("})();<" + String.fromCharCode(92) + "/script>"), "injected route script closes with a real script tag");
   assert.match(runtime, /<button class="logout-btn"[^>]*>/);
-  assert.match(runtime, /<a class="tmh-account-link" href="\\/account\\.html">Личный кабинет<\\/a>\\$1/);
-  assert.match(runtime, /if \\(userInfoPattern\\.test\\(source\\)\\) source = source\\.replace\\(userInfoPattern, chrome \\+ "\\$1"\\)/);
+  assert.ok(runtime.includes('href="/account.html">Личный кабинет</a>$1'));
+  assert.ok(runtime.includes('if (userInfoPattern.test(source)) source = source.replace(userInfoPattern, chrome + "$1")'));
   assert.match(runtime, /#tmhUnifiedModeSwitch\\{display:flex/);
   assert.match(runtime, /#tmhUnifiedModeSwitch\{display:flex/);
   assert.match(runtime, /id="tmhCompactControlStrip"/);
@@ -101,8 +101,8 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.ok(runtime.includes("})();<" + String.fromCharCode(92) + "/script>"), "footer layout script closes its injected script element");
   assert.match(runtime, /id="tmhCloudBackupBtn"/);
   assert.match(runtime, /id="tmhCloudRestoreBtn"/);
-  assert.match(runtime, /source\\.replace\\(footbar,footbar\\+/);
-  assert.match(runtime, /source\\.indexOf\\('id="tmhCloudBackupBtn"'\\)!==-1/);
+  assert.ok(runtime.includes("source.replace(footbar,footbar+"));
+  assert.ok(runtime.includes('source.indexOf(\'id="tmhCloudBackupBtn"\')!==-1'));
   for (const template of templates) {
     assert.match(template, /class="footbar"/);
     for (const id of ["btnSave", "btnSaveHtml", "btnExportJson", "btnImportJson", "btnFindUnfilled", "btnReset"]) {
