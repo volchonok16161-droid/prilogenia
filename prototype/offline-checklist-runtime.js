@@ -1,5 +1,5 @@
 // Shared offline runtime wiring. This factory is deliberately opt-in:
-// no local records are imported, no PIN is stored, and no background sync
+// no local records are imported, no extra local credential is stored, and no background sync
  // starts until the caller has unlocked this device's vault and calls start().
 import { createCloudSync } from "./supabase-cloud-sync.js";
 import { createChecklistPhotoSync } from "./supabase-cloud-photos.js";
@@ -49,7 +49,7 @@ export function createOfflineChecklistRuntime({
 
   async function start() {
     if (disposed) throw new Error("Offline runtime has been disposed");
-    // Re-check the server profile before exposing a syncing runtime. Offline PIN
+    // Re-check the server profile before exposing a syncing runtime. device-key offline identity
     // unlock can use the store locally, but cannot authorize this network step.
     const identity = await authApi.getCurrentIdentity();
     if (identity?.error || identity?.user?.id?.toLowerCase() !== uid ||
