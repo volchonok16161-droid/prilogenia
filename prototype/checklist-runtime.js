@@ -233,7 +233,7 @@ function injectUnifiedChrome(source, mode) {
 #modePickerBtn{display:none!important}
 }
 @media(prefers-reduced-motion:reduce){.footbar,.tmh-account-link{transition:none!important}}
-</style>.stat-bar{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:8px 10px;position:sticky;top:0;z-index:35;background:var(--panel);box-shadow:0 2px 8px #0b315012}
+.stat-bar{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:8px 10px;position:sticky;top:0;z-index:35;background:var(--panel);box-shadow:0 2px 8px #0b315012}
 .stat-bar .mini-stat{display:flex;align-items:baseline;gap:4px;padding:0 5px;border:0!important;white-space:nowrap;font-size:10px}
 .stat-bar .mini-stat b{font-size:15px;line-height:1.2}
 .stat-bar .mini-stat span{font-size:10px}
@@ -268,6 +268,7 @@ function injectUnifiedChrome(source, mode) {
   if (headCloseIndex >= 0) {
     source = source.slice(0, headCloseIndex) + '<base href="/">' + style + "</head>" + source.slice(headCloseIndex + "</head>".length);
   }
+  source = source.replace(/(<div class="user-info"[^>]*>)/i, '$1<a class="tmh-account-link" href="/account.html">Личный кабинет</a>');
   const topbarPattern = /<\/div>\s*(<div class="stat-bar")/i;
   if (topbarPattern.test(source)) source = source.replace(topbarPattern, chrome + "</div>\n$1");
   else source = source.replace(/<body[^>]*>/i, function(tag) { return tag + chrome; });
