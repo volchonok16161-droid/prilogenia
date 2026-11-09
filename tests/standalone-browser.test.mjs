@@ -271,40 +271,42 @@ test("mobile footer keeps primary actions and the unfilled search usable at 360-
   }
 });
 
-test("mobile checklist header and form fit a narrow phone viewport", async () => {
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
-  await page.route("https://esm.sh/**", (route) => route.abort());
-  await page.route("https://fecigiwjtbtabnsfsdym.supabase.co/**", (route) =>
-    route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ message: "No user", code: "invalid_token" }) })
-  );
-  try {
-    await page.goto(origin + "/prototype/checklist/?mode=complex", { waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#modeSelectModal", { state: "attached" });
-    await page.evaluate(() => { const modal = document.getElementById("loginModal"); if (modal) modal.style.display = "flex"; });
-    for (const width of [360, 390, 430]) {
-      await page.setViewportSize({ width, height: 844 });
-      const layout = await page.evaluate(() => {
-        const select = document.querySelector("#modePickerBtn");
-        const input = document.querySelector("#loginModal .field input, #loginModal .field select");
-        const header = document.querySelector(".topbar");
-        return {
-          viewport: document.documentElement.clientWidth,
-          document: document.documentElement.scrollWidth,
-          modeSelect: select ? Math.round(select.getBoundingClientRect().width) : 0,
-          modeHeight: select ? Math.round(select.getBoundingClientRect().height) : 0,
-          inputWidth: input ? Math.round(input.getBoundingClientRect().width) : 0,
-          headerWidth: header ? Math.round(header.getBoundingClientRect().width) : 0,
-          modeFont: select ? getComputedStyle(select).fontSize : null
-        };
-      });
-      assert.equal(layout.document, layout.viewport, "mobile page must not scroll horizontally at " + width + "px: " + JSON.stringify(layout));
-      assert.ok(layout.modeSelect >= 100, JSON.stringify(layout));
-      assert.ok(layout.modeHeight >= 32, JSON.stringify(layout));
-      assert.ok(layout.inputWidth > 0 && layout.inputWidth <= layout.viewport, JSON.stringify(layout));
-      assert.ok(parseFloat(layout.modeFont) >= 10, JSON.stringify(layout));
-      assert.ok(layout.headerWidth <= layout.viewport, JSON.stringify(layout));
+test("mobile checklist header and form fit 360/390/430px in all five modes", async () => {
+  for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+    await page.route("https://esm.sh/**", (route) => route.abort());
+    await page.route("https://fecigiwjtbtabnsfsdym.supabase.co/**", (route) =>
+      route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ message: "No user", code: "invalid_token" }) })
+    );
+    try {
+      await page.goto(origin + "/prototype/checklist/?mode=" + mode, { waitUntil: "domcontentloaded" });
+      await page.waitForSelector("#modeSelectModal", { state: "attached" });
+      await page.evaluate(() => { const modal = document.getElementById("loginModal"); if (modal) modal.style.display = "flex"; });
+      for (const width of [360, 390, 430]) {
+        await page.setViewportSize({ width, height: 844 });
+        const layout = await page.evaluate(() => {
+          const select = document.querySelector("#modePickerBtn");
+          const input = document.querySelector("#loginModal .field input, #loginModal .field select");
+          const header = document.querySelector(".topbar");
+          return {
+            viewport: document.documentElement.clientWidth,
+            document: document.documentElement.scrollWidth,
+            modeSelect: select ? Math.round(select.getBoundingClientRect().width) : 0,
+            modeHeight: select ? Math.round(select.getBoundingClientRect().height) : 0,
+            inputWidth: input ? Math.round(input.getBoundingClientRect().width) : 0,
+            headerWidth: header ? Math.round(header.getBoundingClientRect().width) : 0,
+            modeFont: select ? getComputedStyle(select).fontSize : null
+          };
+        });
+        assert.equal(layout.document, layout.viewport, mode + " must not scroll horizontally at " + width + "px: " + JSON.stringify(layout));
+        assert.ok(layout.modeSelect >= 100, mode + " " + JSON.stringify(layout));
+        assert.ok(layout.modeHeight >= 32, mode + " " + JSON.stringify(layout));
+        assert.ok(layout.inputWidth > 0 && layout.inputWidth <= layout.viewport, mode + " " + JSON.stringify(layout));
+        assert.ok(parseFloat(layout.modeFont) >= 10, mode + " " + JSON.stringify(layout));
+        assert.ok(layout.headerWidth <= layout.viewport, mode + " " + JSON.stringify(layout));
+      }
+    } finally {
+      await page.close();
     }
-  } finally {
-    await page.close();
   }
 });
