@@ -95,7 +95,7 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /tmh-footer-unfilled/);
   assert.match(runtime, /tmh-footer-more/);
   assert.match(runtime, /summary::after/);
-  assert.match(runtime, /transform:rotate\(180deg\)/);
+  assert.match(runtime, /translateY\\(2px\\) rotate\\(225deg\\)/);
   assert.match(runtime, /Сохранить в облако/);
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /Акт на подпись/);
   assert.match(runtime, /Ещё действия/);
@@ -167,14 +167,15 @@ test("responsive footer injector produces valid HTML and executable JavaScript",
   assert.match(script, /if\(backup&&act&&excel&&find\)/);
 });
 
-test("compact header keeps brand, controls and account actions in the existing user row", () => {
+test("header follows controls, brand and themes, route, then account order", () => {
   assert.ok(runtime.includes("function __tmhAttachHeaderLayout(source)"));
   assert.ok(runtime.includes("source = __tmhAttachHeaderLayout(source)"));
   assert.ok(runtime.includes(".topbar .brand"));
-  assert.match(runtime, /#tmhUnifiedModeSwitch\{display:flex!important;grid-column:1\/-1;grid-row:2/);
-  assert.match(runtime, /\.topbar>\.user-info/);
-  assert.doesNotMatch(runtime, /tmhAccountActions/);
-  assert.match(runtime, /grid-template-rows:auto auto/);
+  assert.match(runtime, /#tmhUnifiedModeSwitch\{display:flex!important;grid-column:1\/-1;grid-row:1/);
+  assert.match(runtime, /#tmhRiskOpenBtn/);
+  assert.match(runtime, /\.topbar>\.theme-switch,#themeSwitch\{grid-column:2;grid-row:2/);
+  assert.match(runtime, /\.topbar>#btnRouteView\{grid-column:1\/-1;grid-row:3/);
+  assert.match(runtime, /\.topbar>\.user-info\{grid-column:1\/-1;grid-row:4/);
   assert.match(runtime, /@media\(max-width:640px\)/);
 });
 
