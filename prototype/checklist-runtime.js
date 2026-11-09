@@ -217,7 +217,7 @@ function __tmhAttachFooterLayout(source){
     'details.appendChild(summary);details.appendChild(more);footer.appendChild(main);footer.appendChild(unfilled);main.appendChild(details);'+
     'function move(id,target){var el=document.getElementById(id);if(el&&el.parentNode!==target)target.appendChild(el);return el;}'+
     'function mount(){'+
-      'var backup=move("tmhCloudBackupBtn",main);if(backup)backup.classList.add("primary");'+
+      'var backup=move("tmhCloudBackupBtn",main);if(backup){backup.classList.add("primary");main.insertBefore(backup,details);}'+
       'var act=document.getElementById("actPrintBtnV5");if(act&&act.parentNode!==main)main.insertBefore(act,details);'+
       'move("btnFindUnfilled",unfilled);'+
       '["btnSave","btnSaveHtml","btnExport","btnExportWithPhotos","btnExportJson","btnImportJson","jsonFileInput","btnPrint","btnReset","tmhCloudRestoreBtn"].forEach(function(id){move(id,more);});'+
