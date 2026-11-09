@@ -130,7 +130,11 @@ test("responsive footer injector produces valid HTML and executable JavaScript",
   const start = runtime.indexOf("function __tmhAttachFooterLayout(source){");
   const end = runtime.indexOf("\n\nconst MODE_LABELS", start);
   assert.ok(start >= 0 && end > start, "footer injector function is present");
-  const attach = new Function(runtime.slice(start, end) + "; return __tmhAttachFooterLayout;")();
+  const helpersStart = runtime.indexOf("function __tmhFindDocumentHeadClose(source)");
+  const helpersEnd = runtime.indexOf("\\n\\nconst NB514_OLD_JS", helpersStart);
+  assert.ok(helpersStart >= 0 && helpersEnd > helpersStart, "document close helpers are present");
+  const helpers = runtime.slice(helpersStart, helpersEnd);
+  const attach = new Function(helpers + "\\n" + runtime.slice(start, end) + "; return __tmhAttachFooterLayout;")();
   const sample = '<!doctype html><html><head><script>const headDecoy = "</head>";</script></head><body><div class="footbar"><button id="btnFindUnfilled"></button></div><script>const bodyDecoy = "</body>";</script></body></html>';
   const output = attach(sample);
   assert.match(output, /tmhFooterLayoutStyles/);
