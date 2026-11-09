@@ -120,11 +120,14 @@ test("responsive footer injector produces valid HTML and executable JavaScript",
   const end = runtime.indexOf("\n\nconst MODE_LABELS", start);
   assert.ok(start >= 0 && end > start, "footer injector function is present");
   const attach = new Function(runtime.slice(start, end) + "; return __tmhAttachFooterLayout;")();
-  const sample = '<!doctype html><html><head></head><body><div class="footbar"><button id="btnFindUnfilled"></button></div></body></html>';
+  const sample = '<!doctype html><html><head><script>const headDecoy = "</head>";</script></head><body><div class="footbar"><button id="btnFindUnfilled"></button></div><script>const bodyDecoy = "</body>";</script></body></html>';
   const output = attach(sample);
   assert.match(output, /tmhFooterLayoutStyles/);
   assert.match(output, /tmhFooterLayoutScript/);
   assert.match(output, /tmh-footer-main/);
+  assert.ok(output.indexOf("tmhFooterLayoutStyles") > output.indexOf("const headDecoy"), "styles must be inserted before the real closing head tag");
+  assert.ok(output.indexOf("tmhFooterLayoutScript") > output.indexOf("const bodyDecoy"), "footer script must be inserted before the real closing body tag");
+  assert.ok(output.indexOf("tmhFooterLayoutScript") < output.lastIndexOf("</body>"));
   const scriptStart = output.indexOf('<script id="tmhFooterLayoutScript">') + '<script id="tmhFooterLayoutScript">'.length;
   const scriptEnd = output.indexOf("</script>", scriptStart);
   assert.ok(scriptEnd > scriptStart, "footer script is closed");
