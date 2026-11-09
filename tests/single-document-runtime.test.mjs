@@ -90,13 +90,27 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /actPrintBtnV5/);
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /function makeAct\(\)/);
 });
+test("generated mode-switch script parses before the button can be used", () => {
+  const start = runtime.indexOf("  const routeScript = [");
+  assert.ok(start >= 0, "mode-switch script source is present");
+  const arrayStart = runtime.indexOf("[", start);
+  const joinStart = runtime.indexOf("].join", arrayStart);
+  const expressionEnd = runtime.indexOf(";", joinStart);
+  const expression = runtime.slice(arrayStart, expressionEnd);
+  const generated = new Function("mode", "return " + expression)("complex");
+  const body = generated.slice(generated.indexOf("<script>") + 8, generated.lastIndexOf("</script>"));
+  assert.doesNotThrow(() => new Function(body), "injected mode-switch script must be valid JavaScript");
+  assert.match(body, /switchButton\.addEventListener\("click",openModeDialog\)/);
+  assert.match(body, /catch\(error\)/);
+});
+
 test("Service Worker parses as valid JavaScript before registration", () => {
   assert.doesNotThrow(() => new Function(sw));
   assert.match(sw, /\.catch\(async \(\) => \{/);
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v96/);
+  assert.match(sw, /checklist-cache-v97/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/standalone-patches\.js/);

@@ -332,6 +332,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
     'var label=button.querySelector(".tmh-mode-copy b"),nextName=label?label.textContent:nextMode;',
     'if(!window.confirm("Переключить чек-лист на «"+nextName+"»? Текущие данные и фотографии будут сохранены на этом устройстве."))return;',
     'modal.querySelectorAll("[data-tmh-mode]").forEach(function(item){item.disabled=true;});button.classList.add("saving");',
+    'try{',
     'var context=typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT==="function"?window.__TMH_GET_CLOUD_BACKUP_CONTEXT():null,activeState=context&&context.state;',
     'var hasData=!!(activeState&&activeState.general&&(activeState.general.type||activeState.general.number||Object.keys(activeState.values||{}).length||(activeState.selectedSections||[]).length||(activeState.selected||[]).length));',
     'if(hasData){if(typeof saveState!=="function")throw new Error("Функция сохранения чек-листа недоступна");if(saveState(true)===false)throw new Error("Не удалось сохранить текущий чек-лист. Проверьте авторизацию и локальное хранилище.");}',
@@ -354,7 +355,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
     'var context=typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT==="function"?window.__TMH_GET_CLOUD_BACKUP_CONTEXT():null;if(!context||!context.state||!context.state.general||!context.state.values)throw new Error("Локальное состояние не загружено полностью; облачное восстановление отменено");',
     'var restoreButton=document.getElementById("tmhCloudRestoreBtn");if(!restoreButton)throw new Error("Кнопка восстановления облачной копии недоступна");restoreButton.click();',
     '}catch(error){console.error("Cloud restore preparation failed",error);if(typeof showToast==="function")showToast(error&&error.message||"Не удалось подготовить локальную копию");}return true;}',
-    'return await original.apply(this,arguments);};}}',
+    'return await original.apply(this,arguments);};}',
     '})();<\/script>'
   ].join("\n");
   const routeBodyCloseIndex = source.lastIndexOf("</body>");
