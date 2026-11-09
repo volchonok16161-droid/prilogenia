@@ -235,13 +235,11 @@ function __tmhAttachFooterLayout(source){
       'if(act){act.textContent="✍ Акт";act.setAttribute("aria-label","Акт на подпись");act.title="Акт на подпись";}'+
       'if(excel){excel.textContent="▦ Excel";excel.setAttribute("aria-label","Экспорт в Excel");excel.title="Экспорт в Excel";}'+
       'if(find){find.textContent="⌕ Незаполнено";find.setAttribute("aria-label","Найти незаполненное");find.title="Найти незаполненное";}'+
-      '[backup,act,excel,find].forEach(function(el){if(el)main.insertBefore(el,details);});'+
       '["btnSave","btnSaveHtml","btnExportJson","btnImportJson","jsonFileInput","btnPrint","btnReset","tmhCloudRestoreBtn"].forEach(function(id){move(id,more);});'+
       'Array.prototype.slice.call(footer.children).forEach(function(el){if(el!==main&&el!==details&&(el.tagName==="BUTTON"||el.tagName==="INPUT"))more.appendChild(el);});'+
       'return !!(backup&&act&&excel&&find);'+
-    '}' +'var observer=new MutationObserver(function(){mount();});observer.observe(footer,{childList:true,subtree:true});'+
-    'mount();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount,{once:true});'+
-    'setTimeout(function(){mount();},1200);'+
+    '}' +
+    'if(!mount()){var observer=new MutationObserver(function(){if(mount())observer.disconnect();});observer.observe(footer,{childList:true,subtree:true});setTimeout(function(){observer.disconnect();},2000);}'+
   '})();<\/script>';
   const bodyCloseIndex=__tmhFindDocumentBodyClose(source);
   if(bodyCloseIndex!==-1)source=source.slice(0,bodyCloseIndex)+script+"</body>"+source.slice(bodyCloseIndex+"</body>".length);
