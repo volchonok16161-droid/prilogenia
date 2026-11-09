@@ -184,6 +184,53 @@ window.__TMH_SAVE_CLOUD_BACKUP_CONTEXT = async function(context) {
 };
 
 
+function __tmhAttachFooterLayout(source){
+  if(typeof source!=='string'||!source||source.indexOf('id="tmhFooterLayoutStyles"')!==-1)return source;
+  const style='<style id="tmhFooterLayoutStyles">'+
+    '.footbar{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:10px clamp(10px,2vw,20px);padding-bottom:max(10px,env(safe-area-inset-bottom));}'+
+    '.tmh-footer-main{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%;max-width:820px;margin:0 auto;}'+
+    '.tmh-footer-main>.btn,.tmh-footer-more>summary{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;min-width:0;min-height:46px;margin:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--ink);font:600 13px/1.25 var(--sans,system-ui);text-align:center;white-space:normal;overflow-wrap:anywhere;cursor:pointer;}'+
+    '.tmh-footer-main>#tmhCloudBackupBtn{background:var(--amber);border-color:var(--amber);color:#fff;}'+
+    '.tmh-footer-main>#actPrintBtnV5{background:var(--ok);border-color:var(--ok);color:#fff;}'+
+    '.tmh-footer-more{position:relative;min-width:0;}'+
+    '.tmh-footer-more>summary{list-style:none;user-select:none;}'+
+    '.tmh-footer-more>summary::-webkit-details-marker{display:none;}'+
+    '.tmh-footer-more[open]>summary{border-color:var(--amber);color:var(--amber);}'+
+    '.tmh-footer-more-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;width:100%;padding:10px;margin-top:7px;border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:0 5px 18px #0a2a4d18;}'+
+    '.tmh-footer-more-grid>.btn{width:100%;min-width:0;min-height:42px;white-space:normal;overflow-wrap:anywhere;}'+
+    '.tmh-footer-more-grid>#jsonFileInput{display:none!important;}'+
+    '.tmh-footer-unfilled{width:100%;max-width:820px;margin:0 auto;}'+
+    '.tmh-footer-unfilled>#btnFindUnfilled{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;margin:0;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:700;white-space:normal;}'+
+    '@media(max-width:640px){.footbar{gap:7px;padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom));}.tmh-footer-main{gap:6px;grid-template-columns:repeat(3,minmax(0,1fr));}.tmh-footer-main>.btn,.tmh-footer-more>summary{min-height:54px;padding:7px 5px;font-size:11.5px;line-height:1.2;border-radius:8px;}.tmh-footer-more-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:8px;}.tmh-footer-more-grid>.btn{min-height:44px;padding:8px 7px;font-size:12px;}.tmh-footer-unfilled>#btnFindUnfilled{min-height:48px;font-size:12.5px;}}'+
+    '@media(max-width:380px){.tmh-footer-main{gap:5px;}.tmh-footer-main>.btn,.tmh-footer-more>summary{font-size:10.5px;padding:6px 3px;}.tmh-footer-more-grid{grid-template-columns:1fr 1fr;}}'+
+    '@media(min-width:641px){.tmh-footer-main>.btn,.tmh-footer-more>summary{min-height:44px;font-size:12.5px;}}'+
+    '</style>';
+  if(source.indexOf('</head>')!==-1)source=source.replace('</head>',style+'</head>');
+  const script='<script id="tmhFooterLayoutScript">(function(){'+
+    'var footer=document.querySelector(".footbar");if(!footer)return;'+
+    'var main=document.createElement("div");main.className="tmh-footer-main";main.setAttribute("aria-label","Основные действия");'+
+    'var unfilled=document.createElement("div");unfilled.className="tmh-footer-unfilled";'+
+    'var details=document.createElement("details");details.className="tmh-footer-more";'+
+    'var summary=document.createElement("summary");summary.textContent="⋯ Ещё действия";'+
+    'var more=document.createElement("div");more.className="tmh-footer-more-grid";'+
+    'details.appendChild(summary);details.appendChild(more);footer.appendChild(main);footer.appendChild(unfilled);main.appendChild(details);'+
+    'function move(id,target){var el=document.getElementById(id);if(el&&el.parentNode!==target)target.appendChild(el);return el;}'+
+    'function mount(){'+
+      'var backup=move("tmhCloudBackupBtn",main);if(backup)backup.classList.add("primary");'+
+      'var act=document.getElementById("actPrintBtnV5");if(act&&act.parentNode!==main)main.insertBefore(act,details);'+
+      'move("btnFindUnfilled",unfilled);'+
+      '["btnSave","btnSaveHtml","btnExport","btnExportWithPhotos","btnExportJson","btnImportJson","jsonFileInput","btnPrint","btnReset","tmhCloudRestoreBtn"].forEach(function(id){move(id,more);});'+
+      'Array.prototype.slice.call(footer.children).forEach(function(el){if(el!==main&&el!==unfilled&&(el.tagName==="BUTTON"||el.tagName==="INPUT"))more.appendChild(el);});'+
+      'return !!(backup&&document.getElementById("btnFindUnfilled"));'+
+    '}'+
+    'var observer=new MutationObserver(function(){mount();});observer.observe(footer,{childList:true,subtree:true});'+
+    'mount();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount,{once:true});'+
+    'setTimeout(function(){mount();},1200);'+
+  '})();<\\/script>';
+  if(source.indexOf('</body>')!==-1)source=source.replace('</body>',script+'</body>');
+  return source;
+}
+
 const MODE_LABELS = { complex:"Комплексный", housings:"КМБ", tt:"Тяговый трансформатор", bi:"БИ (МСУД-015)", hydro:"Гидродемпферы" };
 function escapeHtml(value) {
   return String(value == null ? "" : value).replace(/[&<>"']/g, function(ch) {
@@ -393,6 +440,7 @@ async function main() {
   source = source.replaceAll("window.parent", "window");
   source = risk.applyRegistry(source, mode) || source;
   source = __tmhAttachCloudBackup(source, mode);
+  source = __tmhAttachFooterLayout(source);
   source = injectUnifiedChrome(source, mode);
   window.__TMH_ACTIVE_MODE__ = mode;
   const migratedPatches = STANDALONE_PATCHES.map(function(patch) {
