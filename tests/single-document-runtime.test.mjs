@@ -153,10 +153,10 @@ test("responsive footer injector produces valid HTML and executable JavaScript",
   assert.match(script, /btnFindUnfilled/);
   assert.match(script, /tmhCloudRestoreBtn/);
   assert.match(script, /MutationObserver/);
-  assert.match(script, /if\(act&&act\.parentNode!==main\)main\.insertBefore\(act,details\)/);
-  assert.match(script, /if\(backup&&act&&backup\.nextElementSibling!==act\)main\.insertBefore\(backup,act\)/);
-  assert.match(script, /if\(backup&&!act&&backup\.nextElementSibling!==details\)main\.insertBefore\(backup,details\)/);
-  assert.match(script, /if\(act&&act\.nextElementSibling!==details\)main\.insertBefore\(act,details\)/);
+  assert.match(script, /main\.appendChild\(backup\);main\.appendChild\(act\);main\.appendChild\(excel\);main\.appendChild\(find\);main\.appendChild\(details\)/);
+  assert.match(script, /move\("tmhCloudBackupBtn",main\),act=move\("actPrintBtnV5",main\)/);
+  assert.match(script, /details\.appendChild\(summary\);details\.appendChild\(more\);main\.appendChild\(details\)/);
+  assert.match(script, /if\(backup&&act&&excel&&find\)/);
 });
 
 test("generated mode-switch script parses before the button can be used", () => {
