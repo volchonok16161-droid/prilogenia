@@ -123,9 +123,9 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       assert.equal(state.topbar, true);
       assert.equal(state.cloudBackup, true);
       assert.equal(state.cloudRestore, true);
-      assert.deepEqual(state.footerMain, ["tmhCloudBackupBtn", "actPrintBtnV5", "btnExport", "btnFindUnfilled", "tmh-footer-more"]);
+      assert.deepEqual(state.footerMain, ["tmhCloudBackupBtn", "actPrintBtnV5", mode === "hydro" ? "btnExportWithPhotos" : "btnExport", "btnFindUnfilled", "tmh-footer-more"]);
       assert.equal(state.headerTheme, true);
-      assert.equal(state.headerRoute, true);
+      assert.equal(state.headerRoute, mode === "complex" || mode === "housings");
       assert.ok(state.footerMoreActions.includes("tmhCloudRestoreBtn"));
       assert.ok(state.footerMoreActions.includes("btnSave"));
       assert.ok(state.footerMoreActions.includes("btnExportJson"));
