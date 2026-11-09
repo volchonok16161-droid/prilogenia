@@ -250,6 +250,7 @@ test("mobile footer keeps primary actions and the unfilled search usable at 360-
       assert.ok(layout.boxes.every((box) => box.width >= 80 && box.height >= 44 && box.right <= width), JSON.stringify(layout));
       assert.ok(layout.findWidth >= width - 24 && layout.findHeight >= 44 && layout.findRight <= width, JSON.stringify(layout));
     }
+    await page.evaluate(() => { const modal = document.getElementById("loginModal"); if (modal) modal.style.display = "none"; });
     await page.locator(".tmh-footer-more > summary").click();
     for (const id of ["btnSave", "btnSaveHtml", "btnExportJson", "btnImportJson", "btnReset", "tmhCloudRestoreBtn"]) {
       await page.waitForFunction((target) => {
