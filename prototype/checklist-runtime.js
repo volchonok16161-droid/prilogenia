@@ -342,7 +342,10 @@ function injectUnifiedChrome(source, mode) {
 </style>`;  const bodyStart = source.search(/<body\b/i);
   const headCloseIndex = source.lastIndexOf("</head>", bodyStart >= 0 ? bodyStart : source.length);
   if (headCloseIndex >= 0) {
-    source = source.slice(0, headCloseIndex) + '<base href="/">' + style + "</head>" + source.slice(headCloseIndex + "</head>".length);
+    let head = source.slice(0, headCloseIndex);
+    if (/<base\b/i.test(head)) head = head.replace(/<base\b[^>]*>/i, '<base href="/">');
+    else head += '<base href="/">';
+    source = head + style + source.slice(headCloseIndex);
   }
   source = source.replace(/<button class="mode-picker-btn" id="modePickerBtn"[\s\S]*?<\/button>\s*/i, "");
   source = source.replace(/(<button class="logout-btn"[^>]*>)/i, '<a class="tmh-account-link" href="/account.html">Личный кабинет</a>$1');
@@ -444,13 +447,6 @@ async function main() {
   else if (mode === "bi") source = (await import("./embedded/bi.js")).default;
   else if (mode === "hydro") source = (await import("./embedded/hydro.js")).default;
   else source = (await import("./embedded/complex.js")).default;
-  // The standalone entry page lives at /prototype/checklist/ and its <base>
-  // is discarded by document.open()/document.write(). Restore root-relative
-  // resolution in the generated checklist document before inserting scripts.
-  if (!/<base\b/i.test(source)) {
-    const headClose = __tmhFindDocumentHeadClose(source);
-    if (headClose >= 0) source = source.slice(0, headClose) + '<base href="/">\n' + source.slice(headClose);
-  }
   if (mode === "complex" || mode === "housings" || /^k_/.test(String(mode))) {
     window.__EMBEDDED_MODE__ = mode;
     source = source.replace(/if\(window\.parent&&window\.parent!==window&&window\.parent\.__EMBEDDED_MODE__\)\{\s*m=window\.parent\.__EMBEDDED_MODE__;\s*\}/,
@@ -477,6 +473,10 @@ async function main() {
   const compactStripScript = '<script id="tmhCompactControlStrip">(function(){var expectsRoute=' + JSON.stringify(mode === "complex" || mode === "housings" || /^k_/.test(String(mode))) + ';function mount(){var bar=document.getElementById("tmhUnifiedModeSwitch");if(!bar)return false;var userInfo=document.getElementById("userInfo");if(userInfo&&userInfo.parentNode&&bar.nextElementSibling!==userInfo)userInfo.parentNode.insertBefore(bar,userInfo);var risk=document.getElementById("tmhRiskOpenBtn");var theme=document.getElementById("themeSwitch");if(theme&&theme.parentNode!==bar)bar.insertBefore(theme,risk||null);var route=document.getElementById("btnRouteView");if(route&&route.parentNode!==bar){route.style.marginLeft="0";bar.insertBefore(route,risk||null);}return !!theme;}var observer=new MutationObserver(function(){if(mount()&&(!expectsRoute||document.getElementById("btnRouteView")))observer.disconnect();});observer.observe(document.documentElement,{childList:true,subtree:true});if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount,{once:true});else mount();setTimeout(function(){mount();observer.disconnect();},1800);})();<\/script>';
   const compactStripClose = __tmhFindDocumentBodyClose(source);
   if (compactStripClose >= 0) source = source.slice(0, compactStripClose) + compactStripScript + "</body>" + source.slice(compactStripClose + "</body>".length);
+  if (window.__tmhBootTimer) {
+    clearTimeout(window.__tmhBootTimer);
+    window.__tmhBootTimer = null;
+  }
   document.open();
   document.write(source);
   document.close();
