@@ -79,7 +79,10 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.doesNotMatch(riskViewer, /embeddedFrame/);
   assert.match(runtime, /href="\\/instruction\\.html"/);
   assert.ok(runtime.includes("'})();<\\/script>'"), "injected route script closes with a real script tag");
-  assert.match(runtime, /tmh-account-link/);
+  assert.match(runtime, /<button class="logout-btn"[^>]*>/);
+  assert.match(runtime, /<a class="tmh-account-link" href="\\/account\\.html">Личный кабинет<\\/a>\\$1/);
+  assert.match(runtime, /if \\(userInfoPattern\\.test\\(source\\)\\) source = source\\.replace\\(userInfoPattern, chrome \\+ "\\$1"\\)/);
+  assert.match(runtime, /#tmhUnifiedModeSwitch\\{display:flex/);
   assert.match(runtime, /#tmhUnifiedModeSwitch\{display:flex/);
   assert.match(runtime, /id="tmhCompactControlStrip"/);
   assert.match(runtime, /insertBefore\(theme,risk\|\|null\)/);

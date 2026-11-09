@@ -248,7 +248,7 @@ function injectUnifiedChrome(source, mode) {
 .topbar .brand .title-block h1{font-size:17px;line-height:1.25;white-space:normal;margin:0;color:#fff}
 .topbar .brand .title-block small{display:block;font-size:12px;line-height:1.3;margin-top:4px;color:#cfe4f7}
 .topbar .user-info{grid-column:1/-1;grid-row:4;display:flex!important;align-items:center;gap:7px;flex-wrap:wrap;padding:5px 0 0;border-left:0;border-top:1px solid #ffffff30;font-size:12px}
-.topbar .user-info .logout-btn{min-height:34px;padding:5px 10px}
+.topbar .user-info{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.topbar .user-info .tmh-account-link{display:inline-flex;align-items:center;justify-content:center;order:90;margin-left:4px}.topbar .user-info .logout-btn{order:91;min-height:34px;padding:5px 10px}
 .topbar .user-info .tmh-account-link{min-height:34px;padding:5px 10px;border:1px solid #ffffff55;border-radius:8px;color:#fff;text-decoration:none}
 }
 @media(prefers-reduced-motion:reduce){.footbar,.tmh-account-link{transition:none!important}}
@@ -281,9 +281,11 @@ function injectUnifiedChrome(source, mode) {
     source = source.slice(0, headCloseIndex) + '<base href="/">' + style + "</head>" + source.slice(headCloseIndex + "</head>".length);
   }
   source = source.replace(/<button class="mode-picker-btn" id="modePickerBtn"[\s\S]*?<\/button>\s*/i, "");
-  source = source.replace(/(<div class="user-info"[^>]*>)/i, '$1<a class="tmh-account-link" href="/account.html">Личный кабинет</a>');
+  source = source.replace(/(<button class="logout-btn"[^>]*>)/i, '<a class="tmh-account-link" href="/account.html">Личный кабинет</a>$1');
+  const userInfoPattern = /(<div class="user-info"[^>]*>)/i;
   const topbarPattern = /<\/div>\s*(<div class="stat-bar")/i;
-  if (topbarPattern.test(source)) source = source.replace(topbarPattern, chrome + "</div>\n$1");
+  if (userInfoPattern.test(source)) source = source.replace(userInfoPattern, chrome + "$1");
+  else if (topbarPattern.test(source)) source = source.replace(topbarPattern, chrome + "</div>\n$1");
   else source = source.replace(/<body[^>]*>/i, function(tag) { return tag + chrome; });
   const riskMarkup = `<style>#riskOverlay{position:fixed;inset:0;z-index:3100;display:none;flex-direction:column;background:var(--bg,#eef4fb);color:var(--ink,#16324f);font-family:var(--sans,system-ui,sans-serif)}
 #riskOverlay.open{display:flex}
