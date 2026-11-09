@@ -78,6 +78,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       await page.waitForSelector(".tmh-footer-main #tmhCloudBackupBtn", { state: "attached", timeout: 15000 });
       await page.waitForSelector(".tmh-footer-main #actPrintBtnV5", { state: "attached", timeout: 15000 });
       await page.waitForSelector(".tmh-footer-main #btnFindUnfilled", { state: "attached", timeout: 15000 });
+      await page.waitForSelector("#tmhAccountActions .tmh-account-link", { state: "attached", timeout: 15000 });
       await page.waitForFunction(() => document.readyState === "complete");
       await page.waitForTimeout(350);
       const state = await page.evaluate(async (ids) => ({
