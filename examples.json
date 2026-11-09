@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-09T08:52:48.344Z",
+  "updated": "2026-11-09T08:55:19.199Z",
   "items": {
     "cx|vb8|zav": {
       "ok": "examples/e_11hwbr_ok_mvurndpt.jpg"
@@ -80,7 +80,8 @@
       "ok": "examples/e_v9njfe_ok_mw90szhq.jpg"
     },
     "cx|shina|f3": {
-      "nok": "examples/e_tnpuzo_nok_mw90wp2u.jpg"
+      "nok": "examples/e_tnpuzo_nok_mw90wp2u.jpg",
+      "ok": "examples/e_tnpuzo_ok_mw90zxj1.jpg"
     }
   }
 }
