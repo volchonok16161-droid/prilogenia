@@ -29,7 +29,7 @@ test("the unified checklist has a top-level document entry and no nested browsin
 
 test("all five built-in modes share one top-level runtime and one mode switcher", () => {
   for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) assert.ok(runtime.includes(mode), "runtime registers " + mode);
-  assert.match(runtime, /tmhUnifiedModeSelect/);
+  assert.doesNotMatch(runtime, /tmhUnifiedModeSelect/);
   assert.match(runtime, /<base href=\"\/\">/);
   assert.match(runtime, /account\.html/);
   assert.match(runtime, /checklist_mode_v2/);
@@ -62,7 +62,10 @@ test("offline checklist boot does not statically depend on the remote Supabase S
 
 test("unified header uses the native main-style mode modal without an inner checklist frame", () => {
   assert.match(runtime, /id="modePickerBtn"/);
-  assert.match(runtime, /modeSelectModal/);
+  assert.match(runtime, /id="modeSelectModal"/);
+  assert.match(runtime, /data-tmh-mode=/);
+  assert.match(runtime, /location\.replace\(target\)/);
+  assert.match(runtime, /await __PS\.chain/);
   assert.match(runtime, /modal\.style\.display="flex"/);
   assert.match(runtime, /Зона риска/);
   assert.match(runtime, /Инструкция/);
@@ -71,8 +74,9 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.doesNotMatch(runtime, /tmhUnifiedModeSelect/);
   assert.match(runtime, /grid-template-rows:auto auto auto auto auto/);
   assert.match(runtime, /Ещё действия/);
-  assert.match(runtime, /tmhActSignBtn/);
-  assert.match(runtime, /\.footbar #btnFindUnfilled\{grid-column:1\\/-1;grid-row:2/);
+  assert.doesNotMatch(runtime, /tmhActSignBtn|Формирование акта на подпись пока не подключено/);
+  assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /actPrintBtnV5/);
+  assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /function makeAct\(\)/);
 });
 test("Service Worker parses as valid JavaScript before registration", () => {
   assert.doesNotThrow(() => new Function(sw));
