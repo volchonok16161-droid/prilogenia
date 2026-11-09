@@ -75,6 +75,9 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       await page.addInitScript(() => { window.__standaloneTestErrors = []; window.addEventListener("error", (event) => window.__standaloneTestErrors.push({ message: event.message, filename: event.filename, line: event.lineno, column: event.colno })); });
       await page.goto(origin + "/prototype/checklist/?mode=" + mode, { waitUntil: "domcontentloaded", timeout: 45000 });
       await page.waitForSelector("#modeSelectModal", { state: "attached", timeout: 45000 });
+      await page.waitForSelector(".tmh-footer-main #tmhCloudBackupBtn", { state: "attached", timeout: 15000 });
+      await page.waitForSelector(".tmh-footer-main #actPrintBtnV5", { state: "attached", timeout: 15000 });
+      await page.waitForSelector(".tmh-footer-unfilled #btnFindUnfilled", { state: "attached", timeout: 15000 });
       await page.waitForFunction(() => document.readyState === "complete");
       await page.waitForTimeout(350);
       const state = await page.evaluate(async (ids) => ({
@@ -95,6 +98,12 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
         topbar: !!document.querySelector(".topbar"),
         cloudBackup: !!document.getElementById("tmhCloudBackupBtn"),
         cloudRestore: !!document.getElementById("tmhCloudRestoreBtn"),
+        footerMain: Array.from(document.querySelector(".tmh-footer-main")?.children || []).map((element) => element.id || element.className),
+        footerUnfilled: document.querySelector(".tmh-footer-unfilled #btnFindUnfilled")?.id || null,
+        footerMoreActions: ["btnSave", "btnSaveHtml", "btnExport", "btnExportWithPhotos", "btnExportJson", "btnImportJson", "jsonFileInput", "btnPrint", "btnReset", "tmhCloudRestoreBtn"].filter((id) => {
+          const element = document.getElementById(id);
+          return !!element && !!element.closest(".tmh-footer-more-grid");
+        }),
         patches: ids.filter((id) => !!document.getElementById(id)),
         patchParentRefs: ids.filter((id) => (document.getElementById(id)?.textContent || "").includes("window.parent")),
         hasCloudContext: typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT === "function",
@@ -113,6 +122,13 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       assert.equal(state.topbar, true);
       assert.equal(state.cloudBackup, true);
       assert.equal(state.cloudRestore, true);
+      assert.deepEqual(state.footerMain, ["tmhCloudBackupBtn", "actPrintBtnV5", "tmh-footer-more"]);
+      assert.equal(state.footerUnfilled, "btnFindUnfilled");
+      assert.ok(state.footerMoreActions.includes("tmhCloudRestoreBtn"));
+      assert.ok(state.footerMoreActions.includes("btnSave"));
+      assert.ok(state.footerMoreActions.includes("btnExportJson"));
+      assert.ok(state.footerMoreActions.includes("btnReset"));
+      assert.ok(state.footerMoreActions.includes("jsonFileInput"));
       assert.deepEqual(state.patches, PATCH_IDS);
       assert.deepEqual(state.patchParentRefs, []);
       assert.equal(state.hasCloudContext, true);
