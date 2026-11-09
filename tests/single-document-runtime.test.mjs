@@ -250,7 +250,7 @@ test("standalone runtime restores the legacy feature patches and includes them i
   assert.ok(runtime.includes("source.replaceAll") && runtime.includes("window.parent"));
   assert.match(runtime, /STANDALONE_PATCHES\.map/);
   assert.ok(runtime.includes("migratedPatches + \"</body>\""));
-  assert.ok(runtime.includes("source.lastIndexOf(\"</body>\")"));
+  assert.match(runtime, /__tmhFindDocumentBodyClose\(source\)/);
   assert.ok(runtime.includes("source.lastIndexOf(\"</head>\""));
   assert.ok(sw.includes("'./prototype/standalone-patches.js'"));
   assert.match(standalonePatches.find((patch) => patch.id === "__OKNOK_EXAMPLES_V1__").code, /new URL\(p, document\.baseURI\)/);
