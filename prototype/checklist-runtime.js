@@ -4,6 +4,13 @@ import { STANDALONE_PATCHES } from "./standalone-patches.js";
 import { createChecklistCloudBackup } from "./supabase-cloud-backup.js";
 import { createChecklistPhotoSync } from "./supabase-cloud-photos.js";
 
+function __tmhFindDocumentHeadClose(source) {
+  if (typeof source !== "string") return -1;
+  const bodyStart = source.indexOf("<body");
+  if (bodyStart < 0) return source.indexOf("</head>");
+  return source.lastIndexOf("</head>", bodyStart);
+}
+
 function __tmhFindDocumentBodyClose(source) {
   if (typeof source !== "string") return -1;
   const lastScriptClose = source.lastIndexOf("</script>");
@@ -211,7 +218,7 @@ function __tmhAttachFooterLayout(source){
     '@media(max-width:380px){.tmh-footer-main{gap:5px;}.tmh-footer-main>.btn,.tmh-footer-more>summary{font-size:10.5px;padding:6px 3px;}.tmh-footer-more-grid{grid-template-columns:1fr 1fr;}}'+
     '@media(min-width:641px){.tmh-footer-main>.btn,.tmh-footer-more>summary{min-height:44px;font-size:12.5px;}}'+
     '</style>';
-  const headCloseIndex=source.lastIndexOf("</head>");
+  const headCloseIndex=__tmhFindDocumentHeadClose(source);
   if(headCloseIndex!==-1)source=source.slice(0,headCloseIndex)+style+"</head>"+source.slice(headCloseIndex+"</head>".length);
   const script='<script id="tmhFooterLayoutScript">(function(){'+
     'var footer=document.querySelector(".footbar");if(!footer)return;'+
