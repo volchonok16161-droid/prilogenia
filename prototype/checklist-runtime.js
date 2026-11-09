@@ -4,6 +4,12 @@ import { STANDALONE_PATCHES } from "./standalone-patches.js";
 import { createChecklistCloudBackup } from "./supabase-cloud-backup.js";
 import { createChecklistPhotoSync } from "./supabase-cloud-photos.js";
 
+function __tmhFindDocumentBodyClose(source) {
+  if (typeof source !== "string") return -1;
+  const lastScriptClose = source.lastIndexOf("</script>");
+  return source.indexOf("</body>", lastScriptClose >= 0 ? lastScriptClose + "</script>".length : 0);
+}
+
 const NB514_OLD_JS = "instances(){const out=[];for(const section of sections){for(const blk of['M1','M2','M3','M4'])out.push({section,block:blk});}return out;}}";
 const NB514_NEW_JS = "instances(){const out=[];sections.forEach(section=>{const secNum=parseInt(String(section).replace(/[^\\d]/g,''),10)||1;for(let m=1;m<=4;m++){out.push({section,block:'M'+((secNum-1)*4+m)});}});return out;}}";
 
@@ -157,7 +163,7 @@ if(button){
   });
 }
 <\/script>`;
-var bodyCloseIndex=source.lastIndexOf('</body>');
+var bodyCloseIndex=__tmhFindDocumentBodyClose(source);
 if(bodyCloseIndex===-1)return source;
 return source.slice(0,bodyCloseIndex)+bridge+'</body>'+source.slice(bodyCloseIndex+'</body>'.length);
 }
@@ -228,7 +234,7 @@ function __tmhAttachFooterLayout(source){
     'mount();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount,{once:true});'+
     'setTimeout(function(){mount();},1200);'+
   '})();<\/script>';
-  const bodyCloseIndex=source.lastIndexOf("</body>");
+  const bodyCloseIndex=__tmhFindDocumentBodyClose(source);
   if(bodyCloseIndex!==-1)source=source.slice(0,bodyCloseIndex)+script+"</body>"+source.slice(bodyCloseIndex+"</body>".length);
   return source;
 }
@@ -407,7 +413,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
     'return await original.apply(this,arguments);};}',
     '})();<\/script>'
   ].join("\n");
-  const routeBodyCloseIndex = source.lastIndexOf("</body>");
+  const routeBodyCloseIndex = __tmhFindDocumentBodyClose(source);
   if (routeBodyCloseIndex >= 0) {
     source = source.slice(0, routeBodyCloseIndex) + modeModal + riskMarkup + routeScript + riskViewerScript + "</body>" + source.slice(routeBodyCloseIndex + "</body>".length);
   }
@@ -448,12 +454,12 @@ async function main() {
   const migratedPatches = STANDALONE_PATCHES.map(function(patch) {
     return '<script id="' + patch.id + '">' + patch.code.replaceAll("window.parent", "window") + '</script>';
   }).join("\n");
-  const patchBodyCloseIndex = source.lastIndexOf("</body>");
+  const patchBodyCloseIndex = __tmhFindDocumentBodyClose(source);
   if (patchBodyCloseIndex >= 0) {
     source = source.slice(0, patchBodyCloseIndex) + migratedPatches + "</body>" + source.slice(patchBodyCloseIndex + "</body>".length);
   }
   const compactStripScript = '<script id="tmhCompactControlStrip">(function(){var expectsRoute=' + JSON.stringify(mode === "complex" || mode === "housings" || /^k_/.test(String(mode))) + ';function mount(){var bar=document.getElementById("tmhUnifiedModeSwitch");if(!bar)return false;var userInfo=document.getElementById("userInfo");if(userInfo&&userInfo.parentNode&&bar.nextElementSibling!==userInfo)userInfo.parentNode.insertBefore(bar,userInfo);var risk=document.getElementById("tmhRiskOpenBtn");var theme=document.getElementById("themeSwitch");if(theme&&theme.parentNode!==bar)bar.insertBefore(theme,risk||null);var route=document.getElementById("btnRouteView");if(route&&route.parentNode!==bar){route.style.marginLeft="0";bar.insertBefore(route,risk||null);}return !!theme;}var observer=new MutationObserver(function(){if(mount()&&(!expectsRoute||document.getElementById("btnRouteView")))observer.disconnect();});observer.observe(document.documentElement,{childList:true,subtree:true});if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount,{once:true});else mount();setTimeout(function(){mount();observer.disconnect();},1800);})();<\/script>';
-  const compactStripClose = source.lastIndexOf("</body>");
+  const compactStripClose = __tmhFindDocumentBodyClose(source);
   if (compactStripClose >= 0) source = source.slice(0, compactStripClose) + compactStripScript + "</body>" + source.slice(compactStripClose + "</body>".length);
   document.open();
   document.write(source);
