@@ -60,14 +60,16 @@ test("offline checklist boot does not statically depend on the remote Supabase S
 
 
 
-test("mobile runtime compacts header, keeps primary save and moves secondary actions to menu", () => {
-  assert.match(runtime, /grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/);
+test("mobile runtime compacts header and places primary actions in a fixed dock", () => {
+  assert.match(runtime, /grid-template-columns:minmax\\(0,1fr\\) minmax\\(0,1fr\\)/);
   assert.match(runtime, /mobile-more-grid/);
   assert.match(runtime, /Ещё действия/);
   assert.match(runtime, /btnSaveHtml.*btnExport.*btnExportJson.*btnImportJson/);
-  assert.match(runtime, /\.footbar #tmhCloudBackupBtn\{grid-column:1;grid-row:1/);\n  assert.match(runtime, /\.footbar #btnFindUnfilled\{grid-column:2;grid-row:1/);\n  assert.match(runtime, /\["btnSave","btnSaveHtml","btnExport","btnExportJson","btnImportJson","tmhCloudRestoreBtn","btnReset","themeSwitch"\]/);\n  assert.match(runtime, /tmh-account-link/);\n  assert.match(runtime, /tmhUnifiedModeSelect/);
+  assert.match(runtime, /\\.footbar #tmhCloudBackupBtn\\{grid-column:1;grid-row:1/);
+  assert.match(runtime, /\\.footbar #btnFindUnfilled\\{grid-column:2;grid-row:1/);
+  assert.match(runtime, /tmh-account-link/);
+  assert.match(runtime, /tmhUnifiedModeSelect/);
 });
-
 test("Service Worker parses as valid JavaScript before registration", () => {
   assert.doesNotThrow(() => new Function(sw));
   assert.match(sw, /\.catch\(async \(\) => \{/);
