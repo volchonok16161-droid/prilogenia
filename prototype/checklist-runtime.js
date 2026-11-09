@@ -199,6 +199,25 @@ function injectUnifiedChrome(source, mode) {
   const options = availableModes().map(function(item) {
     return '<option value="' + escapeHtml(item.id) + '"' + (item.id === mode ? " selected" : "") + '>' + escapeHtml(item.title) + '</option>';
   }).join("");
+  const modeDescriptions = {
+    complex:"Комплексная проверка оборудования локомотива",
+    housings:"Проверка кожухов моторно-осевых подшипников",
+    tt:"Проверка тягового трансформатора",
+    bi:"Проверка ПО МСУД-015",
+    hydro:"Проверка гидродемпферов"
+  };
+  const modeButtonIds = { complex:"modeComplexBtn", housings:"modeHousingsBtn", tt:"modeTtBtn", bi:"modeBiBtn", hydro:"modeHydroBtn" };
+  const modeCards = availableModes().map(function(item) {
+    const active = item.id === mode;
+    const buttonId = modeButtonIds[item.id] || "";
+    return '<button type="button" class="tmh-mode-card' + (active ? ' active' : '') +
+      '" ' + (buttonId ? 'id="' + buttonId + '" ' : '') +
+      'data-tmh-mode="' + escapeHtml(item.id) + '" aria-current="' + (active ? 'page' : 'false') + '">' +
+      '<span class="tmh-mode-icon" aria-hidden="true">📋</span>' +
+      '<span class="tmh-mode-copy"><b>' + escapeHtml(item.title) + '</b><small>' +
+      escapeHtml(modeDescriptions[item.id] || "Дополнительный чек-лист") + '</small></span>' +
+      '<span class="tmh-mode-current">' + (active ? '✓ ОТКРЫТ' : 'Открыть') + '</span></button>';
+  }).join("");
   const chrome = '<div id="tmhUnifiedModeSwitch" aria-label="Управление приложением">' +
     '<button class="tmh-head-action primary" id="modePickerBtn" type="button"><span aria-hidden="true">⇄</span><span id="modePickerLabel">Сменить чек-лист</span></button>' +
     '<a class="tmh-head-action" href="/zona_riska.xlsx" target="_blank" rel="noopener">📍 Зона риска</a>' +
@@ -232,6 +251,29 @@ function injectUnifiedChrome(source, mode) {
 .topbar .user-info .tmh-account-link{min-height:34px;padding:5px 10px;border:1px solid #ffffff55;border-radius:8px;color:#fff;text-decoration:none}
 }
 @media(prefers-reduced-motion:reduce){.footbar,.tmh-account-link{transition:none!important}}
+#modeSelectModal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;box-sizing:border-box;padding:12px;background:rgba(5,20,38,.78);backdrop-filter:blur(4px)}
+#modeSelectModal[aria-hidden="false"]{display:flex}
+#modeSelectModal .tmh-mode-modal{box-sizing:border-box;display:flex;flex-direction:column;gap:0;width:min(600px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:hidden;padding:22px 20px 16px;border:2px solid var(--amber,#0a5eb0);border-radius:14px;background:var(--panel,#fff);color:var(--ink,#16324f);box-shadow:0 20px 60px #0008}
+#modeSelectModal h2{margin:0 0 8px;color:var(--amber,#0a5eb0);font-size:clamp(20px,4vw,25px);line-height:1.2}
+#modeSelectModal p{margin:0 0 14px;color:var(--ink-dim,#6d84a0);font-size:13px;line-height:1.45}
+#modeSelectModal .tmh-mode-list{display:flex;flex:1 1 auto;flex-direction:column;gap:9px;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px 5px 4px 2px}
+#modeSelectModal .tmh-mode-card{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:10px;flex:0 0 auto;min-height:68px;padding:12px 14px;border:1px solid var(--line,#cfe0f0);border-radius:10px;background:var(--panel2,#f2f7fc);color:var(--ink,#16324f);font:inherit;text-align:left;cursor:pointer}
+#modeSelectModal .tmh-mode-card:hover{border-color:var(--amber,#0a5eb0);background:var(--panel,#fff)}
+#modeSelectModal .tmh-mode-card.active{border:2px solid var(--amber,#0a5eb0);padding:11px 13px;box-shadow:0 3px 14px #0a5eb022}
+#modeSelectModal .tmh-mode-icon{font-size:20px}
+#modeSelectModal .tmh-mode-copy{display:flex;min-width:0;flex-direction:column;gap:3px}
+#modeSelectModal .tmh-mode-copy b{font-size:14px;line-height:1.3;overflow-wrap:anywhere}
+#modeSelectModal .tmh-mode-copy small{color:var(--ink-dim,#6d84a0);font-size:11px;line-height:1.35}
+#modeSelectModal .tmh-mode-current{color:var(--ink-dim,#6d84a0);font-size:9px;font-weight:700;letter-spacing:.04em;white-space:nowrap}
+#modeSelectModal .tmh-mode-card.active .tmh-mode-current{color:var(--ok,#1f9d55)}
+#modeSelectModal .tmh-mode-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+@media(max-width:640px){
+#modeSelectModal{padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px))}
+#modeSelectModal .tmh-mode-modal{width:calc(100% - 24px);max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));padding:18px 14px 13px}
+#modeSelectModal .tmh-mode-card{grid-template-columns:24px minmax(0,1fr);min-height:64px;padding:11px 12px}
+#modeSelectModal .tmh-mode-card.active{padding:10px 11px}
+#modeSelectModal .tmh-mode-current{grid-column:2;justify-self:start}
+}
 </style>`;  const bodyStart = source.search(/<body\b/i);
   const headCloseIndex = source.lastIndexOf("</head>", bodyStart >= 0 ? bodyStart : source.length);
   if (headCloseIndex >= 0) {
@@ -242,20 +284,52 @@ function injectUnifiedChrome(source, mode) {
   const topbarPattern = /<\/div>\s*(<div class="stat-bar")/i;
   if (topbarPattern.test(source)) source = source.replace(topbarPattern, chrome + "</div>\n$1");
   else source = source.replace(/<body[^>]*>/i, function(tag) { return tag + chrome; });
-  const routeScript = '<script>(function(){' +
-    'var switchButton=document.getElementById("modePickerBtn");' +
-    'if(switchButton){switchButton.addEventListener("click",function(){var modal=document.getElementById("modeSelectModal");if(modal){modal.style.display="flex";modal.setAttribute("aria-hidden","false");}else{window.alert("Окно выбора чек-листа недоступно в этой сборке.");}});}' +
-    'if(matchMedia("(max-width:640px)").matches){var bar=document.querySelector(".footbar");if(bar&&!bar.querySelector("#tmhActSignBtn")){var sign=document.createElement("button");sign.type="button";sign.id="tmhActSignBtn";sign.className="btn";sign.textContent="✍ Акт на подпись";sign.addEventListener("click",function(){if(typeof showToast==="function")showToast("Формирование акта на подпись пока не подключено");});bar.insertBefore(sign,bar.firstChild);}if(bar&&!bar.querySelector(".mobile-more")){var more=document.createElement("details");more.className="mobile-more";var summary=document.createElement("summary");summary.textContent="Ещё действия ▾";more.appendChild(summary);var grid=document.createElement("div");grid.className="mobile-more-grid";more.appendChild(grid);["btnSave","btnSaveHtml","btnExport","btnExportJson","btnImportJson","tmhCloudRestoreBtn","btnReset","themeSwitch"].forEach(function(id){var el=document.getElementById(id);if(el)grid.appendChild(el);});bar.appendChild(more);}}' +
-    'var original=window.showContinueDialogOrStart;' +
-    'if(typeof original==="function"&&!window.__TMH_ROUTE_START_WRAPPED){window.__TMH_ROUTE_START_WRAPPED=true;window.showContinueDialogOrStart=async function(){' +
-      'var params=new URLSearchParams(location.search);var localId=params.get("openLocalChecklist");' +
-      'if(localId&&!window.__TMH_ROUTE_LOCAL_ACTIVATED){var api=window.TMHAuthReady?await window.TMHAuthReady:window.TMHAuth;if(!api||typeof api.activateOfflineChecklistInstance!=="function")throw new Error("Офлайн-запись недоступна");await api.activateOfflineChecklistInstance(LS_KEY,localId);window.__TMH_ROUTE_LOCAL_ACTIVATED=true;}' +
-      'if(params.get("openChecklist")&&!window.__TMH_ROUTE_CLOUD_RESTORE_TRIGGERED){window.__TMH_ROUTE_CLOUD_RESTORE_TRIGGERED=true;try{if(typeof startApp!=="function")throw new Error("Не удалось загрузить состояние чек-листа");await startApp(false);if(typeof __PS!=="undefined"&&__PS.chain)await __PS.chain;if(typeof __tmhOfflineSaveChain!=="undefined"&&__tmhOfflineSaveChain)await __tmhOfflineSaveChain;if(typeof __tmhOfflineSaveError!=="undefined"&&__tmhOfflineSaveError)throw new Error("Не удалось завершить локальное сохранение перед восстановлением");var context=typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT==="function"?window.__TMH_GET_CLOUD_BACKUP_CONTEXT():null;if(!context||!context.state||!context.state.general||!context.state.values)throw new Error("Локальное состояние не загружено полностью; облачное восстановление отменено");var button=document.getElementById("tmhCloudRestoreBtn");if(!button)throw new Error("Кнопка восстановления облачной копии недоступна");button.click();}catch(error){console.error("Cloud restore preparation failed",error);if(typeof showToast==="function")showToast(error&&error.message||"Не удалось подготовить локальную копию");}return true;}' +
-      'return await original.apply(this,arguments);};}' +
-  '})();</script>';
+  const modeModal = '<div class="modal-overlay" id="modeSelectModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="modeModalTitle" tabindex="-1">' +
+    '<div class="tmh-mode-modal"><h2 id="modeModalTitle">Сменить чек-лист</h2>' +
+    '<p id="modeModalSubtitle">Выберите режим. Данные каждого режима сохраняются отдельно.</p>' +
+    '<div class="tmh-mode-list">' + modeCards + '</div>' +
+    '<div class="tmh-mode-actions"><button type="button" class="btn" id="modeModalCancel">Закрыть</button></div></div></div>';
+  const routeScript = [
+    '<script>(function(){',
+    'var currentMode=' + JSON.stringify(mode) + ';',
+    'var switchButton=document.getElementById("modePickerBtn"),modal=document.getElementById("modeSelectModal"),cancelButton=document.getElementById("modeModalCancel");',
+    'function closeModeDialog(){if(!modal)return;modal.style.display="none";modal.setAttribute("aria-hidden","true");if(switchButton)switchButton.focus();}',
+    'function openModeDialog(){if(!modal)return;modal.style.display="flex";modal.setAttribute("aria-hidden","false");var first=modal.querySelector("[data-tmh-mode]");if(first)first.focus();}',
+    'if(switchButton)switchButton.addEventListener("click",openModeDialog);',
+    'if(cancelButton)cancelButton.addEventListener("click",closeModeDialog);',
+    'if(modal){modal.addEventListener("click",function(event){if(event.target===modal)closeModeDialog();});document.addEventListener("keydown",function(event){if(event.key==="Escape"&&modal.getAttribute("aria-hidden")==="false")closeModeDialog();});',
+    'modal.querySelectorAll("[data-tmh-mode]").forEach(function(button){button.addEventListener("click",async function(){',
+    'var nextMode=button.getAttribute("data-tmh-mode");if(!nextMode)return;if(nextMode===currentMode){closeModeDialog();return;}',
+    'var label=button.querySelector(".tmh-mode-copy b"),nextName=label?label.textContent:nextMode;',
+    'if(!window.confirm("Переключить чек-лист на «"+nextName+"»? Текущие данные и фотографии будут сохранены на этом устройстве."))return;',
+    'modal.querySelectorAll("[data-tmh-mode]").forEach(function(item){item.disabled=true;});button.classList.add("saving");',
+    'try{if(typeof saveState!=="function")throw new Error("Функция сохранения чек-листа недоступна");',
+    'if(saveState(true)===false)throw new Error("Не удалось сохранить текущий чек-лист. Переключение отменено.");',
+    'if(typeof __PS!=="undefined"&&__PS.chain){var photoResult=await __PS.chain;if(photoResult===false)throw new Error("Не удалось завершить сохранение фотографий. Переключение отменено.");}',
+    'if(typeof _photoMigrationPromise!=="undefined"&&_photoMigrationPromise)await _photoMigrationPromise;if(typeof _photoWriteChain!=="undefined"&&_photoWriteChain)await _photoWriteChain;',
+    'if(typeof __tmhOfflineSaveChain!=="undefined"&&__tmhOfflineSaveChain)await __tmhOfflineSaveChain;if(typeof __tmhOfflineSaveError!=="undefined"&&__tmhOfflineSaveError)throw new Error("Не удалось завершить зашифрованное локальное сохранение. Переключение отменено.");',
+    'try{localStorage.setItem("checklist_mode_v2",nextMode);}catch(storageError){throw new Error("Не удалось сохранить выбранный режим на устройстве.");}',
+    'var params=new URLSearchParams(location.search);params.set("mode",nextMode);params.delete("openChecklist");params.delete("openLocalChecklist");',
+    'var query=params.toString(),target=location.pathname+(query?"?"+query:"")+location.hash;location.replace(target);',
+    '}catch(error){console.error("Checklist mode switch failed",error);button.classList.remove("saving");modal.querySelectorAll("[data-tmh-mode]").forEach(function(item){item.disabled=false;});if(typeof showToast==="function")showToast(error&&error.message||"Не удалось переключить чек-лист");}',
+    '});});}',
+    'if(matchMedia("(max-width:640px)").matches){var bar=document.querySelector(".footbar");if(bar&&!bar.querySelector(".mobile-more")){',
+    'var more=document.createElement("details");more.className="mobile-more";var summary=document.createElement("summary");summary.textContent="Ещё действия ▾";more.appendChild(summary);var grid=document.createElement("div");grid.className="mobile-more-grid";more.appendChild(grid);',
+    '["btnSave","btnSaveHtml","btnExport","btnExportWithPhotos","btnExportJson","btnImportJson","tmhCloudBackupBtn","tmhCloudRestoreBtn","btnReset","themeSwitch"].forEach(function(id){var element=document.getElementById(id);if(element)grid.appendChild(element);});bar.appendChild(more);}}',
+    'var original=window.showContinueDialogOrStart;if(typeof original==="function"&&!window.__TMH_ROUTE_START_WRAPPED){window.__TMH_ROUTE_START_WRAPPED=true;window.showContinueDialogOrStart=async function(){',
+    'var params=new URLSearchParams(location.search),localId=params.get("openLocalChecklist");',
+    'if(localId&&!window.__TMH_ROUTE_LOCAL_ACTIVATED){var api=window.TMHAuthReady?await window.TMHAuthReady:window.TMHAuth;if(!api||typeof api.activateOfflineChecklistInstance!=="function")throw new Error("Офлайн-запись недоступна");await api.activateOfflineChecklistInstance(LS_KEY,localId);window.__TMH_ROUTE_LOCAL_ACTIVATED=true;}',
+    'if(params.get("openChecklist")&&!window.__TMH_ROUTE_CLOUD_RESTORE_TRIGGERED){window.__TMH_ROUTE_CLOUD_RESTORE_TRIGGERED=true;try{if(typeof startApp!=="function")throw new Error("Не удалось загрузить состояние чек-листа");await startApp(false);',
+    'if(typeof __PS!=="undefined"&&__PS.chain)await __PS.chain;if(typeof __tmhOfflineSaveChain!=="undefined"&&__tmhOfflineSaveChain)await __tmhOfflineSaveChain;if(typeof __tmhOfflineSaveError!=="undefined"&&__tmhOfflineSaveError)throw new Error("Не удалось завершить локальное сохранение перед восстановлением");',
+    'var context=typeof window.__TMH_GET_CLOUD_BACKUP_CONTEXT==="function"?window.__TMH_GET_CLOUD_BACKUP_CONTEXT():null;if(!context||!context.state||!context.state.general||!context.state.values)throw new Error("Локальное состояние не загружено полностью; облачное восстановление отменено");',
+    'var restoreButton=document.getElementById("tmhCloudRestoreBtn");if(!restoreButton)throw new Error("Кнопка восстановления облачной копии недоступна");restoreButton.click();',
+    '}catch(error){console.error("Cloud restore preparation failed",error);if(typeof showToast==="function")showToast(error&&error.message||"Не удалось подготовить локальную копию");}return true;}',
+    'return await original.apply(this,arguments);};}}',
+    '})();<\\/script>'
+  ].join("\n");
   const routeBodyCloseIndex = source.lastIndexOf("</body>");
   if (routeBodyCloseIndex >= 0) {
-    source = source.slice(0, routeBodyCloseIndex) + routeScript + "</body>" + source.slice(routeBodyCloseIndex + "</body>".length);
+    source = source.slice(0, routeBodyCloseIndex) + modeModal + routeScript + "</body>" + source.slice(routeBodyCloseIndex + "</body>".length);
   }
   return source;
 }
