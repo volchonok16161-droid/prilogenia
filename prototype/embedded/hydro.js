@@ -3603,8 +3603,9 @@ function renderGeneral() {
       errorHint.classList.add('show');
       return false;
     } else {
+      const numberChanged = STATE.general.number !== val;
       STATE.general.number = val;
-      refreshChain('number');
+      if (numberChanged) refreshChain('number');
       saveState(true);
       renderGeneral();
       updateStats();
