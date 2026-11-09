@@ -149,7 +149,8 @@ test("responsive footer injector produces valid HTML and executable JavaScript",
   assert.match(script, /btnFindUnfilled/);
   assert.match(script, /tmhCloudRestoreBtn/);
   assert.match(script, /MutationObserver/);
-  assert.match(script, /backup\.nextElementSibling!==backupNext/);\n  assert.match(script, /var backupNext=act\|\|details/);
+  assert.match(script, /backup\.nextElementSibling!==backupNext/);
+  assert.match(script, /var backupNext=act\|\|details/);
   assert.match(script, /act\.nextElementSibling!==details/);
 });
 
