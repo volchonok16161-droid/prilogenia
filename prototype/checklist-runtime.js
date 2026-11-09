@@ -223,8 +223,8 @@ function injectUnifiedChrome(source, mode) {
     '<button class="tmh-head-action" id="tmhRiskOpenBtn" type="button">📍 Зона риска</button>' +
     '<a class="tmh-head-action" href="/instruction.html">📖 Инструкция</a></div>';
   const style = `<style id="tmhUnifiedRuntimeStyles">
-#tmhUnifiedModeSwitch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:8px;flex:1 1 520px;min-width:0;max-width:760px;margin:0 0 0 auto}
-#tmhUnifiedModeSwitch .tmh-head-action{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:44px;padding:8px 10px;border:1px solid #ffffff75;border-radius:10px;background:#ffffff18;color:#fff;text-decoration:none;font:600 14px/1.2 var(--sans,system-ui);text-align:center;cursor:pointer;white-space:normal}
+#tmhUnifiedModeSwitch{display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-start;gap:6px;flex:1 1 auto;min-width:0;max-width:none;margin:0;padding:6px 10px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,#0a5eb0,#0c4a8c 92%);border-bottom:2px solid #083058}#tmhUnifiedModeSwitch::-webkit-scrollbar{display:none}#tmhUnifiedModeSwitch #themeSwitch{display:flex!important;align-items:center;gap:1px;flex:0 0 auto;min-width:max-content;margin:0!important;padding:2px;border:1px solid #ffffff55;border-radius:9px;background:#ffffff18}#tmhUnifiedModeSwitch #themeSwitch button{min-height:30px;padding:5px 9px;border:0;border-radius:7px;background:transparent;color:#fff;font-size:11px;font-weight:700;white-space:nowrap}#tmhUnifiedModeSwitch #themeSwitch button.active{background:#fff;color:#0a5eb0}#tmhUnifiedModeSwitch #btnRouteView{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-height:34px;margin:0!important;padding:6px 9px;border:1px solid #ffffff75;border-radius:8px;background:#ffffff18;color:#fff;font:600 12px/1.2 var(--sans,system-ui);white-space:nowrap;cursor:pointer}#tmhUnifiedModeSwitch #btnRouteView:hover{background:#ffffff30}
+#tmhUnifiedModeSwitch .tmh-head-action{display:flex;align-items:center;justify-content:center;gap:5px;flex:0 0 auto;min-width:0;min-height:34px;padding:6px 9px;border:1px solid #ffffff75;border-radius:8px;background:#ffffff18;color:#fff;text-decoration:none;font:600 12px/1.2 var(--sans,system-ui);text-align:center;cursor:pointer;white-space:nowrap}
 #tmhUnifiedModeSwitch .tmh-head-action:hover{background:#ffffff30}
 #tmhUnifiedModeSwitch button{font-family:inherit}
 #tmhUnifiedModeSwitch #modePickerBtn{display:flex!important}
@@ -232,21 +232,22 @@ function injectUnifiedChrome(source, mode) {
 #tmhUnifiedModeSwitch a:focus-visible,#tmhUnifiedModeSwitch button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 @media(max-width:900px){#tmhUnifiedModeSwitch{flex-basis:100%;max-width:none;margin:0}}
 @media(max-width:640px){
-.topbar{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto auto auto;gap:9px 8px;padding:10px 12px 11px;background:linear-gradient(180deg,#0a5eb0,#0c4a8c 92%);border-bottom:2px solid #083058}
+.topbar{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto auto;gap:7px 8px;padding:10px 12px 11px;background:linear-gradient(180deg,#0a5eb0,#0c4a8c 92%);border-bottom:2px solid #083058}
 .topbar .brand{display:contents}
 .topbar .brand .logo-block{grid-column:1;grid-row:1;display:flex;align-items:center;gap:8px;min-width:0}
 .topbar .brand .logo-block .tmh-logo .tmh,.topbar .brand .logo-block .nevz-logo .nevz{font-size:21px}
 .topbar .brand .tmh-sub,.topbar .brand .nevz-sub{display:none}
 .topbar .brand .logo-block .divider{height:34px}
 .topbar .brand .tag{grid-column:2;grid-row:1;align-self:center;font-size:15px;padding:7px 12px;margin:0;border-radius:8px}
-#tmhUnifiedModeSwitch{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;width:100%;max-width:none;margin:0}
-#tmhUnifiedModeSwitch .tmh-head-action{min-height:48px;padding:6px 5px;font-size:13px;line-height:1.15}
+#tmhUnifiedModeSwitch{grid-column:1/-1;grid-row:2;display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-start;gap:5px;width:100%;max-width:none;margin:0;padding:5px 8px;overflow-x:auto;overscroll-behavior-x:contain}
+#tmhUnifiedModeSwitch .tmh-head-action{min-height:34px;padding:6px 8px;font-size:11.5px;line-height:1.15}
+#tmhUnifiedModeSwitch #themeSwitch{flex:0 0 auto;justify-content:flex-start;padding:2px}
+#tmhUnifiedModeSwitch #themeSwitch button{min-height:30px;padding:5px 8px;font-size:10.5px}
+#tmhUnifiedModeSwitch #btnRouteView{min-height:34px;padding:6px 8px;font-size:11px}
 .topbar .brand .title-block{grid-column:1/-1;grid-row:3;min-width:0}
 .topbar .brand .title-block h1{font-size:17px;line-height:1.25;white-space:normal;margin:0;color:#fff}
 .topbar .brand .title-block small{display:block;font-size:12px;line-height:1.3;margin-top:4px;color:#cfe4f7}
-.theme-switch{grid-column:1/-1;grid-row:4;display:flex!important;justify-self:stretch;justify-content:space-between;max-width:none;padding:3px 5px}
-.theme-switch button{min-height:36px;padding:6px 12px;font-size:13px}
-.topbar .user-info{grid-column:1/-1;grid-row:5;display:flex!important;align-items:center;gap:7px;flex-wrap:wrap;padding:5px 0 0;border-left:0;border-top:1px solid #ffffff30;font-size:12px}
+.topbar .user-info{grid-column:1/-1;grid-row:4;display:flex!important;align-items:center;gap:7px;flex-wrap:wrap;padding:5px 0 0;border-left:0;border-top:1px solid #ffffff30;font-size:12px}
 .topbar .user-info .logout-btn{min-height:34px;padding:5px 10px}
 .topbar .user-info .tmh-account-link{min-height:34px;padding:5px 10px;border:1px solid #ffffff55;border-radius:8px;color:#fff;text-decoration:none}
 }
@@ -402,6 +403,9 @@ async function main() {
   if (patchBodyCloseIndex >= 0) {
     source = source.slice(0, patchBodyCloseIndex) + migratedPatches + "</body>" + source.slice(patchBodyCloseIndex + "</body>".length);
   }
+  const compactStripScript = '<script id="tmhCompactControlStrip">(function(){var expectsRoute=' + JSON.stringify(mode === "complex" || mode === "housings" || /^k_/.test(String(mode))) + ';function mount(){var bar=document.getElementById("tmhUnifiedModeSwitch");if(!bar)return false;var risk=document.getElementById("tmhRiskOpenBtn");var theme=document.getElementById("themeSwitch");if(theme&&theme.parentNode!==bar)bar.insertBefore(theme,risk||null);var route=document.getElementById("btnRouteView");if(route&&route.parentNode!==bar){route.style.marginLeft="0";bar.insertBefore(route,risk||null);}return !!theme;}var observer=new MutationObserver(function(){if(mount()&&(!expectsRoute||document.getElementById("btnRouteView")))observer.disconnect();});observer.observe(document.documentElement,{childList:true,subtree:true});if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount,{once:true});else mount();setTimeout(function(){mount();observer.disconnect();},1800);})();<\\/script>';
+  const compactStripClose = source.lastIndexOf("</body>");
+  if (compactStripClose >= 0) source = source.slice(0, compactStripClose) + compactStripScript + "</body>" + source.slice(compactStripClose + "</body>".length);
   document.open();
   document.write(source);
   document.close();

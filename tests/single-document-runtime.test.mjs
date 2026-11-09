@@ -80,7 +80,12 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /href="\\/instruction\\.html"/);
   assert.ok(runtime.includes("'})();<\\/script>'"), "injected route script closes with a real script tag");
   assert.match(runtime, /tmh-account-link/);
-  assert.match(runtime, /#tmhUnifiedModeSwitch\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+  assert.match(runtime, /#tmhUnifiedModeSwitch\{display:flex/);
+  assert.match(runtime, /id="tmhCompactControlStrip"/);
+  assert.match(runtime, /insertBefore\(theme,risk\|\|null\)/);
+  assert.match(runtime, /insertBefore\(route,risk\|\|null\)/);
+  assert.match(runtime, /#tmhUnifiedModeSwitch #themeSwitch/);
+  assert.match(runtime, /#tmhUnifiedModeSwitch #btnRouteView/);
   assert.doesNotMatch(runtime, /tmhUnifiedModeSelect/);
   assert.match(runtime, /grid-template-rows:auto auto auto auto auto/);
   assert.match(runtime, /Ещё действия/);
