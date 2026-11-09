@@ -226,7 +226,7 @@ function __tmhAttachFooterLayout(source){
     'var observer=new MutationObserver(function(){mount();});observer.observe(footer,{childList:true,subtree:true});'+
     'mount();if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",mount,{once:true});'+
     'setTimeout(function(){mount();},1200);'+
-  '})();<\\/script>';
+  '})();<\/script>';
   if(source.indexOf('</body>')!==-1)source=source.replace('</body>',script+'</body>');
   return source;
 }
