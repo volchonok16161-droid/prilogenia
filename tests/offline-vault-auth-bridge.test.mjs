@@ -14,7 +14,8 @@ test("parent Supabase auth API exposes one shared offline vault factory", () => 
 
 test("local device-key recovery is not treated as a Supabase session", async () => {
   const authSource = await readFile(new URL("../prototype/supabase-auth.js", import.meta.url), "utf8");
+  const runner = await readFile(new URL("../prototype/offline-sync-runner.js", import.meta.url), "utf8");
   assert.match(authSource, /supabaseAuthenticated: false/);
   assert.match(authSource, /mode: "offline-local-unlock"/);
-  assert.match(authSource, /assertVerifiedIdentity\(await authApi\.getCurrentIdentity\(\), uid\)/);
+  assert.match(runner, /assertVerifiedIdentity\(await authApi\.getCurrentIdentity\(\), uid\)/);
 });
