@@ -170,7 +170,7 @@ test("responsive footer injector produces valid HTML and executable JavaScript",
 test("compact header keeps brand, controls and account actions in the existing user row", () => {
   assert.ok(runtime.includes("function __tmhAttachHeaderLayout(source)"));
   assert.ok(runtime.includes("source = __tmhAttachHeaderLayout(source)"));
-  assert.match(runtime, /\\.topbar \\.brand/);
+  assert.ok(runtime.includes(".topbar .brand"));
   assert.match(runtime, /#tmhUnifiedModeSwitch\{display:flex!important;grid-column:1\/-1;grid-row:2/);
   assert.match(runtime, /\.topbar>\.user-info/);
   assert.doesNotMatch(runtime, /tmhAccountActions/);
@@ -214,7 +214,7 @@ test("Service Worker parses as valid JavaScript before registration", () => {
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v105/);
+  assert.match(sw, /checklist-cache-v106/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/standalone-patches\.js/);
