@@ -90,10 +90,21 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /#tmhUnifiedModeSwitch #themeSwitch/);
   assert.match(runtime, /#tmhUnifiedModeSwitch #btnRouteView/);
   assert.doesNotMatch(runtime, /tmhUnifiedModeSelect/);
-  assert.match(runtime, /grid-template-rows:auto auto auto auto auto/);
-  assert.match(runtime, /Ещё действия/);
-  assert.match(runtime, /tmhCloudRestoreBtn","btnReset/);
-  assert.doesNotMatch(runtime, /"btnReset","themeSwitch"/);
+  assert.match(runtime, /grid-template-rows:auto auto auto auto/);
+  assert.doesNotMatch(runtime, /mobile-more|Ещё действия/, "all footer actions remain visible like main");
+  assert.match(runtime, /id="tmhCloudBackupBtn"/);
+  assert.match(runtime, /id="tmhCloudRestoreBtn"/);
+  assert.match(runtime, /source\\.replace\\(footbar,footbar\\+/);
+  assert.match(runtime, /source\\.indexOf\\('id="tmhCloudBackupBtn"'\\)!==-1/);
+  for (const template of templates) {
+    assert.match(template, /class="footbar"/);
+    for (const id of ["btnSave", "btnSaveHtml", "btnExportJson", "btnImportJson", "btnFindUnfilled", "btnReset"]) {
+      assert.ok(template.includes('id="' + id + '"'), "footer includes " + id);
+    }
+    assert.ok(template.includes('id="btnExport"') || template.includes('id="btnExportWithPhotos"'), "footer includes spreadsheet export");
+    assert.match(template, /\\.footbar\\s*\\{/);
+    assert.match(template, /\\.footbar\\s+\\.btn/);
+  }
   assert.doesNotMatch(runtime, /tmhActSignBtn|Формирование акта на подпись пока не подключено/);
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /actPrintBtnV5/);
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /function makeAct\(\)/);
@@ -134,7 +145,7 @@ test("Service Worker parses as valid JavaScript before registration", () => {
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v97/);
+  assert.match(sw, /checklist-cache-v102/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/standalone-patches\.js/);
