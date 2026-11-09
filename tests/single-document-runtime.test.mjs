@@ -117,7 +117,7 @@ test("unified header uses the native main-style mode modal without an inner chec
 });
 test("document body insertion skips closing-tag text inside scripts", () => {
   const start = runtime.indexOf("function __tmhFindDocumentBodyClose(source)");
-  const end = runtime.indexOf("\\n\\nconst NB514_OLD_JS", start);
+  const end = runtime.indexOf("\n\nconst NB514_OLD_JS", start);
   assert.ok(start >= 0 && end > start, "document close helper is present");
   const findClose = new Function(runtime.slice(start, end) + "; return __tmhFindDocumentBodyClose;")();
   const sample = '<html><head></head><body><script>const decoy = "</body>";</script><p>content</p></body></html>';
