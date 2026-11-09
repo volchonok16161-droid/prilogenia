@@ -200,38 +200,37 @@ function injectUnifiedChrome(source, mode) {
     return '<option value="' + escapeHtml(item.id) + '"' + (item.id === mode ? " selected" : "") + '>' + escapeHtml(item.title) + '</option>';
   }).join("");
   const chrome = '<div id="tmhUnifiedModeSwitch" aria-label="Управление приложением">' +
-    '<label for="tmhUnifiedModeSelect">Чек-лист</label>' +
-    '<select id="tmhUnifiedModeSelect">' + options + '</select>' +
-    '<a class="btn" href="./account.html">👤 Личный кабинет</a></div>';
+    '<select id="tmhUnifiedModeSelect" aria-label="Выбрать чек-лист">' + options + '</select>' +
+    '<a class="btn tmh-account-link" href="./account.html" aria-label="Личный кабинет" title="Личный кабинет"><span aria-hidden="true">👤</span><span class="tmh-account-label">Кабинет</span></a></div>';
   const style = `<style id="tmhUnifiedRuntimeStyles">
-#tmhUnifiedModeSwitch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto;padding:6px 0}
-#tmhUnifiedModeSwitch label{font-size:12px;font-weight:600;color:inherit}
-#tmhUnifiedModeSelect{font:inherit;max-width:min(42vw,260px);min-width:150px;padding:8px 10px;border:1px solid var(--line,#cfe0f0);border-radius:8px;background:var(--panel,#fff);color:var(--ink,#16324f)}
-#tmhUnifiedModeSwitch .btn{white-space:nowrap;text-decoration:none}
+#tmhUnifiedModeSwitch{display:flex;align-items:center;gap:8px;margin-left:auto;padding:0;flex:0 0 auto}
+#tmhUnifiedModeSelect{font:600 13px/1.2 var(--sans,system-ui);width:220px;max-width:28vw;min-width:170px;min-height:38px;padding:8px 30px 8px 12px;border:1px solid #ffffff55;border-radius:9px;background:#ffffff18;color:#fff}
+#tmhUnifiedModeSelect option{color:#16324f;background:#fff}
+#tmhUnifiedModeSwitch .tmh-account-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;padding:8px 12px;border:1px solid #ffffff55;border-radius:9px;color:#fff;background:#ffffff18;text-decoration:none;white-space:nowrap}
+#tmhUnifiedModeSwitch .tmh-account-link:hover{background:#ffffff30}
 #modePickerBtn{display:none!important}
-@media(max-width:720px){#tmhUnifiedModeSwitch{width:100%;margin:0;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid #ffffff22}#tmhUnifiedModeSwitch label{font-size:13px;white-space:nowrap}#tmhUnifiedModeSelect{flex:1;width:1px;max-width:none;min-width:120px;min-height:44px;font-size:16px;padding:9px 12px}#tmhUnifiedModeSwitch .btn{min-height:44px;padding:10px 12px}}
+@media(max-width:720px){#tmhUnifiedModeSwitch{gap:7px;width:auto;margin:0;padding:0;border:0}#tmhUnifiedModeSelect{width:clamp(150px,48vw,230px);max-width:none;min-width:0;min-height:42px;font-size:14px}#tmhUnifiedModeSwitch .tmh-account-link{min-height:42px;padding:8px 11px;font-size:13px}}
 @media(max-width:640px){
-body{font-size:14px}
-.topbar{padding:10px 12px;gap:8px}
-.topbar .brand{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px;width:100%}
+.topbar{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:9px 12px}
+.topbar .brand{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:7px;width:100%;min-width:0}
 .topbar .brand .logo-block{grid-column:1;grid-row:1;display:flex;align-items:center;gap:5px}
 .topbar .brand .tmh-logo .tmh,.topbar .brand .nevz-logo .nevz{font-size:17px}
 .topbar .brand .tmh-sub,.topbar .brand .nevz-sub,.topbar .brand .divider{display:none}
-.topbar .brand .tag{grid-column:1;grid-row:2;font-size:12px;padding:4px 7px;margin-top:3px}
+.topbar .brand .tag{grid-column:1;grid-row:2;font-size:11px;padding:3px 6px;margin-top:2px}
 .topbar .brand .title-block{grid-column:2;grid-row:1/3;min-width:0}
-.topbar .brand .title-block h1{font-size:14px;line-height:1.25;white-space:normal;margin:0}
-.topbar .brand .title-block small{display:block;font-size:11px;line-height:1.3;margin-top:4px}
-.theme-switch{width:100%;display:flex;gap:4px;margin:0}
-.theme-switch button{flex:1;min-height:34px;font-size:12px;padding:5px 8px}
-.user-info{width:100%;border:0;padding:0;gap:8px;flex-wrap:wrap;font-size:12px}
-.user-info .logout-btn{min-height:34px;font-size:12px;padding:5px 10px}
-#tmhUnifiedModeSwitch{padding:6px 0!important}
+.topbar .brand .title-block h1{font-size:13px;line-height:1.25;white-space:normal;margin:0}
+.topbar .brand .title-block small{display:block;font-size:10px;line-height:1.25;margin-top:3px}
+#tmhUnifiedModeSwitch{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+#tmhUnifiedModeSelect{width:100%;max-width:none;min-height:44px;font-size:15px}
+#tmhUnifiedModeSwitch .tmh-account-link{min-width:92px;min-height:44px}
+.tmh-account-label{display:inline}
+.theme-switch{display:none!important}
 .stat-bar{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:8px 10px;position:sticky;top:0;z-index:35;background:var(--panel);box-shadow:0 2px 8px #0b315012}
 .stat-bar .mini-stat{display:flex;align-items:baseline;gap:4px;padding:0 5px;border:0!important;white-space:nowrap;font-size:10px}
 .stat-bar .mini-stat b{font-size:15px;line-height:1.2}
 .stat-bar .mini-stat span{font-size:10px}
 .stat-bar .mini-progress{display:none}
-.wrap{padding:12px 10px 100px}
+.wrap{padding:12px 10px calc(112px + env(safe-area-inset-bottom))}
 .section-title{font-size:12px;letter-spacing:.1em;margin:16px 0 8px}
 .card{padding:12px;border-radius:12px}
 .field{margin-bottom:12px}
@@ -240,18 +239,19 @@ body{font-size:14px}
 .frow{gap:8px}.frow label{font-size:12px}
 .frow select,.frow input[type=text]{min-height:46px;font-size:16px}
 .equip>.eh{padding:10px 12px}.inst{padding:9px}.inst .ih{gap:7px}
-.footbar{position:fixed;left:0;right:0;bottom:0;z-index:45;display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:var(--panel);box-shadow:0 -4px 16px #0a2a4d18}
-.footbar #btnSave{grid-column:1;grid-row:1}
-.footbar #btnFindUnfilled{grid-column:2;grid-row:1}
+.footbar{position:fixed;left:0;right:0;bottom:0;z-index:45;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;padding:9px 10px calc(9px + env(safe-area-inset-bottom));background:var(--panel);box-shadow:0 -4px 18px #0a2a4d20;border-top:1px solid var(--line)}
+.footbar #tmhCloudBackupBtn{grid-column:1;grid-row:1;min-height:48px;width:100%;font-size:13px;font-weight:700;margin:0}
+.footbar #btnFindUnfilled{grid-column:2;grid-row:1;min-height:48px;width:100%;font-size:13px;font-weight:700;margin:0}
 .footbar .mobile-more{grid-column:1/-1;grid-row:2}
-.footbar .btn{min-height:42px;font-size:12px;padding:8px;flex:initial}
-.footbar .mobile-more summary{min-height:38px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:9px;font-size:13px;font-weight:600;cursor:pointer}
+.footbar .mobile-more summary{min-height:38px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink);background:var(--panel2)}
 .footbar .mobile-more[open] .mobile-more-grid{display:grid}
 .footbar .mobile-more-grid{display:none;grid-template-columns:1fr 1fr;gap:7px;padding:8px 0 2px}
-.footbar .mobile-more-grid .btn{width:100%;white-space:normal}
-.scroll-top-btn{bottom:calc(142px + env(safe-area-inset-bottom));right:12px;width:42px;height:42px}
-.toast{bottom:calc(145px + env(safe-area-inset-bottom));max-width:90vw;text-align:center}
+.footbar .mobile-more-grid .btn{width:100%;min-height:42px;white-space:normal;font-size:12px}
+.footbar .btn{min-height:42px;font-size:12px;padding:8px;flex:initial}
+.scroll-top-btn{bottom:calc(150px + env(safe-area-inset-bottom));right:12px;width:42px;height:42px}
+.toast{bottom:calc(150px + env(safe-area-inset-bottom));max-width:90vw;text-align:center}
 }
+@media(prefers-reduced-motion:reduce){.footbar,.tmh-account-link{transition:none!important}}
 </style>`;
   const bodyStart = source.search(/<body\b/i);
   const headCloseIndex = source.lastIndexOf("</head>", bodyStart >= 0 ? bodyStart : source.length);
@@ -273,7 +273,7 @@ body{font-size:14px}
       'localStorage.setItem("checklist_mode_v2",next);var url=new URL(location.href);url.searchParams.set("mode",next);url.searchParams.delete("openChecklist");url.searchParams.delete("openLocalChecklist");location.assign(url.href);' +
       '}catch(error){window.alert(error&&error.message||"Не удалось переключить чек-лист");select.value=' + JSON.stringify(mode) + ';}' +
     '});}' +
-    'if(matchMedia("(max-width:640px)").matches){var bar=document.querySelector(".footbar");if(bar&&!bar.querySelector(".mobile-more")){var more=document.createElement("details");more.className="mobile-more";var summary=document.createElement("summary");summary.textContent="Ещё действия ▾";more.appendChild(summary);var grid=document.createElement("div");grid.className="mobile-more-grid";more.appendChild(grid);["btnSaveHtml","btnExport","btnExportJson","btnImportJson","tmhCloudSaveBtn","tmhCloudRestoreBtn","btnReset"].forEach(function(id){var el=document.getElementById(id);if(el)grid.appendChild(el);});bar.appendChild(more);}}' +
+    'if(matchMedia("(max-width:640px)").matches){var bar=document.querySelector(".footbar");if(bar&&!bar.querySelector(".mobile-more")){var more=document.createElement("details");more.className="mobile-more";var summary=document.createElement("summary");summary.textContent="Ещё действия ▾";more.appendChild(summary);var grid=document.createElement("div");grid.className="mobile-more-grid";more.appendChild(grid);["btnSave","btnSaveHtml","btnExport","btnExportJson","btnImportJson","tmhCloudRestoreBtn","btnReset","themeSwitch"].forEach(function(id){var el=document.getElementById(id);if(el)grid.appendChild(el);});bar.appendChild(more);}}' +
     'var original=window.showContinueDialogOrStart;' +
     'if(typeof original==="function"&&!window.__TMH_ROUTE_START_WRAPPED){window.__TMH_ROUTE_START_WRAPPED=true;window.showContinueDialogOrStart=async function(){' +
       'var params=new URLSearchParams(location.search);var localId=params.get("openLocalChecklist");' +
