@@ -28,6 +28,8 @@ test("editing general inspection date saves state and refreshes progress in ever
     assert.match(dateSection, /addEventListener\(['"]input['"][\s\S]{0,300}STATE\.general\.date\s*=/,
       mode + " must write the edited date to checklist state");
     assert.match(dateSection, /addEventListener\(['"]input['"][\s\S]{0,450}saveState\(true\)[\s\S]{0,180}updateStats\(\)/,
-      mode + " must save and recalculate progress after date edits");
+      mode + " must save and recalculate progress while editing the date");
+    assert.match(dateSection, /addEventListener\(['"]change['"][\s\S]{0,450}saveState\(true\)[\s\S]{0,180}updateStats\(\)/,
+      mode + " must save and recalculate progress when the date picker commits a value");
   }
 });
