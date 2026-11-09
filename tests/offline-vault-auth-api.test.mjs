@@ -36,6 +36,9 @@ test("cloud sync rechecks online identity and local checklist data is committed 
 test("cached device identity is recovered only for network failures and explicit logout blocks it", () => {
   assert.match(auth, /async function getCachedOfflineIdentity\(cause\)/);
   assert.match(auth, /if \(offlineLogoutRequested\) return null/);
+  assert.match(auth, /offline:logout-requested", true/);
+  assert.match(auth, /tmh-offline-logout-requested/);
+  assert.match(auth, /offline:logout-requested", false/);
   assert.match(auth, /session\.unlockDeviceKey\(userId\)/);
   assert.match(auth, /offline:identity:/);
   assert.match(auth, /globalThis\.__TMH_CONNECTION_MODE === "offline"/);
