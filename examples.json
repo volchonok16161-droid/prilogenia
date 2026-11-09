@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-09T08:40:27.659Z",
+  "updated": "2026-11-09T08:41:51.376Z",
   "items": {
     "cx|vb8|zav": {
       "ok": "examples/e_11hwbr_ok_mvurndpt.jpg"
@@ -13,7 +13,8 @@
       "nok": "examples/e_y6okqi_nok_mw3bomby.jpg"
     },
     "cx|bvv|f1": {
-      "ok": "examples/e_60lj59_ok_mw3bue26.jpg"
+      "ok": "examples/e_60lj59_ok_mw3bue26.jpg",
+      "nok": "examples/e_60lj59_nok_mw90im9y.jpg"
     },
     "cx|nvmontazh|f3": {
       "ok": "examples/e_8xwyuc_ok_mw3bvqck.jpg",
