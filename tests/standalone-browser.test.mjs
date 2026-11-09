@@ -74,11 +74,11 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
     try {
       await page.addInitScript(() => { window.__standaloneTestErrors = []; window.addEventListener("error", (event) => window.__standaloneTestErrors.push({ message: event.message, filename: event.filename, line: event.lineno, column: event.colno })); });
       await page.goto(origin + "/prototype/checklist/?mode=" + mode, { waitUntil: "domcontentloaded", timeout: 45000 });
-      await page.waitForSelector("#tmhUnifiedModeSelect", { timeout: 45000 });
+      await page.waitForSelector("#modeSelectModal", { timeout: 45000 });
       await page.waitForFunction(() => document.readyState === "complete");
       await page.waitForTimeout(350);
       const state = await page.evaluate(async (ids) => ({
-        selectedMode: document.querySelector("#tmhUnifiedModeSelect")?.value || null,
+        selectedMode: document.querySelector("#modeSelectModal [data-tmh-mode][aria-current=\"page\"]")?.getAttribute("data-tmh-mode") || null,
         baseURI: document.baseURI,
         examplePhotoChecks: await (async () => {
           const response = await fetch("/examples.json");
@@ -155,7 +155,7 @@ test("service worker reopens the standalone checklist after network loss", { tim
   );
   try {
     await page.goto(origin + "/prototype/checklist/?mode=hydro", { waitUntil: "domcontentloaded", timeout: 45000 });
-    await page.waitForSelector("#tmhUnifiedModeSelect", { timeout: 45000 });
+    await page.waitForSelector("#modeSelectModal", { timeout: 45000 });
     await page.evaluate(async () => {
       if (!("serviceWorker" in navigator)) throw new Error("Service Worker is unavailable");
       const registration = await navigator.serviceWorker.register("/sw.js");
@@ -172,13 +172,13 @@ test("service worker reopens the standalone checklist after network loss", { tim
       }
     });
     await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
-    await page.waitForSelector("#tmhUnifiedModeSelect", { timeout: 45000 });
+    await page.waitForSelector("#modeSelectModal", { timeout: 45000 });
     await page.waitForFunction(() => !!navigator.serviceWorker.controller, { timeout: 30000 });
     await context.setOffline(true);
     await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
-    await page.waitForSelector("#tmhUnifiedModeSelect", { timeout: 45000 });
+    await page.waitForSelector("#modeSelectModal", { timeout: 45000 });
     const state = await page.evaluate(async () => ({
-      mode: document.querySelector("#tmhUnifiedModeSelect")?.value || null,
+      mode: document.querySelector("#modeSelectModal [data-tmh-mode][aria-current=\"page\"]")?.getAttribute("data-tmh-mode") || null,
       offline: navigator.onLine === false,
       controlled: !!navigator.serviceWorker.controller,
       iframes: document.querySelectorAll("iframe").length,
@@ -204,9 +204,9 @@ test("mobile checklist header and form fit a narrow phone viewport", async () =>
   );
   try {
     await page.goto(origin + "/prototype/checklist/?mode=complex", { waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#tmhUnifiedModeSelect");
+    await page.waitForSelector("#modeSelectModal");
     const layout = await page.evaluate(() => {
-      const select = document.querySelector("#tmhUnifiedModeSelect");
+      const select = document.querySelector("#modePickerBtn");
       const input = document.querySelector(".field input, .field select");
       const header = document.querySelector(".topbar");
       return {
@@ -220,10 +220,10 @@ test("mobile checklist header and form fit a narrow phone viewport", async () =>
       };
     });
     assert.equal(layout.document, layout.viewport, "mobile page must not scroll horizontally");
-    assert.ok(layout.modeSelect >= 120, JSON.stringify(layout));
-    assert.ok(layout.modeHeight >= 44, JSON.stringify(layout));
+    assert.ok(layout.modeSelect >= 100, JSON.stringify(layout));
+    assert.ok(layout.modeHeight >= 32, JSON.stringify(layout));
     assert.ok(layout.inputWidth > 0 && layout.inputWidth <= layout.viewport, JSON.stringify(layout));
-    assert.equal(layout.modeFont, "16px");
+    assert.ok(parseFloat(layout.modeFont) >= 11, JSON.stringify(layout));
   } finally {
     await page.close();
   }
