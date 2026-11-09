@@ -77,7 +77,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       await page.waitForSelector("#modeSelectModal", { state: "attached", timeout: 45000 });
       await page.waitForSelector(".tmh-footer-main #tmhCloudBackupBtn", { state: "attached", timeout: 15000 });
       await page.waitForSelector(".tmh-footer-main #actPrintBtnV5", { state: "attached", timeout: 15000 });
-      await page.waitForSelector(".tmh-footer-unfilled #btnFindUnfilled", { state: "attached", timeout: 15000 });
+      await page.waitForSelector(".tmh-footer-main #btnFindUnfilled", { state: "attached", timeout: 15000 });
       await page.waitForFunction(() => document.readyState === "complete");
       await page.waitForTimeout(350);
       const state = await page.evaluate(async (ids) => ({
@@ -99,7 +99,8 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
         cloudBackup: !!document.getElementById("tmhCloudBackupBtn"),
         cloudRestore: !!document.getElementById("tmhCloudRestoreBtn"),
         footerMain: Array.from(document.querySelector(".tmh-footer-main")?.children || []).map((element) => element.id || element.className),
-        footerUnfilled: document.querySelector(".tmh-footer-unfilled #btnFindUnfilled")?.id || null,
+        headerTheme: !!document.querySelector("#tmhUnifiedModeSwitch #themeSwitch"),
+        headerRoute: !!document.querySelector("#tmhUnifiedModeSwitch #btnRouteView"),
         footerMoreActions: ["btnSave", "btnSaveHtml", "btnExport", "btnExportWithPhotos", "btnExportJson", "btnImportJson", "jsonFileInput", "btnPrint", "btnReset", "tmhCloudRestoreBtn"].filter((id) => {
           const element = document.getElementById(id);
           return !!element && !!element.closest(".tmh-footer-more-grid");
@@ -122,8 +123,9 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       assert.equal(state.topbar, true);
       assert.equal(state.cloudBackup, true);
       assert.equal(state.cloudRestore, true);
-      assert.deepEqual(state.footerMain, ["tmhCloudBackupBtn", "actPrintBtnV5", "tmh-footer-more"]);
-      assert.equal(state.footerUnfilled, "btnFindUnfilled");
+      assert.deepEqual(state.footerMain, ["tmhCloudBackupBtn", "actPrintBtnV5", "btnExport", "btnFindUnfilled", "tmh-footer-more"]);
+      assert.equal(state.headerTheme, true);
+      assert.equal(state.headerRoute, true);
       assert.ok(state.footerMoreActions.includes("tmhCloudRestoreBtn"));
       assert.ok(state.footerMoreActions.includes("btnSave"));
       assert.ok(state.footerMoreActions.includes("btnExportJson"));
@@ -222,13 +224,13 @@ test("mobile footer keeps primary actions and the unfilled search usable at 360-
     await page.goto(origin + "/prototype/checklist/?mode=complex", { waitUntil: "domcontentloaded", timeout: 45000 });
     await page.waitForSelector(".tmh-footer-main #tmhCloudBackupBtn", { state: "attached", timeout: 45000 });
     await page.waitForSelector(".tmh-footer-main #actPrintBtnV5", { state: "attached", timeout: 15000 });
-    await page.waitForSelector(".tmh-footer-unfilled #btnFindUnfilled", { state: "attached", timeout: 15000 });
+    await page.waitForSelector(".tmh-footer-main #btnFindUnfilled", { state: "attached", timeout: 15000 });
     for (const width of [360, 390, 430]) {
       await page.setViewportSize({ width, height: 800 });
       const layout = await page.evaluate(() => {
         const footer = document.querySelector(".footbar");
         const main = document.querySelector(".tmh-footer-main");
-        const primary = ["tmhCloudBackupBtn", "actPrintBtnV5"];
+        const primary = ["tmhCloudBackupBtn", "actPrintBtnV5", "btnExport", "btnFindUnfilled"];
         const boxes = primary.map((id) => {
           const rect = document.getElementById(id).getBoundingClientRect();
           return { id, width: rect.width, height: rect.height, right: rect.right };
@@ -246,9 +248,9 @@ test("mobile footer keeps primary actions and the unfilled search usable at 360-
         };
       });
       assert.equal(layout.document, layout.viewport, "footer must not create horizontal overflow at " + width + "px: " + JSON.stringify(layout));
-      assert.equal(layout.mainColumns, 3, JSON.stringify(layout));
-      assert.ok(layout.boxes.every((box) => box.width >= 80 && box.height >= 44 && box.right <= width), JSON.stringify(layout));
-      assert.ok(layout.findWidth >= width - 24 && layout.findHeight >= 44 && layout.findRight <= width, JSON.stringify(layout));
+      assert.equal(layout.mainColumns, 4, JSON.stringify(layout));
+      assert.ok(layout.boxes.every((box) => box.width >= 65 && box.height >= 44 && box.right <= width), JSON.stringify(layout));
+      assert.ok(layout.boxes[3].width >= 65 && layout.boxes[3].height >= 44, JSON.stringify(layout));
     }
     await page.evaluate(() => { const modal = document.getElementById("loginModal"); if (modal) modal.style.display = "none"; });
     await page.locator(".tmh-footer-more > summary").click();
