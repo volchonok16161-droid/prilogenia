@@ -53,7 +53,7 @@ test("startup sync requires a fresh server-verified identity", async () => {
   assert.equal(statuses.at(-1).status, "synced");
 });
 
-test("a local PIN identity without a verified profile never reaches the runner", async () => {
+test("a local device identity without a verified profile never reaches the runner", async () => {
   const { coordinator, calls } = fixture({
     currentIdentity: { user: { id: UID }, profile: null, error: null },
   });
