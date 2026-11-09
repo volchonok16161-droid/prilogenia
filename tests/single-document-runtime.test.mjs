@@ -72,7 +72,7 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /Инструкция/);
   assert.match(runtime, /id="tmhRiskOpenBtn"/);
   assert.match(runtime, /id="riskOverlay"/);
-  assert.match(runtime, /checklist-risk-viewer\\.js/);
+  assert.match(runtime, /checklist-risk-viewer\.js/);
   assert.doesNotMatch(runtime, /href="\/zona_riska\.xlsx" download=/);
   assert.match(riskViewer, /window.__TMH_ACTIVE_MODE__/);
   assert.match(riskViewer, /__TMH_GET_CLOUD_BACKUP_CONTEXT/);
@@ -82,7 +82,6 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /<button class="logout-btn"[^>]*>/);
   assert.ok(runtime.includes('href="/account.html">Личный кабинет</a>$1'));
   assert.ok(runtime.includes('if (userInfoPattern.test(source)) source = source.replace(userInfoPattern, chrome + "$1")'));
-  assert.match(runtime, /#tmhUnifiedModeSwitch\\{display:flex/);
   assert.match(runtime, /#tmhUnifiedModeSwitch\{display:flex/);
   assert.match(runtime, /id="tmhCompactControlStrip"/);
   assert.match(runtime, /insertBefore\(theme,risk\|\|null\)/);
@@ -109,8 +108,8 @@ test("unified header uses the native main-style mode modal without an inner chec
       assert.ok(template.includes('id="' + id + '"'), "footer includes " + id);
     }
     assert.ok(template.includes('id="btnExport"') || template.includes('id="btnExportWithPhotos"'), "footer includes spreadsheet export");
-    assert.match(template, /\\.footbar\\s*\\{/);
-    assert.match(template, /\\.footbar\\s+\\.btn/);
+    assert.match(template, /\.footbar\s*\{/);
+    assert.match(template, /\.footbar\s+\.btn/);
   }
   assert.doesNotMatch(runtime, /tmhActSignBtn|Формирование акта на подпись пока не подключено/);
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /actPrintBtnV5/);
