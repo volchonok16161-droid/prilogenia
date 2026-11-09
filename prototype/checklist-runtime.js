@@ -200,29 +200,28 @@ function injectUnifiedChrome(source, mode) {
     return '<option value="' + escapeHtml(item.id) + '"' + (item.id === mode ? " selected" : "") + '>' + escapeHtml(item.title) + '</option>';
   }).join("");
   const chrome = '<div id="tmhUnifiedModeSwitch" aria-label="Управление приложением">' +
-    '<label class="tmh-mode-control"><span class="tmh-control-icon">⇄</span><select id="tmhUnifiedModeSelect" aria-label="Сменить чек-лист">' + options + '</select></label>' +
+    '<button class="tmh-head-action primary" id="modePickerBtn" type="button"><span aria-hidden="true">⇄</span><span id="modePickerLabel">Сменить чек-лист</span></button>' +
     '<a class="tmh-head-action" href="/zona_riska.xlsx" target="_blank" rel="noopener">📍 Зона риска</a>' +
-    '<a class="tmh-head-action" href="/instruction.html" target="_blank" rel="noopener">📖 Инструкция</a></div>';
+    '<a class="tmh-head-action" href="/instruction.html">📖 Инструкция</a></div>';
   const style = `<style id="tmhUnifiedRuntimeStyles">
-#tmhUnifiedModeSwitch{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr);align-items:stretch;gap:8px;width:100%;margin:0;padding:0;flex:0 0 auto}
-#tmhUnifiedModeSwitch .tmh-mode-control,#tmhUnifiedModeSwitch .tmh-head-action{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:44px;padding:8px 9px;border:1px solid #ffffff75;border-radius:11px;background:#ffffff18;color:#fff;text-decoration:none;font:600 14px/1.2 var(--sans,system-ui);text-align:center}
-#tmhUnifiedModeSelect{appearance:auto;width:100%;min-width:0;border:0;background:transparent;color:#fff;font:600 14px/1.2 var(--sans,system-ui);outline:none}
-#tmhUnifiedModeSelect option{color:#16324f;background:#fff}
-#tmhUnifiedModeSwitch .tmh-head-action:hover,#tmhUnifiedModeSwitch .tmh-mode-control:focus-within{background:#ffffff30}
-#modePickerBtn{display:none!important}
-@media(min-width:641px){#tmhUnifiedModeSwitch{display:none!important}}
-@media(max-width:720px){#tmhUnifiedModeSwitch{gap:7px}#tmhUnifiedModeSwitch .tmh-mode-control,#tmhUnifiedModeSwitch .tmh-head-action{min-height:44px;font-size:13px;padding:7px 5px}}
+#tmhUnifiedModeSwitch{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:8px;flex:1 1 520px;min-width:0;max-width:760px;margin:0 0 0 auto}
+#tmhUnifiedModeSwitch .tmh-head-action{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:44px;padding:8px 10px;border:1px solid #ffffff75;border-radius:10px;background:#ffffff18;color:#fff;text-decoration:none;font:600 14px/1.2 var(--sans,system-ui);text-align:center;cursor:pointer;white-space:normal}
+#tmhUnifiedModeSwitch .tmh-head-action:hover{background:#ffffff30}
+#tmhUnifiedModeSwitch button{font-family:inherit}
+#tmhUnifiedModeSwitch #modePickerBtn{display:flex!important}
+#tmhUnifiedModeSwitch #modePickerBtn span:last-child{min-width:0}
+#tmhUnifiedModeSwitch a:focus-visible,#tmhUnifiedModeSwitch button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+@media(max-width:900px){#tmhUnifiedModeSwitch{flex-basis:100%;max-width:none;margin:0}}
 @media(max-width:640px){
-.topbar{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto auto;gap:9px 8px;padding:10px 12px 11px;background:linear-gradient(180deg,#0a5eb0,#0c4a8c 92%);border-bottom:2px solid #083058}
+.topbar{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto auto auto;gap:9px 8px;padding:10px 12px 11px;background:linear-gradient(180deg,#0a5eb0,#0c4a8c 92%);border-bottom:2px solid #083058}
 .topbar .brand{display:contents}
 .topbar .brand .logo-block{grid-column:1;grid-row:1;display:flex;align-items:center;gap:8px;min-width:0}
 .topbar .brand .logo-block .tmh-logo .tmh,.topbar .brand .logo-block .nevz-logo .nevz{font-size:21px}
 .topbar .brand .tmh-sub,.topbar .brand .nevz-sub{display:none}
 .topbar .brand .logo-block .divider{height:34px}
 .topbar .brand .tag{grid-column:2;grid-row:1;align-self:center;font-size:15px;padding:7px 12px;margin:0;border-radius:8px}
-#tmhUnifiedModeSwitch{grid-column:1/-1;grid-row:2;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr);gap:7px;width:100%;margin:0}
-#tmhUnifiedModeSwitch .tmh-mode-control,#tmhUnifiedModeSwitch .tmh-head-action{min-height:48px;padding:6px 5px;font-size:13px;line-height:1.15}
-#tmhUnifiedModeSelect{font-size:14px;min-height:36px}
+#tmhUnifiedModeSwitch{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;width:100%;max-width:none;margin:0}
+#tmhUnifiedModeSwitch .tmh-head-action{min-height:48px;padding:6px 5px;font-size:13px;line-height:1.15}
 .topbar .brand .title-block{grid-column:1/-1;grid-row:3;min-width:0}
 .topbar .brand .title-block h1{font-size:17px;line-height:1.25;white-space:normal;margin:0;color:#fff}
 .topbar .brand .title-block small{display:block;font-size:12px;line-height:1.3;margin-top:4px;color:#cfe4f7}
@@ -231,60 +230,21 @@ function injectUnifiedChrome(source, mode) {
 .topbar .user-info{grid-column:1/-1;grid-row:5;display:flex!important;align-items:center;gap:7px;flex-wrap:wrap;padding:5px 0 0;border-left:0;border-top:1px solid #ffffff30;font-size:12px}
 .topbar .user-info .logout-btn{min-height:34px;padding:5px 10px}
 .topbar .user-info .tmh-account-link{min-height:34px;padding:5px 10px;border:1px solid #ffffff55;border-radius:8px;color:#fff;text-decoration:none}
-#modePickerBtn{display:none!important}
 }
 @media(prefers-reduced-motion:reduce){.footbar,.tmh-account-link{transition:none!important}}
-.stat-bar{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:8px 10px;position:sticky;top:0;z-index:35;background:var(--panel);box-shadow:0 2px 8px #0b315012}
-.stat-bar .mini-stat{display:flex;align-items:baseline;gap:4px;padding:0 5px;border:0!important;white-space:nowrap;font-size:10px}
-.stat-bar .mini-stat b{font-size:15px;line-height:1.2}
-.stat-bar .mini-stat span{font-size:10px}
-.stat-bar .mini-progress{display:none}
-.wrap{padding:12px 10px calc(112px + env(safe-area-inset-bottom))}
-.section-title{font-size:12px;letter-spacing:.1em;margin:16px 0 8px}
-.card{padding:12px;border-radius:12px}
-.field{margin-bottom:12px}
-.field label{font-size:13px;margin-bottom:5px}
-.field input,.field select{width:100%;min-height:48px;font-size:16px;padding:10px}
-.frow{gap:8px}.frow label{font-size:12px}
-.frow select,.frow input[type=text]{min-height:46px;font-size:16px}
-.equip>.eh{padding:10px 12px}.inst{padding:9px}.inst .ih{gap:7px}
-.footbar{position:fixed;left:0;right:0;bottom:0;z-index:45;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;padding:9px 10px calc(9px + env(safe-area-inset-bottom));background:var(--panel);box-shadow:0 -4px 18px #0a2a4d20;border-top:1px solid var(--line)}
-.footbar{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
-.footbar #tmhCloudBackupBtn{grid-column:1;grid-row:1;min-height:38px;width:100%;font-size:11px;font-weight:700;margin:0;padding:5px 3px}
-.footbar #tmhActSignBtn{grid-column:2;grid-row:1;min-height:38px;width:100%;font-size:11px;font-weight:700;margin:0;padding:5px 3px}
-.footbar .mobile-more{grid-column:3;grid-row:1;min-height:38px}
-.footbar #btnFindUnfilled{grid-column:1/-1;grid-row:2;min-height:42px;width:100%;font-size:13px;font-weight:700;margin:0}
-.footbar .mobile-more summary{min-height:38px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;color:var(--ink);background:var(--panel2)}
-.footbar .mobile-more[open] .mobile-more-grid{display:grid}
-.footbar .mobile-more-grid{display:none;grid-template-columns:1fr 1fr;gap:7px;padding:8px 0 2px}
-.footbar .mobile-more-grid .btn{width:100%;min-height:42px;white-space:normal;font-size:12px}
-.footbar .btn{min-height:42px;font-size:12px;padding:8px;flex:initial}
-.scroll-top-btn{bottom:calc(150px + env(safe-area-inset-bottom));right:12px;width:42px;height:42px}
-.toast{bottom:calc(150px + env(safe-area-inset-bottom));max-width:90vw;text-align:center}
-}
-@media(prefers-reduced-motion:reduce){.footbar,.tmh-account-link{transition:none!important}}
-</style>`;
-  const bodyStart = source.search(/<body\b/i);
+</style>`;  const bodyStart = source.search(/<body\b/i);
   const headCloseIndex = source.lastIndexOf("</head>", bodyStart >= 0 ? bodyStart : source.length);
   if (headCloseIndex >= 0) {
     source = source.slice(0, headCloseIndex) + '<base href="/">' + style + "</head>" + source.slice(headCloseIndex + "</head>".length);
   }
+  source = source.replace(/<button class="mode-picker-btn" id="modePickerBtn"[\s\S]*?<\/button>\s*/i, "");
   source = source.replace(/(<div class="user-info"[^>]*>)/i, '$1<a class="tmh-account-link" href="/account.html">Личный кабинет</a>');
   const topbarPattern = /<\/div>\s*(<div class="stat-bar")/i;
   if (topbarPattern.test(source)) source = source.replace(topbarPattern, chrome + "</div>\n$1");
   else source = source.replace(/<body[^>]*>/i, function(tag) { return tag + chrome; });
   const routeScript = '<script>(function(){' +
-    'var select=document.getElementById("tmhUnifiedModeSelect");' +
-    'if(select){select.value=' + JSON.stringify(mode) + ';select.addEventListener("change",async function(){' +
-      'var next=select.value;if(!next||next===' + JSON.stringify(mode) + ')return;' +
-      'if(!window.confirm("Сменить чек-лист? Текущие данные будут сохранены перед переходом.")){select.value=' + JSON.stringify(mode) + ';return;}' +
-      'try{if(typeof saveState==="function"){var saved=saveState(true);if(saved===false)throw new Error("Не удалось сохранить текущий чек-лист");}' +
-      'if(typeof __PS!=="undefined"&&__PS.chain)await __PS.chain;' +
-      'if(typeof __tmhOfflineSaveChain!=="undefined"&&__tmhOfflineSaveChain)await __tmhOfflineSaveChain;' +
-      'if(typeof __tmhOfflineSaveError!=="undefined"&&__tmhOfflineSaveError)throw new Error("Не удалось завершить локальное сохранение");' +
-      'localStorage.setItem("checklist_mode_v2",next);var url=new URL(location.href);url.searchParams.set("mode",next);url.searchParams.delete("openChecklist");url.searchParams.delete("openLocalChecklist");location.assign(url.href);' +
-      '}catch(error){window.alert(error&&error.message||"Не удалось переключить чек-лист");select.value=' + JSON.stringify(mode) + ';}' +
-    '});}' +
+    'var switchButton=document.getElementById("modePickerBtn");' +
+    'if(switchButton){switchButton.addEventListener("click",function(){var modal=document.getElementById("modeSelectModal");if(modal){modal.style.display="flex";modal.setAttribute("aria-hidden","false");}else{window.alert("Окно выбора чек-листа недоступно в этой сборке.");}});}' +
     'if(matchMedia("(max-width:640px)").matches){var bar=document.querySelector(".footbar");if(bar&&!bar.querySelector("#tmhActSignBtn")){var sign=document.createElement("button");sign.type="button";sign.id="tmhActSignBtn";sign.className="btn";sign.textContent="✍ Акт на подпись";sign.addEventListener("click",function(){if(typeof showToast==="function")showToast("Формирование акта на подпись пока не подключено");});bar.insertBefore(sign,bar.firstChild);}if(bar&&!bar.querySelector(".mobile-more")){var more=document.createElement("details");more.className="mobile-more";var summary=document.createElement("summary");summary.textContent="Ещё действия ▾";more.appendChild(summary);var grid=document.createElement("div");grid.className="mobile-more-grid";more.appendChild(grid);["btnSave","btnSaveHtml","btnExport","btnExportJson","btnImportJson","tmhCloudRestoreBtn","btnReset","themeSwitch"].forEach(function(id){var el=document.getElementById(id);if(el)grid.appendChild(el);});bar.appendChild(more);}}' +
     'var original=window.showContinueDialogOrStart;' +
     'if(typeof original==="function"&&!window.__TMH_ROUTE_START_WRAPPED){window.__TMH_ROUTE_START_WRAPPED=true;window.showContinueDialogOrStart=async function(){' +
