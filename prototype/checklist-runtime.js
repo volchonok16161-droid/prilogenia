@@ -210,6 +210,7 @@ function injectUnifiedChrome(source, mode) {
 #tmhUnifiedModeSelect option{color:#16324f;background:#fff}
 #tmhUnifiedModeSwitch .tmh-head-action:hover,#tmhUnifiedModeSwitch .tmh-mode-control:focus-within{background:#ffffff30}
 #modePickerBtn{display:none!important}
+@media(min-width:641px){#tmhUnifiedModeSwitch{display:none!important}}
 @media(max-width:720px){#tmhUnifiedModeSwitch{gap:7px}#tmhUnifiedModeSwitch .tmh-mode-control,#tmhUnifiedModeSwitch .tmh-head-action{min-height:44px;font-size:13px;padding:7px 5px}}
 @media(max-width:640px){
 .topbar{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto auto;gap:9px 8px;padding:10px 12px 11px;background:linear-gradient(180deg,#0a5eb0,#0c4a8c 92%);border-bottom:2px solid #083058}
@@ -284,7 +285,7 @@ function injectUnifiedChrome(source, mode) {
       'localStorage.setItem("checklist_mode_v2",next);var url=new URL(location.href);url.searchParams.set("mode",next);url.searchParams.delete("openChecklist");url.searchParams.delete("openLocalChecklist");location.assign(url.href);' +
       '}catch(error){window.alert(error&&error.message||"Не удалось переключить чек-лист");select.value=' + JSON.stringify(mode) + ';}' +
     '});}' +
-    'if(matchMedia("(max-width:640px)").matches){var bar=document.querySelector(".footbar");if(bar&&!bar.querySelector(".mobile-more")){var more=document.createElement("details");more.className="mobile-more";var summary=document.createElement("summary");summary.textContent="Ещё действия ▾";more.appendChild(summary);var grid=document.createElement("div");grid.className="mobile-more-grid";more.appendChild(grid);["btnSave","btnSaveHtml","btnExport","btnExportJson","btnImportJson","tmhCloudRestoreBtn","btnReset","themeSwitch"].forEach(function(id){var el=document.getElementById(id);if(el)grid.appendChild(el);});bar.appendChild(more);}}' +
+    'if(matchMedia("(max-width:640px)").matches){var bar=document.querySelector(".footbar");if(bar&&!bar.querySelector("#tmhActSignBtn")){var sign=document.createElement("button");sign.type="button";sign.id="tmhActSignBtn";sign.className="btn";sign.textContent="✍ Акт на подпись";sign.addEventListener("click",function(){if(typeof showToast==="function")showToast("Формирование акта на подпись пока не подключено");});bar.insertBefore(sign,bar.firstChild);}if(bar&&!bar.querySelector(".mobile-more")){var more=document.createElement("details");more.className="mobile-more";var summary=document.createElement("summary");summary.textContent="Ещё действия ▾";more.appendChild(summary);var grid=document.createElement("div");grid.className="mobile-more-grid";more.appendChild(grid);["btnSave","btnSaveHtml","btnExport","btnExportJson","btnImportJson","tmhCloudRestoreBtn","btnReset","themeSwitch"].forEach(function(id){var el=document.getElementById(id);if(el)grid.appendChild(el);});bar.appendChild(more);}}' +
     'var original=window.showContinueDialogOrStart;' +
     'if(typeof original==="function"&&!window.__TMH_ROUTE_START_WRAPPED){window.__TMH_ROUTE_START_WRAPPED=true;window.showContinueDialogOrStart=async function(){' +
       'var params=new URLSearchParams(location.search);var localId=params.get("openLocalChecklist");' +
