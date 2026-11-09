@@ -240,7 +240,6 @@ async function resolveLoginEmail(identifier) {
 }
 
 async function signIn(email, password) {
-  offlineLogoutRequested = false;
   activeOfflineIdentity = null;
   activeOfflineVault = null;
   activeOfflineUserId = null;
@@ -282,6 +281,8 @@ async function signIn(email, password) {
     return { user: data.user, profile: null, error: result.error };
   }
 
+  offlineLogoutRequested = false;
+  await offlineVault.database.setMeta("offline:logout-requested", false);
   let offlineSetupError = null;
   try { await activateDeviceVault({ user: data.user, profile: result.profile }); }
   catch (vaultError) {
@@ -295,6 +296,9 @@ async function getCachedOfflineIdentity(cause) {
   // Explicit logout wins over automatic device-key recovery. Only a deliberate
   // fresh online login or device-key recovery may activate the offline identity again.
   if (offlineLogoutRequested) return null;
+  try {
+    if (await offlineVault.database.getMeta("offline:logout-requested") === true) return null;
+  } catch {}
   let reportedOffline = globalThis.__TMH_CONNECTION_MODE === "offline";
   try {
     reportedOffline = reportedOffline ||
@@ -537,6 +541,7 @@ async function getLastOfflineUserId() {
 
 async function signOut() {
   offlineLogoutRequested = true;
+  try { await offlineVault.database.setMeta("offline:logout-requested", true); } catch {}
   if (activeOfflineIdentity) {
     activeOfflineIdentity = null;
     activeOfflineVault = null;
