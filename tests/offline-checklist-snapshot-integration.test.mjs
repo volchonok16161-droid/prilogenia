@@ -9,7 +9,7 @@ const html = (await readFile(new URL("../index.html", import.meta.url), "utf8"))
   "../prototype/embedded/complex.js",
 ].map((path) => readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
 
-test("complex checklist marks local PIN sessions separately from Supabase sessions", () => {
+test("complex checklist marks local-only sessions separately from Supabase sessions", () => {
   assert.equal((html.match(/window\.__TMH_OFFLINE_MODE = identity\.mode === 'offline-local-unlock'/g) || []).length, 5);
 });
 
