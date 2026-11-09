@@ -102,7 +102,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
         headerTheme: !!document.querySelector("#tmhUnifiedModeSwitch #themeSwitch"),
         headerAccountControls: ["tmh-account-link", "logout-btn"].every((name) => !!document.querySelector("#userInfo ." + name)),
         headerRows: !!document.querySelector(".topbar #tmhUnifiedModeSwitch") && !!document.querySelector(".topbar #userInfo"),
-        headerRoute: !!document.querySelector("#tmhUnifiedModeSwitch #btnRouteView"),
+        headerRoute: !!document.querySelector(".topbar > #btnRouteView"),
         footerMoreActions: ["btnSave", "btnSaveHtml", "btnExport", "btnExportWithPhotos", "btnExportJson", "btnImportJson", "jsonFileInput", "btnPrint", "btnReset", "tmhCloudRestoreBtn"].filter((id) => {
           const element = document.getElementById(id);
           return !!element && !!element.closest(".tmh-footer-more-grid");
