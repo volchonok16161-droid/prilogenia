@@ -447,7 +447,7 @@ async function main() {
   // The standalone entry page lives at /prototype/checklist/ and its <base>
   // is discarded by document.open()/document.write(). Restore root-relative
   // resolution in the generated checklist document before inserting scripts.
-  if (!/<base\\b/i.test(source)) {
+  if (!/<base\b/i.test(source)) {
     const headClose = __tmhFindDocumentHeadClose(source);
     if (headClose >= 0) source = source.slice(0, headClose) + '<base href="/">\\n' + source.slice(headClose);
   }
