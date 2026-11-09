@@ -221,7 +221,7 @@ function injectUnifiedChrome(source, mode) {
 .topbar .brand .title-block h1{font-size:13px;line-height:1.25;white-space:normal;margin:0}
 .topbar .brand .title-block small{display:block;font-size:10px;line-height:1.25;margin-top:3px}
 #tmhUnifiedModeSwitch{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
-#tmhUnifiedModeSelect{width:100%;max-width:none;min-height:44px;font-size:15px}
+#tmhUnifiedModeSelect{width:100%;max-width:none;min-height:44px;font-size:16px}
 #tmhUnifiedModeSwitch .tmh-account-link{min-width:92px;min-height:44px}
 .tmh-account-label{display:inline}
 .theme-switch{display:none!important}\n.topbar .user-info{display:none!important}
