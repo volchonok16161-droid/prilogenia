@@ -13,7 +13,7 @@ const session = await readFile(new URL("../prototype/offline-vault-session.js", 
 const auth = await readFile(new URL("../prototype/supabase-auth.js", import.meta.url), "utf8");
 const runner = await readFile(new URL("../prototype/offline-sync-runner.js", import.meta.url), "utf8");
 
-test("all checklist shells expose no extra local credential or PIN controls", () => {
+test("all checklist shells expose no additional local credential controls", () => {
   assert.doesNotMatch(html, /offlinePinInput|setupOfflinePinBtn|unlockOfflineBtn|__tmhBindOfflinePinControls/);
   assert.doesNotMatch(auth, /setupOfflinePin|unlockOffline|hasOfflineSetup/);
   assert.doesNotMatch(crypto + session, /PBKDF2|createDescriptor|pin-attempts|offline:descriptor/);
