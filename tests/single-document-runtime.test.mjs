@@ -95,7 +95,7 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(runtime, /tmh-footer-unfilled/);
   assert.match(runtime, /tmh-footer-more/);
   assert.match(runtime, /Сохранить в облако/);
-  assert.match(runtime, /Акт на подпись/);
+  assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /Акт на подпись/);
   assert.match(runtime, /Ещё действия/);
   assert.ok(runtime.includes("})();<" + String.fromCharCode(92) + "/script>"), "footer layout script closes its injected script element");
   assert.match(runtime, /id="tmhCloudBackupBtn"/);
@@ -115,6 +115,17 @@ test("unified header uses the native main-style mode modal without an inner chec
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /actPrintBtnV5/);
   assert.match(standalonePatches.find((patch) => patch.id === "__ACT_PRINT_V5__").code, /function makeAct\(\)/);
 });
+test("document body insertion skips closing-tag text inside scripts", () => {
+  const start = runtime.indexOf("function __tmhFindDocumentBodyClose(source)");
+  const end = runtime.indexOf("\\n\\nconst NB514_OLD_JS", start);
+  assert.ok(start >= 0 && end > start, "document close helper is present");
+  const findClose = new Function(runtime.slice(start, end) + "; return __tmhFindDocumentBodyClose;")();
+  const sample = '<html><head></head><body><script>const decoy = "</body>";</script><p>content</p></body></html>';
+  const close = findClose(sample);
+  assert.equal(sample.slice(close), "</body></html>");
+  assert.equal(findClose("<html><body></body></html>"), 12);
+});
+
 test("responsive footer injector produces valid HTML and executable JavaScript", () => {
   const start = runtime.indexOf("function __tmhAttachFooterLayout(source){");
   const end = runtime.indexOf("\n\nconst MODE_LABELS", start);
