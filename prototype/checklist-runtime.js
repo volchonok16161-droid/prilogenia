@@ -269,7 +269,7 @@ function __tmhAttachHeaderLayout(source){
     '.topbar .brand .title-block{grid-column:3;grid-row:1;min-width:0;}'+
     '.topbar .brand .title-block h1{margin:0;font-size:clamp(15px,1.5vw,19px);line-height:1.25;}'+
     '.topbar .brand .title-block small{display:block;margin-top:3px;line-height:1.3;}'+
-    '.topbar>.user-info{display:flex!important;grid-column:2;grid-row:1;align-items:center;justify-content:flex-end;gap:7px;min-width:0;margin:0;padding:0;border:0;flex-wrap:wrap;}'+
+    '.topbar>.user-info{display:flex;grid-column:2;grid-row:1;align-items:center;justify-content:flex-end;gap:7px;min-width:0;margin:0;padding:0;border:0;flex-wrap:wrap;}'+
     '#tmhUnifiedModeSwitch{display:flex!important;grid-column:1/-1;grid-row:2;align-items:center;justify-content:flex-start;gap:8px;flex-wrap:wrap;width:100%;max-width:none;margin:0;padding:8px 10px;border-radius:9px;overflow:visible;}'+
     '#tmhUnifiedModeSwitch #themeSwitch{order:1;}#tmhUnifiedModeSwitch #btnRouteView{order:2;}#tmhUnifiedModeSwitch #modePickerBtn{order:0;}#tmhUnifiedModeSwitch #tmhRiskOpenBtn{order:3;}#tmhUnifiedModeSwitch a{order:4;}'+
     '#tmhAccountActions{display:flex;grid-column:1/-1;grid-row:3;align-items:center;justify-content:flex-end;gap:8px;width:100%;min-height:36px;padding-top:7px;border-top:1px solid #ffffff35;}'+
