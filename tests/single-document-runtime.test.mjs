@@ -153,10 +153,28 @@ test("responsive footer injector produces valid HTML and executable JavaScript",
   assert.match(script, /btnFindUnfilled/);
   assert.match(script, /tmhCloudRestoreBtn/);
   assert.match(script, /MutationObserver/);
-  assert.match(script, /main\.appendChild\(backup\);main\.appendChild\(act\);main\.appendChild\(excel\);main\.appendChild\(find\);main\.appendChild\(details\)/);
+  assert.match(script, /main\.insertBefore\(el,current\)/);
+  assert.match(script, /details\.parentNode!==footer/);
+  assert.match(script, /footer\.insertBefore\(details,main\.nextSibling\)/);
+  assert.match(script, /Сохранить в облако/);
+  assert.match(script, /Акт на подпись/);
+  assert.match(script, /Экспорт в Excel/);
+  assert.match(script, /Найти незаполненное/);
   assert.match(script, /move\("tmhCloudBackupBtn",main\),act=move\("actPrintBtnV5",main\)/);
-  assert.match(script, /details\.appendChild\(summary\);details\.appendChild\(more\);main\.appendChild\(details\)/);
+  assert.match(script, /details\.appendChild\(summary\);details\.appendChild\(more\);footer\.appendChild\(main\);footer\.appendChild\(details\)/);
   assert.match(script, /if\(backup&&act&&excel&&find\)/);
+});
+
+test("three-row header layout keeps account actions separate and adjacent", () => {
+  assert.ok(runtime.includes("function __tmhAttachHeaderLayout(source)"));
+  assert.ok(runtime.includes("source = __tmhAttachHeaderLayout(source)"));
+  assert.match(runtime, /#tmhAccountActions \.tmh-account-link,#tmhAccountActions \.logout-btn/);
+  assert.match(runtime, /top\.appendChild\(actions\)/);
+  assert.match(runtime, /actions\.appendChild\(account\)/);
+  assert.match(runtime, /actions\.appendChild\(logout\)/);
+  assert.match(runtime, /grid-row:1/);
+  assert.match(runtime, /grid-row:2/);
+  assert.match(runtime, /grid-row:3/);
 });
 
 test("generated mode-switch script parses before the button can be used", () => {
