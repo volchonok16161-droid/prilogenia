@@ -100,6 +100,8 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
         cloudRestore: !!document.getElementById("tmhCloudRestoreBtn"),
         footerMain: Array.from(document.querySelector(".tmh-footer-main")?.children || []).map((element) => element.id || element.className),
         headerTheme: !!document.querySelector("#tmhUnifiedModeSwitch #themeSwitch"),
+        headerAccountActions: Array.from(document.querySelector("#tmhAccountActions")?.children || []).map((element) => element.className),
+        headerRows: !!document.querySelector(".topbar #tmhUnifiedModeSwitch") && !!document.querySelector(".topbar #tmhAccountActions"),
         headerRoute: !!document.querySelector("#tmhUnifiedModeSwitch #btnRouteView"),
         footerMoreActions: ["btnSave", "btnSaveHtml", "btnExport", "btnExportWithPhotos", "btnExportJson", "btnImportJson", "jsonFileInput", "btnPrint", "btnReset", "tmhCloudRestoreBtn"].filter((id) => {
           const element = document.getElementById(id);
@@ -123,8 +125,10 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
       assert.equal(state.topbar, true);
       assert.equal(state.cloudBackup, true);
       assert.equal(state.cloudRestore, true);
-      assert.deepEqual(state.footerMain, ["tmhCloudBackupBtn", "actPrintBtnV5", mode === "hydro" ? "btnExportWithPhotos" : "btnExport", "btnFindUnfilled", "tmh-footer-more"]);
+      assert.deepEqual(state.footerMain, ["tmhCloudBackupBtn", "actPrintBtnV5", mode === "hydro" ? "btnExportWithPhotos" : "btnExport", "btnFindUnfilled"]);
       assert.equal(state.headerTheme, true);
+      assert.equal(state.headerRows, true);
+      assert.deepEqual(state.headerAccountActions, ["tmh-account-link", "logout-btn"]);
       assert.equal(state.headerRoute, mode === "complex" || mode === "housings");
       assert.ok(state.footerMoreActions.includes("tmhCloudRestoreBtn"));
       assert.ok(state.footerMoreActions.includes("btnSave"));
