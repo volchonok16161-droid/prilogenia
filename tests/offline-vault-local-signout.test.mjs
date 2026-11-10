@@ -41,9 +41,9 @@ test("offline account selection follows the persisted Supabase session, not a st
 });
 
 test("async local saves bind the original account and vault across account switches", () => {
-  assert.match(auth, /function assertActiveOfflineContext\\(userId, vault\\)/);
+  assert.ok(auth.includes("function assertActiveOfflineContext(userId, vault)"));
   assert.match(auth, /const vault = activeOfflineVault/);
-  assert.match(auth, /assertActiveOfflineContext\\(userId, vault\\)/);
+  assert.ok(auth.includes("assertActiveOfflineContext(userId, vault)"));
   assert.match(auth, /activeOfflineUserId === expectedUserId && activeOfflineVault === expectedVault/);
-  assert.match(auth, /requestOfflineSyncAfterInstanceSave\\(result, userId, vault\\)/);
+  assert.ok(auth.includes("requestOfflineSyncAfterInstanceSave(result, userId, vault)"));
 });
