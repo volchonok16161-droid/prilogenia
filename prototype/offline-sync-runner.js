@@ -79,16 +79,35 @@ export function createOfflineSyncRunner({
         const cloudState = await database.getCloudState(uid, operation.entityId);
         let effectiveOperation = operation;
         let effectiveValue = localValue;
-        if (operation.operation === "create" && cloudState?.revision) {
-          // Recover safely from a lost acknowledgement after a successful create.
-          // The row id is deterministic; RLS-scoped get() proves it belongs to this user.
-          const existing = await cloudSync.get(operation.entityId);
-          if (existing?.id !== operation.entityId || existing?.revision !== cloudState.revision) {
-            const error = new Error("Cloud record exists but its saved revision cannot be verified");
-            error.code = "REVISION_CONFLICT";
-            throw error;
+        if (operation.operation === "create") {
+          // A tab may close after Supabase committed the INSERT but before
+          // IndexedDB acknowledged it. Probe the deterministic id through the
+          // owner-scoped API even when no local cloud revision was persisted.
+          // RLS makes an existing row visible only to its authenticated owner.
+          let existing = null;
+          try {
+            existing = await cloudSync.get(operation.entityId);
+          } catch (lookupError) {
+            if (lookupError?.code !== "NOT_FOUND") throw lookupError;
           }
-          effectiveOperation = { ...operation, operation: "update" };
+          if (existing) {
+            const knownRevision = Number(cloudState?.revision);
+            const remoteRevision = Number(existing.revision);
+            if (existing.id !== operation.entityId ||
+                !Number.isSafeInteger(remoteRevision) || remoteRevision < 1 ||
+                (Number.isSafeInteger(knownRevision) && knownRevision > 0 && knownRevision !== remoteRevision)) {
+              const error = new Error("Cloud record exists but its owner or revision cannot be verified");
+              error.code = "REVISION_CONFLICT";
+              throw error;
+            }
+            effectiveOperation = { ...operation, operation: "update" };
+            effectiveValue = {
+              ...localValue,
+              cloud: { ...localValue.cloud, expectedRevision: remoteRevision },
+            };
+          }
+        }
+        if (operation.operation === "update" && cloudState?.revision) {
           effectiveValue = {
             ...localValue,
             cloud: { ...localValue.cloud, expectedRevision: cloudState.revision },
