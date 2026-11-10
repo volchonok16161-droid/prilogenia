@@ -334,7 +334,7 @@ test("IndexedDB rolls back a snapshot write when the matching queue insert fails
         try {
           await database.putRecordAndCoalesceQueue({
             id: "checklist-atomic", userId, kind: "checklist",
-            encrypted: attempted, opId: "duplicate-op", entityId: "cloud-checklist",
+            encrypted: attempted, opId: "duplicate-op", entityId: "different-cloud-checklist",
             operation: "update", createdAt: "2026-11-10T10:01:00.000Z",
           });
         } catch (error) {
@@ -445,7 +445,7 @@ test("offline vault restores encrypted checklist, pending queue, conflict and ex
       });
       await database.saveConflict({
         conflictId: "reload-conflict", userId, entityId,
-        localEncrypted: encryptedLocal, remoteEncrypted, createdAt: baseTime,
+        localEncrypted: encryptedLocal, remoteEncrypted: encryptedRemote, createdAt: baseTime,
       });
       await database.setMeta("reload-marker", { saved: true, version: 4 });
       const claimed = await database.claimQueueOperation(

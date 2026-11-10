@@ -5,13 +5,15 @@ import { readFile } from "node:fs/promises";
 const auth = await readFile(new URL("../prototype/supabase-auth.js", import.meta.url), "utf8");
 
 test("offline sign-out clears the active local identity and vault without network", () => {
-  assert.match(auth, /if \(activeOfflineIdentity\) \{[\s\S]*?activeOfflineVault = null;[\s\S]*?activeOfflineUserId = null;[\s\S]*?return \{ error: null, offline: true \};/);
+  assert.match(auth, /const wasOfflineIdentity = Boolean\(activeOfflineIdentity\)/);
+  assert.match(auth, /clearActiveOfflineContext\(\)/);
+  assert.match(auth, /if \(wasOfflineIdentity\) \{[\s\S]*?client\.auth\.signOut\(\{ scope: "local" \}\)[\s\S]*?return \{ error: null, offline: true \};/);
   assert.match(auth, /const supabase = await getSupabaseClient\(\);[\s\S]*?const \{ error \} = await supabase\.auth\.signOut\(\)/);
 });
 
 test("explicit logout blocks automatic device-key recovery until fresh online sign-in", () => {
   assert.match(auth, /let offlineLogoutRequested = false;/);
-  assert.match(auth, /async function signOut\(\) \{\s*offlineLogoutRequested = true;/);
+  assert.match(auth, /async function signOut\(\) \{\s*const wasOfflineIdentity = Boolean\(activeOfflineIdentity\);\s*offlineLogoutRequested = true;/);
   assert.match(auth, /if \(offlineLogoutRequested\) return null/);
   assert.match(auth, /offline:logout-requested", true/);
   assert.match(auth, /tmh-offline-logout-requested/);

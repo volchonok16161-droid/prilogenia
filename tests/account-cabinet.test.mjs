@@ -38,8 +38,8 @@ test("account cabinet allows deleting only the selected cloud checklist owned by
   assert.match(html, /window\.confirm\("Удалить облачный чек-лист/);
   assert.match(html, /deleteCloudChecklist\(\{[\s\S]*?checklistId: row\.id,[\s\S]*?expectedUserId: user\.id/);
   assert.match(deleteHelper, /\.from\("checklists"\)[\s\S]*?\.delete\(\)[\s\S]*?\.eq\("id", checklistId\)[\s\S]*?\.eq\("owner_id", expectedUserId\)/);
-  assert.match(html, /\.select\("id"\)[\s\S]*?\.maybeSingle\(\)/);
-  assert.match(html, /if \(!deleted\?\.id\) throw new Error/);
+  assert.match(deleteHelper, /\.select\("id"\)[\s\S]*?\.maybeSingle\(\)/);
+  assert.match(deleteHelper, /if \(!deleted\?\.id\) throw new Error/);
   assert.match(html, /await loadCabinet\(\)/);
   assert.match(html, /Локальные данные и фотографии на устройстве не будут затронуты/);
   assert.match(html, /локальные данные и фотографии на устройстве не изменяются/);

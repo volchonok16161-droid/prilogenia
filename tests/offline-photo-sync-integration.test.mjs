@@ -101,13 +101,14 @@ test("photo upload and checklist create form one successful offline sync transac
   assert.equal(f.uploads.length, 1);
   assert.equal(f.uploads[0].checklistId, ID);
   assert.equal(f.uploads[0].revision, 1);
-  assert.equal(f.calls[0][0], "create");
-  assert.equal(f.calls[0][1].payload.state.values.item1.front_photo, undefined);
-  assert.deepEqual(f.calls[0][1].payload.photoManifest, [{
+  const createCall = f.calls.find(([method]) => method === "create");
+  assert.ok(createCall, "photo-backed cloud create should follow the owner-scoped NOT_FOUND probe");
+  assert.equal(createCall[1].payload.state.values.item1.front_photo, undefined);
+  assert.deepEqual(createCall[1].payload.photoManifest, [{
     itemId: "item1", field: "front_photo", path: PHOTO_PATH, contentType: "image/jpeg",
   }]);
   assert.equal(f.cloudState.revision, 1);
-  assert.deepEqual(f.cloudState.photoManifest, f.calls[0][1].payload.photoManifest);
+  assert.deepEqual(f.cloudState.photoManifest, createCall[1].payload.photoManifest);
   assert.deepEqual(f.state.values.item1.front_photo, "data:image/jpeg;base64,AQID");
   assert.equal(f.removed.length, 0);
 });

@@ -74,9 +74,10 @@ test("create sync sends a full schema-versioned snapshot for a supported mode", 
   assert.equal(result.synced, 1);
   assert.equal(f.queue.length, 0);
   assert.equal(f.cloudState.revision, 1);
-  assert.equal(f.calls[0][0], "create");
-  assert.deepEqual(f.calls[0][1].payload.state, STATE);
-  assert.equal(f.calls[0][1].payload.schemaVersion, 1);
+  const createCall = f.calls.find(([method]) => method === "create");
+  assert.ok(createCall, "cloud create should follow the owner-scoped NOT_FOUND probe");
+  assert.deepEqual(createCall[1].payload.state, STATE);
+  assert.equal(createCall[1].payload.schemaVersion, 1);
 });
 
 test("update sync uses an explicit last-confirmed revision", async () => {
@@ -119,7 +120,9 @@ test("all five mode adapters produce cloud envelopes without dropping checklist 
     const f = fixture({ mode });
     const result = await f.runner.syncPending({ userId: UID });
     assert.equal(result.synced, 1, mode);
-    assert.deepEqual(f.calls[0][1].payload.state, STATE, mode);
+    const createCall = f.calls.find(([method]) => method === "create");
+    assert.ok(createCall, "cloud create should follow the owner-scoped NOT_FOUND probe: " + mode);
+    assert.deepEqual(createCall[1].payload.state, STATE, mode);
   }
 });
 
