@@ -372,28 +372,28 @@ test("a Storage download failure midway through restore never mutates the caller
   assert.equal(h.calls.filter((call) => call.action === "download").length, 2);
 });
 
+
 test("photo upload stops if Supabase account changes while Storage upload is in flight", async () => {
-  const h = harness();
-  const originalUpload = h.sync.uploadState;
-  // Switch the live auth identity from inside the first Storage request.
-  const identitySwitchingStorage = {
-    from(bucket) {
-      const original = h.sync;
-      return {
-        async upload(path, blob, options) {
-          h.switchUser("22222222-2222-4222-8222-222222222222");
-          return { data: { path }, error: null };
-        },
-      };
+  let liveUserId = USER;
+  const storageApi = {
+    from() {
+      return { async upload(path) {
+        liveUserId = "22222222-2222-4222-8222-222222222222";
+        return { data: { path }, error: null };
+      } };
     },
   };
   const guarded = createChecklistPhotoSync({
-    authApi: { async getCurrentIdentity() { return { user: { id: h.currentUserId }, error: null }; } ,
-    storageApi: identitySwitchingStorage,
+    authApi: { async getCurrentIdentity() { return { user: { id: liveUserId }, error: null }; } },
+    storageApi,
     idFactory: () => PHOTO,
   });
   await assert.rejects(
-    guarded.uploadState({ state: { values: { item1: { front_photo: "data:image/jpeg;base64,AQID" } } }, checklistId: ROW, revision: 1 }),
+    guarded.uploadState({
+      state: { values: { item1: { front_photo: "data:image/jpeg;base64,AQID" } } },
+      checklistId: ROW,
+      revision: 1,
+    }),
     (error) => error.code === "AUTH_CONTEXT_CHANGED",
   );
 });
