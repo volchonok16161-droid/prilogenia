@@ -99,3 +99,26 @@ test("reports photo cleanup failure without pretending that the database delete 
   assert.deepEqual(result, { id: ROW, photosRemoved: 0, photoCleanupWarning: true });
   assert.equal(h.calls.some((x) => x[0] === "delete"), true);
 });
+
+test("supports the legacy photoManifest property for existing cloud rows", async () => {
+  const legacyPhoto = { itemId: "item1", field: "front_photo", path: "legacy/path", contentType: "image/jpeg" };
+  const h = harness({
+    read: { data: { id: ROW, payload: { photoManifest: [legacyPhoto] } }, error: null },
+  });
+  const result = await deleteCloudChecklist({
+    authApi: h.authApi, checklistId: ROW, expectedUserId: USER,
+    photoSyncFactory: h.photoSyncFactory,
+  });
+  assert.equal(result.photosRemoved, 1);
+  assert.deepEqual(h.photoCalls[0], ["removeManifest", [legacyPhoto]]);
+});
+
+test("does not initialize photo storage when a checklist has no photos", async () => {
+  const h = harness({ read: { data: { id: ROW, payload: { photos: [] } }, error: null } });
+  const result = await deleteCloudChecklist({
+    authApi: h.authApi, checklistId: ROW, expectedUserId: USER,
+    photoSyncFactory: () => { throw new Error("storage should not be initialized"); },
+  });
+  assert.deepEqual(result, { id: ROW, photosRemoved: 0, photoCleanupWarning: false });
+  assert.equal(h.photoCalls.length, 0);
+});
