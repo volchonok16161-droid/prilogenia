@@ -392,6 +392,6 @@ test("renews the fenced queue lease while a long cloud request is running", asyn
   const result = await runner.syncPending({ userId: UID });
   assert.equal(result.synced, 1);
   assert.equal(queue.length, 0);
-  assert.equal(leaseRenewals.length, 1);
+  assert.ok(leaseRenewals.length >= 3);
   assert.equal(cleared, true);
 });
