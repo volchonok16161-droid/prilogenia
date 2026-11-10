@@ -29,9 +29,11 @@ export async function deleteCloudChecklist({
   if (readError) throw readError;
   if (!currentRow?.id) throw new Error("Чек-лист не найден или уже удалён.");
 
-  const photos = Array.isArray(currentRow.payload?.photos)
-    ? currentRow.payload.photos
-    : (Array.isArray(currentRow.payload?.photoManifest) ? currentRow.payload.photoManifest : []);
+  // Match restore semantics: prefer the current manifest field and use
+  // the legacy alias only for older rows that do not contain it.
+  const photos = Array.isArray(currentRow.payload?.photoManifest)
+    ? currentRow.payload.photoManifest
+    : (Array.isArray(currentRow.payload?.photos) ? currentRow.payload.photos : []);
 
   const { data: deleted, error: deleteError } = await authApi.client
     .from("checklists")
