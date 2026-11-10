@@ -500,6 +500,20 @@ async function loadCabinet() {
           if (latestIdentity?.user?.id !== user.id) {
             throw new Error("Сеанс пользователя изменился. Обновите кабинет и войдите снова.");
           }
+          // Read the photo manifest before deleting the row. Storage cleanup must
+          // happen only after the owner-scoped database delete succeeds; otherwise
+          // a failed delete could leave a live checklist with missing photographs.
+          const { data: currentRow, error: readError } = await api.client
+            .from("checklists")
+            .select("id,payload")
+            .eq("id", row.id)
+            .eq("owner_id", user.id)
+            .maybeSingle();
+          if (readError) throw readError;
+          if (!currentRow?.id) throw new Error("Чек-лист не найден или уже удалён.");
+          const photoManifest = Array.isArray(currentRow.payload?.photoManifest)
+            ? currentRow.payload.photoManifest
+            : (Array.isArray(currentRow.payload?.photos) ? currentRow.payload.photos : []);
           const { data: deleted, error: deleteError } = await api.client
             .from("checklists")
             .delete()
@@ -509,7 +523,20 @@ async function loadCabinet() {
             .maybeSingle();
           if (deleteError) throw deleteError;
           if (!deleted?.id) throw new Error("Чек-лист не удалён: запись не найдена или нет прав.");
+          let photoCleanupWarning = false;
+          if (photoManifest.length) {
+            try {
+              const photoSync = createChecklistPhotoSync({ authApi: api });
+              await photoSync.removeManifest(photoManifest);
+            } catch (photoError) {
+              photoCleanupWarning = true;
+              console.warn("Deleted checklist photos could not be cleaned up", photoError);
+            }
+          }
           await loadCabinet();
+          if (photoCleanupWarning) {
+            window.alert("Чек-лист удалён, но часть фотографий не удалось очистить из хранилища. Повторная очистка потребуется отдельно.");
+          }
         } catch (error) {
           remove.disabled = false;
           remove.textContent = "Удалить";
