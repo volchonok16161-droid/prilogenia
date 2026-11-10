@@ -224,6 +224,7 @@ export function createChecklistPhotoSync({
       const blob = storageError(result, "загрузка фотографии");
       if (!blob || typeof blob.arrayBuffer !== "function") fail("INVALID_PHOTO", "Supabase Storage вернул некорректный файл");
       const bytes = new Uint8Array(await blob.arrayBuffer());
+      await getUserId(authApi, userId);
       if (!bytes.byteLength || bytes.byteLength > MAX_FILE_BYTES) fail("PHOTO_SIZE_LIMIT", "Размер фотографии превышает 10 МБ");
       const dataUrl = "data:" + entry.contentType + ";base64," + encodeBase64(bytes);
       setPhoto(restored, entry.itemId, entry.field, dataUrl);
