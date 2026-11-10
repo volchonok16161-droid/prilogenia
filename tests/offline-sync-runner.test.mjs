@@ -240,3 +240,94 @@ test("photo cleanup survives a failure and retries without resending the checkli
   assert.equal(updateCalls, 1);
   assert.equal(removeCalls, 3);
 });
+
+
+function createRecoveryFixture({ lookup, cloudCreate } = {}) {
+  const queue = [{
+    opId: "create-op", userId: UID, entityId: OP.entityId, operation: "create",
+    encrypted: OP.encrypted, status: "pending", attempts: 0,
+  }];
+  const calls = [];
+  const database = {
+    async listPending(uid) { return queue.filter(row => row.userId === uid && row.status === "pending").map(row => ({ ...row })); },
+    async claimQueueOperation(id, uid, claim, _now, until) {
+      const row = queue.find(item => item.opId === id && item.userId === uid && item.status === "pending");
+      if (!row) return false;
+      Object.assign(row, { status: "processing", leaseClaimId: claim, leaseUntil: until });
+      return true;
+    },
+    async updateQueueOperation(id, uid, changes, claim) {
+      const row = queue.find(item => item.opId === id && item.userId === uid);
+      if (!row || row.leaseClaimId !== claim) return false;
+      Object.assign(row, changes); return true;
+    },
+    async getCloudState() { return null; },
+    async markSynced(id, uid, revision, claim, state) {
+      const index = queue.findIndex(item => item.opId === id && item.userId === uid && item.leaseClaimId === claim);
+      if (index < 0) return false;
+      queue.splice(index, 1);
+      calls.push(["ack", revision, state]);
+      return { opId: id, serverRevision: revision };
+    },
+    async saveConflict() {},
+  };
+  const authApi = { async getCurrentIdentity() { return { user: { id: UID }, profile: { id: UID, role: "employee" } }; } };
+  const vault = { async decrypt() { return { cloud: { id: OP.entityId, title: "offline edit", equipmentType: "TT", payload: { state: {} } } }; }, async encrypt(value) { return { version: 1, iv: "iv", ciphertext: JSON.stringify(value) }; } };
+  const cloudSync = {
+    async get(id) {
+      calls.push(["get", id]);
+      if (lookup instanceof Error) throw lookup;
+      if (lookup === null) { const error = new Error("not found"); error.code = "NOT_FOUND"; throw error; }
+      return lookup;
+    },
+    async create(input) { calls.push(["create", input]); return cloudCreate || { id: OP.entityId, revision: 1 }; },
+    async update(input) { calls.push(["update", input]); return { id: OP.entityId, revision: input.expectedRevision + 1 }; },
+    async remove() { throw new Error("unexpected remove"); },
+  };
+  const runner = createOfflineSyncRunner({
+    authApi, database, vault, cloudSync, isOnline: () => true,
+    now: () => "2026-11-10T12:00:00.000Z",
+    claimIdFactory: () => "recovery-claim",
+    mapOperation: async (operation, value) => ({
+      method: operation.operation,
+      id: operation.entityId,
+      input: {
+        id: value.cloud.id,
+        title: value.cloud.title,
+        equipmentType: value.cloud.equipmentType,
+        payload: value.cloud.payload,
+        ...(operation.operation === "update" ? { expectedRevision: value.cloud.expectedRevision } : {}),
+      },
+    }),
+  });
+  return { runner, queue, calls };
+}
+
+test("create retry recovers a lost acknowledgement by updating the already-created owner-scoped row", async () => {
+  const existing = { id: OP.entityId, revision: 7, payload: {} };
+  const { runner, queue, calls } = createRecoveryFixture({ lookup: existing });
+  const result = await runner.syncPending({ userId: UID });
+  assert.equal(result.synced, 1);
+  assert.equal(queue.length, 0);
+  assert.deepEqual(calls.filter(call => ["create", "update"].includes(call[0])).map(call => call[0]), ["update"]);
+  assert.equal(calls.find(call => call[0] === "update")[1].expectedRevision, 7);
+  assert.equal(calls[0][0], "get");
+});
+
+test("create retry performs INSERT only when the owner-scoped lookup confirms NOT_FOUND", async () => {
+  const { runner, queue, calls } = createRecoveryFixture({ lookup: null });
+  const result = await runner.syncPending({ userId: UID });
+  assert.equal(result.synced, 1);
+  assert.equal(queue.length, 0);
+  assert.deepEqual(calls.filter(call => ["create", "update"].includes(call[0])).map(call => call[0]), ["create"]);
+});
+
+test("create retry never inserts when the lookup fails for a reason other than NOT_FOUND", async () => {
+  const outage = new Error("temporary network outage");
+  const { runner, queue, calls } = createRecoveryFixture({ lookup: outage });
+  const result = await runner.syncPending({ userId: UID });
+  assert.equal(result.failed, 1);
+  assert.equal(queue.length, 1);
+  assert.equal(queue[0].status, "pending");
+  assert.equal(calls.some(call => call[0] === "create" || call[0] === "update"), false);
+});
