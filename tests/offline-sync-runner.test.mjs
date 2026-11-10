@@ -468,15 +468,15 @@ test("two tabs preserve per-checklist order when a newer edit arrives during an 
       input: { id: operation.entityId, expectedRevision: value.cloud?.expectedRevision, title: value.title, equipmentType: "TT", payload: {} },
     }),
   });
-  const firstRun = makeRunner().syncPending({ userId: UID });
+  const firstRun = makeRunner().syncPending({ userId: UID, limit: 1 });
   await firstStarted;
-  const secondWhileFirstActive = await makeRunner().syncPending({ userId: UID });
+  const secondWhileFirstActive = await makeRunner().syncPending({ userId: UID, limit: 1 });
   assert.equal(secondWhileFirstActive.synced, 0);
   assert.equal(calls.length, 1);
   releaseFirst();
   const firstResult = await firstRun;
   assert.equal(firstResult.synced, 1);
-  const secondAfterFirst = await makeRunner().syncPending({ userId: UID });
+  const secondAfterFirst = await makeRunner().syncPending({ userId: UID, limit: 1 });
   assert.equal(secondAfterFirst.synced, 1);
   assert.equal(queue.length, 0);
   assert.equal(calls.length, 2);
