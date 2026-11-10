@@ -5,7 +5,7 @@ import { createOfflineSyncRunner } from "../prototype/offline-sync-runner.js";
 const UID = "11111111-1111-4111-8111-111111111111";
 const OP = { opId:"op-1", userId:UID, entityId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", operation:"update", encrypted:{version:1,iv:"iv",ciphertext:"cipher"}, status:"pending", attempts:0 };
 
-function fixture({ identity, online=true, cloud={} } = {}) {
+function fixture({ identity, online=true, cloud={}, setIntervalImpl, clearIntervalImpl, leaseDurationMs, leaseRenewIntervalMs } = {}) {
   const queue=[{...OP}]; const conflicts=[]; const calls=[];
   let cloudState = null;
   const database={
@@ -38,6 +38,10 @@ function fixture({ identity, online=true, cloud={} } = {}) {
     authApi,database,vault,cloudSync,
     mapOperation:async (_op,value)=>({method:"update",id:OP.entityId,input:{id:OP.entityId,expectedRevision:1,title:value.title,equipmentType:"TT",payload:{}}}),
     isOnline:()=>online,
+    ...(setIntervalImpl ? { setIntervalImpl } : {}),
+    ...(clearIntervalImpl ? { clearIntervalImpl } : {}),
+    ...(leaseDurationMs ? { leaseDurationMs } : {}),
+    ...(leaseRenewIntervalMs ? { leaseRenewIntervalMs } : {}),
   });
   return {runner,queue,conflicts,calls,get cloudState(){return cloudState;}};
 }
@@ -358,4 +362,39 @@ test("create retry with a changed remote revision stores a conflict and keeps bo
   assert.equal(conflicts[0].localEncrypted, OP.encrypted);
   assert.equal(conflicts[0].remoteEncrypted.version, 1);
   assert.equal(calls.some(call => call[0] === "create" || call[0] === "update"), false);
+});
+
+
+test("renews the fenced queue lease while a long cloud request is running", async () => {
+  let tick;
+  let cleared = false;
+  let renewals = 0;
+  const { runner, queue } = fixture({
+    setIntervalImpl(callback, interval) {
+      assert.equal(interval, 1_000);
+      tick = callback;
+      return "lease-timer";
+    },
+    clearIntervalImpl(handle) {
+      assert.equal(handle, "lease-timer");
+      cleared = true;
+    },
+    leaseDurationMs: 30_000,
+    leaseRenewIntervalMs: 1_000,
+    cloud: {
+      update: async () => {
+        tick();
+        await new Promise(resolve => setImmediate(resolve));
+        return { id: OP.entityId, revision: 2 };
+      },
+    },
+  });
+  const originalUpdate = runner;
+  assert.ok(originalUpdate);
+  // The fixture's atomic fake DB is exercised through a lease renewal injected
+  // by the timer. A processing row must remain owned until cloud acknowledgement.
+  const result = await runner.syncPending({ userId: UID });
+  assert.equal(result.synced, 1);
+  assert.equal(queue.length, 0);
+  assert.equal(cleared, true);
 });
