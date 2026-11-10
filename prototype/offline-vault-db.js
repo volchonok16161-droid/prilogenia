@@ -312,6 +312,21 @@ export function createOfflineVaultDatabase({
     });
   }
 
+  // Extend a live claim without changing its fencing token. If another tab
+  // reclaimed an expired lease, its different token makes this renewal fail.
+  async function renewQueueOperation(opId, userId, expectedLeaseClaimId, nowIso, leaseUntil) {
+    if (![opId, userId, expectedLeaseClaimId, nowIso, leaseUntil].every((v) => typeof v === "string" && v) ||
+        leaseUntil <= nowIso) fail("Invalid queue lease renewal");
+    return run([STORES.QUEUE], "readwrite", async (tx) => {
+      const store = tx.objectStore(STORES.QUEUE);
+      const row = await requestResult(store.get([userId, opId]));
+      if (!row || row.userId !== userId || row.status !== "processing" ||
+          row.leaseClaimId !== expectedLeaseClaimId) return false;
+      await requestResult(store.put({ ...row, leaseUntil }));
+      return true;
+    });
+  }
+
   function cloudStateKey(userId, entityId) {
     return "cloud-state:" + userId + ":" + entityId;
   }
@@ -397,6 +412,19 @@ export function createOfflineVaultDatabase({
     });
   }
 
+  async function renewPhotoCleanup(cleanupId, userId, expectedClaimId, nowIso, leaseUntil) {
+    if (![cleanupId, userId, expectedClaimId, nowIso, leaseUntil].every((v) => typeof v === "string" && v) ||
+        leaseUntil <= nowIso) fail("Invalid photo cleanup lease renewal");
+    return run([STORES.META], "readwrite", async (tx) => {
+      const store = tx.objectStore(STORES.META), key = photoCleanupKey(userId, cleanupId);
+      const row = await requestResult(store.get(key));
+      if (!row?.value || row.value.userId !== userId ||
+          row.value.status !== "processing" || row.value.leaseClaimId !== expectedClaimId) return false;
+      await requestResult(store.put({ key, value: { ...row.value, leaseUntil } }));
+      return true;
+    });
+  }
+
   async function completePhotoCleanup(cleanupId, userId, expectedClaimId) {
     return run([STORES.META], "readwrite", async (tx) => {
       const store = tx.objectStore(STORES.META), key = photoCleanupKey(userId, cleanupId);
@@ -436,6 +464,6 @@ export function createOfflineVaultDatabase({
 
   return Object.freeze({
     open, close, getMeta, setMeta, getCloudState, putRecord, putRecordIfAbsent, putRecordAndEnqueue, putRecordAndCoalesceQueue, getRecord, listRecords, deleteRecord,
-    enqueue, listPending, claimQueueOperation, updateQueueOperation, markSynced, listPhotoCleanups, claimPhotoCleanup, updatePhotoCleanup, completePhotoCleanup, saveConflict, listConflicts,
+    enqueue, listPending, claimQueueOperation, updateQueueOperation, renewQueueOperation, markSynced, listPhotoCleanups, claimPhotoCleanup, updatePhotoCleanup, renewPhotoCleanup, completePhotoCleanup, saveConflict, listConflicts,
   });
 }
