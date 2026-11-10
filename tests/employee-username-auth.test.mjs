@@ -10,6 +10,10 @@ test("employee usernames are normalized and deterministically mapped to internal
   assert.match(auth, /String\(identifier \|\| ""\)\.trim\(\)\.normalize\("NFC"\)\.toLowerCase\(\)/);
   assert.match(auth, /crypto\.subtle\.digest\("SHA-256", new TextEncoder\(\)\.encode\(normalized\)\)/);
   assert.match(auth, /return "u" \+ hash\.slice\(0, 63\) \+ "@accounts\.invalid"/);
+  assert.match(auth, /\["цгиспл-карасук", "cgspl-karasuk@accounts\.invalid"\]/);
+  assert.match(auth, /\["цгиспл-тимашевск", "cgspl-timashevsk@accounts\.invalid"\]/);
+  assert.match(admin, /"ЦГиСПЛ-Карасук": \{ email: "cgspl-karasuk@accounts\.invalid"/);
+  assert.match(admin, /"ЦГиСПЛ-Тимашевск": \{ email: "cgspl-timashevsk@accounts\.invalid"/);
   assert.doesNotMatch(auth, /USERNAME_EMAILS/);
 });
 
