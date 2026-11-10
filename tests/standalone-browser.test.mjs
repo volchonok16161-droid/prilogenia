@@ -366,3 +366,79 @@ test("IndexedDB rolls back a snapshot write when the matching queue insert fails
     await page.close();
   }
 });
+
+
+test("offline vault restores encrypted checklist, pending queue, conflict and expired lease after browser reload", async () => {
+  const page = await browser.newPage();
+  const dbName = "tmh-reload-recovery-" + crypto.randomUUID();
+  const userId = "11111111-1111-4111-8111-111111111111";
+  const entityId = "reload-checklist";
+  const encryptedLocal = { version: 1, iv: "reload-iv-local", ciphertext: "encrypted-local-payload" };
+  const encryptedRemote = { version: 1, iv: "reload-iv-remote", ciphertext: "encrypted-remote-payload" };
+  const baseTime = "2026-11-10T10:00:00.000Z";
+  try {
+    await page.goto(origin + "/prototype/checklist/?mode=hydro", { waitUntil: "domcontentloaded", timeout: 45000 });
+    const beforeReload = await page.evaluate(async ({ dbName, userId, entityId, encryptedLocal, encryptedRemote, baseTime }) => {
+      const { createOfflineVaultDatabase } = await import("/prototype/offline-vault-db.js");
+      const database = createOfflineVaultDatabase({ dbName });
+      await database.putRecordAndEnqueue({
+        id: "reload-record", userId, kind: "checklist", encrypted: encryptedLocal,
+        opId: "reload-operation", entityId, operation: "update", createdAt: baseTime, updatedAt: baseTime,
+      });
+      await database.saveConflict({
+        conflictId: "reload-conflict", userId, entityId,
+        localEncrypted: encryptedLocal, remoteEncrypted, createdAt: baseTime,
+      });
+      await database.setMeta("reload-marker", { saved: true, version: 4 });
+      const claimed = await database.claimQueueOperation(
+        "reload-operation", userId, "old-tab-claim", baseTime,
+        "2026-11-10T10:05:00.000Z"
+      );
+      await database.close();
+      return { claimed };
+    }, { dbName, userId, entityId, encryptedLocal, encryptedRemote, baseTime });
+    assert.equal(beforeReload.claimed, true);
+
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
+    const afterReload = await page.evaluate(async ({ dbName, userId, entityId }) => {
+      const { createOfflineVaultDatabase } = await import("/prototype/offline-vault-db.js");
+      const database = createOfflineVaultDatabase({ dbName });
+      try {
+        const record = await database.getRecord("reload-record", userId);
+        const pending = await database.listPending(userId, "2026-11-10T10:06:00.000Z");
+        const conflicts = await database.listConflicts(userId);
+        const marker = await database.getMeta("reload-marker");
+        const reclaimed = await database.claimQueueOperation(
+          "reload-operation", userId, "new-tab-claim",
+          "2026-11-10T10:06:00.000Z", "2026-11-10T10:11:00.000Z"
+        );
+        return {
+          recordCiphertext: record?.encrypted?.ciphertext,
+          pendingCount: pending.length,
+          pendingStatus: pending[0]?.status,
+          pendingClaim: pending[0]?.leaseClaimId,
+          conflictCount: conflicts.length,
+          conflictLocal: conflicts[0]?.localEncrypted?.ciphertext,
+          conflictRemote: conflicts[0]?.remoteEncrypted?.ciphertext,
+          marker,
+          reclaimed,
+          cloudState: await database.getCloudState(userId, entityId),
+        };
+      } finally {
+        await database.close();
+      }
+    }, { dbName, userId, entityId });
+    assert.equal(afterReload.recordCiphertext, encryptedLocal.ciphertext);
+    assert.equal(afterReload.pendingCount, 1);
+    assert.equal(afterReload.pendingStatus, "processing");
+    assert.equal(afterReload.pendingClaim, "old-tab-claim");
+    assert.equal(afterReload.conflictCount, 1);
+    assert.equal(afterReload.conflictLocal, encryptedLocal.ciphertext);
+    assert.equal(afterReload.conflictRemote, encryptedRemote.ciphertext);
+    assert.deepEqual(afterReload.marker, { saved: true, version: 4 });
+    assert.equal(afterReload.reclaimed, true);
+    assert.equal(afterReload.cloudState, null);
+  } finally {
+    await page.close();
+  }
+});
