@@ -612,3 +612,53 @@ test("createSnapshot does not reuse a photo-free duplicate when local photos nee
   assert.equal(snapshot.photosUploaded, 1);
   assert.deepEqual(calls, [["upload", 1], ["create", 1]]);
 });
+
+
+test("old revision cleanup accepts the current photoManifest property before legacy photos", async () => {
+  const h = makeHarness({ reference: { id: ROW, revision: 4 } });
+  const currentManifest = [{ itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/4/cccccccc-cccc-4ccc-8ccc-cccccccccccc", contentType: "image/jpeg" }];
+  const legacyManifest = [{ itemId: "item1", field: "rear_photo", path: USER + "/" + ROW + "/4/dddddddd-dddd-4ddd-8ddd-dddddddddddd", contentType: "image/jpeg" }];
+  const calls = [];
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem: () => JSON.stringify({ id: ROW, revision: 4 }), setItem() {} },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    photoSync: {
+      async uploadState() { return { manifest: [], uploaded: 0 }; },
+      async removeManifest(manifest) { calls.push(manifest); return manifest.length; },
+    },
+    cloudApi: {
+      async get(id) { return { id, revision: 4, payload: { photoManifest: currentManifest, photos: legacyManifest } }; },
+      async update() { return { id: ROW, revision: 5 }; },
+    },
+  });
+  const result = await backup.saveCurrent();
+  assert.deepEqual(calls, [currentManifest]);
+  assert.deepEqual(result.photosCleanup, { removed: 1, warning: false });
+});
+
+test("old revision cleanup falls back to the legacy photos property", async () => {
+  const h = makeHarness({ reference: { id: ROW, revision: 4 } });
+  const legacyManifest = [{ itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/4/cccccccc-cccc-4ccc-8ccc-cccccccccccc", contentType: "image/jpeg" }];
+  const calls = [];
+  const backup = createChecklistCloudBackup({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storage: { getItem: () => JSON.stringify({ id: ROW, revision: 4 }), setItem() {} },
+    getState: () => h.state,
+    getMode: () => "complex",
+    getStorageKey: () => "checklist_complex::user:" + USER,
+    photoSync: {
+      async uploadState() { return { manifest: [], uploaded: 0 }; },
+      async removeManifest(manifest) { calls.push(manifest); return manifest.length; },
+    },
+    cloudApi: {
+      async get(id) { return { id, revision: 4, payload: { photos: legacyManifest } }; },
+      async update() { return { id: ROW, revision: 5 }; },
+    },
+  });
+  const result = await backup.saveCurrent();
+  assert.deepEqual(calls, [legacyManifest]);
+  assert.deepEqual(result.photosCleanup, { removed: 1, warning: false });
+});
