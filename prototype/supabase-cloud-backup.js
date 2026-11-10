@@ -199,9 +199,12 @@ export function createChecklistCloudBackup({
     if (reference && photoSync && typeof cloud.get === "function") {
       try {
         const previousRow = await cloud.get(reference.id);
-        const oldPhotos = previousRow?.revision === reference.revision &&
-          Array.isArray(previousRow?.payload?.photos)
-          ? previousRow.payload.photos
+        // Prefer the current manifest field; accept the legacy alias only
+        // when the current field is absent, matching cloud restore semantics.
+        const oldPhotos = previousRow?.revision === reference.revision
+          ? (Array.isArray(previousRow?.payload?.photoManifest)
+              ? previousRow.payload.photoManifest
+              : (Array.isArray(previousRow?.payload?.photos) ? previousRow.payload.photos : null))
           : null;
         const isUuid = (value) => typeof value === "string" &&
           /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
