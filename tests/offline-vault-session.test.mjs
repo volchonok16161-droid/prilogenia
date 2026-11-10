@@ -18,6 +18,7 @@ function makeDatabase() {
   return {
     values,
     async getMeta(key) { return values.get(key) ?? null; },
+    async getOrCreateMeta(key, factory) { if (!values.has(key)) values.set(key, factory()); return values.get(key); },
     async setMeta(key, value) { if (value == null) values.delete(key); else values.set(key, value); return value; },
   };
 }

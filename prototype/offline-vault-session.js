@@ -18,12 +18,16 @@ export function createOfflineVaultSession({ database, cryptoVault, cryptoImpl = 
   }
   if (!cryptoImpl?.randomUUID) throw new TypeError("Secure random UUID support is required");
 
+  async function createLegacyDeviceId() {
+    const id = cryptoImpl.randomUUID();
+    await database.setMeta(DEVICE_META_KEY, id);
+    return id;
+  }
+
   async function getDeviceId() {
-    let id = await database.getMeta(DEVICE_META_KEY);
-    if (!id) {
-      id = cryptoImpl.randomUUID();
-      await database.setMeta(DEVICE_META_KEY, id);
-    }
+    const id = typeof database.getOrCreateMeta === "function"
+      ? await database.getOrCreateMeta(DEVICE_META_KEY, () => cryptoImpl.randomUUID())
+      : await database.getMeta(DEVICE_META_KEY) || await createLegacyDeviceId();
     if (typeof id !== "string" || !UUID_RE.test(id)) {
       throw new Error("Offline device identity is invalid; online recovery is required");
     }

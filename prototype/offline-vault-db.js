@@ -115,6 +115,21 @@ export function createOfflineVaultDatabase({
     });
   }
 
+  // IndexedDB serializes read-write transactions across tabs. Use one transaction
+  // so concurrent first-run tabs converge on the same device ID.
+  async function getOrCreateMeta(key, createValue) {
+    if (typeof key !== "string" || !key || typeof createValue !== "function") fail("Metadata key and factory are required");
+    return run([STORES.META], "readwrite", async (tx) => {
+      const store = tx.objectStore(STORES.META);
+      const existing = await requestResult(store.get(key));
+      if (existing) return existing.value;
+      const value = createValue();
+      if (value == null) fail("Metadata factory returned an empty value");
+      await requestResult(store.add({ key, value }));
+      return value;
+    });
+  }
+
   async function putRecord({ id, userId, kind, encrypted, updatedAt = new Date().toISOString() }) {
     if (typeof id !== "string" || !id || typeof userId !== "string" || !userId ||
         typeof kind !== "string" || !kind) fail("Record identity and kind are required");
@@ -467,7 +482,7 @@ export function createOfflineVaultDatabase({
   }
 
   return Object.freeze({
-    open, close, getMeta, setMeta, getCloudState, putRecord, putRecordIfAbsent, putRecordAndEnqueue, putRecordAndCoalesceQueue, getRecord, listRecords, deleteRecord,
+    open, close, getMeta, setMeta, getOrCreateMeta, getCloudState, putRecord, putRecordIfAbsent, putRecordAndEnqueue, putRecordAndCoalesceQueue, getRecord, listRecords, deleteRecord,
     enqueue, listPending, claimQueueOperation, updateQueueOperation, renewQueueOperation, markSynced, listPhotoCleanups, claimPhotoCleanup, updatePhotoCleanup, renewPhotoCleanup, completePhotoCleanup, saveConflict, listConflicts,
   });
 }

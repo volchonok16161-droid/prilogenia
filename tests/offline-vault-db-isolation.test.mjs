@@ -63,3 +63,11 @@ test("failed atomic IndexedDB writes abort and drain the transaction completion 
   assert.match(source, /await requestResult\(onlyIfAbsent \? records\.add\(record\) : records\.put\(record\)\);[\s\S]*?await requestResult\(tx\.objectStore\(STORES\.QUEUE\)\.add/);
   assert.match(source, /await requestResult\(queue\.add\(/);
 });
+
+
+test("device identity initialization uses an atomic metadata get-or-create", () => {
+  assert.match(source, /async function getOrCreateMeta\(key, createValue\)/);
+  assert.match(source, /const existing = await requestResult\(store\.get\(key\)\)/);
+  assert.match(source, /await requestResult\(store\.add\(\{ key, value \}\)\)/);
+  assert.match(source, /getOrCreateMeta, getCloudState/);
+});
