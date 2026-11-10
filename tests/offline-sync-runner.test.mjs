@@ -395,3 +395,91 @@ test("renews the fenced queue lease while a long cloud request is running", asyn
   assert.ok(leaseRenewals.length >= 3);
   assert.equal(cleared, true);
 });
+
+
+test("two tabs preserve per-checklist order when a newer edit arrives during an in-flight sync", async () => {
+  const secondOp = { ...OP, opId: "op-2", operation: "update", createdAt: "2026-11-10T12:01:00.000Z" };
+  const queue = [{ ...OP, createdAt: "2026-11-10T12:00:00.000Z" }, secondOp];
+  const calls = [];
+  let cloudState = { revision: 3, photoManifest: [] };
+  let releaseFirst;
+  const firstGate = new Promise(resolve => { releaseFirst = resolve; });
+  let firstStartedResolve;
+  const firstStarted = new Promise(resolve => { firstStartedResolve = resolve; });
+  const database = {
+    async listPending(uid, nowIso = new Date().toISOString()) {
+      return queue.filter(row => row.userId === uid &&
+        (row.status === "pending" || (row.status === "processing" && row.leaseUntil <= nowIso)))
+        .map(row => ({ ...row }));
+    },
+    async claimQueueOperation(opId, uid, claimId, nowIso, leaseUntil) {
+      const row = queue.find(item => item.opId === opId && item.userId === uid);
+      if (!row) return false;
+      const expired = !row.leaseUntil || row.leaseUntil <= nowIso;
+      if (row.status !== "pending" && !(row.status === "processing" && expired)) return false;
+      if (queue.some(item => item.entityId === row.entityId && item.opId !== opId &&
+          item.status === "processing" && item.leaseUntil > nowIso)) return false;
+      Object.assign(row, { status: "processing", leaseClaimId: claimId, leaseUntil });
+      return true;
+    },
+    async renewQueueOperation(opId, uid, claimId, _now, leaseUntil) {
+      const row = queue.find(item => item.opId === opId && item.userId === uid);
+      if (!row || row.status !== "processing" || row.leaseClaimId !== claimId) return false;
+      row.leaseUntil = leaseUntil; return true;
+    },
+    async updateQueueOperation(opId, uid, changes, claimId) {
+      const row = queue.find(item => item.opId === opId && item.userId === uid);
+      if (!row || row.leaseClaimId !== claimId) return false;
+      Object.assign(row, changes); return true;
+    },
+    async getCloudState() { return cloudState; },
+    async markSynced(opId, uid, revision, claimId, nextState) {
+      const index = queue.findIndex(item => item.opId === opId && item.userId === uid && item.leaseClaimId === claimId);
+      if (index < 0) return false;
+      queue.splice(index, 1);
+      cloudState = nextState || cloudState;
+      return { opId, serverRevision: revision };
+    },
+    async saveConflict() {},
+  };
+  const authApi = { async getCurrentIdentity() { return { user: { id: UID }, profile: { id: UID, role: "employee" } }; } };
+  const vault = {
+    async decrypt(encrypted) { return { title: encrypted.ciphertext }; },
+    async encrypt(value) { return { version: 1, iv: "iv", ciphertext: JSON.stringify(value) }; },
+  };
+  let remoteRevision = 3;
+  const cloudSync = {
+    async create() { throw new Error("unexpected create"); },
+    async remove() { throw new Error("unexpected remove"); },
+    async get() { throw new Error("unexpected get"); },
+    async update(input) {
+      calls.push({ ...input });
+      if (calls.length === 1) { firstStartedResolve(); await firstGate; }
+      remoteRevision += 1;
+      return { id: OP.entityId, revision: remoteRevision };
+    },
+  };
+  const makeRunner = () => createOfflineSyncRunner({
+    authApi, database, vault, cloudSync, isOnline: () => true,
+    now: () => "2026-11-10T12:05:00.000Z",
+    claimIdFactory: () => "claim-" + Math.random(),
+    mapOperation: async (operation, value) => ({
+      method: "update",
+      input: { id: operation.entityId, expectedRevision: value.cloud?.expectedRevision, title: value.title, equipmentType: "TT", payload: {} },
+    }),
+  });
+  const firstRun = makeRunner().syncPending({ userId: UID });
+  await firstStarted;
+  const secondWhileFirstActive = await makeRunner().syncPending({ userId: UID });
+  assert.equal(secondWhileFirstActive.synced, 0);
+  assert.equal(calls.length, 1);
+  releaseFirst();
+  const firstResult = await firstRun;
+  assert.equal(firstResult.synced, 1);
+  const secondAfterFirst = await makeRunner().syncPending({ userId: UID });
+  assert.equal(secondAfterFirst.synced, 1);
+  assert.equal(queue.length, 0);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].expectedRevision, 3);
+  assert.equal(calls[1].expectedRevision, 4);
+});
