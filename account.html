@@ -98,7 +98,7 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
 <script type="module" src="./prototype/supabase-auth.js"></script>
 <script type="module">
 import { isChecklistComplete, summarizeChecklistStatuses } from "./prototype/checklist-status.js";
-import { createChecklistPhotoSync } from "./prototype/supabase-cloud-photos.js";
+import { deleteCloudChecklist } from "./prototype/supabase-cloud-delete.js";
 const $ = (id) => document.getElementById(id);
 const roleLabels = { employee: "Сотрудник", assistant: "Помощник", admin: "Администратор", developer: "Разработчик" };
 const formatDate = (value) => {
@@ -500,42 +500,14 @@ async function loadCabinet() {
           if (latestIdentity?.user?.id !== user.id) {
             throw new Error("Сеанс пользователя изменился. Обновите кабинет и войдите снова.");
           }
-          // Read the photo manifest before deleting the row. Storage cleanup must
-          // happen only after the owner-scoped database delete succeeds; otherwise
-          // a failed delete could leave a live checklist with missing photographs.
-          const { data: currentRow, error: readError } = await api.client
-            .from("checklists")
-            .select("id,payload")
-            .eq("id", row.id)
-            .eq("owner_id", user.id)
-            .maybeSingle();
-          if (readError) throw readError;
-          if (!currentRow?.id) throw new Error("Чек-лист не найден или уже удалён.");
-          const photoManifest = Array.isArray(currentRow.payload?.photoManifest)
-            ? currentRow.payload.photoManifest
-            : (Array.isArray(currentRow.payload?.photos) ? currentRow.payload.photos : []);
-          const { data: deleted, error: deleteError } = await api.client
-            .from("checklists")
-            .delete()
-            .eq("id", row.id)
-            .eq("owner_id", user.id)
-            .select("id")
-            .maybeSingle();
-          if (deleteError) throw deleteError;
-          if (!deleted?.id) throw new Error("Чек-лист не удалён: запись не найдена или нет прав.");
-          let photoCleanupWarning = false;
-          if (photoManifest.length) {
-            try {
-              const photoSync = createChecklistPhotoSync({ authApi: api });
-              await photoSync.removeManifest(photoManifest);
-            } catch (photoError) {
-              photoCleanupWarning = true;
-              console.warn("Deleted checklist photos could not be cleaned up", photoError);
-            }
-          }
+          const result = await deleteCloudChecklist({
+            authApi: api,
+            checklistId: row.id,
+            expectedUserId: user.id,
+          });
           await loadCabinet();
-          if (photoCleanupWarning) {
-            window.alert("Чек-лист удалён, но часть фотографий не удалось очистить из хранилища. Повторная очистка потребуется отдельно.");
+          if (result.photoCleanupWarning) {
+            window.alert("Чек-лист удалён, но часть фотографий не удалось очистить из хранилища. Потребуется повторная очистка.");
           }
         } catch (error) {
           remove.disabled = false;
