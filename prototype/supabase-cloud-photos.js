@@ -70,12 +70,16 @@ function setPhoto(state, itemId, field, dataUrl) {
   target[field] = dataUrl;
 }
 
-async function getUserId(authApi) {
+async function getUserId(authApi, expectedUserId = null) {
   const identity = await authApi?.getCurrentIdentity?.();
   if (identity?.error || !identity?.user?.id) {
     fail("AUTH_REQUIRED", "Для синхронизации фотографий необходимо войти в аккаунт", identity?.error);
   }
-  return uuid(identity.user.id, "Supabase user.id");
+  const userId = uuid(identity.user.id, "Supabase user.id");
+  if (expectedUserId && userId !== expectedUserId) {
+    fail("AUTH_CONTEXT_CHANGED", "Учётная запись изменилась во время операции с фотографиями");
+  }
+  return userId;
 }
 
 function storageError(result, operation) {
@@ -110,6 +114,7 @@ export function createChecklistPhotoSync({
     const manifest = [];
     try {
       for (const photo of photos) {
+        await getUserId(authApi, userId);
         const match = DATA_URL_RE.exec(photo.dataUrl);
         if (!match) fail("INVALID_PHOTO", "Поддерживаются только фотографии JPEG, PNG и WebP");
         const contentType = match[1].toLowerCase();
@@ -125,6 +130,7 @@ export function createChecklistPhotoSync({
           cacheControl: "31536000",
         });
         storageError(result, "загрузка фотографии");
+        await getUserId(authApi, userId);
         manifest.push(Object.freeze({
           itemId: photo.itemId,
           field: photo.field,
@@ -165,8 +171,10 @@ export function createChecklistPhotoSync({
       }
       return entry.path;
     });
+    await getUserId(authApi, userId);
     const result = await storageApi.from(BUCKET).remove(paths);
     storageError(result, "очистка незавершённой загрузки");
+    await getUserId(authApi, userId);
     return paths.length;
   }
 
@@ -210,7 +218,9 @@ export function createChecklistPhotoSync({
 
     const restored = structuredClone(state);
     for (const entry of validated) {
+      await getUserId(authApi, userId);
       const result = await storageApi.from(BUCKET).download(entry.path);
+      await getUserId(authApi, userId);
       const blob = storageError(result, "загрузка фотографии");
       if (!blob || typeof blob.arrayBuffer !== "function") fail("INVALID_PHOTO", "Supabase Storage вернул некорректный файл");
       const bytes = new Uint8Array(await blob.arrayBuffer());
