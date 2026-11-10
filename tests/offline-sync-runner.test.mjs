@@ -242,12 +242,13 @@ test("photo cleanup survives a failure and retries without resending the checkli
 });
 
 
-function createRecoveryFixture({ lookup, cloudCreate } = {}) {
+function createRecoveryFixture({ lookup, cloudCreate, cloudState = null } = {}) {
   const queue = [{
     opId: "create-op", userId: UID, entityId: OP.entityId, operation: "create",
     encrypted: OP.encrypted, status: "pending", attempts: 0,
   }];
   const calls = [];
+  const conflicts = [];
   const database = {
     async listPending(uid) { return queue.filter(row => row.userId === uid && row.status === "pending").map(row => ({ ...row })); },
     async claimQueueOperation(id, uid, claim, _now, until) {
@@ -261,7 +262,7 @@ function createRecoveryFixture({ lookup, cloudCreate } = {}) {
       if (!row || row.leaseClaimId !== claim) return false;
       Object.assign(row, changes); return true;
     },
-    async getCloudState() { return null; },
+    async getCloudState() { return cloudState; },
     async markSynced(id, uid, revision, claim, state) {
       const index = queue.findIndex(item => item.opId === id && item.userId === uid && item.leaseClaimId === claim);
       if (index < 0) return false;
@@ -269,7 +270,7 @@ function createRecoveryFixture({ lookup, cloudCreate } = {}) {
       calls.push(["ack", revision, state]);
       return { opId: id, serverRevision: revision };
     },
-    async saveConflict() {},
+    async saveConflict(value) { conflicts.push(value); },
   };
   const authApi = { async getCurrentIdentity() { return { user: { id: UID }, profile: { id: UID, role: "employee" } }; } };
   const vault = { async decrypt() { return { cloud: { id: OP.entityId, title: "offline edit", equipmentType: "TT", payload: { state: {} } } }; }, async encrypt(value) { return { version: 1, iv: "iv", ciphertext: JSON.stringify(value) }; } };
@@ -300,18 +301,29 @@ function createRecoveryFixture({ lookup, cloudCreate } = {}) {
       },
     }),
   });
-  return { runner, queue, calls };
+  return { runner, queue, calls, conflicts };
 }
 
-test("create retry recovers a lost acknowledgement by updating the already-created owner-scoped row", async () => {
+test("create retry updates an existing owner-scoped row only when its saved revision matches", async () => {
   const existing = { id: OP.entityId, revision: 7, payload: {} };
-  const { runner, queue, calls } = createRecoveryFixture({ lookup: existing });
+  const { runner, queue, calls } = createRecoveryFixture({ lookup: existing, cloudState: { revision: 7 } });
   const result = await runner.syncPending({ userId: UID });
   assert.equal(result.synced, 1);
   assert.equal(queue.length, 0);
   assert.deepEqual(calls.filter(call => ["create", "update"].includes(call[0])).map(call => call[0]), ["update"]);
   assert.equal(calls.find(call => call[0] === "update")[1].expectedRevision, 7);
   assert.equal(calls[0][0], "get");
+});
+
+test("create retry with an existing row and unknown saved revision stores a conflict instead of overwriting", async () => {
+  const existing = { id: OP.entityId, revision: 7, payload: { title: "remote" } };
+  const { runner, queue, calls, conflicts } = createRecoveryFixture({ lookup: existing });
+  const result = await runner.syncPending({ userId: UID });
+  assert.equal(result.conflicts, 1);
+  assert.equal(queue[0].status, "conflict");
+  assert.equal(conflicts.length, 1);
+  assert.equal(conflicts[0].remoteEncrypted.version, 1);
+  assert.equal(calls.some(call => call[0] === "create" || call[0] === "update"), false);
 });
 
 test("create retry performs INSERT only when the owner-scoped lookup confirms NOT_FOUND", async () => {
