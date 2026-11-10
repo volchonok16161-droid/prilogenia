@@ -244,6 +244,13 @@ async function activateDeviceVault(identity) {
   // Verify durable storage before exposing the vault as unlocked. This keeps
   // failed or partial IndexedDB enrollment retryable on the next auth check.
   const setup = await offlineVault.session.setupDeviceKeyAfterVerifiedOnlineLogin(identity);
+  const verifiedSession = await getCurrentIdentity();
+  if (verifiedSession?.error || verifiedSession?.user?.id !== setup.userId ||
+      verifiedSession?.profile?.id !== setup.userId) {
+    const error = new Error("The Supabase account changed while preparing local storage");
+    error.code = "AUTH_REQUIRED";
+    throw error;
+  }
   const safeIdentity = {
     user: { id: identity.user.id, email: identity.user.email || "" },
     profile: {
@@ -268,6 +275,13 @@ async function activateDeviceVault(identity) {
   await offlineVault.database.setMeta("offline:last-user-id", setup.userId);
   await offlineVault.database.setMeta("offline:cloud-sync-enabled:" + setup.userId, true);
 
+  const finalSession = await getCurrentIdentity();
+  if (finalSession?.error || finalSession?.user?.id !== setup.userId ||
+      finalSession?.profile?.id !== setup.userId) {
+    const error = new Error("The Supabase account changed before local storage activation");
+    error.code = "AUTH_REQUIRED";
+    throw error;
+  }
   activeOfflineVault = deviceUnlock.vault;
   activeOfflineUserId = setup.userId;
   activeOfflineIdentity = null;
@@ -477,12 +491,15 @@ function activeInstanceMetaKey(storageId, userId = activeOfflineUserId) {
 }
 
 async function activateOfflineChecklistInstance(storageId, instanceId) {
-  if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
+  const userId = activeOfflineUserId, vault = activeOfflineVault;
+  if (!vault || !userId) throw new Error("Офлайн-хранилище не разблокировано");
   const mode = getChecklistMode(storageId);
   const instance = await loadOfflineChecklistInstance(instanceId);
+  assertActiveOfflineContext(userId, vault);
   if (!instance || instance.mode !== mode) throw new Error("Локальный чек-лист не найден или относится к другому режиму");
-  await offlineVault.database.setMeta(activeInstanceMetaKey(storageId), instanceId);
-  return { activated: true, instanceId, mode };
+  await offlineVault.database.setMeta(activeInstanceMetaKey(storageId, userId), instanceId);
+  assertActiveOfflineContext(userId, vault);
+  return { activated: true, instanceId, mode, userId };
 }
 
 async function beginNewOfflineChecklistInstance(storageId) {
@@ -538,10 +555,22 @@ async function saveOfflineChecklistInstance(instanceId, mode, snapshot) {
   return requestOfflineSyncAfterInstanceSave(result, userId, vault);
 }
 async function loadOfflineChecklistInstance(instanceId) {
-  return (await getOfflineChecklistInstances()).load(instanceId);
+  const userId = activeOfflineUserId, vault = activeOfflineVault;
+  if (!userId || !vault) throw new Error("Офлайн-хранилище не разблокировано");
+  const instances = await getOfflineChecklistInstances();
+  assertActiveOfflineContext(userId, vault);
+  const result = await instances.load(instanceId);
+  assertActiveOfflineContext(userId, vault);
+  return result;
 }
 async function listOfflineChecklistInstances() {
-  return (await getOfflineChecklistInstances()).list();
+  const userId = activeOfflineUserId, vault = activeOfflineVault;
+  if (!userId || !vault) throw new Error("Офлайн-хранилище не разблокировано");
+  const instances = await getOfflineChecklistInstances();
+  assertActiveOfflineContext(userId, vault);
+  const result = await instances.list();
+  assertActiveOfflineContext(userId, vault);
+  return result;
 }
 
 async function migrateLegacyChecklist(storageId, snapshot, confirmed = false) {

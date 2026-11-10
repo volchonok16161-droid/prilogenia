@@ -47,3 +47,15 @@ test("async local saves bind the original account and vault across account switc
   assert.match(auth, /activeOfflineUserId === expectedUserId && activeOfflineVault === expectedVault/);
   assert.ok(auth.includes("requestOfflineSyncAfterInstanceSave(result, userId, vault)"));
 });
+
+test("device vault activation revalidates the current Supabase user after async key preparation", () => {
+  assert.ok(auth.includes("const verifiedSession = await getCurrentIdentity()"));
+  assert.ok(auth.includes("const finalSession = await getCurrentIdentity()"));
+  assert.ok(auth.includes("The Supabase account changed before local storage activation"));
+});
+
+test("instance activation and reads are fenced by the account and vault captured before awaiting", () => {
+  assert.ok(auth.includes("const userId = activeOfflineUserId, vault = activeOfflineVault"));
+  assert.ok(auth.includes("activeInstanceMetaKey(storageId, userId)"));
+  assert.ok(auth.includes("assertActiveOfflineContext(userId, vault)"));
+});
