@@ -343,3 +343,19 @@ test("create retry never inserts when the lookup fails for a reason other than N
   assert.equal(queue[0].status, "pending");
   assert.equal(calls.some(call => call[0] === "create" || call[0] === "update"), false);
 });
+
+
+test("create retry with a changed remote revision stores a conflict and keeps both versions", async () => {
+  const existing = { id: OP.entityId, revision: 8, payload: { title: "remote changed" } };
+  const { runner, queue, calls, conflicts } = createRecoveryFixture({
+    lookup: existing,
+    cloudState: { revision: 7 },
+  });
+  const result = await runner.syncPending({ userId: UID });
+  assert.equal(result.conflicts, 1);
+  assert.equal(queue[0].status, "conflict");
+  assert.equal(conflicts.length, 1);
+  assert.equal(conflicts[0].localEncrypted, OP.encrypted);
+  assert.equal(conflicts[0].remoteEncrypted.version, 1);
+  assert.equal(calls.some(call => call[0] === "create" || call[0] === "update"), false);
+});
