@@ -310,3 +310,59 @@ test("mobile checklist header and form fit 360/390/430px in all five modes", asy
     }
   }
 });
+
+
+test("IndexedDB rolls back a snapshot write when the matching queue insert fails", async () => {
+  const page = await browser.newPage();
+  try {
+    await page.goto(origin + "/prototype/checklist/?mode=hydro", { waitUntil: "domcontentloaded", timeout: 45000 });
+    const result = await page.evaluate(async () => {
+      const { createOfflineVaultDatabase } = await import("/prototype/offline-vault-db.js");
+      const database = createOfflineVaultDatabase({ dbName: "tmh-atomic-rollback-" + crypto.randomUUID() });
+      const userId = "11111111-1111-4111-8111-111111111111";
+      const encrypted = (value) => ({ version: 1, iv: "test-iv", ciphertext: JSON.stringify(value) });
+      const first = encrypted({ revision: "original" });
+      const attempted = encrypted({ revision: "should-rollback" });
+      try {
+        await database.putRecordAndEnqueue({
+          id: "checklist-atomic", userId, kind: "checklist",
+          encrypted: first, opId: "duplicate-op", entityId: "cloud-checklist",
+          operation: "create", createdAt: "2026-11-10T10:00:00.000Z",
+        });
+        let rejected = false;
+        let errorName = "";
+        try {
+          await database.putRecordAndCoalesceQueue({
+            id: "checklist-atomic", userId, kind: "checklist",
+            encrypted: attempted, opId: "duplicate-op", entityId: "cloud-checklist",
+            operation: "update", createdAt: "2026-11-10T10:01:00.000Z",
+          });
+        } catch (error) {
+          rejected = true;
+          errorName = error.name;
+        }
+        const record = await database.getRecord("checklist-atomic", userId);
+        const pending = await database.listPending(userId);
+        return {
+          rejected,
+          errorName,
+          recordCiphertext: record?.encrypted?.ciphertext,
+          expectedCiphertext: first.ciphertext,
+          pendingCount: pending.length,
+          pendingOperation: pending[0]?.operation,
+          pendingCiphertext: pending[0]?.encrypted?.ciphertext,
+        };
+      } finally {
+        await database.close();
+      }
+    });
+    assert.equal(result.rejected, true);
+    assert.equal(result.errorName, "ConstraintError");
+    assert.equal(result.recordCiphertext, result.expectedCiphertext);
+    assert.equal(result.pendingCount, 1);
+    assert.equal(result.pendingOperation, "create");
+    assert.equal(result.pendingCiphertext, result.expectedCiphertext);
+  } finally {
+    await page.close();
+  }
+});
