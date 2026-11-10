@@ -291,6 +291,7 @@ export function createOfflineSyncRunner({
       const jobs = await database.listPhotoCleanups(uid, now(), limit);
       for (const job of jobs) {
         let cleanupClaim = null;
+        let cleanupKeeper = null;
         try {
           if (!isOnline()) break;
           assertVerifiedIdentity(await authApi.getCurrentIdentity(), uid);
@@ -299,6 +300,15 @@ export function createOfflineSyncRunner({
           cleanupClaim = claimIdFactory();
           const claimedCleanup = await database.claimPhotoCleanup(job.cleanupId, uid, cleanupClaim, claimedAt, leaseUntil);
           if (!claimedCleanup) continue;
+          const renewCleanup = async () => {
+            const renewedAt = now();
+            const renewedUntil = new Date(Date.parse(renewedAt) + leaseDurationMs).toISOString();
+            if (typeof database.renewPhotoCleanup === "function") {
+              return database.renewPhotoCleanup(job.cleanupId, uid, cleanupClaim, renewedAt, renewedUntil);
+            }
+            return database.updatePhotoCleanup(job.cleanupId, uid, { leaseUntil: renewedUntil }, cleanupClaim);
+          };
+          cleanupKeeper = createLeaseKeeper({ renew: renewCleanup, setIntervalImpl, clearIntervalImpl, intervalMs: leaseRenewIntervalMs });
           let activeManifest = [];
           if (job.reason === "delete") {
             // A delete cleanup is authorized only after a fresh RLS-scoped
@@ -317,7 +327,11 @@ export function createOfflineSyncRunner({
           }
           const activePaths = new Set(activeManifest.map((entry) => entry?.path).filter(Boolean));
           const staleManifest = (job.manifest || []).filter((entry) => entry?.path && !activePaths.has(entry.path));
-          if (staleManifest.length) await mapOperation.removePhotoManifest(staleManifest);
+          await cleanupKeeper.renewNow();
+          if (staleManifest.length) {
+            await mapOperation.removePhotoManifest(staleManifest);
+            await cleanupKeeper.renewNow();
+          }
           const completed = await database.completePhotoCleanup(job.cleanupId, uid, cleanupClaim);
           if (!completed) throw new Error("Photo cleanup lease expired before acknowledgement");
           cleanupProcessed += 1;
@@ -329,6 +343,8 @@ export function createOfflineSyncRunner({
             lastError: String(error?.code || error?.message || 'PHOTO_CLEANUP_FAILED').slice(0, 240),
           }, cleanupClaim);
           if (error?.code === 'AUTH_REQUIRED' || !isOnline()) break;
+        } finally {
+          if (cleanupKeeper) await cleanupKeeper.stop();
         }
       }
     }
