@@ -95,10 +95,29 @@ export function createOfflineSyncRunner({
             const remoteRevision = Number(existing.revision);
             if (existing.id !== operation.entityId ||
                 !Number.isSafeInteger(remoteRevision) || remoteRevision < 1 ||
-                (Number.isSafeInteger(knownRevision) && knownRevision > 0 && knownRevision !== remoteRevision)) {
-              const error = new Error("Cloud record exists but its owner or revision cannot be verified");
-              error.code = "REVISION_CONFLICT";
-              throw error;
+                !Number.isSafeInteger(knownRevision) || knownRevision < 1 ||
+                knownRevision !== remoteRevision) {
+              // Without the exact revision recorded before the interrupted
+              // request, an existing row might contain another session's edits.
+              // Preserve both versions instead of blindly overwriting it.
+              const remoteEncrypted = await vault.encrypt(existing);
+              await database.saveConflict({
+                conflictId: operation.opId,
+                userId: uid,
+                entityId: operation.entityId,
+                localEncrypted: operation.encrypted,
+                remoteEncrypted,
+                createdAt: now(),
+              });
+              const conflictMarked = await database.updateQueueOperation(operation.opId, uid, {
+                status: "conflict",
+                leaseClaimId: null,
+                leaseUntil: null,
+                lastError: "CREATE_RECOVERY_CONFLICT",
+              }, claimId);
+              if (!conflictMarked) throw new Error("Sync queue lease expired while saving create recovery conflict");
+              conflicts += 1;
+              continue;
             }
             effectiveOperation = { ...operation, operation: "update" };
             effectiveValue = {
