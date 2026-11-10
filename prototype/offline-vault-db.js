@@ -89,7 +89,11 @@ export function createOfflineVaultDatabase({
     try {
       result = await action(tx);
     } catch (error) {
+      // The transaction completion promise rejects on abort. Drain it here
+      // before rethrowing the original request/validation error, otherwise
+      // callers can observe an unhandled rejection after a failed atomic save.
       try { tx.abort(); } catch {}
+      try { await done; } catch {}
       throw error;
     }
     await done;
