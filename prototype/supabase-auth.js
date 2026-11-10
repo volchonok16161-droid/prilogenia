@@ -230,10 +230,19 @@ async function activateDeviceVault(identity) {
   return { userId: setup.userId, ready: true };
 }
 
+const NAMED_LOGIN_EMAILS = new Map([
+  ["цгиспл-карасук", "cgspl-karasuk@accounts.invalid"],
+  ["цгиспл-тимашевск", "cgspl-timashevsk@accounts.invalid"],
+]);
+
 async function resolveLoginEmail(identifier) {
   const normalized = String(identifier || "").trim().normalize("NFC").toLowerCase();
   if (normalized.includes("@")) return normalized;
   if (!normalized) return "";
+  // These named accounts are provisioned by account-admin with fixed internal
+  // Auth emails. Resolve them before the generic deterministic username mapping.
+  const namedEmail = NAMED_LOGIN_EMAILS.get(normalized);
+  if (namedEmail) return namedEmail;
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalized));
   const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   return "u" + hash.slice(0, 63) + "@accounts.invalid";
