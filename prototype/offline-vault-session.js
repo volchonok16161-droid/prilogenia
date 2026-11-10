@@ -40,8 +40,13 @@ export function createOfflineVaultSession({ database, cryptoVault, cryptoImpl = 
     const deviceId = await getDeviceId();
     let key = await database.getMeta(metaKey);
     if (!key) {
-      key = await cryptoVault.createDeviceKey();
-      await database.setMeta(metaKey, key);
+      const candidate = await cryptoVault.createDeviceKey();
+      key = typeof database.putMetaIfAbsent === "function"
+        ? await database.putMetaIfAbsent(metaKey, candidate)
+        : await database.getMeta(metaKey) || candidate;
+      if (key === candidate && typeof database.putMetaIfAbsent !== "function") {
+        await database.setMeta(metaKey, candidate);
+      }
     }
     return Object.freeze({
       userId, deviceId, configured: true, mode: "device-key",

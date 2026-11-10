@@ -71,3 +71,10 @@ test("device identity initialization uses an atomic metadata get-or-create", () 
   assert.match(source, /await requestResult\(store\.add\(\{ key, value \}\)\)/);
   assert.match(source, /getOrCreateMeta, getCloudState/);
 });
+
+
+test("per-account device key candidate is committed atomically and first key wins", () => {
+  assert.match(source, /async function putMetaIfAbsent\(key, candidate\)/);
+  assert.match(source, /if \(existing\) return existing\.value;[\\s\\S]*?store\.add\(\{ key, value: candidate \}\)/);
+  assert.match(source, /putMetaIfAbsent, getCloudState/);
+});

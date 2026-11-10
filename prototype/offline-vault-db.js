@@ -130,6 +130,17 @@ export function createOfflineVaultDatabase({
     });
   }
 
+  async function putMetaIfAbsent(key, candidate) {
+    if (typeof key !== "string" || !key || candidate == null) fail("Metadata key and candidate are required");
+    return run([STORES.META], "readwrite", async (tx) => {
+      const store = tx.objectStore(STORES.META);
+      const existing = await requestResult(store.get(key));
+      if (existing) return existing.value;
+      await requestResult(store.add({ key, value: candidate }));
+      return candidate;
+    });
+  }
+
   async function putRecord({ id, userId, kind, encrypted, updatedAt = new Date().toISOString() }) {
     if (typeof id !== "string" || !id || typeof userId !== "string" || !userId ||
         typeof kind !== "string" || !kind) fail("Record identity and kind are required");
@@ -482,7 +493,7 @@ export function createOfflineVaultDatabase({
   }
 
   return Object.freeze({
-    open, close, getMeta, setMeta, getOrCreateMeta, getCloudState, putRecord, putRecordIfAbsent, putRecordAndEnqueue, putRecordAndCoalesceQueue, getRecord, listRecords, deleteRecord,
+    open, close, getMeta, setMeta, getOrCreateMeta, putMetaIfAbsent, getCloudState, putRecord, putRecordIfAbsent, putRecordAndEnqueue, putRecordAndCoalesceQueue, getRecord, listRecords, deleteRecord,
     enqueue, listPending, claimQueueOperation, updateQueueOperation, renewQueueOperation, markSynced, listPhotoCleanups, claimPhotoCleanup, updatePhotoCleanup, renewPhotoCleanup, completePhotoCleanup, saveConflict, listConflicts,
   });
 }
