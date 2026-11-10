@@ -122,3 +122,17 @@ test("does not initialize photo storage when a checklist has no photos", async (
   assert.deepEqual(result, { id: ROW, photosRemoved: 0, photoCleanupWarning: false });
   assert.equal(h.photoCalls.length, 0);
 });
+
+
+test("deletion prefers photoManifest over the legacy photos alias", async () => {
+  const current = { itemId: "item1", field: "front_photo", path: "current/path", contentType: "image/jpeg" };
+  const legacy = { itemId: "item1", field: "rear_photo", path: "legacy/path", contentType: "image/jpeg" };
+  const h = harness({
+    read: { data: { id: ROW, payload: { photoManifest: [current], photos: [legacy] } }, error: null },
+  });
+  await deleteCloudChecklist({
+    authApi: h.authApi, checklistId: ROW, expectedUserId: USER,
+    photoSyncFactory: h.photoSyncFactory,
+  });
+  assert.deepEqual(h.photoCalls[0], ["removeManifest", [current]]);
+});
