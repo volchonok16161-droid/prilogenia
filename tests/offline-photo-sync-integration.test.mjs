@@ -73,7 +73,15 @@ function fixture({ identity = true, cloudError = null, operation = "create" } = 
     },
     async update(input) { calls.push(["update", structuredClone(input)]); if (cloudError) throw cloudError; return { id: ID, revision: 2 }; },
     async remove(id) { calls.push(["remove", id]); return true; },
-    async get(id) { calls.push(["get", id]); return { id, revision: 5, payload: { remote: true } }; },
+    async get(id) {
+      calls.push(["get", id]);
+      if (operation === "create") {
+        const error = new Error("not found");
+        error.code = "NOT_FOUND";
+        throw error;
+      }
+      return { id, revision: 5, payload: { remote: true } };
+    },
   };
   const mapOperation = createOfflineChecklistOperationMapper({ photoSync });
   const runner = createOfflineSyncRunner({

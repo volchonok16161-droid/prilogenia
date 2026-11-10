@@ -28,6 +28,45 @@ let offlineChecklistInstancesUserId = null;
 let offlineChecklistInstancesVault = null;
 let offlineSyncCoordinator = null;
 let offlineSyncStatus = Object.freeze({ status: "locked" });
+let internalAuthStateSubscription = null;
+
+function clearActiveOfflineContext() {
+  const coordinator = offlineSyncCoordinator;
+  offlineSyncCoordinator = null;
+  try { coordinator?.stop(); } catch {}
+  activeOfflineIdentity = null;
+  activeOfflineVault = null;
+  activeOfflineUserId = null;
+  offlineChecklistStore = null;
+  offlineChecklistInstances = null;
+  offlineChecklistInstancesUserId = null;
+  offlineChecklistInstancesVault = null;
+  offlineSyncStatus = Object.freeze({ status: "locked" });
+}
+
+function handleCrossTabAuthState(event, session) {
+  const nextUserId = typeof session?.user?.id === "string"
+    ? session.user.id.toLowerCase()
+    : null;
+  if (event === "SIGNED_OUT" ||
+      (activeOfflineUserId && nextUserId && nextUserId !== activeOfflineUserId)) {
+    clearActiveOfflineContext();
+  }
+}
+
+function getPersistedAuthUserId() {
+  try {
+    const stored = JSON.parse(globalThis.localStorage?.getItem(STORAGE_KEY) || "null");
+    const userId = stored?.user?.id || stored?.currentSession?.user?.id ||
+      stored?.session?.user?.id || stored?.data?.session?.user?.id;
+    return typeof userId === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)
+      ? userId.toLowerCase()
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 function getChecklistMode(storageId) {
   const modes = {
@@ -108,6 +147,8 @@ async function getSupabaseClient() {
             storageKey: STORAGE_KEY,
           },
         });
+        const authState = client.auth.onAuthStateChange(handleCrossTabAuthState);
+        internalAuthStateSubscription = authState?.data?.subscription || null;
         attachAuthStateListeners();
         return client;
       })
@@ -249,12 +290,7 @@ async function resolveLoginEmail(identifier) {
 }
 
 async function signIn(email, password) {
-  activeOfflineIdentity = null;
-  activeOfflineVault = null;
-  activeOfflineUserId = null;
-  offlineChecklistStore = null;
-  offlineSyncCoordinator?.stop();
-  offlineSyncCoordinator = null;
+  clearActiveOfflineContext();
   const normalizedEmail = await resolveLoginEmail(email);
   if (!normalizedEmail || !password) {
     return { user: null, profile: null, error: new Error("Введите логин/email и пароль") };
@@ -327,16 +363,10 @@ async function getCachedOfflineIdentity(cause) {
     cause?.status === 0 ||
     /fetch|network|offline|timeout|connection|failed to load|load failed/i.test(String(cause?.message || cause || ""));
   if (!networkFailure) return null;
-  let cached = null;
-  try { cached = JSON.parse(globalThis.localStorage?.getItem("checklist_user") || "null"); } catch {}
-  // Logout clears checklist_user for security/UI cleanup. The device-bound
-  // offline identity is still recoverable from the encrypted vault metadata.
-  let userId = cached?.authUid;
-  if (typeof userId !== "string") {
-    try { userId = await offlineVault.database.getMeta("offline:last-user-id"); } catch {}
-  }
-  if (typeof userId !== "string" ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) return null;
+  // Select the offline account from Supabase's persisted session, not from a
+  // UI cache or a global last-user pointer that can belong to another tab/account.
+  const userId = getPersistedAuthUserId();
+  if (!userId) return null;
   try {
     const unlocked = await offlineVault.session.unlockDeviceKey(userId);
     const encryptedIdentity = await offlineVault.database.getMeta("offline:identity:" + unlocked.userId);
@@ -539,6 +569,14 @@ async function getOfflineIdentity() {
     const offlineUserId = activeOfflineIdentity.user.id;
     try {
       const online = await getCurrentIdentity();
+      if (online?.user?.id && online.user.id.toLowerCase() !== offlineUserId.toLowerCase()) {
+        clearActiveOfflineContext();
+        return online;
+      }
+      if (!online?.error && !online?.user) {
+        clearActiveOfflineContext();
+        return null;
+      }
       if (online?.user?.id === offlineUserId && online?.profile?.id === offlineUserId && !online.error) {
         activeOfflineIdentity = null;
         return online;
@@ -553,30 +591,20 @@ async function getLastOfflineUserId() {
 }
 
 async function signOut() {
+  const wasOfflineIdentity = Boolean(activeOfflineIdentity);
   offlineLogoutRequested = true;
   try { await offlineVault.database.setMeta("offline:logout-requested", true); } catch {}
   try { globalThis.localStorage?.setItem("tmh-offline-logout-requested", "true"); } catch {}
-  if (activeOfflineIdentity) {
+  clearActiveOfflineContext();
+  if (wasOfflineIdentity) {
     try {
       if (client) await client.auth.signOut({ scope: "local" });
       else globalThis.localStorage?.removeItem(STORAGE_KEY);
     } catch {
       try { globalThis.localStorage?.removeItem(STORAGE_KEY); } catch {}
     }
-    activeOfflineIdentity = null;
-    activeOfflineVault = null;
-    activeOfflineUserId = null;
-    offlineChecklistStore = null;
-    offlineSyncCoordinator?.stop();
-    offlineSyncCoordinator = null;
     return { error: null, offline: true };
   }
-  activeOfflineIdentity = null;
-  activeOfflineVault = null;
-  activeOfflineUserId = null;
-  offlineChecklistStore = null;
-  offlineSyncCoordinator?.stop();
-  offlineSyncCoordinator = null;
   try {
     const supabase = await getSupabaseClient();
     const { error } = await supabase.auth.signOut();

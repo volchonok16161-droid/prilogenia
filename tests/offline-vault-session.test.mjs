@@ -73,3 +73,23 @@ test("assistant role is supported but malformed account IDs are rejected", async
   assert.equal((await session.setupDeviceKeyAfterVerifiedOnlineLogin(assistant)).mode, "device-key");
   await assert.rejects(session.unlockDeviceKey("invalid"), /valid account UUID/);
 });
+
+test("two accounts on one device have separate encryption keys and cannot decrypt each other's snapshots", async () => {
+  const database = makeDatabase();
+  const accountA = makeSession(database, DEVICE_A);
+  const accountB = makeSession(database, DEVICE_A);
+  const setupA = await accountA.setupDeviceKeyAfterVerifiedOnlineLogin(identity);
+  const otherIdentity = {
+    user: { id: OTHER_USER, email: "other@example.test" },
+    profile: { id: OTHER_USER, role: "employee" },
+  };
+  const setupB = await accountB.setupDeviceKeyAfterVerifiedOnlineLogin(otherIdentity);
+  const encryptedA = await setupA.vault.encrypt({ checklist: "private A" });
+  const encryptedB = await setupB.vault.encrypt({ checklist: "private B" });
+  assert.deepEqual(await setupA.vault.decrypt(encryptedA), { checklist: "private A" });
+  assert.deepEqual(await setupB.vault.decrypt(encryptedB), { checklist: "private B" });
+  await assert.rejects(setupB.vault.decrypt(encryptedA));
+  await assert.rejects(setupA.vault.decrypt(encryptedB));
+  assert.equal(database.values.has("offline:device-key:" + USER), true);
+  assert.equal(database.values.has("offline:device-key:" + OTHER_USER), true);
+});

@@ -8,7 +8,7 @@ const UID = "11111111-1111-4111-8111-111111111111";
 const ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const STATE = { general: { type: "2ЭС5К", number: "746" }, values: { motor: { checked: true, comment: "Проверено" } }, selectedSections: ["Секция 1"], changeLog: [] };
 
-function fixture({ mode = "hydro", operation = "create", identity = true, cloudError = null, online = true } = {}) {
+function fixture({ mode = "hydro", operation = "create", identity = true, identityUserId = UID, cloudError = null, online = true } = {}) {
   const encrypted = { version: 1, iv: "iv", ciphertext: "opaque" };
   const envelope = buildOfflineCloudEnvelope({
     mode, state: STATE, cloudId: ID,
@@ -39,7 +39,7 @@ function fixture({ mode = "hydro", operation = "create", identity = true, cloudE
     },
     async saveConflict(value) { conflicts.push(value); },
   };
-  const authApi = { async getCurrentIdentity() { return identity ? { user: { id: UID }, profile: { id: UID, role: "employee" }, error: null } : { user: { id: UID }, profile: null, error: null }; } };
+  const authApi = { async getCurrentIdentity() { return identity ? { user: { id: identityUserId }, profile: { id: identityUserId, role: "employee" }, error: null } : { user: { id: UID }, profile: null, error: null }; } };
   const vault = {
     async decrypt() { return envelope; },
     async encrypt(value) { return { version: 1, iv: "remote", ciphertext: JSON.stringify(value) }; },
@@ -48,7 +48,15 @@ function fixture({ mode = "hydro", operation = "create", identity = true, cloudE
     async create(input) { calls.push(["create", input]); if (cloudError) throw cloudError; return { id: ID, revision: 1 }; },
     async update(input) { calls.push(["update", input]); if (cloudError) throw cloudError; return { id: ID, revision: 5 }; },
     async remove(id) { calls.push(["remove", id]); if (cloudError) throw cloudError; return true; },
-    async get(id) { calls.push(["get", id]); return { id, revision: 5, payload: { remote: true } }; },
+    async get(id) {
+      calls.push(["get", id]);
+      if (operation === "create") {
+        const error = new Error("not found");
+        error.code = "NOT_FOUND";
+        throw error;
+      }
+      return { id, revision: 5, payload: { remote: true } };
+    },
   };
   const runner = createOfflineSyncRunner({
     authApi, database, vault, cloudSync,
@@ -121,4 +129,14 @@ test("successful create stores server revision and photo manifest before queue a
   assert.equal(result.synced, 1);
   assert.equal(f.cloudState.revision, 1);
   assert.deepEqual(f.cloudState.photoManifest, []);
+});
+
+test("another signed-in account cannot drain the previous account's offline queue", async () => {
+  const otherUserId = "22222222-2222-4222-8222-222222222222";
+  const f = fixture({ identityUserId: otherUserId });
+  await assert.rejects(f.runner.syncPending({ userId: UID }), error => error.code === "AUTH_REQUIRED");
+  assert.equal(f.calls.length, 0);
+  assert.equal(f.queue.length, 1);
+  assert.equal(f.queue[0].userId, UID);
+  assert.equal(f.queue[0].encrypted.ciphertext, "opaque");
 });

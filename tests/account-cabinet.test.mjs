@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const html = await readFile(new URL("../account.html", import.meta.url), "utf8");
+const deleteHelper = await readFile(new URL("../prototype/supabase-cloud-delete.js", import.meta.url), "utf8");
 
 test("account cabinet uses the shared Supabase Auth module", () => {
   assert.match(html, /prototype\/supabase-auth\.js/);
@@ -35,7 +36,8 @@ test("account cabinet exposes a real Supabase sign-out action", () => {
 test("account cabinet allows deleting only the selected cloud checklist owned by the current user", () => {
   assert.match(html, /remove\.textContent = "Удалить"/);
   assert.match(html, /window\.confirm\("Удалить облачный чек-лист/);
-  assert.match(html, /\.from\("checklists"\)[\s\S]*?\.delete\(\)[\s\S]*?\.eq\("id", row\.id\)[\s\S]*?\.eq\("owner_id", user\.id\)/);
+  assert.match(html, /deleteCloudChecklist\(\{[\s\S]*?checklistId: row\.id,[\s\S]*?expectedUserId: user\.id/);
+  assert.match(deleteHelper, /\.from\("checklists"\)[\s\S]*?\.delete\(\)[\s\S]*?\.eq\("id", checklistId\)[\s\S]*?\.eq\("owner_id", expectedUserId\)/);
   assert.match(html, /\.select\("id"\)[\s\S]*?\.maybeSingle\(\)/);
   assert.match(html, /if \(!deleted\?\.id\) throw new Error/);
   assert.match(html, /await loadCabinet\(\)/);

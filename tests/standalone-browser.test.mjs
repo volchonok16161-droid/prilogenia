@@ -368,6 +368,64 @@ test("IndexedDB rolls back a snapshot write when the matching queue insert fails
 });
 
 
+test("IndexedDB keeps records, queued operations and conflicts isolated for two accounts on one device", async () => {
+  const page = await browser.newPage();
+  const dbName = "tmh-two-user-isolation-" + crypto.randomUUID();
+  const userA = "11111111-1111-4111-8111-111111111111";
+  const userB = "22222222-2222-4222-8222-222222222222";
+  const encryptedA = { version: 1, iv: "iv-a", ciphertext: "cipher-a" };
+  const encryptedB = { version: 1, iv: "iv-b", ciphertext: "cipher-b" };
+  try {
+    await page.goto(origin + "/prototype/checklist/?mode=hydro", { waitUntil: "domcontentloaded", timeout: 45000 });
+    const result = await page.evaluate(async ({ dbName, userA, userB, encryptedA, encryptedB }) => {
+      const { createOfflineVaultDatabase } = await import("/prototype/offline-vault-db.js");
+      const database = createOfflineVaultDatabase({ dbName });
+      try {
+        for (const [userId, encrypted] of [[userA, encryptedA], [userB, encryptedB]]) {
+          await database.putRecord({
+            id: "same-record-id", userId, kind: "checklist-snapshot", encrypted,
+          });
+          await database.enqueue({
+            opId: "same-operation-id", userId, entityId: "same-cloud-id",
+            operation: "update", encrypted,
+          });
+          await database.saveConflict({
+            conflictId: "same-conflict-id", userId, entityId: "same-cloud-id",
+            localEncrypted: encrypted, remoteEncrypted: encrypted,
+          });
+        }
+        const [recordsA, recordsB, pendingA, pendingB, conflictsA, conflictsB] = await Promise.all([
+          database.listRecords(userA), database.listRecords(userB),
+          database.listPending(userA), database.listPending(userB),
+          database.listConflicts(userA), database.listConflicts(userB),
+        ]);
+        return {
+          recordA: (await database.getRecord("same-record-id", userA))?.encrypted?.ciphertext,
+          recordB: (await database.getRecord("same-record-id", userB))?.encrypted?.ciphertext,
+          recordsA: recordsA.length, recordsB: recordsB.length,
+          pendingA: pendingA.map(row => row.encrypted.ciphertext),
+          pendingB: pendingB.map(row => row.encrypted.ciphertext),
+          conflictsA: conflictsA.map(row => row.localEncrypted.ciphertext),
+          conflictsB: conflictsB.map(row => row.localEncrypted.ciphertext),
+        };
+      } finally {
+        await database.close();
+      }
+    }, { dbName, userA, userB, encryptedA, encryptedB });
+    assert.equal(result.recordA, encryptedA.ciphertext);
+    assert.equal(result.recordB, encryptedB.ciphertext);
+    assert.equal(result.recordsA, 1);
+    assert.equal(result.recordsB, 1);
+    assert.deepEqual(result.pendingA, [encryptedA.ciphertext]);
+    assert.deepEqual(result.pendingB, [encryptedB.ciphertext]);
+    assert.deepEqual(result.conflictsA, [encryptedA.ciphertext]);
+    assert.deepEqual(result.conflictsB, [encryptedB.ciphertext]);
+  } finally {
+    await page.close();
+  }
+});
+
+
 test("offline vault restores encrypted checklist, pending queue, conflict and expired lease after browser reload", async () => {
   const page = await browser.newPage();
   const dbName = "tmh-reload-recovery-" + crypto.randomUUID();

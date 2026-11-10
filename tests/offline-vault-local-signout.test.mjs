@@ -21,3 +21,19 @@ test("explicit logout blocks automatic device-key recovery until fresh online si
   assert.match(auth, /offline:logout-requested", true/);
   assert.doesNotMatch(auth, /unlockOffline|setupOfflinePin/);
 });
+
+test("cross-tab Supabase account changes immediately lock the previous local vault", () => {
+  assert.match(auth, /function clearActiveOfflineContext\(\)/);
+  assert.match(auth, /function handleCrossTabAuthState\(event, session\)/);
+  assert.match(auth, /client\.auth\.onAuthStateChange\(handleCrossTabAuthState\)/);
+  assert.match(auth, /nextUserId !== activeOfflineUserId/);
+  assert.match(auth, /clearActiveOfflineContext\(\)/);
+  assert.match(auth, /online\.user\.id\.toLowerCase\(\) !== offlineUserId\.toLowerCase\(\)/);
+});
+
+test("offline account selection follows the persisted Supabase session, not a stale UI cache", () => {
+  assert.match(auth, /function getPersistedAuthUserId\(\)/);
+  assert.match(auth, /const userId = getPersistedAuthUserId\(\)/);
+  assert.doesNotMatch(auth, /let userId = cached\?\.authUid/);
+  assert.doesNotMatch(auth, /userId = await offlineVault\.database\.getMeta\("offline:last-user-id"\)/);
+});
