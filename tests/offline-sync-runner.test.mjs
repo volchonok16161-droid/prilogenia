@@ -6,7 +6,7 @@ const UID = "11111111-1111-4111-8111-111111111111";
 const OP = { opId:"op-1", userId:UID, entityId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", operation:"update", encrypted:{version:1,iv:"iv",ciphertext:"cipher"}, status:"pending", attempts:0 };
 
 function fixture({ identity, online=true, cloud={}, setIntervalImpl, clearIntervalImpl, leaseDurationMs, leaseRenewIntervalMs } = {}) {
-  const queue=[{...OP}]; const conflicts=[]; const calls=[];
+  const queue=[{...OP}]; const conflicts=[]; const calls=[]; const leaseRenewals=[];
   let cloudState = null;
   const database={
     async listPending(uid, nowIso = new Date().toISOString()){
@@ -21,7 +21,7 @@ function fixture({ identity, online=true, cloud={}, setIntervalImpl, clearInterv
       Object.assign(row,{status:"processing",leaseClaimId:claimId,leaseUntil});
       return true;
     },
-    async updateQueueOperation(opId,uid,changes,expectedClaim){ const row=queue.find(x=>x.opId===opId&&x.userId===uid); if(!row || (expectedClaim!==undefined && row.leaseClaimId!==expectedClaim)) return false; Object.assign(row,changes); return true; },
+    async updateQueueOperation(opId,uid,changes,expectedClaim){ const row=queue.find(x=>x.opId===opId&&x.userId===uid); if(!row || (expectedClaim!==undefined && row.leaseClaimId!==expectedClaim)) return false; if (changes.leaseUntil) leaseRenewals.push(changes.leaseUntil); Object.assign(row,changes); return true; },
     async getCloudState(uid,entityId){ return uid===UID && entityId===OP.entityId ? cloudState : null; },
     async markSynced(opId,uid,_revision,expectedClaim,nextState){ const i=queue.findIndex(x=>x.opId===opId&&x.userId===uid); if(i<0 || (expectedClaim!==undefined && queue[i].leaseClaimId!==expectedClaim)) return false; queue.splice(i,1); cloudState=nextState===null?null:(nextState||cloudState); return {opId,serverRevision:_revision??null}; },
     async saveConflict(value){ conflicts.push(value); },
@@ -43,7 +43,7 @@ function fixture({ identity, online=true, cloud={}, setIntervalImpl, clearInterv
     ...(leaseDurationMs ? { leaseDurationMs } : {}),
     ...(leaseRenewIntervalMs ? { leaseRenewIntervalMs } : {}),
   });
-  return {runner,queue,conflicts,calls,get cloudState(){return cloudState;}};
+  return {runner,queue,conflicts,calls,leaseRenewals,get cloudState(){return cloudState;}};
 }
 
 test("refuses to sync a local device identity without a verified server profile", async()=>{
@@ -368,8 +368,7 @@ test("create retry with a changed remote revision stores a conflict and keeps bo
 test("renews the fenced queue lease while a long cloud request is running", async () => {
   let tick;
   let cleared = false;
-  let renewals = 0;
-  const { runner, queue } = fixture({
+  const { runner, queue, leaseRenewals } = fixture({
     setIntervalImpl(callback, interval) {
       assert.equal(interval, 1_000);
       tick = callback;
@@ -389,12 +388,10 @@ test("renews the fenced queue lease while a long cloud request is running", asyn
       },
     },
   });
-  const originalUpdate = runner;
-  assert.ok(originalUpdate);
-  // The fixture's atomic fake DB is exercised through a lease renewal injected
-  // by the timer. A processing row must remain owned until cloud acknowledgement.
+  // The fake IndexedDB contract records the renewed lease expiry.
   const result = await runner.syncPending({ userId: UID });
   assert.equal(result.synced, 1);
   assert.equal(queue.length, 0);
+  assert.equal(leaseRenewals.length, 1);
   assert.equal(cleared, true);
 });
