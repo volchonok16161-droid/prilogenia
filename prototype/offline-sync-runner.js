@@ -30,11 +30,56 @@ function assertVerifiedIdentity(identity, expectedUserId) {
   return id.toLowerCase();
 }
 
+function createLeaseKeeper({ renew, setIntervalImpl, clearIntervalImpl, intervalMs }) {
+  let timer = null;
+  let renewal = Promise.resolve();
+  let leaseError = null;
+  let stopped = false;
+  const pulse = () => {
+    if (stopped || leaseError) return;
+    renewal = renewal.then(async () => {
+      if (stopped || leaseError) return;
+      const renewed = await renew();
+      if (!renewed) {
+        leaseError = new Error("Sync lease was lost to another worker");
+        leaseError.code = "LEASE_LOST";
+      }
+    }).catch((error) => { leaseError = error; });
+  };
+  timer = setIntervalImpl(pulse, intervalMs);
+  return Object.freeze({
+    async renewNow() {
+      if (stopped) throw new Error("Sync lease keeper is stopped");
+      await renewal;
+      if (leaseError) throw leaseError;
+      const renewed = await renew();
+      if (!renewed) {
+        leaseError = new Error("Sync lease was lost to another worker");
+        leaseError.code = "LEASE_LOST";
+        throw leaseError;
+      }
+    },
+    async assertOwned() {
+      await renewal;
+      if (leaseError) throw leaseError;
+    },
+    async stop() {
+      stopped = true;
+      if (timer !== null) clearIntervalImpl(timer);
+      await renewal;
+    },
+  });
+}
+
 export function createOfflineSyncRunner({
   authApi, database, vault, cloudSync, mapOperation,
   isOnline = () => globalThis.navigator?.onLine !== false,
   now = () => new Date().toISOString(),
   claimIdFactory = () => globalThis.crypto.randomUUID(),
+  setIntervalImpl = (...args) => globalThis.setInterval(...args),
+  clearIntervalImpl = (handle) => globalThis.clearInterval(handle),
+  leaseDurationMs = 5 * 60 * 1000,
+  leaseRenewIntervalMs = 60 * 1000,
 }) {
   assertDependencies({ authApi, database, vault, cloudSync, mapOperation });
 
@@ -43,6 +88,9 @@ export function createOfflineSyncRunner({
       throw new TypeError("A valid account UUID is required");
     }
     const uid = userId.toLowerCase();
+    if (!Number.isSafeInteger(leaseDurationMs) || leaseDurationMs < 30_000 ||
+        !Number.isSafeInteger(leaseRenewIntervalMs) || leaseRenewIntervalMs < 1_000 ||
+        leaseRenewIntervalMs >= leaseDurationMs) throw new TypeError("Invalid sync lease timing");
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
       throw new TypeError("Sync batch limit must be between 1 and 100");
     }
@@ -61,16 +109,26 @@ export function createOfflineSyncRunner({
     for (const operation of pending) {
       let claimed = false;
       let claimId = null;
+      let leaseKeeper = null;
       try {
         if (!isOnline()) break;
         assertVerifiedIdentity(await authApi.getCurrentIdentity(), uid);
         const claimedAt = now();
-        const leaseUntil = new Date(Date.parse(claimedAt) + 5 * 60 * 1000).toISOString();
+        const leaseUntil = new Date(Date.parse(claimedAt) + leaseDurationMs).toISOString();
         claimId = claimIdFactory();
         claimed = await database.claimQueueOperation(
           operation.opId, uid, claimId, claimedAt, leaseUntil,
         );
         if (!claimed) continue;
+        const renewClaim = async () => {
+          const renewedAt = now();
+          const renewedUntil = new Date(Date.parse(renewedAt) + leaseDurationMs).toISOString();
+          if (typeof database.renewQueueOperation === "function") {
+            return database.renewQueueOperation(operation.opId, uid, claimId, renewedAt, renewedUntil);
+          }
+          return database.updateQueueOperation(operation.opId, uid, { leaseUntil: renewedUntil }, claimId);
+        };
+        leaseKeeper = createLeaseKeeper({ renew: renewClaim, setIntervalImpl, clearIntervalImpl, intervalMs: leaseRenewIntervalMs });
         if (operation.userId !== uid || typeof operation.opId !== "string" ||
             typeof operation.entityId !== "string") {
           throw new Error("Очередь содержит некорректную операцию владельца");
@@ -143,6 +201,7 @@ export function createOfflineSyncRunner({
           throw new TypeError("mapOperation must return create, update, or remove");
         }
 
+        await leaseKeeper.renewNow();
         const updated = await database.updateQueueOperation(operation.opId, uid, {
           attempts: (Number(operation.attempts) || 0) + 1,
           lastAttemptAt: now(),
@@ -153,7 +212,9 @@ export function createOfflineSyncRunner({
         try {
           let cloudResult;
           try {
+            await leaseKeeper.assertOwned();
             cloudResult = await cloudSync[request.method](request.method === "remove" ? request.id : request.input);
+            await leaseKeeper.renewNow();
           } catch (cloudError) {
             // Photo objects are uploaded before the checklist row. If the row
             // write fails or conflicts, remove only this operation's uploads.
@@ -217,6 +278,8 @@ export function createOfflineSyncRunner({
           }, claimId);
         }
         if (error?.code === "AUTH_REQUIRED" || !isOnline()) break;
+      } finally {
+        if (leaseKeeper) await leaseKeeper.stop();
       }
     }
 
