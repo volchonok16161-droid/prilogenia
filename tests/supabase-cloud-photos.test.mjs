@@ -397,3 +397,27 @@ test("photo upload stops if Supabase account changes while Storage upload is in 
     (error) => error.code === "AUTH_CONTEXT_CHANGED",
   );
 });
+
+test("photo restore aborts when the active account changes during Storage download", async () => {
+  let liveUserId = USER;
+  const storageApi = {
+    from() {
+      return { async download() {
+        liveUserId = "22222222-2222-4222-8222-222222222222";
+        return { data: new Blob([new Uint8Array([1, 2, 3])], { type: "image/jpeg" }), error: null };
+      } };
+    },
+  };
+  const guarded = createChecklistPhotoSync({
+    authApi: { async getCurrentIdentity() { return { user: { id: liveUserId }, error: null }; } },
+    storageApi,
+  });
+  await assert.rejects(
+    guarded.restoreState({
+      state: { values: { item1: {} } },
+      checklistId: ROW,
+      manifest: [{ itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/1/" + PHOTO, contentType: "image/jpeg" }],
+    }),
+    (error) => error.code === "AUTH_CONTEXT_CHANGED",
+  );
+});
