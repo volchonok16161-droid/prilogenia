@@ -56,3 +56,10 @@ test("photo cleanup job is committed atomically with cloud acknowledgement", () 
   assert.match(source, /async function updatePhotoCleanup/);
   assert.match(source, /async function completePhotoCleanup/);
 });
+
+
+test("failed atomic IndexedDB writes abort and drain the transaction completion promise", () => {
+  assert.match(source, /catch \(error\) \{[\s\S]*?try \{ tx\.abort\(\); \} catch \{\}[\s\S]*?try \{ await done; \} catch \{\}[\s\S]*?throw error;/);
+  assert.match(source, /await requestResult\(onlyIfAbsent \? records\.add\(record\) : records\.put\(record\)\);[\s\S]*?await requestResult\(tx\.objectStore\(STORES\.QUEUE\)\.add/);
+  assert.match(source, /await requestResult\(queue\.add\(/);
+});
