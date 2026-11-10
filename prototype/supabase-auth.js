@@ -86,6 +86,14 @@ function getChecklistMode(storageId) {
   return mode;
 }
 
+function assertActiveOfflineContext(userId, vault) {
+  if (!userId || !vault || activeOfflineUserId !== userId || activeOfflineVault !== vault) {
+    const error = new Error("Учётная запись изменилась во время сохранения. Данные сохранены в исходном профиле; повторите действие после входа.");
+    error.code = "AUTH_CONTEXT_CHANGED";
+    throw error;
+  }
+}
+
 function ensureOfflineSync() {
   if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
   if (!offlineChecklistStore) {
@@ -403,9 +411,13 @@ async function saveOfflineChecklist(id, snapshot) {
     return saveOfflineChecklistForActiveInstance(id, snapshot);
   }
   const userId = activeOfflineUserId;
-  const localEncrypted = await activeOfflineVault.encrypt(snapshot);
+  const vault = activeOfflineVault;
+  const localEncrypted = await vault.encrypt(snapshot);
+  assertActiveOfflineContext(userId, vault);
   await offlineVault.database.putRecord({ id, userId, kind: "checklist-snapshot", encrypted: localEncrypted });
+  assertActiveOfflineContext(userId, vault);
   const cloudEnabled = await offlineVault.database.getMeta("offline:cloud-sync-enabled:" + userId);
+  assertActiveOfflineContext(userId, vault);
   if (cloudEnabled !== true) {
     return { saved: true, encrypted: true, queued: false, status: "local-only", userId, id };
   }
@@ -416,16 +428,20 @@ async function saveOfflineChecklist(id, snapshot) {
     let cloudId = await offlineVault.database.getMeta(mappingKey);
     if (!cloudId) { cloudId = crypto.randomUUID(); await offlineVault.database.setMeta(mappingKey, cloudId); }
     const cloudState = await offlineVault.database.getCloudState(userId, cloudId);
+    assertActiveOfflineContext(userId, vault);
     const { buildOfflineCloudEnvelope } = await import("./offline-checklist-schema.js");
+    assertActiveOfflineContext(userId, vault);
     const envelope = buildOfflineCloudEnvelope({
       mode, state: snapshot, cloudId,
       ...(cloudState?.revision ? { expectedRevision: cloudState.revision } : {}),
     });
+    assertActiveOfflineContext(userId, vault);
     const result = await store.saveChecklist({
       id, value: envelope, operation: cloudState?.revision ? "update" : "create",
       entityId: cloudId, kind: "checklist-snapshot",
     });
-    if (globalThis.navigator?.onLine !== false && offlineSyncCoordinator) void offlineSyncCoordinator.syncNow();
+    if (activeOfflineUserId === userId && activeOfflineVault === vault &&
+        globalThis.navigator?.onLine !== false && offlineSyncCoordinator) void offlineSyncCoordinator.syncNow();
     return { saved: true, encrypted: true, queued: true, userId, id, cloudId, ...result };
   } catch (syncError) {
     console.warn("Cloud sync queue unavailable; encrypted local snapshot was retained", syncError);
@@ -436,19 +452,24 @@ async function saveOfflineChecklist(id, snapshot) {
 
 async function saveOfflineChecklistForActiveInstance(id, snapshot) {
   if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
+  const userId = activeOfflineUserId, vault = activeOfflineVault;
   const mode = getChecklistMode(id);
-  const key = activeInstanceMetaKey(id);
+  const key = activeInstanceMetaKey(id, userId);
   const instances = await getOfflineChecklistInstances();
+  assertActiveOfflineContext(userId, vault);
   let instanceId = await offlineVault.database.getMeta(key);
+  assertActiveOfflineContext(userId, vault);
   let result;
   if (instanceId) result = await instances.save(instanceId, mode, snapshot);
   else {
     result = await instances.create(mode, snapshot);
     instanceId = result.instanceId;
+    assertActiveOfflineContext(userId, vault);
     await offlineVault.database.setMeta(key, instanceId);
   }
-  requestOfflineSyncAfterInstanceSave(result);
-  return { ...result, id, instanceId, userId: activeOfflineUserId };
+  assertActiveOfflineContext(userId, vault);
+  requestOfflineSyncAfterInstanceSave(result, userId, vault);
+  return { ...result, id, instanceId, userId };
 }
 function activeInstanceMetaKey(storageId, userId = activeOfflineUserId) {
   const mode = getChecklistMode(storageId);
@@ -485,11 +506,12 @@ async function getOfflineChecklistInstances() {
   return offlineChecklistInstances;
 }
 
-function requestOfflineSyncAfterInstanceSave(result) {
+function requestOfflineSyncAfterInstanceSave(result, expectedUserId = activeOfflineUserId, expectedVault = activeOfflineVault) {
   // Saving is already durable locally. Kick the queue in the background only
   // when this write was queued and the browser currently has a network path.
   // The coordinator performs a fresh Supabase identity/role check before upload.
-  if (result?.queued && globalThis.navigator?.onLine !== false && offlineSyncCoordinator) {
+  if (result?.queued && activeOfflineUserId === expectedUserId && activeOfflineVault === expectedVault &&
+      globalThis.navigator?.onLine !== false && offlineSyncCoordinator) {
     void offlineSyncCoordinator.syncNow().catch((error) => {
       console.warn("Offline checklist sync will retry later", error);
     });
@@ -498,12 +520,22 @@ function requestOfflineSyncAfterInstanceSave(result) {
 }
 
 async function createOfflineChecklistInstance(mode, snapshot) {
-  const result = await (await getOfflineChecklistInstances()).create(mode, snapshot);
-  return requestOfflineSyncAfterInstanceSave(result);
+  const userId = activeOfflineUserId, vault = activeOfflineVault;
+  if (!userId || !vault) throw new Error("Офлайн-хранилище не разблокировано");
+  const instances = await getOfflineChecklistInstances();
+  assertActiveOfflineContext(userId, vault);
+  const result = await instances.create(mode, snapshot);
+  assertActiveOfflineContext(userId, vault);
+  return requestOfflineSyncAfterInstanceSave(result, userId, vault);
 }
 async function saveOfflineChecklistInstance(instanceId, mode, snapshot) {
-  const result = await (await getOfflineChecklistInstances()).save(instanceId, mode, snapshot);
-  return requestOfflineSyncAfterInstanceSave(result);
+  const userId = activeOfflineUserId, vault = activeOfflineVault;
+  if (!userId || !vault) throw new Error("Офлайн-хранилище не разблокировано");
+  const instances = await getOfflineChecklistInstances();
+  assertActiveOfflineContext(userId, vault);
+  const result = await instances.save(instanceId, mode, snapshot);
+  assertActiveOfflineContext(userId, vault);
+  return requestOfflineSyncAfterInstanceSave(result, userId, vault);
 }
 async function loadOfflineChecklistInstance(instanceId) {
   return (await getOfflineChecklistInstances()).load(instanceId);
@@ -513,7 +545,8 @@ async function listOfflineChecklistInstances() {
 }
 
 async function migrateLegacyChecklist(storageId, snapshot, confirmed = false) {
-  if (!activeOfflineVault || !activeOfflineUserId) {
+  const userId = activeOfflineUserId, vault = activeOfflineVault;
+  if (!vault || !userId) {
     throw new Error("Сначала разблокируйте офлайн-хранилище после входа в учётную запись");
   }
   getChecklistMode(storageId);
@@ -522,46 +555,59 @@ async function migrateLegacyChecklist(storageId, snapshot, confirmed = false) {
     throw new TypeError("Некорректный снимок старого чек-листа");
   }
   const store = ensureOfflineSync();
+  assertActiveOfflineContext(userId, vault);
   const result = await store.migrateLegacySnapshot({
     id: storageId, legacyValue: snapshot, confirmed: true, kind: "checklist-snapshot",
   });
+  assertActiveOfflineContext(userId, vault);
   const imported = await store.readChecklist(storageId);
+  assertActiveOfflineContext(userId, vault);
   if (!imported || JSON.stringify(imported.value) !== JSON.stringify(snapshot)) {
     throw new Error("Проверка перенесённой копии не пройдена");
   }
-  return { ...result, verified: true, userId: activeOfflineUserId };
+  return { ...result, verified: true, userId };
 }
 
 async function enableOfflineCloudSync() {
-  if (!activeOfflineVault || !activeOfflineUserId) {
+  const userId = activeOfflineUserId, vault = activeOfflineVault;
+  if (!vault || !userId) {
     throw new Error("Сначала разблокируйте офлайн-хранилище после входа в учётную запись");
   }
   const identity = await getCurrentIdentity();
-  if (!identity?.user || identity.user.id !== activeOfflineUserId ||
-      !identity?.profile || identity.profile.id !== activeOfflineUserId || identity.error) {
+  assertActiveOfflineContext(userId, vault);
+  if (!identity?.user || identity.user.id !== userId ||
+      !identity?.profile || identity.profile.id !== userId || identity.error) {
     const error = new Error("Для включения облачной синхронизации нужен действующий онлайн-вход этого сотрудника");
     error.code = "AUTH_REQUIRED";
     throw error;
   }
-  await offlineVault.database.setMeta("offline:cloud-sync-enabled:" + activeOfflineUserId, true);
+  await offlineVault.database.setMeta("offline:cloud-sync-enabled:" + userId, true);
+  assertActiveOfflineContext(userId, vault);
   ensureOfflineSync();
   void offlineSyncCoordinator.start();
-  return { enabled: true, userId: activeOfflineUserId };
+  return { enabled: true, userId };
 }
 
 async function loadOfflineChecklist(id) {
-  if (!activeOfflineVault || !activeOfflineUserId) return null;
-  const instanceId = await offlineVault.database.getMeta(activeInstanceMetaKey(id));
+  const userId = activeOfflineUserId, vault = activeOfflineVault;
+  if (!vault || !userId) return null;
+  const instanceId = await offlineVault.database.getMeta(activeInstanceMetaKey(id, userId));
+  assertActiveOfflineContext(userId, vault);
   if (!instanceId) return null;
   const instance = await loadOfflineChecklistInstance(instanceId);
+  assertActiveOfflineContext(userId, vault);
   return instance?.state || null;
 }
 
 async function hasOfflineChecklist(id) {
-  if (!activeOfflineUserId) return false;
-  const instanceId = await offlineVault.database.getMeta(activeInstanceMetaKey(id));
+  const userId = activeOfflineUserId, vault = activeOfflineVault;
+  if (!vault || !userId) return false;
+  const instanceId = await offlineVault.database.getMeta(activeInstanceMetaKey(id, userId));
+  assertActiveOfflineContext(userId, vault);
   if (!instanceId) return false;
-  return Boolean(await loadOfflineChecklistInstance(instanceId));
+  const instance = await loadOfflineChecklistInstance(instanceId);
+  assertActiveOfflineContext(userId, vault);
+  return Boolean(instance);
 }
 
 async function getOfflineIdentity() {

@@ -39,3 +39,11 @@ test("offline account selection follows the persisted Supabase session, not a st
   assert.doesNotMatch(auth, /let userId = cached\?\.authUid/);
   assert.doesNotMatch(auth, /userId = await offlineVault\.database\.getMeta\("offline:last-user-id"\)/);
 });
+
+test("async local saves bind the original account and vault across account switches", () => {
+  assert.match(auth, /function assertActiveOfflineContext\\(userId, vault\\)/);
+  assert.match(auth, /const vault = activeOfflineVault/);
+  assert.match(auth, /assertActiveOfflineContext\\(userId, vault\\)/);
+  assert.match(auth, /activeOfflineUserId === expectedUserId && activeOfflineVault === expectedVault/);
+  assert.match(auth, /requestOfflineSyncAfterInstanceSave\\(result, userId, vault\\)/);
+});
