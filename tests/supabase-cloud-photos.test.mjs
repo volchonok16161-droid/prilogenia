@@ -7,6 +7,7 @@ const ROW = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const PHOTO = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 function harness({ userId = USER } = {}) {
+  let currentUserId = userId;
   const files = new Map();
   const calls = [];
   const removed = [];
@@ -39,13 +40,13 @@ function harness({ userId = USER } = {}) {
   const sync = createChecklistPhotoSync({
     authApi: {
       async getCurrentIdentity() {
-        return { user: userId ? { id: userId } : null, error: null };
+        return { user: currentUserId ? { id: currentUserId } : null, error: null };
       },
     },
     storageApi,
     idFactory: () => PHOTO,
   });
-  return { sync, files, calls, removed };
+  return { sync, files, calls, removed, switchUser(id) { currentUserId = id; } };
 }
 
 test("uploads checklist photos to UUID-only private user/checklist/revision paths and returns a manifest", async () => {
@@ -369,4 +370,30 @@ test("a Storage download failure midway through restore never mutates the caller
     values: { item1: { status: "ok" }, item2: { status: "checked" } },
   });
   assert.equal(h.calls.filter((call) => call.action === "download").length, 2);
+});
+
+test("photo upload stops if Supabase account changes while Storage upload is in flight", async () => {
+  const h = harness();
+  const originalUpload = h.sync.uploadState;
+  // Switch the live auth identity from inside the first Storage request.
+  const identitySwitchingStorage = {
+    from(bucket) {
+      const original = h.sync;
+      return {
+        async upload(path, blob, options) {
+          h.switchUser("22222222-2222-4222-8222-222222222222");
+          return { data: { path }, error: null };
+        },
+      };
+    },
+  };
+  const guarded = createChecklistPhotoSync({
+    authApi: { async getCurrentIdentity() { return { user: { id: h.currentUserId }, error: null }; } ,
+    storageApi: identitySwitchingStorage,
+    idFactory: () => PHOTO,
+  });
+  await assert.rejects(
+    guarded.uploadState({ state: { values: { item1: { front_photo: "data:image/jpeg;base64,AQID" } } }, checklistId: ROW, revision: 1 }),
+    (error) => error.code === "AUTH_CONTEXT_CHANGED",
+  );
 });
