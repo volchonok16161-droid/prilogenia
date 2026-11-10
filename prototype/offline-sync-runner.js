@@ -190,12 +190,6 @@ export function createOfflineSyncRunner({
             cloud: { ...localValue.cloud, expectedRevision: cloudState.revision },
           };
         }
-        if (operation.operation === "update" && cloudState?.revision) {
-          effectiveValue = {
-            ...localValue,
-            cloud: { ...localValue.cloud, expectedRevision: cloudState.revision },
-          };
-        }
         const request = await mapOperation(effectiveOperation, effectiveValue, cloudState);
         if (!request || !["create", "update", "remove"].includes(request.method)) {
           throw new TypeError("mapOperation must return create, update, or remove");
