@@ -45,6 +45,19 @@ test("account deletion revokes all sessions before deleting Auth identity", () =
   assert.match(block, /revoked_sessions: revokedSessionCount/);
 });
 
+
+test("private Excel export metadata and objects also require active sessions", () => {
+  for (const name of ["checklist_exports_select_own", "checklist_exports_insert_own", "checklist_exports_delete_own", "checklist_exports_storage_select_own", "checklist_exports_storage_insert_own", "checklist_exports_storage_delete_own"]) {
+    assert.ok(migration.includes(name));
+  }
+});
+
+test("service-only session revocation removes every refresh session for the target account", () => {
+  assert.match(migration, /function public\.revoke_auth_sessions_for_user\(p_user_id uuid\)/);
+  assert.match(migration, /delete from auth\.sessions where user_id = p_user_id/);
+  assert.match(migration, /grant execute on function public\.revoke_auth_sessions_for_user\(uuid\) to service_role/);
+});
+
 test("non-production staging is explicit in the migration itself", () => {
   assert.match(migration, /ONLY in a separate isolated Supabase test project/);
   assert.match(migration, /does not invalidate a JWT cryptographically/);
