@@ -55,6 +55,16 @@ Deno.serve(async (req: Request) => {
     return error;
   };
 
+  // Compensate a failed profile write. If Auth deletion fails, keep the
+  // reservation until its 10-minute expiry so a partially-created account
+  // cannot silently escape the employee-capacity accounting.
+  const rollbackProvisionedUser = async (userId: string, reservationId: string) => {
+    const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
+    if (deleteError) return { deleted: false, error: deleteError };
+    const releaseError = await releaseEmployeeSlot(reservationId);
+    return { deleted: true, error: releaseError };
+  };
+
   const { data: actor, error: actorError } = await admin
     .from("profiles")
     .select("role")
@@ -133,8 +143,13 @@ Deno.serve(async (req: Request) => {
     }, { onConflict: "id" });
 
     if (profileError) {
-      await admin.auth.admin.deleteUser(created.user.id);
-      await releaseEmployeeSlot(reservation.reservationId);
+      const rollback = await rollbackProvisionedUser(created.user.id, reservation.reservationId);
+      if (!rollback.deleted) {
+        return json({ error: "Не удалось создать профиль сотрудника и отменить учётную запись Auth. Резерв места сохранён до автоматического истечения; требуется ручная проверка." }, 500);
+      }
+      if (rollback.error) {
+        return json({ error: "Профиль не создан, учётная запись Auth отменена, но освобождение резерва не подтверждено; место освободится автоматически по истечении срока." }, 202);
+      }
       return json({ error: "Не удалось создать профиль сотрудника; учётная запись Auth отменена" }, 500);
     }
 
@@ -176,9 +191,14 @@ Deno.serve(async (req: Request) => {
     }, { onConflict: "id" });
 
     if (profileError) {
-      // Не оставляем Auth-пользователя без профиля при неудаче вставки.
-      await admin.auth.admin.deleteUser(inviteData.user.id);
-      await releaseEmployeeSlot(reservation.reservationId);
+      // Do not silently orphan an invited Auth user if compensation fails.
+      const rollback = await rollbackProvisionedUser(inviteData.user.id, reservation.reservationId);
+      if (!rollback.deleted) {
+        return json({ error: "Не удалось создать профиль и отменить приглашённую учётную запись Auth. Резерв места сохранён до автоматического истечения; требуется ручная проверка." }, 500);
+      }
+      if (rollback.error) {
+        return json({ error: "Профиль не создан, приглашённая учётная запись Auth отменена, но освобождение резерва не подтверждено; место освободится автоматически по истечении срока." }, 202);
+      }
       return json({ error: "Не удалось создать профиль сотрудника" }, 500);
     }
 
