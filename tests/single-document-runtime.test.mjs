@@ -215,7 +215,7 @@ test("Service Worker parses as valid JavaScript before registration", () => {
   assert.match(sw, /\.catch\(async \(\) => \{/);
 });
 
-test("the unified route is included in the offline app shell", () => {
+  assert.match(sw, /checklist-cache-v110/);
   assert.match(sw, /checklist-cache-v109/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
