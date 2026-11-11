@@ -215,7 +215,7 @@ async function loadEmployees(api, requestId = cabinetLoadSequence) {
         deleteButton.addEventListener("click", async () => {
           const label = employee.display_name || employee.id;
           const confirmation = window.prompt(
-            "Окончательное удаление аккаунта «" + label + "».\n\nУдаление возможно только если у пользователя нет облачных чек-листов и файлов в Supabase Storage.\n\nДля подтверждения введите DELETE:"
+            "Окончательное удаление аккаунта «" + label + "».\n\nУдаление возможно только если у пользователя нет облачных чек-листов и файлов в Supabase Storage.\n\nПеред продолжением убедитесь, что все изменения и фотографии синхронизированы или отдельно сохранены. Сервер не может проверить несинхронизированные данные на устройствах. Удаление аккаунта не гарантирует мгновенную недействительность уже выданных access token: они могут оставаться действительными до истечения срока JWT.\n\nДля подтверждения введите DELETE:"
           );
           if (confirmation !== "DELETE") return;
           deleteButton.disabled = true;
