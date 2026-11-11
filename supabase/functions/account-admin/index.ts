@@ -77,13 +77,22 @@ Deno.serve(async (req: Request) => {
 
   if (body.action === "create_named_employee") {
     const username = typeof body.username === "string" ? body.username.trim() : "";
+    const normalizedUsername = username.normalize("NFC").toLowerCase();
     const password = typeof body.password === "string" ? body.password : "";
-    const accounts: Record<string, { email: string; displayName: string }> = {
-      "ЦГиСПЛ-Карасук": { email: "cgspl-karasuk@accounts.invalid", displayName: "ЦГиСПЛ-Карасук" },
-      "ЦГиСПЛ-Тимашевск": { email: "cgspl-timashevsk@accounts.invalid", displayName: "ЦГиСПЛ-Тимашевск" },
+    if (!username || username.length > 64 || normalizedUsername.includes("@") || /\\s/.test(username)) {
+      return json({ error: "Логин должен содержать от 1 до 64 символов без пробелов и символа @" }, 400);
+    }
+    const namedAccounts: Record<string, string> = {
+      "цгиспл-карасук": "cgspl-karasuk@accounts.invalid",
+      "цгиспл-тимашевск": "cgspl-timashevsk@accounts.invalid",
     };
-    const account = accounts[username];
-    if (!account) return json({ error: "Неизвестный логин сотрудника" }, 400);
+    let email = namedAccounts[normalizedUsername];
+    if (!email) {
+      const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalizedUsername));
+      const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      email = "u" + hash.slice(0, 63) + "@accounts.invalid";
+    }
+    const displayName = username;
     if (password.length < 8 || password.length > 128) {
       return json({ error: "Пароль должен содержать от 8 до 128 символов" }, 400);
     }
@@ -96,10 +105,10 @@ Deno.serve(async (req: Request) => {
     if ((count ?? 0) >= 15) return json({ error: "Достигнут лимит в 15 сотрудников" }, 409);
 
     const { data: created, error: createError } = await admin.auth.admin.createUser({
-      email: account.email,
+      email,
       password,
       email_confirm: true,
-      user_metadata: { display_name: account.displayName },
+      user_metadata: { display_name: displayName },
     });
     if (createError || !created.user) {
       return json({ error: createError?.message ?? "Не удалось создать аккаунт" }, 409);
@@ -107,7 +116,7 @@ Deno.serve(async (req: Request) => {
 
     const { error: profileError } = await admin.from("profiles").upsert({
       id: created.user.id,
-      display_name: account.displayName,
+      display_name: displayName,
       role: "employee",
     }, { onConflict: "id" });
 
@@ -118,7 +127,7 @@ Deno.serve(async (req: Request) => {
 
     return json({
       success: true,
-      employee: { id: created.user.id, display_name: account.displayName, role: "employee" },
+      employee: { id: created.user.id, display_name: displayName, role: "employee" },
     }, 201);
   }
 
