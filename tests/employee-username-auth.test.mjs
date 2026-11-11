@@ -27,7 +27,7 @@ test("employee provisioning remains behind server-side admin authorization", () 
   assert.match(admin, /email_confirm: true/);
   assert.match(admin, /role: "employee"/);
   assert.match(admin, /rollbackProvisionedUser\(inviteData\.user\.id, reservation\.reservationId\)/);
-  assert.match(admin, /async function rollbackProvisionedUser\(/);
+  assert.match(admin, /const rollbackProvisionedUser = async \(userId: string, reservationId: string\) =>/);
   assert.match(admin, /admin\.auth\.admin\.deleteUser\(userId\)/);
 });
 
