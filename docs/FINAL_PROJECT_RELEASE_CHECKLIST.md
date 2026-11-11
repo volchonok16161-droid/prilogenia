@@ -29,10 +29,13 @@ Production `main`: неприкосновенен до отдельного со
 
 ## Этапы завершения
 
-### 1. Автоматические проверки
-- Запустить полный набор `tests/*.test.mjs` на текущем HEAD.
-- Проверить итог GitHub Actions: все тесты успешны, без пропусков и ошибок.
-- Не считать PR merge-run проверкой текущего HEAD.
+### 1. Автоматические проверки — выполнено на текущем HEAD
+- Коммит: `32d4e51c027fcebf973b7dd7d2ee185f3e76bc4f`.
+- GitHub Actions push run: [43011027536](https://github.com/volchonok16161-droid/prilogenia/actions/runs/43011027536) — success.
+- PR run: [43011033935](https://github.com/volchonok16161-droid/prilogenia/actions/runs/43011033935) — success.
+- Node test summary: **369 passed, 0 failed, 0 skipped, 0 cancelled** (9.36 s).
+- Установлены Playwright и Chromium; весь `tests/*.test.mjs` завершился успешно.
+- Это подтверждает автоматические проверки, но не заменяет ручную браузерную приёмку UI и реальной Supabase интеграции.
 
 ### 2. Чек-листы и офлайн
 - Проверить пять режимов: Комплексный, КМБ, ТТ, БИ и Гидродемпферы.
