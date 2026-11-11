@@ -31,7 +31,7 @@ test("admin Edge Function validates caller session id before privileged actions"
   assert.match(admin, /let sessionId: string \| null = null/);
   assert.match(admin, /payload\.session_id === "string"/);
   assert.match(admin, /is_auth_session_active_for_user/);
-  assert.match(admin, /if \(!activeSession\)/);
+  assert.match(admin, /if \(activeSession !== true\)/);
   assert.match(admin, /AUTH_SESSION_REVOKED/);
 });
 
