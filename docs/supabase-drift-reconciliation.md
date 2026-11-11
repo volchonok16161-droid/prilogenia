@@ -19,6 +19,7 @@ The read-only audit found the following differences between the Git branch and t
 | Private photo storage | Corresponding migration is absent from Git | Migration history includes `20261102144000_private_checklist_photo_storage`; private bucket and owner-scoped object policies exist | Historical source is not reproducible from this branch |
 | Assistant role | Corresponding migration is absent from Git | Migration history includes `20261105111339_add_assistant_profile_role`; live role constraint includes `assistant` | Fresh environment setup may not reproduce the live role set |
 | Excel export archive | Git contains create and subsequent removal migrations | Live private `checklist-exports` bucket exists; `checklist_exports` table is absent | Bucket lifecycle and any remaining objects need explicit review |
+| Atomic employee capacity | New Git migration `20261111120000_atomic_employee_capacity.sql` adds private short-lived reservations and service-role RPCs | Migration is not applied; no reservation table/RPC is present in the inspected live schema | Branch Edge Function now depends on these RPCs; deploying the function before the migration would break employee creation, invitation and promotion |
 | account-admin Edge Function | Branch source uses a two-login allowlist for named accounts; lists and changes access only for `employee`; has no `set_employee_role` action | Deployed v4 uses normalized username-to-SHA-256 synthetic emails; lists `employee` and `assistant`; adds developer-only `set_employee_role`; allows access changes for both roles | Login compatibility, role visibility and role-management behavior differ in both directions; deploying either copy changes live behavior |
 
 These are observations, not proof of when or how each live object was created. The migration history is not a complete substitute for a schema diff.
@@ -61,7 +62,7 @@ The complete source comparison was performed read-only on 2026-11-11. The deploy
 - **Employee listing:** branch source now lists `employee` and `assistant` after commit `e20dd5a`; deployed v4 also includes both.
 - **Role changes:** branch source now implements `set_employee_role`, restricted to a developer and transitions between `employee` and `assistant`; this was aligned with the cabinet in commit `e20dd5a`. Deployed v4 also supports this action.
 - **Access suspension:** branch source now permits changes for `employee` and `assistant`; deployed v4 permits both.
-- **Employee cap:** create/invite and promotion still use a count-then-write check for a maximum of 15 `employee` profiles. This is not atomic: simultaneous requests can both observe a count below 15 and create beyond the cap. The cap is not a hard invariant.
+- **Employee cap:** the branch now uses a new atomic reservation RPC for create/invite and assistant-to-employee promotion (migration `20261111120000_atomic_employee_capacity.sql`). The RPC serializes quota checks with a transaction-scoped advisory lock, counts active employees plus unexpired reservations, and caps the sum at 15. Reservations expire after 10 minutes as a crash safety net and are released on normal success/error paths. The migration is staged in Git only and has not been applied. The deployed Edge Function remains on its previous non-atomic count-then-write behavior. Do not deploy the branch Edge Function until the migration is reconciled, reviewed and applied in an approved environment.
 - **Account deletion:** branch source now includes a developer-only `delete_employee` action. It refuses deletion for users with cloud checklists or Storage objects, bans the target, rechecks both data stores, then calls Auth `deleteUser`. This code is not deployed. Supabase documents that existing JWTs can remain valid until expiry after Auth deletion; banning prevents new sign-ins/refreshes but is not an immediate JWT revocation mechanism.
 - **Shared behavior:** both versions verify the bearer token with `auth.getUser`, require actor role `admin` or `developer` for entry, use the service-role key only server-side, and attempt to delete a newly-created Auth user if profile upsert fails.
 
@@ -69,7 +70,7 @@ The existing `tests/employee-username-auth.test.mjs` checks the **Git branch sou
 
 - Compare the complete deployed source with the branch source and document every behavioral difference.
 - Verify authentication, actor role checks, tenant/account scoping, employee limit enforcement, and race behavior.
-- Implement the employee cap as an atomic database-side operation (for example, a reviewed transactional RPC/locking strategy covering create/invite and role promotion), then test simultaneous requests at the boundary. A test around the current count-then-write code cannot make that code atomic.
+- Review and apply the staged atomic-capacity migration in a disposable Supabase project, then run real concurrent create/invite/promotion tests at 14, 15 and 16 employees. The current repository test checks source/migration structure only and does not prove database concurrency behavior.
 - Decide whether immediate revocation of existing JWTs is required for account deletion. If it is, add and test an explicit server-side session revocation/check strategy; do not claim hard-delete immediately invalidates already-issued JWTs.
 - Review the new deletion path in an isolated Supabase project, including the Storage `owner_id` catalog/API behavior, FK cascade behavior, and error/rollback paths.
 - Verify invite redirect behavior and the supported account-login mapping.
@@ -97,7 +98,7 @@ Capture before/after schema snapshots, test output, function versions and rollba
 ## Current blockers
 
 1. The deployed `account-admin` v4 has not been updated to the current branch behavior; branch source contains new developer-only deletion and aligned role/listing/login behavior.
-2. The employee-count check remains non-atomic in the branch and deployed function.
+2. The branch Edge Function now depends on the staged atomic-capacity migration; until it is applied in a compatible environment, the branch function must not be deployed. The live deployed function remains non-atomic.
 3. The new delete action is code-only and not deployed; active JWT expiry behavior and live Storage ownership query need isolated verification.
 4. The migration ledger and live schema are not fully aligned; the 512 KiB payload constraint is present in Git but was not found in the live database catalog.
 5. Supabase Security Advisor reports leaked-password protection disabled. This is a configuration finding; changing it may affect authentication and requires a separate approved change.
