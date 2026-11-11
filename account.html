@@ -162,6 +162,9 @@ async function loadEmployees(api, requestId = cabinetLoadSequence) {
       host.append(empty);
       return;
     }
+    const identity = await window.TMHAuth.getCurrentIdentity();
+    if (requestId !== cabinetLoadSequence) return;
+    if (identity?.error) throw identity.error;
     for (const employee of employees) {
       const row = document.createElement("article");
       row.className = "admin-row";
@@ -180,9 +183,7 @@ async function loadEmployees(api, requestId = cabinetLoadSequence) {
       roleLabel.className = "admin-meta";
       roleLabel.textContent = "Роль: " + (roleLabels[employee.role] || employee.role || "Сотрудник");
       info.append(roleLabel);
-      if (window.TMHAuth?.getCurrentIdentity) {
-        const identity = await window.TMHAuth.getCurrentIdentity();
-        if (identity?.profile?.role === "developer") {
+      if (identity?.profile?.role === "developer") {
           const roleButton = document.createElement("button");
           roleButton.type = "button";
           roleButton.className = employee.role === "assistant" ? "btn secondary" : "btn";
@@ -204,7 +205,6 @@ async function loadEmployees(api, requestId = cabinetLoadSequence) {
             }
           });
           row.append(roleButton);
-        }
       }
       if (identity?.profile?.role === "developer" && ["employee", "assistant"].includes(employee.role)) {
         const deleteButton = document.createElement("button");
