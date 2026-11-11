@@ -196,7 +196,7 @@ self.addEventListener('fetch', (event) => {
     // Прочие сторонние запросы (если появятся) не трогаем.
     return;
   }
-  if (isSameOrigin && (url.search || !APP_SHELL_PATHS.has(url.pathname))) {
+  if (isSameOrigin && (!APP_SHELL_PATHS.has(url.pathname) || (url.search && req.mode !== 'navigate'))) {
     // Same-origin API, персональные данные и произвольные динамические ответы
     // никогда не сохраняем в Cache Storage. Кэшируем только app shell.
     return;
@@ -257,7 +257,8 @@ self.addEventListener('fetch', (event) => {
                   if (old) changed = (await old.clone().text()) !== (await resp.clone().text());
                 }
               } catch (e) {}
-              await cache.put(cacheRequest, resp);
+              if (isCdnLib) await cache.put(req, resp);
+              else await cache.put(cacheRequest, resp);
               if (changed) {
                 const cs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
                 cs.forEach((c) => c.postMessage({ type: 'update-available' }));
@@ -273,7 +274,7 @@ self.addEventListener('fetch', (event) => {
         .then((resp) => {
           if (resp && resp.ok) {
             const copy = resp.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(cacheRequest, copy));
+            caches.open(CACHE_VERSION).then((cache) => cache.put(isCdnLib ? req : cacheRequest, copy));
           }
           return resp;
         })
