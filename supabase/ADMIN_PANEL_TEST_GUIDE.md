@@ -2,7 +2,7 @@
 
 Файл интерфейса: `prototype/developer-admin-preview.html`.
 Edge Function: `supabase/functions/account-admin/index.ts`.
-Целевой тестовый проект: `fecigiwjtbtabnsfsdym`.
+**Тестовый проект ещё не создан.** Ранее указанный ref `fecigiwjtbtabnsfsdym` является Production и исключён из тестирования. Не запускать инструкции ниже до создания отдельного Supabase-проекта.
 
 ## Что уже сделано в репозитории
 - Панель авторизуется через Supabase Auth `signInWithPassword`.
@@ -12,11 +12,10 @@ Edge Function: `supabase/functions/account-admin/index.ts`.
 - Service role остаётся только в секретах Edge Function.
 
 ## Что нужно для фактического запуска
-1. Убедиться, что выбран именно тестовый проект `fecigiwjtbtabnsfsdym`.
-2. В Supabase SQL Editor выполнить `supabase/account_admin_permissions.sql`.
+1. Создать отдельный Supabase test project. Проверить ref по URL Dashboard и убедиться, что он НЕ равен `fecigiwjtbtabnsfsdym`. Не использовать Production-пользователей, таблицы, Storage или Auth.
+2. В новом тестовом проекте сначала сверить и подготовить полную схему по `docs/supabase-drift-reconciliation.md`; не применять миграции вслепую. В частности, `20261111120000_atomic_employee_capacity.sql` — обязательная зависимость текущей Edge Function. Только после schema review применить согласованные SQL-изменения.
 3. Убедиться, что для проекта настроен SMTP/email provider, иначе приглашения могут не доходить.
-4. Развернуть функцию из корня репозитория:
-   `supabase functions deploy account-admin --project-ref fecigiwjtbtabnsfsdym`
+4. Только после успешных проверок схемы и разрешения на тестовый деплой развернуть функцию в отдельный test project: `supabase functions deploy account-admin --project-ref <TEST_PROJECT_REF>`.
 5. Проверить в Edge Function Secrets, что присутствуют стандартные `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. Не копировать service role key в HTML или чат.
 6. Открыть тестовую панель, ввести Project URL и публичный anon key, затем войти учётной записью, у которой в `profiles.role` стоит `developer` или `admin`.
 7. Проверить отрицательный сценарий: вход сотрудника должен завершаться отказом 403 при запросе списка и создании аккаунта.
@@ -27,3 +26,12 @@ Edge Function: `supabase/functions/account-admin/index.ts`.
 - Нужны rate limiting, аудит действий разработчиков, проверка повторного приглашения, безопасный сброс/отзыв приглашения и проверка конфигурации SMTP.
 - Не публиковать эту панель в основной сайт, пока интеграция и тесты не завершены.
 - Не переносить старые localStorage/IndexedDB чек-листы и фотографии автоматически.
+
+
+## Блокировка до создания изолированного проекта
+
+- Ни один тестовый запуск не разрешён на Production ref `fecigiwjtbtabnsfsdym`.
+- Не копировать Production Auth UUID, данные сотрудников, чек-листы или фотографии в тестовую среду.
+- Не использовать Production service-role key. Секреты нового проекта задавать только в его собственных Edge Function Secrets.
+- Текущая функция зависит от атомарных RPC `reserve_employee_slot` / `release_employee_slot`; без согласованной миграции её деплой в тестовый проект завершится ошибками операций сотрудников.
+- Все тесты выполнять на синтетических данных и disposable accounts. Удаление тестовых записей допустимо только внутри отдельного тестового проекта.
