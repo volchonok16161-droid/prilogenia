@@ -66,15 +66,16 @@ test("failed atomic IndexedDB writes abort and drain the transaction completion 
 
 
 test("device identity initialization uses an atomic metadata get-or-create", () => {
-  assert.match(source, /async function getOrCreateMeta\(key, createValue\)/);
-  assert.match(source, /const existing = await requestResult\(store\.get\(key\)\)/);
-  assert.match(source, /await requestResult\(store\.add\(\{ key, value \}\)\)/);
-  assert.match(source, /getOrCreateMeta, putMetaIfAbsent, getCloudState/);
+  assert.ok(source.includes("async function getOrCreateMeta(key, createValue)"));
+  assert.ok(source.includes("const existing = await requestResult(store.get(key))"));
+  assert.ok(source.includes("await requestResult(store.add({ key, value }))"));
+  assert.ok(source.includes("getOrCreateMeta, putMetaIfAbsent, getCloudState"));
 });
-
 
 test("per-account device key candidate is committed atomically and first key wins", () => {
-  assert.match(source, /async function putMetaIfAbsent\(key, candidate\)/);
-  assert.match(source, /if \(existing\) return existing\.value;[\\s\\S]*?store\.add\(\{ key, value: candidate \}\)/);
-  assert.match(source, /putMetaIfAbsent, getCloudState/);
+  assert.ok(source.includes("async function putMetaIfAbsent(key, candidate)"));
+  const read = source.indexOf("if (existing) return existing.value;", source.indexOf("async function putMetaIfAbsent"));
+  const write = source.indexOf("store.add({ key, value: candidate })", read);
+  assert.ok(read >= 0 && write > read, "existing key must be read before candidate is inserted");
 });
+
