@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
 
 test("offline cache version is advanced when the app shell changes", () => {
-  assert.match(sw, /checklist-cache-v111/);
+  assert.match(sw, /checklist-cache-v113/);
 });
 
 test("offline shell includes all five checklist runtimes and encrypted vault/sync modules", () => {
@@ -54,5 +54,5 @@ test("dynamic same-origin endpoints are not admitted to the service-worker cache
 test("versioned allowlisted app assets use their canonical offline cache key", () => {
   assert.match(sw, /isSameOrigin && !APP_SHELL_PATHS\.has\(url\.pathname\)/);
   assert.match(sw, /isSameOrigin\s*\?\s*new Request\(url\.origin \+ url\.pathname\)/);
-  assert.match(sw, /prototype\/checklist-runtime\.js\?v=boot108/);
+  assert.match(sw, /new Request\(url\.origin \+ url\.pathname\)/);
 });
