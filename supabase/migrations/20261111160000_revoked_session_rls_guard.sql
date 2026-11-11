@@ -147,3 +147,29 @@ begin
   end if;
 end;
 $$;
+
+-- Revoke every refresh session for a user. Existing access JWTs are then
+-- rejected by auth_session_is_active() at RLS-protected resources.
+create or replace function public.revoke_auth_sessions_for_user(p_user_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = pg_catalog, auth
+as $$
+declare
+  removed_count integer;
+begin
+  if (auth.jwt() ->> 'role') is distinct from 'service_role' then
+    raise insufficient_privilege using message = 'service_role is required';
+  end if;
+  if p_user_id is null then
+    raise invalid_parameter_value using message = 'user id is required';
+  end if;
+  delete from auth.sessions where user_id = p_user_id;
+  get diagnostics removed_count = row_count;
+  return removed_count;
+end;
+$$;
+
+revoke all on function public.revoke_auth_sessions_for_user(uuid) from public, anon, authenticated;
+grant execute on function public.revoke_auth_sessions_for_user(uuid) to service_role;
