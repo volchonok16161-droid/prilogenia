@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v112';
+const CACHE_VERSION = 'checklist-cache-v113';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -196,7 +196,7 @@ self.addEventListener('fetch', (event) => {
     // Прочие сторонние запросы (если появятся) не трогаем.
     return;
   }
-  if (isSameOrigin && (!APP_SHELL_PATHS.has(url.pathname) || (url.search && req.mode !== 'navigate'))) {
+  if (isSameOrigin && !APP_SHELL_PATHS.has(url.pathname)) {
     // Same-origin API, персональные данные и произвольные динамические ответы
     // никогда не сохраняем в Cache Storage. Кэшируем только app shell.
     return;
@@ -206,7 +206,9 @@ self.addEventListener('fetch', (event) => {
     (url.pathname === '/prototype/checklist/' || url.pathname === '/prototype/checklist');
   const cacheRequest = isChecklistRoute
     ? new Request(new URL('./prototype/checklist/index.html', self.location.href))
-    : req;
+    : isSameOrigin
+      ? new Request(url.origin + url.pathname)
+      : req;
 
   // Справочники должны быстро открываться из локальной копии даже при
   // медленном интернете. Сеть проверяем ограниченное время, а обновление кэша
