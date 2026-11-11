@@ -38,9 +38,9 @@ test("account deletion revokes all sessions before deleting Auth identity", () =
   const start = admin.indexOf('if (body.action === "delete_employee")');
   const end = admin.indexOf('if (body.action === "set_employee_access")', start);
   const block = admin.slice(start, end);
-  assert.match(block, /admin\.from\("sessions"\)\.delete\(\)\.eq\("user_id", userId\)/);
+  assert.match(block, /revoke_auth_sessions_for_user/);
   assert.ok(block.indexOf("sessions") < block.indexOf("deleteUser(userId)"));
-  assert.match(block, /Удаление не подтверждено/);
+  assert.match(block, /Не удалось отозвать сессии аккаунта/);\n  assert.match(block, /revoked_sessions: revokedSessionCount/);
 });
 
 test("non-production staging is explicit in the migration itself", () => {
