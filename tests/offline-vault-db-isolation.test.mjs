@@ -69,7 +69,7 @@ test("device identity initialization uses an atomic metadata get-or-create", () 
   assert.match(source, /async function getOrCreateMeta\(key, createValue\)/);
   assert.match(source, /const existing = await requestResult\(store\.get\(key\)\)/);
   assert.match(source, /await requestResult\(store\.add\(\{ key, value \}\)\)/);
-  assert.match(source, /getOrCreateMeta, getCloudState/);
+  assert.match(source, /getOrCreateMeta, putMetaIfAbsent, getCloudState/);
 });
 
 
