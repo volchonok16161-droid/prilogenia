@@ -206,6 +206,41 @@ async function loadEmployees(api, requestId = cabinetLoadSequence) {
           row.append(roleButton);
         }
       }
+      if (identity?.profile?.role === "developer" && ["employee", "assistant"].includes(employee.role)) {
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "btn secondary";
+        deleteButton.textContent = "Удалить аккаунт";
+        deleteButton.setAttribute("aria-label", "Удалить аккаунт " + (employee.display_name || employee.id));
+        deleteButton.addEventListener("click", async () => {
+          const label = employee.display_name || employee.id;
+          const confirmation = window.prompt(
+            "Окончательное удаление аккаунта «" + label + "».\n\nУдаление возможно только если у пользователя нет облачных чек-листов и файлов в Supabase Storage.\n\nДля подтверждения введите DELETE:"
+          );
+          if (confirmation !== "DELETE") return;
+          deleteButton.disabled = true;
+          deleteButton.textContent = "Удаление…";
+          status.textContent = "Проверяем связанные данные и удаляем аккаунт…";
+          status.className = "muted";
+          try {
+            const latestIdentity = await window.TMHAuth.getCurrentIdentity();
+            if (latestIdentity?.error) throw latestIdentity.error;
+            if (latestIdentity?.user?.id !== identity.user.id || latestIdentity?.profile?.role !== "developer") {
+              throw new Error("Сессия или права разработчика изменились. Обновите страницу.");
+            }
+            await callAdmin(api, { action: "delete_employee", user_id: employee.id });
+            status.textContent = "Аккаунт «" + label + "» удалён.";
+            status.className = "muted";
+            await loadEmployees(api, requestId);
+          } catch (error) {
+            status.textContent = error?.message || "Не удалось удалить аккаунт.";
+            status.className = "error";
+            deleteButton.disabled = false;
+            deleteButton.textContent = "Удалить аккаунт";
+          }
+        });
+        row.append(deleteButton);
+      }
       const button = document.createElement("button");
       button.type = "button";
       button.className = employee.suspended ? "btn secondary" : "btn";
