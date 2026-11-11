@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
 
 test("offline cache version is advanced when the app shell changes", () => {
-  assert.match(sw, /checklist-cache-v110/);
+  assert.match(sw, /checklist-cache-v111/);
 });
 
 test("offline shell includes all five checklist runtimes and encrypted vault/sync modules", () => {
@@ -33,4 +33,19 @@ test("cache install fails only for required entry pages and reports optional mis
   assert.ok(sw.includes("Promise.allSettled"));
   assert.match(sw, /failedOptional/);
   assert.ok(sw.includes("__offline-cache-report.json"));
+});
+
+
+test("same-origin cache is restricted to the explicit app shell and clean checklist route", () => {
+  assert.match(sw, /const APP_SHELL_PATHS = new Set\(/);
+  assert.match(sw, /APP_SHELL_PATHS\.add\(new URL\('\.\/prototype\/checklist\/'/);
+  assert.match(sw, /isSameOrigin && \(url\.search \|\| !APP_SHELL_PATHS\.has\(url\.pathname\)\)/);
+  assert.match(sw, /const cacheRequest = isChecklistRoute[\s\S]*prototype\/checklist\/index\.html/);
+  assert.match(sw, /caches\.match\(cacheRequest\)/);
+  assert.match(sw, /cache\.put\(cacheRequest, resp\)/);
+});
+
+test("dynamic same-origin endpoints are not admitted to the service-worker cache", () => {
+  assert.match(sw, /Same-origin API, персональные данные и произвольные динамические ответы/);
+  assert.match(sw, /url\.search \|\| !APP_SHELL_PATHS\.has\(url\.pathname\)/);
 });
