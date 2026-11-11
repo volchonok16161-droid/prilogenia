@@ -17,7 +17,7 @@ test("employee capacity reservations serialize quota checks and enforce the cap"
   assert.match(migration, /employee_count \+ reservation_count >= 15/);
   assert.match(migration, /expires_at timestamptz not null default \(now\(\) \+ interval '10 minutes'\)/);
   assert.match(migration, /delete from public\.employee_capacity_reservations\s+where expires_at <= now\(\)/);
-  assert.match(migration, /auth\.role\(\) <> 'service_role'/);
+  assert.match(migration, /\(auth\.jwt\(\) ->> 'role'\) IS DISTINCT FROM 'service_role'/);
 });
 
 test("create, invite and assistant promotion reserve capacity before writing", () => {
