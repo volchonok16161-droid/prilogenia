@@ -15,7 +15,7 @@ test("employee usernames are normalized and deterministically mapped to internal
   assert.match(admin, /"цгиспл-карасук": "cgspl-karasuk@accounts\.invalid"/);
   assert.match(admin, /"цгиспл-тимашевск": "cgspl-timashevsk@accounts\.invalid"/);
   assert.match(admin, /crypto\.subtle\.digest\("SHA-256", new TextEncoder\(\)\.encode\(normalizedUsername\)\)/);
-  assert.match(admin, /return "u" \+ hash\.slice\(0, 63\) \+ "@accounts\.invalid"/);
+  assert.match(admin, /email = "u" \+ hash\.slice\(0, 63\) \+ "@accounts\.invalid"/);
   assert.doesNotMatch(auth, /USERNAME_EMAILS/);
 });
 
