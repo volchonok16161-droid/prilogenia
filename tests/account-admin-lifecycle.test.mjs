@@ -63,3 +63,8 @@ test("failed employee provisioning checks Auth rollback before releasing reserve
   assert.match(admin, /if \(!rollback\.deleted\) \{[\s\S]*?Резерв места сохранён до автоматического истечения/);
   assert.match(admin, /if \(profileError\) \{\s*\/\/ Do not silently orphan[\s\S]*?rollbackProvisionedUser\(inviteData\.user\.id, reservation\.reservationId\)/);
 });
+
+test("account deletion warns that device-local unsynced data must be saved first", () => {
+  assert.match(cabinet, /Сервер не может проверить несинхронизированные данные на устройствах/);
+  assert.match(cabinet, /не гарантирует мгновенную недействительность уже выданных access token/);
+});
