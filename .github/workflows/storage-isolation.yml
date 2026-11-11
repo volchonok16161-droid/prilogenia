@@ -22,5 +22,8 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-save --no-package-lock playwright@1.56.1 acorn@8.15.0
-      - run: npx playwright install --with-deps chromium
+      # GitHub-hosted ubuntu runners already include Chromium's system libraries.
+      # Avoid apt-based --with-deps here: transient Ubuntu mirror/DNS failures
+      # prevented the test suite from starting even though npm dependencies installed.
+      - run: npx playwright install chromium
       - run: node --test tests/*.test.mjs
