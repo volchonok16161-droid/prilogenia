@@ -173,3 +173,17 @@ $$;
 
 revoke all on function public.revoke_auth_sessions_for_user(uuid) from public, anon, authenticated;
 grant execute on function public.revoke_auth_sessions_for_user(uuid) to service_role;
+
+-- Protect private Excel export objects as well, when that bucket/policies exist.
+do $$
+begin
+  if exists (select 1 from storage.buckets where id = 'checklist-exports') then
+    execute 'drop policy if exists checklist_exports_storage_select_own on storage.objects';
+    execute 'create policy checklist_exports_storage_select_own on storage.objects for select to authenticated using (bucket_id = ''checklist-exports'' and (storage.foldername(name))[1] = (select auth.uid())::text and (select public.auth_session_is_active()))';
+    execute 'drop policy if exists checklist_exports_storage_insert_own on storage.objects';
+    execute 'create policy checklist_exports_storage_insert_own on storage.objects for insert to authenticated with check (bucket_id = ''checklist-exports'' and (storage.foldername(name))[1] = (select auth.uid())::text and (select public.auth_session_is_active()))';
+    execute 'drop policy if exists checklist_exports_storage_delete_own on storage.objects';
+    execute 'create policy checklist_exports_storage_delete_own on storage.objects for delete to authenticated using (bucket_id = ''checklist-exports'' and (storage.foldername(name))[1] = (select auth.uid())::text and (select public.auth_session_is_active()))';
+  end if;
+end;
+$$;
