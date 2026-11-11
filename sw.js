@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v110';
+const CACHE_VERSION = 'checklist-cache-v111';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -72,6 +72,15 @@ const CDN_LIBS = [
   'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
   'https://esm.sh/@supabase/supabase-js@2.118.0'
 ];
+
+// Only explicitly listed same-origin application assets may enter Cache Storage.
+// In particular, API endpoints and user-specific responses must stay network-only.
+const APP_SHELL_PATHS = new Set(
+  APP_SHELL.map((path) => new URL(path, self.location.href).pathname)
+);
+// The browser navigates to this clean route, while install precaches its index.html.
+APP_SHELL_PATHS.add(new URL('./prototype/checklist/', self.location.href).pathname);
+APP_SHELL_PATHS.add(new URL('./prototype/checklist', self.location.href).pathname);
 
 // Критический минимум: без этих двух URL приложение нельзя открыть офлайн.
 const REQUIRED_APP_SHELL = ['./', './index.html', './prototype/checklist/index.html'];
@@ -187,6 +196,17 @@ self.addEventListener('fetch', (event) => {
     // Прочие сторонние запросы (если появятся) не трогаем.
     return;
   }
+  if (isSameOrigin && (url.search || !APP_SHELL_PATHS.has(url.pathname))) {
+    // Same-origin API, персональные данные и произвольные динамические ответы
+    // никогда не сохраняем в Cache Storage. Кэшируем только app shell.
+    return;
+  }
+
+  const isChecklistRoute = isSameOrigin &&
+    (url.pathname === '/prototype/checklist/' || url.pathname === '/prototype/checklist');
+  const cacheRequest = isChecklistRoute
+    ? new Request(new URL('./prototype/checklist/index.html', self.location.href))
+    : req;
 
   // Справочники должны быстро открываться из локальной копии даже при
   // медленном интернете. Сеть проверяем ограниченное время, а обновление кэша
@@ -218,7 +238,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(req).then((cached) => {
+    caches.match(cacheRequest).then((cached) => {
       if (cached) {
         // Кэш-прежде-всего: моментальный отклик офлайн.
         // Параллельно тихо обновляем кэш из сети, если она есть.
@@ -233,11 +253,11 @@ self.addEventListener('fetch', (event) => {
               try {
                 // Для главной страницы сравниваем свежую копию с сохранённой: если отличается — сообщаем странице.
                 if (/(^|\/)(index\.html)?$/.test(url.pathname)) {
-                  const old = await cache.match(req);
+                  const old = await cache.match(cacheRequest);
                   if (old) changed = (await old.clone().text()) !== (await resp.clone().text());
                 }
               } catch (e) {}
-              await cache.put(req, resp);
+              await cache.put(cacheRequest, resp);
               if (changed) {
                 const cs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
                 cs.forEach((c) => c.postMessage({ type: 'update-available' }));
@@ -253,7 +273,7 @@ self.addEventListener('fetch', (event) => {
         .then((resp) => {
           if (resp && resp.ok) {
             const copy = resp.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(req, copy));
+            caches.open(CACHE_VERSION).then((cache) => cache.put(cacheRequest, copy));
           }
           return resp;
         })
