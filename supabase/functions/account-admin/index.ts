@@ -289,13 +289,19 @@ Deno.serve(async (req: Request) => {
       admin.schema("storage").from("objects").select("id", { count: "exact", head: true }).eq("owner_id", userId),
     ]);
     if (finalChecklistError || finalStorageError || (finalChecklistCount ?? 0) > 0 || (finalStorageCount ?? 0) > 0) {
-      await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
+      const { error: restoreError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
+      if (restoreError) {
+        return json({ error: "Удаление отменено, но автоматическое восстановление доступа не удалось. Аккаунт остаётся заблокированным; требуется ручная проверка." }, 500);
+      }
       return json({ error: "После блокировки доступа обнаружены связанные данные или ошибка проверки. Аккаунт не удалён; доступ восстановлен." }, 409);
     }
 
     const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
     if (deleteError) {
-      await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
+      const { error: restoreError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
+      if (restoreError) {
+        return json({ error: "Supabase не подтвердил удаление, и восстановить доступ автоматически не удалось. Аккаунт остаётся заблокированным; требуется ручная проверка." }, 500);
+      }
       return json({ error: "Supabase не подтвердил удаление аккаунта; доступ восстановлен. " + deleteError.message }, 500);
     }
     return json({ success: true, user_id: userId, deleted: true });
