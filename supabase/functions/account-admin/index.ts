@@ -215,6 +215,83 @@ Deno.serve(async (req: Request) => {
     return json({ success: true, employee: updated });
   }
 
+  if (body.action === "delete_employee") {
+    // Permanent account deletion is deliberately restricted to developers.
+    if (actor.role !== "developer") {
+      return json({ error: "Удалять аккаунты может только разработчик" }, 403);
+    }
+    const userId = typeof body.user_id === "string" ? body.user_id : "";
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
+      return json({ error: "Некорректный ID аккаунта" }, 400);
+    }
+    if (userId === authData.user.id) {
+      return json({ error: "Нельзя удалить собственную учётную запись" }, 400);
+    }
+
+    const { data: target, error: targetError } = await admin
+      .from("profiles")
+      .select("id, display_name, role")
+      .eq("id", userId)
+      .maybeSingle();
+    if (targetError) return json({ error: "Не удалось проверить аккаунт" }, 500);
+    if (!target || !["employee", "assistant"].includes(target.role)) {
+      return json({ error: "Удалять можно только аккаунты сотрудников и помощников" }, 404);
+    }
+
+    // profiles/checklists use ON DELETE CASCADE. Never hard-delete an account
+    // while it owns cloud checklists: that would destroy business records.
+    const { count: checklistCount, error: checklistError } = await admin
+      .from("checklists")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", userId);
+    if (checklistError) return json({ error: "Не удалось проверить облачные чек-листы; удаление отменено" }, 500);
+    if ((checklistCount ?? 0) > 0) {
+      return json({
+        error: "Удаление запрещено: у аккаунта есть облачные чек-листы. Сначала сохраните или передайте их, затем повторите удаление.",
+        checklist_count: checklistCount,
+      }, 409);
+    }
+
+    // Supabase Auth refuses deletion while the user owns Storage objects.
+    // Fail closed if Storage ownership cannot be checked.
+    const { count: storageObjectCount, error: storageError } = await admin
+      .schema("storage")
+      .from("objects")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", userId);
+    if (storageError) return json({ error: "Не удалось проверить файлы аккаунта; удаление отменено" }, 500);
+    if ((storageObjectCount ?? 0) > 0) {
+      return json({
+        error: "Удаление запрещено: у аккаунта остались файлы в Supabase Storage. Сначала сохраните или передайте файлы.",
+        storage_object_count: storageObjectCount,
+      }, 409);
+    }
+
+    // Ban first to prevent new sign-ins while the account is being removed.
+    const { error: banError } = await admin.auth.admin.updateUserById(userId, {
+      ban_duration: "876000h",
+    });
+    if (banError) return json({ error: "Не удалось временно закрыть доступ; аккаунт не удалён" }, 500);
+
+    // Recheck after blocking access to reduce the chance of deleting data
+    // created between the initial preflight and the ban.
+    const [{ count: finalChecklistCount, error: finalChecklistError }, { count: finalStorageCount, error: finalStorageError }] = await Promise.all([
+      admin.from("checklists").select("id", { count: "exact", head: true }).eq("owner_id", userId),
+      admin.schema("storage").from("objects").select("id", { count: "exact", head: true }).eq("owner_id", userId),
+    ]);
+    if (finalChecklistError || finalStorageError || (finalChecklistCount ?? 0) > 0 || (finalStorageCount ?? 0) > 0) {
+      await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
+      return json({ error: "После блокировки доступа обнаружены связанные данные или ошибка проверки. Аккаунт не удалён; доступ восстановлен." }, 409);
+    }
+
+    const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
+    if (deleteError) {
+      await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
+      return json({ error: "Supabase не подтвердил удаление аккаунта; доступ восстановлен. " + deleteError.message }, 500);
+    }
+    return json({ success: true, user_id: userId, deleted: true });
+  }
+
   if (body.action === "set_employee_access") {
     const userId = typeof body.user_id === "string" ? body.user_id : "";
     const suspended = body.suspended;
