@@ -33,6 +33,8 @@ test("account deletion blocks access and rechecks ownership before Auth deletion
   assert.match(admin, /finalStorageCount/);
   assert.match(admin, /admin\.auth\.admin\.deleteUser\(userId\)/);
   assert.match(admin, /ban_duration: "none"/);
+  assert.match(admin, /восстановление доступа не удалось/);
+  assert.match(admin, /восстановить доступ автоматически не удалось/);
 });
 
 test("only developer UI shows a deliberate two-step account deletion action", () => {
