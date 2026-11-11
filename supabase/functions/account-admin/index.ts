@@ -93,7 +93,7 @@ Deno.serve(async (req: Request) => {
     const username = typeof body.username === "string" ? body.username.trim() : "";
     const normalizedUsername = username.normalize("NFC").toLowerCase();
     const password = typeof body.password === "string" ? body.password : "";
-    if (!username || username.length > 64 || normalizedUsername.includes("@") || /\\s/.test(username)) {
+    if (!username || username.length > 64 || normalizedUsername.includes("@") || /\s/.test(username)) {
       return json({ error: "Логин должен содержать от 1 до 64 символов без пробелов и символа @" }, 400);
     }
     const namedAccounts: Record<string, string> = {
