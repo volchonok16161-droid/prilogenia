@@ -36,6 +36,24 @@ Deno.serve(async (req: Request) => {
   const { data: authData, error: authError } = await authClient.auth.getUser(token);
   if (authError || !authData.user) return json({ error: "Недействительная сессия" }, 401);
 
+  // getUser(jwt) verifies the signature and current Auth user. Read only the
+  // session_id claim from that already-verified JWT, then confirm it still
+  // exists in auth.sessions through a service-role-only RPC.
+  let sessionId: string | null = null;
+  try {
+    const payloadPart = token.split(".")[1];
+    if (payloadPart) {
+      const normalized = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+      const payload = JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=")));
+      if (typeof payload.session_id === "string") sessionId = payload.session_id;
+    }
+  } catch {
+    return json({ error: "Не удалось проверить идентификатор сессии" }, 401);
+  }
+  if (!sessionId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sessionId)) {
+    return json({ error: "В JWT отсутствует корректный идентификатор сессии" }, 401);
+  }
+
   // Service role используется только на сервере, никогда в браузере.
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -64,6 +82,13 @@ Deno.serve(async (req: Request) => {
     const releaseError = await releaseEmployeeSlot(reservationId);
     return { deleted: true, error: releaseError };
   };
+
+  const { data: activeSession, error: activeSessionError } = await admin.rpc("is_auth_session_active_for_user", {
+    p_session_id: sessionId,
+    p_user_id: authData.user.id,
+  });
+  if (activeSessionError) return json({ error: "Не удалось проверить активность сессии" }, 503);
+  if (activeSession !== true) return json({ error: "Сессия отозвана или истекла", code: "AUTH_SESSION_REVOKED" }, 401);
 
   const { data: actor, error: actorError } = await admin
     .from("profiles")
@@ -336,6 +361,15 @@ Deno.serve(async (req: Request) => {
       return json({ error: "После блокировки доступа обнаружены связанные данные или ошибка проверки. Аккаунт не удалён; доступ восстановлен." }, 409);
     }
 
+    // Remove every refresh session first. The RLS guard above rejects
+    // previously-issued access JWTs once their auth.sessions row is gone.
+    const { data: revokedSessionCount, error: revokeSessionsError } = await admin.rpc("revoke_auth_sessions_for_user", {
+      p_user_id: userId,
+    });
+    if (revokeSessionsError) {
+      return json({ error: "Не удалось отозвать сессии аккаунта. Аккаунт остаётся заблокированным; требуется ручная проверка." }, 500);
+    }
+
     const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
     if (deleteError) {
       const { error: restoreError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
@@ -344,7 +378,7 @@ Deno.serve(async (req: Request) => {
       }
       return json({ error: "Supabase не подтвердил удаление аккаунта; доступ восстановлен. " + deleteError.message }, 500);
     }
-    return json({ success: true, user_id: userId, deleted: true });
+    return json({ success: true, user_id: userId, deleted: true, revoked_sessions: revokedSessionCount ?? 0 });
   }
 
   if (body.action === "set_employee_access") {
