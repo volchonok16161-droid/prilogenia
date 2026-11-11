@@ -19,7 +19,7 @@ The read-only audit found the following differences between the Git branch and t
 | Private photo storage | Corresponding migration is absent from Git | Migration history includes `20261102144000_private_checklist_photo_storage`; private bucket and owner-scoped object policies exist | Historical source is not reproducible from this branch |
 | Assistant role | Corresponding migration is absent from Git | Migration history includes `20261105111339_add_assistant_profile_role`; live role constraint includes `assistant` | Fresh environment setup may not reproduce the live role set |
 | Excel export archive | Git contains create and subsequent removal migrations | Live private `checklist-exports` bucket exists; `checklist_exports` table is absent | Bucket lifecycle and any remaining objects need explicit review |
-| account-admin Edge Function | Branch source uses normalized username-to-email mapping and supports assistant listing | Deployed v4 source uses a hard-coded named-account map and lists employees only | Deployed behavior does not match reviewed source; redeployment could change account provisioning behavior |
+| account-admin Edge Function | Branch source uses a two-login allowlist for named accounts; lists and changes access only for `employee`; has no `set_employee_role` action | Deployed v4 uses normalized username-to-SHA-256 synthetic emails; lists `employee` and `assistant`; adds developer-only `set_employee_role`; allows access changes for both roles | Login compatibility, role visibility and role-management behavior differ in both directions; deploying either copy changes live behavior |
 
 These are observations, not proof of when or how each live object was created. The migration history is not a complete substitute for a schema diff.
 
@@ -55,11 +55,20 @@ Do not infer that a migration is safe to replay merely because its filename is a
 
 ### 4. Reconcile Edge Function source separately
 
-The deployed `account-admin` v4 does not match the branch source. Before any deployment:
+The complete source comparison was performed read-only on 2026-11-11. The deployed `account-admin` v4 differs from the branch in these concrete ways:
+
+- **Named login provisioning:** branch source accepts only `ЦГиСПЛ-Карасук` and `ЦГиСПЛ-Тимашевск`, mapped to fixed synthetic emails. Deployed v4 accepts arbitrary non-empty normalized usernames (up to 64 characters) and derives a synthetic email from SHA-256. A deployment in either direction changes which logins can be provisioned; do not switch without checking existing Auth users and login resolution.
+- **Employee listing:** branch source filters strictly to `employee`; deployed v4 includes `employee` and `assistant`.
+- **Role changes:** deployed v4 has `set_employee_role`, restricted to an actor whose profile role is `developer`, and permits only transitions between `employee` and `assistant`. Branch source has no such action.
+- **Access suspension:** branch source permits changes only for `employee`; deployed v4 permits both `employee` and `assistant`.
+- **Employee cap:** both versions perform a count-then-create check for a maximum of 15 `employee` profiles. This is not atomic: simultaneous requests can both observe a count below 15 and create beyond the cap. The deployed role-change action also does not enforce the cap when promoting an assistant to employee. The cap therefore is not a hard invariant.
+- **Shared behavior:** both versions verify the bearer token with `auth.getUser`, require actor role `admin` or `developer` for entry, use the service-role key only server-side, and attempt to delete a newly-created Auth user if profile upsert fails.
+
+The existing `tests/employee-username-auth.test.mjs` checks the **Git branch source** and the login UI. It does not execute the deployed v4 source and cannot establish live parity. Before any deployment:
 
 - Compare the complete deployed source with the branch source and document every behavioral difference.
 - Verify authentication, actor role checks, tenant/account scoping, employee limit enforcement, and race behavior.
-- Add tests for concurrent employee creation at the account limit; a preflight count followed by user creation is not an atomic limit.
+- Implement the employee cap as an atomic database-side operation (for example, a reviewed transactional RPC/locking strategy covering both create/invite and role promotion), then test simultaneous requests at the boundary. A test around the current count-then-create code cannot make that code atomic.
 - Verify invite redirect behavior and the supported account-login mapping.
 - Review CORS and JWT verification together; a wildcard CORS header alone is not an authorization boundary.
 - Run isolated tests against a disposable Supabase project.
@@ -84,9 +93,9 @@ Capture before/after schema snapshots, test output, function versions and rollba
 
 ## Current blockers
 
-1. The deployed `account-admin` implementation differs from the branch source.
-2. The migration ledger and live schema are not fully aligned.
-3. The 512 KiB payload constraint is present in Git but was not found in the live database catalog.
+1. The deployed `account-admin` v4 differs from branch source in named-login mapping, assistant listing, role management and suspension scope.
+2. Both implementations have a non-atomic employee-count check; deployed role promotion can also bypass the employee cap.
+3. The migration ledger and live schema are not fully aligned; the 512 KiB payload constraint is present in Git but was not found in the live database catalog.
 4. Supabase Security Advisor reports leaked-password protection disabled. This is a configuration finding; changing it may affect authentication and requires a separate approved change.
 
 ## Explicitly out of scope
