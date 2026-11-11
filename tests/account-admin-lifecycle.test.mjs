@@ -43,3 +43,12 @@ test("only developer UI shows a deliberate two-step account deletion action", ()
   assert.match(cabinet, /action: "delete_employee", user_id: employee\.id/);
   assert.doesNotMatch(cabinet, /action: "delete_employee"[\s\S]{0,100}service_role/i);
 });
+
+test("developer role management and assistant listing are backed by server authorization", () => {
+  assert.match(admin, /\.in\("role", \["employee", "assistant"\]\)/);
+  assert.match(admin, /body\.action === "set_employee_role"/);
+  assert.match(admin, /actor\.role !== "developer"/);
+  assert.match(admin, /role !== "employee" && role !== "assistant"/);
+  assert.match(cabinet, /action: "set_employee_role"/);
+  assert.match(cabinet, /Назначить помощником/);
+});
