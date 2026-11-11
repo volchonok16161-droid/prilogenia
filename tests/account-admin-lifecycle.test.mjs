@@ -54,3 +54,12 @@ test("developer role management and assistant listing are backed by server autho
   assert.match(cabinet, /action: "set_employee_role"/);
   assert.match(cabinet, /Назначить помощником/);
 });
+
+test("failed employee provisioning checks Auth rollback before releasing reserved capacity", () => {
+  assert.match(admin, /const rollbackProvisionedUser = async \(userId: string, reservationId: string\)/);
+  assert.match(admin, /const \{ error: deleteError \} = await admin\.auth\.admin\.deleteUser\(userId\)/);
+  assert.match(admin, /if \(deleteError\) return \{ deleted: false, error: deleteError \}/);
+  assert.match(admin, /if \(profileError\) \{\s*const rollback = await rollbackProvisionedUser\(created\.user\.id, reservation\.reservationId\)/);
+  assert.match(admin, /if \(!rollback\.deleted\) \{[\s\S]*?Резерв места сохранён до автоматического истечения/);
+  assert.match(admin, /if \(profileError\) \{\s*\/\/ Do not silently orphan[\s\S]*?rollbackProvisionedUser\(inviteData\.user\.id, reservation\.reservationId\)/);
+});
