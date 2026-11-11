@@ -39,7 +39,7 @@ test("cache install fails only for required entry pages and reports optional mis
 test("same-origin cache is restricted to the explicit app shell and clean checklist route", () => {
   assert.match(sw, /const APP_SHELL_PATHS = new Set\(/);
   assert.match(sw, /APP_SHELL_PATHS\.add\(new URL\('\.\/prototype\/checklist\/'/);
-  assert.match(sw, /isSameOrigin && \(url\.search \|\| !APP_SHELL_PATHS\.has\(url\.pathname\)\)/);
+  assert.match(sw, /isSameOrigin && \(!APP_SHELL_PATHS\.has\(url\.pathname\) \|\| \(url\.search && req\.mode !== 'navigate'\)\)/);
   assert.match(sw, /const cacheRequest = isChecklistRoute[\s\S]*prototype\/checklist\/index\.html/);
   assert.match(sw, /caches\.match\(cacheRequest\)/);
   assert.match(sw, /cache\.put\(cacheRequest, resp\)/);
@@ -47,5 +47,5 @@ test("same-origin cache is restricted to the explicit app shell and clean checkl
 
 test("dynamic same-origin endpoints are not admitted to the service-worker cache", () => {
   assert.match(sw, /Same-origin API, персональные данные и произвольные динамические ответы/);
-  assert.match(sw, /url\.search \|\| !APP_SHELL_PATHS\.has\(url\.pathname\)/);
+  assert.match(sw, /!APP_SHELL_PATHS\.has\(url\.pathname\) \|\| \(url\.search && req\.mode !== 'navigate'\)/);
 });
