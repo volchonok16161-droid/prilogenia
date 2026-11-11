@@ -391,12 +391,28 @@ async function getCachedOfflineIdentity(cause) {
   if (!userId) return null;
   try {
     const unlocked = await offlineVault.session.unlockDeviceKey(userId);
-    const encryptedIdentity = await offlineVault.database.getMeta("offline:identity:" + unlocked.userId);
+    if (unlocked?.userId !== userId) return null;
+    const encryptedIdentity = await offlineVault.database.getMeta("offline:identity:" + userId);
     if (!encryptedIdentity) return null;
     const identity = await unlocked.vault.decrypt(encryptedIdentity);
-    if (identity?.user?.id !== unlocked.userId ||
-        identity?.profile?.id !== unlocked.userId ||
+    if (identity?.user?.id !== userId ||
+        identity?.profile?.id !== userId ||
         !ALLOWED_ROLES.has(identity?.profile?.role)) return null;
+
+    // Logout or account switching may happen while IndexedDB and WebCrypto are
+    // pending. Re-check every authority immediately before publishing the vault;
+    // fail closed if the durable logout marker cannot be read.
+    const logoutRequestedInDatabase = await offlineVault.database.getMeta("offline:logout-requested");
+    let logoutRequestedInStorage = false;
+    try {
+      logoutRequestedInStorage =
+        globalThis.localStorage?.getItem("tmh-offline-logout-requested") === "true";
+    } catch { logoutRequestedInStorage = true; }
+    if (offlineLogoutRequested || logoutRequestedInStorage ||
+        logoutRequestedInDatabase === true || getPersistedAuthUserId() !== userId) {
+      return null;
+    }
+
     activeOfflineVault = unlocked.vault;
     activeOfflineUserId = unlocked.userId;
     activeOfflineIdentity = Object.freeze({
@@ -503,10 +519,13 @@ async function activateOfflineChecklistInstance(storageId, instanceId) {
 }
 
 async function beginNewOfflineChecklistInstance(storageId) {
-  if (!activeOfflineVault || !activeOfflineUserId) throw new Error("Офлайн-хранилище не разблокировано");
-  const key = activeInstanceMetaKey(storageId);
+  const userId = activeOfflineUserId, vault = activeOfflineVault;
+  if (!vault || !userId) throw new Error("Офлайн-хранилище не разблокировано");
+  const mode = getChecklistMode(storageId);
+  const key = activeInstanceMetaKey(storageId, userId);
   await offlineVault.database.setMeta(key, null);
-  return { ready: true, mode: getChecklistMode(storageId) };
+  assertActiveOfflineContext(userId, vault);
+  return { ready: true, mode, userId };
 }
 
 async function getOfflineChecklistInstances() {
