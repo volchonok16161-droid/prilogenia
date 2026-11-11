@@ -200,7 +200,25 @@ test("service worker reopens the standalone checklist after network loss", { tim
     await page.waitForFunction(() => !!navigator.serviceWorker.controller, { timeout: 30000 });
     await context.setOffline(true);
     await page.reload({ waitUntil: "domcontentloaded", timeout: 45000 });
-    await page.waitForSelector("#modeSelectModal", { state: "attached", timeout: 45000 });
+    try {
+      await page.waitForSelector("#modeSelectModal", { state: "attached", timeout: 45000 });
+    } catch (error) {
+      const diagnostics = await page.evaluate(async () => ({
+        url: location.href,
+        readyState: document.readyState,
+        title: document.title,
+        bodyText: document.body?.innerText?.slice(0, 1200) || "",
+        controller: !!navigator.serviceWorker.controller,
+        registrations: await navigator.serviceWorker.getRegistrations().then((items) =>
+          items.map((item) => ({ scope: item.scope, active: item.active?.state || null }))
+        ),
+        cacheNames: await caches.keys(),
+        routeCache: await caches.open("checklist-cache-v113").then((cache) =>
+          cache.match("/prototype/checklist/index.html").then((response) => !!response)
+        ).catch(() => false)
+      }));
+      throw new Error("Offline checklist navigation failed: " + JSON.stringify(diagnostics) + "; " + error.message);
+    }
     const state = await page.evaluate(async () => ({
       mode: document.querySelector("#modeSelectModal [data-tmh-mode][aria-current=\"page\"]")?.getAttribute("data-tmh-mode") || null,
       offline: navigator.onLine === false,
