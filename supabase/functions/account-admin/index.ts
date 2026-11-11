@@ -41,6 +41,20 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
+  const reserveEmployeeSlot = async () => {
+    const reservationId = crypto.randomUUID();
+    const { data, error } = await admin.rpc("reserve_employee_slot", {
+      p_reservation_id: reservationId,
+    });
+    return { reservationId, reserved: data === true, error };
+  };
+  const releaseEmployeeSlot = async (reservationId: string) => {
+    const { error } = await admin.rpc("release_employee_slot", {
+      p_reservation_id: reservationId,
+    });
+    return error;
+  };
+
   const { data: actor, error: actorError } = await admin
     .from("profiles")
     .select("role")
@@ -97,12 +111,9 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Пароль должен содержать от 8 до 128 символов" }, 400);
     }
 
-    const { count, error: countError } = await admin
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "employee");
-    if (countError) return json({ error: "Не удалось проверить лимит сотрудников" }, 500);
-    if ((count ?? 0) >= 15) return json({ error: "Достигнут лимит в 15 сотрудников" }, 409);
+    const reservation = await reserveEmployeeSlot();
+    if (reservation.error) return json({ error: "Не удалось зарезервировать место сотрудника" }, 500);
+    if (!reservation.reserved) return json({ error: "Достигнут лимит в 15 сотрудников" }, 409);
 
     const { data: created, error: createError } = await admin.auth.admin.createUser({
       email,
@@ -111,6 +122,7 @@ Deno.serve(async (req: Request) => {
       user_metadata: { display_name: displayName },
     });
     if (createError || !created.user) {
+      await releaseEmployeeSlot(reservation.reservationId);
       return json({ error: createError?.message ?? "Не удалось создать аккаунт" }, 409);
     }
 
@@ -122,9 +134,12 @@ Deno.serve(async (req: Request) => {
 
     if (profileError) {
       await admin.auth.admin.deleteUser(created.user.id);
+      await releaseEmployeeSlot(reservation.reservationId);
       return json({ error: "Не удалось создать профиль сотрудника; учётная запись Auth отменена" }, 500);
     }
 
+    const releaseError = await releaseEmployeeSlot(reservation.reservationId);
+    if (releaseError) return json({ error: "Аккаунт создан, но освобождение резервации не подтвердилось; место освободится автоматически по истечении срока" }, 202);
     return json({
       success: true,
       employee: { id: created.user.id, display_name: displayName, role: "employee" },
@@ -142,17 +157,15 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Имя должно содержать от 1 до 100 символов" }, 400);
     }
 
-    const { count, error: countError } = await admin
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "employee");
-    if (countError) return json({ error: "Не удалось проверить лимит сотрудников" }, 500);
-    if ((count ?? 0) >= 15) return json({ error: "Достигнут лимит в 15 сотрудников" }, 409);
+    const reservation = await reserveEmployeeSlot();
+    if (reservation.error) return json({ error: "Не удалось зарезервировать место сотрудника" }, 500);
+    if (!reservation.reserved) return json({ error: "Достигнут лимит в 15 сотрудников" }, 409);
 
     const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
       data: { display_name: displayName },
     });
     if (inviteError || !inviteData.user) {
+      await releaseEmployeeSlot(reservation.reservationId);
       return json({ error: inviteError?.message ?? "Не удалось отправить приглашение" }, 400);
     }
 
@@ -165,9 +178,12 @@ Deno.serve(async (req: Request) => {
     if (profileError) {
       // Не оставляем Auth-пользователя без профиля при неудаче вставки.
       await admin.auth.admin.deleteUser(inviteData.user.id);
+      await releaseEmployeeSlot(reservation.reservationId);
       return json({ error: "Не удалось создать профиль сотрудника" }, 500);
     }
 
+    const releaseError = await releaseEmployeeSlot(reservation.reservationId);
+    if (releaseError) return json({ error: "Приглашение создано, но освобождение резервации не подтвердилось; место освободится автоматически по истечении срока" }, 202);
     return json({ success: true, employee: { id: inviteData.user.id, display_name: displayName, role: "employee" } }, 201);
   }
 
@@ -201,15 +217,12 @@ Deno.serve(async (req: Request) => {
       return json({ success: true, employee: target });
     }
 
-    // This preflight preserves the existing cap, but is not concurrency-safe.
-    // A database-side atomic quota is still required before this becomes a hard invariant.
+    let reservationId: string | null = null;
     if (role === "employee") {
-      const { count, error: countError } = await admin
-        .from("profiles")
-        .select("id", { count: "exact", head: true })
-        .eq("role", "employee");
-      if (countError) return json({ error: "Не удалось проверить лимит сотрудников" }, 500);
-      if ((count ?? 0) >= 15) return json({ error: "Достигнут лимит в 15 сотрудников" }, 409);
+      const reservation = await reserveEmployeeSlot();
+      if (reservation.error) return json({ error: "Не удалось зарезервировать место сотрудника" }, 500);
+      if (!reservation.reserved) return json({ error: "Достигнут лимит в 15 сотрудников" }, 409);
+      reservationId = reservation.reservationId;
     }
 
     const { data: updated, error: updateError } = await admin
@@ -219,8 +232,15 @@ Deno.serve(async (req: Request) => {
       .in("role", ["employee", "assistant"])
       .select("id, display_name, role")
       .maybeSingle();
-    if (updateError) return json({ error: "Не удалось изменить роль аккаунта" }, 500);
-    if (!updated) return json({ error: "Роль аккаунта изменилась параллельно. Обновите список." }, 409);
+    if (updateError || !updated) {
+      if (reservationId) await releaseEmployeeSlot(reservationId);
+      if (updateError) return json({ error: "Не удалось изменить роль аккаунта" }, 500);
+      return json({ error: "Роль аккаунта изменилась параллельно. Обновите список." }, 409);
+    }
+    if (reservationId) {
+      const releaseError = await releaseEmployeeSlot(reservationId);
+      if (releaseError) return json({ error: "Роль изменена, но освобождение резервации не подтвердилось; место освободится автоматически по истечении срока" }, 202);
+    }
     return json({ success: true, employee: updated });
   }
 
