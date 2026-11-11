@@ -29,8 +29,8 @@ test("offline shell includes all five checklist runtimes and encrypted vault/syn
 });
 
 test("cache install fails only for required entry pages and reports optional misses", () => {
-  assert.match(sw, /REQUIRED_APP_SHELL = \['\.\/','\.\/index\.html','\.\/prototype\/checklist\/index\.html'\]/);
-  assert.match(sw, /Promise\.allSettled\(\s*OPTIONAL_APP_SHELL/);
+  assert.match(sw, /REQUIRED_APP_SHELL = \\[\\s*['"]\\.\\/['"],\\s*['"]\\.\\/index\\.html['"],\\s*['"]\\.\\/prototype\\/checklist\\/index\\.html['"]\\s*\\]/);
+  assert.match(sw, /Promise\\.allSettled\\(\\s*OPTIONAL_APP_SHELL/);
   assert.match(sw, /failedOptional/);
-  assert.match(sw, /__offline-cache-report\.json/);
+  assert.match(sw, /__offline-cache-report\\.json/);
 });
