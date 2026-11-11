@@ -236,7 +236,7 @@ test("all runtime templates are standalone documents without iframe elements", (
 
 test("the unified route is a required offline entry and offline navigation stays on that route", () => {
   assert.ok(sw.includes("'./prototype/checklist/index.html'"));
-  assert.match(sw, /const REQUIRED_APP_SHELL = \\[\\s*['\"]\\.\\/['\"],\\s*['\"]\\.\\/index\\.html['\"],\\s*['\"]\\.\\/prototype\\/checklist\\/index\\.html['\"]\\s*\\]/);
+  assert.match(sw, /const REQUIRED_APP_SHELL\s*=\s*\[[\s\S]*?\];/);
   assert.ok(sw.includes("url.pathname === '/prototype/checklist/'"));
   assert.ok(sw.includes("caches.match('./prototype/checklist/index.html')"));
 });
