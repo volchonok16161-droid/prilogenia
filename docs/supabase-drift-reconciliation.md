@@ -57,18 +57,21 @@ Do not infer that a migration is safe to replay merely because its filename is a
 
 The complete source comparison was performed read-only on 2026-11-11. The deployed `account-admin` v4 differs from the branch in these concrete ways:
 
-- **Named login provisioning:** branch source accepts only `ЦГиСПЛ-Карасук` and `ЦГиСПЛ-Тимашевск`, mapped to fixed synthetic emails. Deployed v4 accepts arbitrary non-empty normalized usernames (up to 64 characters) and derives a synthetic email from SHA-256. A deployment in either direction changes which logins can be provisioned; do not switch without checking existing Auth users and login resolution.
-- **Employee listing:** branch source filters strictly to `employee`; deployed v4 includes `employee` and `assistant`.
-- **Role changes:** deployed v4 has `set_employee_role`, restricted to an actor whose profile role is `developer`, and permits only transitions between `employee` and `assistant`. Branch source has no such action.
-- **Access suspension:** branch source permits changes only for `employee`; deployed v4 permits both `employee` and `assistant`.
-- **Employee cap:** both versions perform a count-then-create check for a maximum of 15 `employee` profiles. This is not atomic: simultaneous requests can both observe a count below 15 and create beyond the cap. The deployed role-change action also does not enforce the cap when promoting an assistant to employee. The cap therefore is not a hard invariant.
+- **Named login provisioning:** branch source originally accepted only two named accounts. The branch now maps arbitrary normalized usernames to SHA-256 synthetic emails while preserving the two legacy mappings; this was aligned in commit `21e1dd6`. Deployed v4 still uses a hard-coded map. A deployment in either direction changes which logins can be provisioned; do not switch without checking existing Auth users and login resolution.
+- **Employee listing:** branch source now lists `employee` and `assistant` after commit `e20dd5a`; deployed v4 also includes both.
+- **Role changes:** branch source now implements `set_employee_role`, restricted to a developer and transitions between `employee` and `assistant`; this was aligned with the cabinet in commit `e20dd5a`. Deployed v4 also supports this action.
+- **Access suspension:** branch source now permits changes for `employee` and `assistant`; deployed v4 permits both.
+- **Employee cap:** create/invite and promotion still use a count-then-write check for a maximum of 15 `employee` profiles. This is not atomic: simultaneous requests can both observe a count below 15 and create beyond the cap. The cap is not a hard invariant.
+- **Account deletion:** branch source now includes a developer-only `delete_employee` action. It refuses deletion for users with cloud checklists or Storage objects, bans the target, rechecks both data stores, then calls Auth `deleteUser`. This code is not deployed. Supabase documents that existing JWTs can remain valid until expiry after Auth deletion; banning prevents new sign-ins/refreshes but is not an immediate JWT revocation mechanism.
 - **Shared behavior:** both versions verify the bearer token with `auth.getUser`, require actor role `admin` or `developer` for entry, use the service-role key only server-side, and attempt to delete a newly-created Auth user if profile upsert fails.
 
 The existing `tests/employee-username-auth.test.mjs` checks the **Git branch source** and the login UI. It does not execute the deployed v4 source and cannot establish live parity. Before any deployment:
 
 - Compare the complete deployed source with the branch source and document every behavioral difference.
 - Verify authentication, actor role checks, tenant/account scoping, employee limit enforcement, and race behavior.
-- Implement the employee cap as an atomic database-side operation (for example, a reviewed transactional RPC/locking strategy covering both create/invite and role promotion), then test simultaneous requests at the boundary. A test around the current count-then-create code cannot make that code atomic.
+- Implement the employee cap as an atomic database-side operation (for example, a reviewed transactional RPC/locking strategy covering create/invite and role promotion), then test simultaneous requests at the boundary. A test around the current count-then-write code cannot make that code atomic.
+- Decide whether immediate revocation of existing JWTs is required for account deletion. If it is, add and test an explicit server-side session revocation/check strategy; do not claim hard-delete immediately invalidates already-issued JWTs.
+- Review the new deletion path in an isolated Supabase project, including the Storage `owner_id` catalog/API behavior, FK cascade behavior, and error/rollback paths.
 - Verify invite redirect behavior and the supported account-login mapping.
 - Review CORS and JWT verification together; a wildcard CORS header alone is not an authorization boundary.
 - Run isolated tests against a disposable Supabase project.
@@ -93,10 +96,11 @@ Capture before/after schema snapshots, test output, function versions and rollba
 
 ## Current blockers
 
-1. The deployed `account-admin` v4 differs from branch source in named-login mapping, assistant listing, role management and suspension scope.
-2. Both implementations have a non-atomic employee-count check; deployed role promotion can also bypass the employee cap.
-3. The migration ledger and live schema are not fully aligned; the 512 KiB payload constraint is present in Git but was not found in the live database catalog.
-4. Supabase Security Advisor reports leaked-password protection disabled. This is a configuration finding; changing it may affect authentication and requires a separate approved change.
+1. The deployed `account-admin` v4 has not been updated to the current branch behavior; branch source contains new developer-only deletion and aligned role/listing/login behavior.
+2. The employee-count check remains non-atomic in the branch and deployed function.
+3. The new delete action is code-only and not deployed; active JWT expiry behavior and live Storage ownership query need isolated verification.
+4. The migration ledger and live schema are not fully aligned; the 512 KiB payload constraint is present in Git but was not found in the live database catalog.
+5. Supabase Security Advisor reports leaked-password protection disabled. This is a configuration finding; changing it may affect authentication and requires a separate approved change.
 
 ## Explicitly out of scope
 
