@@ -63,7 +63,7 @@ Deno.serve(async (req: Request) => {
     const { data, error } = await admin
       .from("profiles")
       .select("id, display_name, role, created_at, updated_at")
-      .eq("role", "employee")
+      .in("role", ["employee", "assistant"])
       .order("created_at", { ascending: true });
     if (error) return json({ error: "Не удалось загрузить сотрудников" }, 500);
     const employees = await Promise.all((data ?? []).map(async (profile) => {
@@ -162,6 +162,59 @@ Deno.serve(async (req: Request) => {
     return json({ success: true, employee: { id: inviteData.user.id, display_name: displayName, role: "employee" } }, 201);
   }
 
+  if (body.action === "set_employee_role") {
+    // Changing roles is a developer-only operation; UI visibility is not authorization.
+    if (actor.role !== "developer") {
+      return json({ error: "Менять роли может только разработчик" }, 403);
+    }
+    const userId = typeof body.user_id === "string" ? body.user_id : "";
+    const role = body.role;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
+      return json({ error: "Некорректный ID сотрудника" }, 400);
+    }
+    if (userId === authData.user.id) {
+      return json({ error: "Нельзя менять собственную роль этим действием" }, 400);
+    }
+    if (role !== "employee" && role !== "assistant") {
+      return json({ error: "Допустимы только роли сотрудника и помощника" }, 400);
+    }
+
+    const { data: target, error: targetError } = await admin
+      .from("profiles")
+      .select("id, display_name, role")
+      .eq("id", userId)
+      .maybeSingle();
+    if (targetError) return json({ error: "Не удалось проверить аккаунт" }, 500);
+    if (!target || !["employee", "assistant"].includes(target.role)) {
+      return json({ error: "Менять роль можно только сотрудникам и помощникам" }, 404);
+    }
+    if (target.role === role) {
+      return json({ success: true, employee: target });
+    }
+
+    // This preflight preserves the existing cap, but is not concurrency-safe.
+    // A database-side atomic quota is still required before this becomes a hard invariant.
+    if (role === "employee") {
+      const { count, error: countError } = await admin
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "employee");
+      if (countError) return json({ error: "Не удалось проверить лимит сотрудников" }, 500);
+      if ((count ?? 0) >= 15) return json({ error: "Достигнут лимит в 15 сотрудников" }, 409);
+    }
+
+    const { data: updated, error: updateError } = await admin
+      .from("profiles")
+      .update({ role })
+      .eq("id", userId)
+      .in("role", ["employee", "assistant"])
+      .select("id, display_name, role")
+      .maybeSingle();
+    if (updateError) return json({ error: "Не удалось изменить роль аккаунта" }, 500);
+    if (!updated) return json({ error: "Роль аккаунта изменилась параллельно. Обновите список." }, 409);
+    return json({ success: true, employee: updated });
+  }
+
   if (body.action === "set_employee_access") {
     const userId = typeof body.user_id === "string" ? body.user_id : "";
     const suspended = body.suspended;
@@ -178,8 +231,8 @@ Deno.serve(async (req: Request) => {
       .eq("id", userId)
       .maybeSingle();
     if (targetError) return json({ error: "Не удалось проверить аккаунт" }, 500);
-    if (!target || target.role !== "employee") {
-      return json({ error: "Можно менять доступ только сотрудникам" }, 404);
+    if (!target || !["employee", "assistant"].includes(target.role)) {
+      return json({ error: "Можно менять доступ только сотрудникам и помощникам" }, 404);
     }
 
     const { error } = await admin.auth.admin.updateUserById(userId, {
