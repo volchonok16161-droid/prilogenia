@@ -59,3 +59,25 @@ test("instance activation and reads are fenced by the account and vault captured
   assert.ok(auth.includes("activeInstanceMetaKey(storageId, userId)"));
   assert.ok(auth.includes("assertActiveOfflineContext(userId, vault)"));
 });
+
+
+test("offline device recovery cannot reactivate the vault after logout during async decrypt", () => {
+  const start = auth.indexOf("async function getCachedOfflineIdentity(cause)");
+  const end = auth.indexOf("\nasync function saveOfflineChecklist", start);
+  const recovery = auth.slice(start, end);
+  const decryptAt = recovery.indexOf("await unlocked.vault.decrypt(encryptedIdentity)");
+  const guardAt = recovery.indexOf("logoutRequestedInDatabase === true");
+  const activationAt = recovery.indexOf("activeOfflineVault = unlocked.vault");
+  assert.ok(decryptAt >= 0 && guardAt > decryptAt && activationAt > guardAt);
+  assert.match(recovery, /getPersistedAuthUserId\(\) !== userId/);
+  assert.match(recovery, /offlineLogoutRequested \|\| logoutRequestedInStorage/);
+});
+
+test("starting a new checklist instance is fenced by the account captured before IndexedDB write", () => {
+  const start = auth.indexOf("async function beginNewOfflineChecklistInstance(storageId)");
+  const end = auth.indexOf("\nasync function getOfflineChecklistInstances", start);
+  const fn = auth.slice(start, end);
+  assert.match(fn, /const userId = activeOfflineUserId, vault = activeOfflineVault/);
+  assert.match(fn, /activeInstanceMetaKey\(storageId, userId\)/);
+  assert.match(fn, /await offlineVault\.database\.setMeta\(key, null\);\s*assertActiveOfflineContext\(userId, vault\)/);
+});
