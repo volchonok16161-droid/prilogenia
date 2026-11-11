@@ -20,7 +20,7 @@ declare
   employee_count integer;
   reservation_count integer;
 begin
-  if auth.role() <> 'service_role' then
+  if (auth.jwt() ->> 'role') IS DISTINCT FROM 'service_role' then
     raise insufficient_privilege using message = 'service_role is required';
   end if;
 
@@ -67,7 +67,7 @@ security definer
 set search_path = pg_catalog, public, auth
 as $$
 begin
-  if auth.role() <> 'service_role' then
+  if (auth.jwt() ->> 'role') IS DISTINCT FROM 'service_role' then
     raise insufficient_privilege using message = 'service_role is required';
   end if;
 
