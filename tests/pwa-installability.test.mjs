@@ -35,7 +35,7 @@ test("checklist entry and final standalone document retain PWA metadata", () => 
   assert.match(checklistHtml, /<link rel="manifest" href="\/manifest\.json">/);
   assert.match(checklistHtml, /navigator\.serviceWorker\.register\("\/sw\.js",\{scope:"\/"\}\)/);
   assert.match(sw, /checklist-cache-v116/);
-  assert.match(runtime, /<link rel="manifest" href="\\/manifest\\.json">/);
+  assert.ok(runtime.includes('<link rel="manifest" href="/manifest.json">'));
 });
 
 test("service worker maps the clean checklist URL to its own offline entry point", () => {
