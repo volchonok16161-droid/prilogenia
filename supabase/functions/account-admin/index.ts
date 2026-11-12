@@ -309,7 +309,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const [{ data: checklists, error: checklistError }, { data: objects, error: storageError }] = await Promise.all([
-      admin.from("checklists").select("id, title, equipment_type, payload, created_at").eq("owner_id", userId),
+      admin.from("checklists").select("id, title, equipment_type, payload, revision, created_at, updated_at").eq("owner_id", userId),
       admin.rpc("admin_list_storage_objects_for_user", { p_user_id: userId }),
     ]);
     if (checklistError) return json({ error: "Не удалось проверить чек-листы; удаление отменено" }, 500);
@@ -364,7 +364,9 @@ Deno.serve(async (req: Request) => {
           title: checklist.title,
           equipment_type: checklist.equipment_type,
           payload: updatedPayload,
+          revision: checklist.revision,
           created_at: checklist.created_at,
+          updated_at: checklist.updated_at,
         });
         if (error) {
           return json({ error: "Не удалось скопировать все чек-листы разработчику. Исходные записи и файлы сохранены; аккаунт заблокирован для безопасной проверки.", detail: error.message }, 500);
