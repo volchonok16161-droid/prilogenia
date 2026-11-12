@@ -167,8 +167,9 @@ test("concurrent device tabs preserve the first cloud id mapping", async () => {
   // this test verifies only the shared cloud identity allocation.
   const secondResult = await second;
   unblock();
-  await assert.rejects(first, /already exists/);
+  const firstResult = await first;
   assert.equal(f.meta.get(key), CLOUD[1]);
+  assert.equal(firstResult.cloudId, CLOUD[1]);
   assert.equal(secondResult.cloudId, CLOUD[1]);
   assert.equal((await f.instances.load(IDS[0])).cloudId, CLOUD[1]);
 });
