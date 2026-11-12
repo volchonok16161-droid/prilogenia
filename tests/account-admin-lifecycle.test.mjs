@@ -39,7 +39,7 @@ test("developer UI offers two choices with strong confirmation", () => {
   assert.match(cabinet, /modeChoice !== "TRANSFER" && modeChoice !== "DELETE"/);
   assert.match(cabinet, /Введите TRANSFER — передать чек-листы и файлы разработчику/);
   assert.match(cabinet, /Введите DELETE — безвозвратно удалить чек-листы и файлы/);
-  assert.match(cabinet, /mode: mode/);
+  assert.match(cabinet, /action: "delete_employee", user_id: employee\.id, mode/);
   assert.match(cabinet, /confirmation !== \(mode === "transfer" \? "TRANSFER" : "DELETE"\)/);
 });
 
