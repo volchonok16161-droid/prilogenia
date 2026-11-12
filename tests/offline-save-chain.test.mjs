@@ -34,6 +34,6 @@ test("offline saves synchronously persist the account-scoped local snapshot befo
     // Source-level acceptance: the offline branch must invoke the original
     // synchronous localStorage saver before enqueueing asynchronous encryption.
   }
-  assert.equal(occurrences(html, /var legacySaved = __tmhOriginalSaveState\\.apply\\(this, arguments\\);/g), 4);
+  assert.equal(occurrences(html, /var legacySaved = __tmhOriginalSaveState\\.apply\\(this, arguments\);/g), 4);
   assert.equal(occurrences(html, /if \\(legacySaved === false\\) return false;/g), 4);
 });
