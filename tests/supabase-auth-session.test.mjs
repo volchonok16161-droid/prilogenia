@@ -39,3 +39,10 @@ test("cabinet identity uses device-bound offline identity only after verified lo
   assert.match(source, /isOfflineVaultUnlocked\(\)/);
   assert.match(source, /getCabinetIdentity,/);
 });
+
+
+test("cabinet avoids loading remote Supabase ESM when browser reports offline", () => {
+  assert.match(source, /if \(globalThis\.navigator\?\.onLine === false\)/);
+  assert.match(source, /getCachedOfflineIdentity\(new TypeError\("offline"\)\)/);
+  assert.match(source, /Нет сети и не найдено разблокированное локальное хранилище/);
+});
