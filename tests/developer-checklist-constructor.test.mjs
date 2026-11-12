@@ -8,8 +8,12 @@ const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
 test("developer constructor is visible to developer and admin roles only", async () => {
   const source = await readFile(resolve(ROOT, "index.html"), "utf8");
-  assert.match(source, /function isDev\(\)\{try\{var u=JSON\.parse\(localStorage\.getItem\('checklist_user'\)\|\|'null'\);return !!\(u&&\(u\.dev===true\|\|u\.profileRole==='developer'\|\|u\.profileRole==='admin'\|\|u\.role==='admin'\)\);/);
-  assert.match(source, /function refreshFab\(\)\{\$\('devFab'\)\.style\.display=isDev\(\)\?'block':'none';\}/);
+  assert.match(source, /function isDev\(\)/);
+  assert.match(source, /window\.__TMH_AUTH_CONTEXT/);
+  assert.match(source, /\['developer','admin'\]\.indexOf\(ctx\.role\)>=0/);
+  assert.match(source, /u\.profileRole==='developer'\|\|u\.profileRole==='admin'/);
+  assert.match(source, /function refreshFab\(\)\{var allowed=isDev\(\)/);
+  assert.match(source, /if\(!allowed\)\{menu\.style\.display='none'/);
 });
 
 test("constructor publishing defaults to and is pinned to the development branch", async () => {
