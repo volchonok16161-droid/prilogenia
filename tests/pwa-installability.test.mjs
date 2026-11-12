@@ -5,12 +5,13 @@ import { readFile } from "node:fs/promises";
 const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url), "utf8"));
 const checklistHtml = await readFile(new URL("../prototype/checklist/index.html", import.meta.url), "utf8");
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
+const runtime = await readFile(new URL("../prototype/checklist-runtime.js", import.meta.url), "utf8");
 const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-test("PWA manifest has explicit install identity, root scope and checklist launch URL", () => {
+test("PWA manifest has explicit install identity, checklist scope and checklist launch URL", () => {
   assert.equal(manifest.id, "/prototype/checklist/");
   assert.equal(manifest.start_url, "/prototype/checklist/?source=pwa");
-  assert.equal(manifest.scope, "/");
+  assert.equal(manifest.scope, "/prototype/checklist/");
   assert.equal(manifest.display, "standalone");
 });
 
@@ -30,10 +31,11 @@ test("declared PWA icon files are real PNGs with their declared dimensions", asy
   }
 });
 
-test("checklist entry loads root manifest and registers root-scope service worker", () => {
+test("checklist entry and final standalone document retain PWA metadata", () => {
   assert.match(checklistHtml, /<link rel="manifest" href="\/manifest\.json">/);
   assert.match(checklistHtml, /navigator\.serviceWorker\.register\("\/sw\.js",\{scope:"\/"\}\)/);
   assert.match(sw, /checklist-cache-v116/);
+  assert.match(runtime, /<link rel="manifest" href="\\/manifest\\.json">/);
 });
 
 test("service worker maps the clean checklist URL to its own offline entry point", () => {
