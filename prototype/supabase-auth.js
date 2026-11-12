@@ -680,6 +680,26 @@ async function getOfflineIdentity() {
   return activeOfflineIdentity;
 }
 
+async function getCabinetIdentity() {
+  let online = null;
+  try {
+    online = await getCurrentIdentity();
+    if (!online?.error && online?.user?.id && online?.profile?.id === online.user.id) return online;
+  } catch (error) {
+    online = { user: null, profile: null, error };
+  }
+  // Offline identity is only available after a previously verified online login
+  // unlocked this device-bound vault. It is not a substitute for server auth.
+  try {
+    const offline = await getCachedOfflineIdentity(online?.error);
+    if (offline?.user?.id && offline?.profile?.id === offline.user.id &&
+        offline.supabaseAuthenticated === false && isOfflineVaultUnlocked()) {
+      return { ...offline, offline: true, error: null };
+    }
+  } catch {}
+  return online || { user: null, profile: null, error: new Error("Не удалось проверить учётную запись") };
+}
+
 async function getLastOfflineUserId() {
   return offlineVault.database.getMeta("offline:last-user-id");
 }
@@ -719,6 +739,7 @@ const api = Object.freeze({
   offlineVault,
 
   getOfflineIdentity,
+  getCabinetIdentity,
   activateDeviceVault,
   getCachedOfflineIdentity,
   saveOfflineChecklist,
