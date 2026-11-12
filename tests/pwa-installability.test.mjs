@@ -35,3 +35,9 @@ test("checklist entry loads root manifest and registers root-scope service worke
   assert.match(checklistHtml, /navigator\.serviceWorker\.register\("\/sw\.js",\{scope:"\/"\}\)/);
   assert.match(sw, /checklist-cache-v115/);
 });
+
+test("service worker maps the clean checklist URL to its own offline entry point", () => {
+  assert.match(sw, /APP_SHELL_PATHS\.add\(new URL\('\.\/prototype\/checklist\/'/);
+  assert.match(sw, /url\.pathname === '\/prototype\/checklist\/' \|\| url\.pathname === '\/prototype\/checklist'/);
+  assert.match(sw, /caches\.match\('\.\/prototype\/checklist\/index\.html'\)/);
+});
