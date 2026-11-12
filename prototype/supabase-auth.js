@@ -682,6 +682,21 @@ async function getOfflineIdentity() {
 
 async function getCabinetIdentity() {
   let online = null;
+  // navigator.onLine is the decisive fast path: do not import the remote
+  // Supabase ESM graph when the device is already known to be disconnected.
+  // Otherwise a slow CDN timeout can leave the cabinet on its loading screen.
+  if (globalThis.navigator?.onLine === false) {
+    try {
+      const offline = await getCachedOfflineIdentity(new TypeError("offline"));
+      if (offline?.user?.id && offline?.profile?.id === offline.user.id &&
+          offline.supabaseAuthenticated === false && isOfflineVaultUnlocked()) {
+        return { ...offline, offline: true, error: null };
+      }
+      return { user: null, profile: null, error: new Error("Нет сети и не найдено разблокированное локальное хранилище") };
+    } catch (error) {
+      return { user: null, profile: null, error };
+    }
+  }
   try {
     online = await getCurrentIdentity();
     if (!online?.error && online?.user?.id && online?.profile?.id === online.user.id) return online;
