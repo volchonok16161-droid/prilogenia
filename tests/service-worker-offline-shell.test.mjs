@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
 
 test("offline cache version is advanced when the app shell changes", () => {
-  assert.match(sw, /checklist-cache-v118/);
+  assert.match(sw, /checklist-cache-v119/);
 });
 
 test("offline shell includes all five checklist runtimes and encrypted vault/sync modules", () => {
