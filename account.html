@@ -495,7 +495,7 @@ async function loadCabinet() {
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await api.client
       .from("checklists")
-      .select("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode,checklist_type:payload->>checklistType,stats:payload->stats")
+      .select("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode,checklist_type:payload->>checklistType,stats:payload->stats,archive:payload->__tmhArchive")
       .eq("owner_id", user.id)
       .order("updated_at", { ascending: false })
       .order("id", { ascending: true })
@@ -561,10 +561,15 @@ async function loadCabinet() {
       const info = document.createElement("div");
       info.className = "item-info";
       const title = document.createElement("strong");
-      title.textContent = row.title || "Чек-лист";
+      const isDeveloperArchive = Boolean(row.archive?.sourceChecklistId && row.archive?.sourceOwnerId);
+      title.textContent = (row.title || "Чек-лист") + (isDeveloperArchive ? " · Архив" : "");
       const category = document.createElement("small");
       const categoryByMode = { complex: "Комплексный чек-лист", housings: "КМБ", tt: "ТТ", bi: "БИ", hydro: "Гидродемпферы" };
-      category.textContent = row.checklist_type || categoryByMode[row.mode] || (String(row.mode || "").startsWith("k_") ? "Пользовательский чек-лист" : "Тип чек-листа не указан");
+      const categoryLabel = row.checklist_type || categoryByMode[row.mode] || (String(row.mode || "").startsWith("k_") ? "Пользовательский чек-лист" : "Тип чек-листа не указан");
+      category.textContent = isDeveloperArchive
+        ? categoryLabel + " · Архив сотрудника · исходная ревизия " + String(row.archive.sourceRevision || "—") +
+          " · изменён " + formatDate(row.archive.sourceUpdatedAt)
+        : categoryLabel;
       category.className = "checklist-category";
       const status = document.createElement("span");
       const completed = isChecklistComplete(row.stats);
