@@ -45,7 +45,7 @@ body{transition:background-color .16s,color .16s}.logo{background:var(--blue)}
 .admin-pill{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}.admin-pill.off{background:color-mix(in srgb,var(--red) 15%,transparent);color:var(--red)}
 input{background:var(--card)!important;color:var(--ink)!important;border-color:var(--line)!important}
 .theme-switch{display:flex;gap:2px;align-items:center;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
-.theme-btn{border:0;border-radius:7px;background:transparent;color:var(--soft-ink);padding:7px 9px;font:600 12px/1.2 inherit;cursor:pointer}
+.theme-btn{border:0;border-radius:7px;background:transparent;color:var(--soft-ink);padding:7px 9px;font:inherit;font-size:12px;font-weight:600;line-height:1.2;cursor:pointer}
 .theme-btn.active{background:var(--blue);color:#fff}
 .welcome-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.welcome-top h1{margin:0}
 .connection-pill{display:inline-flex;align-items:center;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:700;background:var(--soft);color:var(--soft-ink);border:1px solid var(--line)}
@@ -871,6 +871,12 @@ $("refreshBtn").addEventListener("click", async () => {
     button.disabled = false;
     button.textContent = "Обновить";
   }
+});
+window.addEventListener("offline", () => {
+  void loadCabinet().catch((error) => showError(error?.message || "Не удалось открыть локальный кабинет."));
+});
+window.addEventListener("online", () => {
+  void loadCabinet().catch((error) => showError(error?.message || "Не удалось обновить кабинет после подключения."));
 });
 try { await loadCabinet(); }
 catch (error) { showError(error?.message || "Не удалось загрузить личный кабинет."); }
