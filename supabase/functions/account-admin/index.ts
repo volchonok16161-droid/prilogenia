@@ -319,7 +319,7 @@ Deno.serve(async (req: Request) => {
     const { error: banError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "876000h" });
     if (banError) return json({ error: "Не удалось закрыть доступ к аккаунту; данные не изменены" }, 500);
     const { data: revokedSessionCount, error: revokeError } = await admin.rpc("revoke_auth_sessions_for_user", { p_user_id: userId });
-    if (revokeError) return json({ error: "Не удалось отозвать сессии. Аккаунт заблокирован; данные сохранены для проверки." }, 500);
+    if (revokeError) return json({ error: "Не удалось отозвать сессии аккаунта. Аккаунт заблокирован; данные сохранены для проверки." }, 500);
 
     if (mode === "transfer") {
       // Copy files to a developer-managed archive first. The source remains
