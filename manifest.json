@@ -4,7 +4,7 @@
   "short_name": "Чек-лист",
   "description": "Чек-лист проверки локомотивов при ТР-50, ТР-250, ТР-500",
   "start_url": "/prototype/checklist/?source=pwa",
-  "scope": "/",
+  "scope": "/prototype/checklist/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#eef4fb",
