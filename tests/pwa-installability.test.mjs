@@ -33,7 +33,7 @@ test("declared PWA icon files are real PNGs with their declared dimensions", asy
 test("checklist entry loads root manifest and registers root-scope service worker", () => {
   assert.match(checklistHtml, /<link rel="manifest" href="\/manifest\.json">/);
   assert.match(checklistHtml, /navigator\.serviceWorker\.register\("\/sw\.js",\{scope:"\/"\}\)/);
-  assert.match(sw, /checklist-cache-v115/);
+  assert.match(sw, /checklist-cache-v116/);
 });
 
 test("service worker maps the clean checklist URL to its own offline entry point", () => {
