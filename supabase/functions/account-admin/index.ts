@@ -309,7 +309,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const [{ data: checklists, error: checklistError }, { data: objects, error: storageError }] = await Promise.all([
-      admin.from("checklists").select("id, payload").eq("owner_id", userId),
+      admin.from("checklists").select("id, title, equipment_type, payload, created_at").eq("owner_id", userId),
       admin.schema("storage").from("objects").select("id, bucket_id, name").eq("owner_id", userId),
     ]);
     if (checklistError) return json({ error: "Не удалось проверить чек-листы; удаление отменено" }, 500);
