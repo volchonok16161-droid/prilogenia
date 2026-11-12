@@ -6300,7 +6300,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   var COPY_SHEETS=['ТТ','БИ','Гидродемпферы','Комплексный','КМБ'];
   var $=function(id){return document.getElementById(id);};
   var st={items:[],checks:[],copyFrom:{},view:'eq',sel:0,csel:0,published:'',msgs:[]};
-  function isDev(){try{var u=JSON.parse(localStorage.getItem('checklist_user')||'null');return !!(u&&u.dev===true);}catch(e){return false;}}
+  function isDev(){try{var u=JSON.parse(localStorage.getItem('checklist_user')||'null');return !!(u&&(u.dev===true||u.profileRole==='developer'||u.profileRole==='admin'||u.role==='admin'));}catch(e){return false;}}
   function h(tag,attrs,kids){
     var e=document.createElement(tag);
     if(attrs)for(var k in attrs){var v=attrs[k];
@@ -6527,8 +6527,10 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
 
   /* ---------- GitHub ---------- */
   function ghCfg(){
-    var d={owner:'volchonok16161-droid',repo:'prilogenia',branch:'main',path:'oborudovanie.json',pathXlsx:'zona_riska.xlsx'};
+    var d={owner:'volchonok16161-droid',repo:'prilogenia',branch:'feat/cloud-checklist-progress',path:'oborudovanie.json',pathXlsx:'zona_riska.xlsx'};
     try{var s=JSON.parse(localStorage.getItem(LS_GH)||'{}');for(var k in s)if(s[k])d[k]=s[k];}catch(e){}
+    // This project is intentionally editable only on the development branch.
+    if(d.owner==='volchonok16161-droid'&&d.repo==='prilogenia')d.branch='feat/cloud-checklist-progress';
     return d;
   }
   function ghToken(){try{return sessionStorage.getItem(SS_TOKEN)||localStorage.getItem(LS_TOKEN)||'';}catch(e){return '';}}
@@ -6580,6 +6582,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
     var c=cleaned();
     if(c.issues.length){say('bad','Публикация остановлена — исправьте ошибки:\n• '+c.issues.join('\n• '));return;}
     var cfg=ghCfg();
+    if(cfg.owner==='volchonok16161-droid'&&cfg.repo==='prilogenia'&&cfg.branch!=='feat/cloud-checklist-progress'){say('bad','Публикация в main запрещена. Используйте feat/cloud-checklist-progress.');return;}
     if(!ghToken()){say('warn','Сначала укажите токен GitHub (кнопка «⚙ GitHub»).');openGh();return;}
     if(!confirm('Опубликовать в '+cfg.owner+'/'+cfg.repo+' ('+cfg.branch+'): оборудование — '+c.list.length+', чек-листы — '+c.checklists.length+'?'+(c.checklists.length?'\nНедостающие листы со списками локомотивов будут созданы в Excel.':'')+'\nПользователи увидят изменения через 1–3 минуты.'))return;
     var url='/repos/'+encodeURIComponent(cfg.owner)+'/'+encodeURIComponent(cfg.repo)+'/contents/'+enc(cfg.path);
