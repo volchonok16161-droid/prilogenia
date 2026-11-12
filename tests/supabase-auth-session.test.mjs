@@ -30,3 +30,12 @@ test("session restore and sign-in retry transient profile reads once", () => {
   assert.match(source, /setTimeout\(resolve, 400\)/);
   assert.equal((source.match(/getProfileWithRetry\(data\.user\)/g) || []).length, 2);
 });
+
+
+test("cabinet identity uses device-bound offline identity only after verified local vault unlock", () => {
+  assert.match(source, /async function getCabinetIdentity\(\)/);
+  assert.match(source, /const offline = await getCachedOfflineIdentity\(online\?\.error\)/);
+  assert.match(source, /offline\.supabaseAuthenticated === false/);
+  assert.match(source, /isOfflineVaultUnlocked\(\)/);
+  assert.match(source, /getCabinetIdentity,/);
+});
