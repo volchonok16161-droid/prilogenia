@@ -192,13 +192,12 @@ test("cabinet uses the verified device-unlocked identity fallback and has an off
   assert.match(html, /Офлайн · локально/);
 });
 
-test("cabinet shares the checklist TMH, light and dark theme preference", () => {
+test("cabinet inherits the checklist TMH, light and dark theme preference without separate controls", () => {
   assert.match(html, /checklist_theme_v1/);
-  assert.match(html, /data-theme-value="tmh"/);
-  assert.match(html, /data-theme-value="standard"/);
-  assert.match(html, /data-theme-value="dark"/);
-  assert.match(html, /setAttribute\("data-theme",t\)/);
+  assert.match(html, /setAttribute\("data-theme",a\.includes\(v\)\?v:"tmh"\)/);
   assert.match(html, /window\.addEventListener\("storage"/);
+  assert.doesNotMatch(html, /data-theme-value="(tmh|standard|dark)"/);
+  assert.doesNotMatch(html, /class="theme-switch"/);
 });
 
 test("offline cabinet hides cloud-only profile, password and employee administration controls", () => {
