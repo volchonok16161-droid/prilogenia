@@ -234,7 +234,7 @@ async function loadEmployees(api, requestId = cabinetLoadSequence) {
         deleteButton.addEventListener("click", async () => {
           const label = employee.display_name || employee.id;
           const modeChoice = window.prompt(
-            "Как поступить с данными сотрудника «" + label + "»?\\n\\nВведите TRANSFER — передать чек-листы и файлы разработчику, сохранив историю.\\nВведите DELETE — безвозвратно удалить чек-листы и файлы.\\n\\nОтмена — ничего не менять."
+            "Как поступить с данными сотрудника «" + label + "»?\\n\\nВведите TRANSFER — передать чек-листы и файлы разработчику, сохранив историю.\\nВведите DELETE — безвозвратно удалить чек-листы и файлы.\\n\\nСначала сохраните несинхронизированные данные: сервер не может проверить локальные данные на устройствах. Отмена — ничего не менять."
           );
           if (modeChoice !== "TRANSFER" && modeChoice !== "DELETE") return;
           const mode = modeChoice === "TRANSFER" ? "transfer" : "permanent";
