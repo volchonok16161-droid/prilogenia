@@ -216,7 +216,7 @@ test("Service Worker parses as valid JavaScript before registration", () => {
 });
 
 test("the unified route is included in the offline app shell", () => {
-  assert.match(sw, /checklist-cache-v114/);
+  assert.match(sw, /checklist-cache-v115/);
   assert.match(sw, /\.\/prototype\/checklist\/index\.html/);
   assert.match(sw, /\.\/prototype\/checklist-runtime\.js/);
   assert.match(sw, /\.\/prototype\/standalone-patches\.js/);
@@ -245,7 +245,7 @@ test("the unified route is a required offline entry and offline navigation stays
 test("root entry, account, employee login and installed PWA open the unified checklist route", () => {
   assert.match(rootHtml, /location\.pathname==="\/"\|\|location\.pathname\.endsWith\("\/index\.html"\)/);
   assert.match(rootHtml, /location\.replace\("\.\/prototype\/checklist\/"\+location\.search\+location\.hash\)/);
-  assert.equal(manifest.start_url, "./prototype/checklist/");
+  assert.equal(manifest.start_url, "/prototype/checklist/?source=pwa");
   assert.match(account, /href="\.\/prototype\/checklist\//);
   assert.match(employeeLogin, /href="\.\/prototype\/checklist\//);
   assert.match(employeeLogin, /location\.replace\("\.\/prototype\/checklist\/"\)/);
