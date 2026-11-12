@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 const sw = await readFile(new URL("../sw.js", import.meta.url), "utf8");
 
 test("offline cache version is advanced when the app shell changes", () => {
-  assert.match(sw, /checklist-cache-v117/);
+  assert.match(sw, /checklist-cache-v118/);
 });
 
 test("offline shell includes all five checklist runtimes and encrypted vault/sync modules", () => {
@@ -55,4 +55,9 @@ test("versioned allowlisted app assets use their canonical offline cache key", (
   assert.match(sw, /isSameOrigin && !APP_SHELL_PATHS\.has\(url\.pathname\)/);
   assert.match(sw, /isSameOrigin\s*\?\s*new Request\(url\.origin \+ url\.pathname\)/);
   assert.match(sw, /new Request\(url\.origin \+ url\.pathname\)/);
+});
+
+test("offline shell precaches every statically imported account cabinet module", () => {
+  assert.match(sw, /\.\/prototype\/checklist-status\.js/);
+  assert.match(sw, /\.\/prototype\/supabase-cloud-delete\.js/);
 });
