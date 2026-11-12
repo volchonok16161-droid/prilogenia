@@ -48,5 +48,5 @@ test("developer UI verifies server-confirmed deletion and refreshed employee lis
 });
 
 test("offline device data warning remains visible in developer cabinet", () => {
-  assert.match(cabinet, /Сервер не может проверить несинхронизированные данные на устройствах/);
+  assert.match(cabinet, /сервер не может проверить локальные данные на устройствах/);
 });
