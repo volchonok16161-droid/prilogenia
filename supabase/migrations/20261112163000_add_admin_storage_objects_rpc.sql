@@ -9,7 +9,7 @@ set search_path = pg_catalog, storage
 as $$
   select o.id, o.bucket_id, o.name
   from storage.objects o
-  where o.owner_id = p_user_id
+  where o.owner_id = p_user_id::text
   order by o.bucket_id, o.name;
 $$;
 
