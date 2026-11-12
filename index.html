@@ -6300,7 +6300,12 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   var COPY_SHEETS=['ТТ','БИ','Гидродемпферы','Комплексный','КМБ'];
   var $=function(id){return document.getElementById(id);};
   var st={items:[],checks:[],copyFrom:{},view:'eq',sel:0,csel:0,published:'',msgs:[]};
-  function isDev(){try{var u=JSON.parse(localStorage.getItem('checklist_user')||'null');return !!(u&&(u.dev===true||u.profileRole==='developer'||u.profileRole==='admin'||u.role==='admin'));}catch(e){return false;}}
+  function isDev(){
+    // Prefer the freshly verified Supabase auth context; localStorage is only
+    // the persisted UI hint written after successful identity verification.
+    try{var ctx=window.__TMH_AUTH_CONTEXT;if(ctx&&['developer','admin'].indexOf(ctx.role)>=0)return true;}catch(e){}
+    try{var u=JSON.parse(localStorage.getItem('checklist_user')||'null');return !!(u&&(u.dev===true||u.profileRole==='developer'||u.profileRole==='admin'));}catch(e){return false;}
+  }
   function h(tag,attrs,kids){
     var e=document.createElement(tag);
     if(attrs)for(var k in attrs){var v=attrs[k];
@@ -6651,12 +6656,14 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
     if(norm(cleaned())!==st.published&&!confirm('Есть неопубликованные изменения. Они сохранены как черновик на этом устройстве. Закрыть панель?'))return;
     $('devOverlay').classList.remove('open');
   }
-  var menu=h('div',{id:'devMenu',style:'position:fixed;left:10px;bottom:120px;z-index:3060;display:none;background:var(--panel,#fff);color:var(--ink,#16324f);border:1px solid var(--line,#cfe0f0);border-radius:12px;padding:8px;box-shadow:0 6px 24px rgba(0,0,0,.3);min-width:230px'},[
-    h('button',{class:'btn',type:'button',style:'display:block;width:100%;margin-bottom:6px;text-align:left',text:'🔧 Конструктор оборудования',onclick:function(){menu.style.display='none';st.view='eq';open();}}),
-    h('button',{class:'btn',type:'button',style:'display:block;width:100%;margin-bottom:6px;text-align:left',id:'devMenuCk',text:'📋 Конструктор чек-листов',onclick:function(){menu.style.display='none';st.view='ck';open();}}),
-    h('button',{class:'btn',type:'button',style:'display:block;width:100%;text-align:left',text:'📊 Справочник (Excel)',onclick:function(){menu.style.display='none';if(window.__XL_PANEL_V1__)window.__XL_PANEL_V1__.open();}})]);
+  var menu=h('div',{id:'devMenu',role:'menu','aria-label':'Инструменты разработчика',style:'position:fixed;left:10px;bottom:120px;z-index:3060;display:none;background:var(--panel,#fff);color:var(--ink,#16324f);border:1px solid var(--line,#cfe0f0);border-radius:12px;padding:10px;box-shadow:0 6px 24px rgba(0,0,0,.3);min-width:250px'},[
+    h('div',{style:'font-weight:800;padding:4px 8px 9px;border-bottom:1px solid var(--line,#cfe0f0);margin-bottom:8px',text:'🛠 Инструменты разработчика'}),
+    h('button',{class:'btn',type:'button',role:'menuitem',style:'display:block;width:100%;margin-bottom:6px;text-align:left',text:'🔧 Конструктор оборудования',onclick:function(){menu.style.display='none';st.view='eq';open();}}),
+    h('button',{class:'btn',type:'button',role:'menuitem',style:'display:block;width:100%;margin-bottom:6px;text-align:left',id:'devMenuCk',text:'📋 Конструктор чек-листов',onclick:function(){menu.style.display='none';st.view='ck';open();}}),
+    h('button',{class:'btn',type:'button',role:'menuitem',style:'display:block;width:100%;text-align:left',text:'📊 Справочник (Excel)',onclick:function(){menu.style.display='none';if(window.__XL_PANEL_V1__)window.__XL_PANEL_V1__.open();}})]);
   document.body.appendChild(menu);
-  $('devFab').addEventListener('click',function(ev){ev.stopPropagation();menu.style.display=(menu.style.display==='block')?'none':'block';});
+  $('devFab').setAttribute('aria-haspopup','menu');$('devFab').setAttribute('aria-expanded','false');
+  $('devFab').addEventListener('click',function(ev){ev.stopPropagation();var show=menu.style.display!=='block';menu.style.display=show?'block':'none';$('devFab').setAttribute('aria-expanded',String(show));});
   document.addEventListener('click',function(ev){if(menu.style.display==='block'&&!menu.contains(ev.target))menu.style.display='none';});
   $('devClose').addEventListener('click',close);
   $('devPrev').addEventListener('click',openPreview);
@@ -6669,7 +6676,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   $('ghSave').addEventListener('click',ghSave);
   $('ghTest').addEventListener('click',ghTest);
   $('ghCancel').addEventListener('click',function(){$('devGh').classList.remove('open');});
-  function refreshFab(){$('devFab').style.display=isDev()?'block':'none';}
+  function refreshFab(){var allowed=isDev();$('devFab').style.display=allowed?'block':'none';if(!allowed){menu.style.display='none';$('devFab').setAttribute('aria-expanded','false');}}
   setInterval(refreshFab,1000);refreshFab();window.__devRefresh=refreshFab;
   window.__DEV_PANEL_V1__={open:open,publish:publish,cleaned:cleaned,state:st,h:h,gh:{cfg:ghCfg,token:ghToken,api:ghApi,err:ghErr,enc:enc,open:openGh}};
 })();
