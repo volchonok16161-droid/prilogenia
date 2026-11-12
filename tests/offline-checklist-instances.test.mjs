@@ -24,6 +24,10 @@ function fixture() {
     async listRecords(userId, kind) { return [...records.values()].filter(row => row.userId === userId && row.kind === kind); },
     async getMeta(key) { return meta.get(key) ?? null; },
     async setMeta(key, value) { meta.set(key, value); },
+    async putMetaIfAbsent(key, candidate) {
+      if (!meta.has(key)) meta.set(key, candidate);
+      return meta.get(key);
+    },
     async getCloudState() { return null; },
     async listPending() { return []; },
   };
@@ -129,4 +133,49 @@ test("concurrent autosaves are serialized so an older encryption cannot overwrit
   releaseOlder();
   await Promise.all([olderSave, newerSave]);
   assert.equal((await f.instances.load(first.instanceId)).state.general.number, "102");
+});
+
+
+test("concurrent device tabs preserve the first cloud id mapping", async () => {
+  const f = fixture();
+  const key = "offline:cloud-id:" + UID + ":instance:" + IDS[0];
+  let firstCandidate;
+  let unblock;
+  const firstEntered = new Promise(resolve => { firstCandidate = resolve; });
+  const blocked = new Promise(resolve => { unblock = resolve; });
+  const original = f.database.putMetaIfAbsent;
+  let calls = 0;
+  f.database.putMetaIfAbsent = async (mappingKey, candidate) => {
+    calls += 1;
+    if (calls === 1) {
+      firstCandidate();
+      await blocked;
+    }
+    return original(mappingKey, candidate);
+  };
+  const secondTab = createOfflineChecklistInstances({
+    database: f.database, vault: f.vault,
+    store: { saveChecklist: async () => ({ opId: "unused" }) },
+    userId: UID, cloudIdFactory: () => CLOUD[1],
+    now: () => "2026-11-05T10:00:00.000Z",
+  });
+  const first = f.instances.create("complex", state("100"));
+  await firstEntered;
+  const second = secondTab.save(IDS[0], "complex", state("101"), { create: true });
+  // The competing tab sees the same durable cloud identity, not its own candidate.
+  // Both writes to one local record are not an intended multi-tab editing protocol;
+  // this test verifies only the shared cloud identity allocation.
+  const secondResult = await second;
+  unblock();
+  const firstResult = await first;
+  assert.equal(f.meta.get(key), CLOUD[1]);
+  assert.equal(firstResult.cloudId, CLOUD[1]);
+  assert.equal(secondResult.cloudId, CLOUD[1]);
+});
+
+test("invalid persisted cloud identity fails closed without writing a checklist", async () => {
+  const f = fixture();
+  f.meta.set("offline:cloud-id:" + UID + ":instance:" + IDS[0], "invalid-id");
+  await assert.rejects(f.instances.create("complex", state("100")), /Stored cloud checklist identity is invalid/);
+  assert.equal(f.records.size, 0);
 });
