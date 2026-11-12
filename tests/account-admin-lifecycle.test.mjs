@@ -68,3 +68,11 @@ test("account deletion warns that device-local unsynced data must be saved first
   assert.match(cabinet, /Сервер не может проверить несинхронизированные данные на устройствах/);
   assert.match(cabinet, /не гарантирует мгновенную недействительность уже выданных access token/);
 });
+
+
+test("developer UI requires explicit positive delete confirmation and verifies returned deletion result", () => {
+  assert.match(cabinet, /const deleteResult = await callAdmin\(api, \{ action: "delete_employee", user_id: employee\.id \}\)/);
+  assert.match(cabinet, /deleteResult\?\.deleted !== true/);
+  assert.match(cabinet, /deleteResult\?\.user_id !== employee\.id/);
+  assert.match(cabinet, /Аккаунт не удалён: сервер не подтвердил удаление/);
+});
