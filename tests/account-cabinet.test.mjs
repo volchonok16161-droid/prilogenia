@@ -15,7 +15,7 @@ test("account cabinet uses the shared Supabase Auth module", () => {
 test("account cabinet loads only the signed-in user's cloud checklists", () => {
   assert.match(html, /\.from\("checklists"\)/);
   assert.match(html, /\.eq\("owner_id", user\.id\)/);
-  assert.match(html, /\.select\("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode,checklist_type:payload->>checklistType,stats:payload->stats"\)/);
+  assert.match(html, /\.select\("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode,checklist_type:payload->>checklistType,stats:payload->stats,archive:payload->__tmhArchive"\)/);
   assert.match(html, /const pageSize = 500/);
   assert.match(html, /\.range\(offset, offset \+ pageSize - 1\)/);
   assert.doesNotMatch(html, /\.limit\(50\)/);
@@ -212,4 +212,12 @@ test("cabinet inherits the checklist theme without exposing a theme picker", () 
   assert.match(html, /addEventListener\("storage"/);
   assert.doesNotMatch(html, /data-theme-value="(tmh|standard|dark)"/);
   assert.doesNotMatch(html, /class="theme-switch"/);
+});
+
+
+test("developer cabinet identifies transferred employee archive copies and preserves source metadata in the label", () => {
+  assert.match(html, /archive:payload->__tmhArchive/);
+  assert.match(html, /row\.archive\?\.sourceChecklistId && row\.archive\?\.sourceOwnerId/);
+  assert.match(html, /Архив сотрудника · исходная ревизия/);
+  assert.match(html, /formatDate\(row\.archive\.sourceUpdatedAt\)/);
 });
