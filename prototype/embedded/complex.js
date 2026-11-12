@@ -2243,12 +2243,12 @@ saveState = function(silent) {
   if (!window.__TMH_STORAGE_UID || window.__TMH_STORAGE_LOCKED || !STATE || !STATE.general) return false;
   var api = __getTMHAuthApi();
   if (window.__TMH_OFFLINE_MODE) {
-    // Without an unlocked legacy vault, preserve normal localStorage saving.
-    // Never fail a user's checklist edit merely because cloud/offline crypto is locked.
-    if (!api || typeof api.isOfflineVaultUnlocked !== 'function' || !api.isOfflineVaultUnlocked()) {
-      return __tmhOriginalSaveState.apply(this, arguments);
-    }
-    if (typeof api.saveOfflineChecklist !== 'function') return __tmhOriginalSaveState.apply(this, arguments);
+    // Commit a synchronous, account-scoped recovery snapshot first. The encrypted
+    // IndexedDB write follows; mobile OS process termination must not outrun it.
+    var legacySaved = __tmhOriginalSaveState.apply(this, arguments);
+    if (legacySaved === false) return false;
+    if (!api || typeof api.isOfflineVaultUnlocked !== 'function' || !api.isOfflineVaultUnlocked() ||
+        typeof api.saveOfflineChecklist !== 'function') return legacySaved;
     var snapshot = structuredClone(STATE);
     __tmhOfflinePendingWrites++;
     __tmhOfflineSaveChain = __tmhOfflineSaveChain.then(function() {
