@@ -356,11 +356,24 @@ Deno.serve(async (req: Request) => {
 
       for (const checklist of checklists ?? []) {
         const updatedPayload = rewrite(checklist.payload);
-        const { error } = await admin.from("checklists").update({ owner_id: authData.user.id, payload: updatedPayload })
-          .eq("id", checklist.id).eq("owner_id", userId);
+        // Checklist ownership is intentionally immutable at the database layer.
+        // Preserve the original creation time and content by creating a new
+        // developer-owned archive record, then remove the employee-owned row.
+        const { error } = await admin.from("checklists").insert({
+          owner_id: authData.user.id,
+          title: checklist.title,
+          equipment_type: checklist.equipment_type,
+          payload: updatedPayload,
+          created_at: checklist.created_at,
+        });
         if (error) {
-          return json({ error: "Не удалось передать все чек-листы разработчику. Исходные файлы сохранены; аккаунт заблокирован для безопасной проверки.", detail: error.message }, 500);
+          return json({ error: "Не удалось скопировать все чек-листы разработчику. Исходные записи и файлы сохранены; аккаунт заблокирован для безопасной проверки.", detail: error.message }, 500);
         }
+      }
+      // Remove original checklist rows only after every archive row exists.
+      const { error: removeChecklistError } = await admin.from("checklists").delete().eq("owner_id", userId);
+      if (removeChecklistError) {
+        return json({ error: "Архивные копии чек-листов созданы, но исходные записи не удалось убрать. Аккаунт заблокирован для проверки.", detail: removeChecklistError.message }, 500);
       }
       // Remove originals only after all archived copies and references exist.
       const byBucket = new Map<string, string[]>();
