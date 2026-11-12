@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated": "2026-11-09T07:30:44.090Z",
+  "updated": "2026-11-12T12:56:53.678Z",
   "equipment": [
     {
       "id": "c_mvs318ku",
@@ -237,6 +237,162 @@
           "explain": "Течи не выявлены - \"Да\";\nСвежие следы течей/следы старых течей - \"Нет\""
         }
       ]
+    },
+    {
+      "id": "c_mwdj7akm",
+      "title": "Контактор",
+      "checklists": [],
+      "layout": {
+        "scope": "all",
+        "blocks": [
+          "КМ1",
+          "КМ11",
+          "КМ12",
+          "КМ13",
+          "КМ14"
+        ],
+        "count": 1
+      },
+      "fields": [
+        {
+          "key": "f1",
+          "label": "Тип контактора",
+          "type": "select",
+          "options": [
+            "МК-9",
+            "МК-84"
+          ],
+          "ok": [
+            "МК-84"
+          ],
+          "photo": "deviation",
+          "calc": false,
+          "hint": "",
+          "explain": ""
+        },
+        {
+          "key": "f2",
+          "label": "Год изготовления",
+          "type": "text",
+          "options": [],
+          "ok": [],
+          "photo": "never",
+          "calc": true,
+          "hint": "Год изготовления с 2024 по 2026",
+          "explain": ""
+        },
+        {
+          "key": "f3",
+          "label": "Тип установленных контактов",
+          "type": "select",
+          "options": [
+            "Медь",
+            "Медь-Вольфрам"
+          ],
+          "ok": [
+            "Медь",
+            "Медь-Вольфрам"
+          ],
+          "photo": "deviation",
+          "calc": true,
+          "hint": "",
+          "explain": ""
+        },
+        {
+          "key": "f4",
+          "label": "Наличие отгара силового контакта",
+          "type": "select",
+          "options": [
+            "Левый",
+            "Правый",
+            "Оба"
+          ],
+          "ok": [],
+          "photo": "deviation",
+          "calc": true,
+          "hint": "",
+          "explain": ""
+        },
+        {
+          "key": "f5",
+          "label": "Наличие нагара силовых контактов нет",
+          "type": "select",
+          "options": [
+            "Зачищен",
+            "Нагар"
+          ],
+          "ok": [],
+          "photo": "deviation",
+          "calc": true,
+          "hint": "",
+          "explain": ""
+        },
+        {
+          "key": "f6",
+          "label": "Фото левого подвижного контакта",
+          "type": "select",
+          "options": [
+            "Фото левого подвижного контакта"
+          ],
+          "ok": [],
+          "photo": "always",
+          "calc": false,
+          "hint": "",
+          "explain": ""
+        },
+        {
+          "key": "f7",
+          "label": "Фото левого неподвижного контакта",
+          "type": "select",
+          "options": [
+            "Фото левого неподвижного контакта"
+          ],
+          "ok": [],
+          "photo": "always",
+          "calc": false,
+          "hint": "",
+          "explain": ""
+        },
+        {
+          "key": "f8",
+          "label": "Фото правого подвижного контакта",
+          "type": "select",
+          "options": [
+            "Фото правого подвижного контакта"
+          ],
+          "ok": [],
+          "photo": "always",
+          "calc": false,
+          "hint": "",
+          "explain": ""
+        },
+        {
+          "key": "f9",
+          "label": "Фото правого неподвижного контакта",
+          "type": "select",
+          "options": [
+            "Фото правого неподвижного контакта"
+          ],
+          "ok": [],
+          "photo": "always",
+          "calc": false,
+          "hint": "",
+          "explain": ""
+        },
+        {
+          "key": "f10",
+          "label": "Общее фото оттисков линии касаний",
+          "type": "select",
+          "options": [
+            "Общее фото оттисков линии касаний"
+          ],
+          "ok": [],
+          "photo": "always",
+          "calc": false,
+          "hint": "",
+          "explain": ""
+        }
+      ]
     }
   ],
   "checklists": [
@@ -258,6 +414,16 @@
       "sheet": "БЦВ",
       "equipment": [
         "c_mw4vsicv"
+      ]
+    },
+    {
+      "id": "k_mwdj4ydq",
+      "title": "Осмотр МК-9 при выявлении отгара/приваривания силовых контактов",
+      "subtitle": "Осмотр при несоответствии",
+      "icon": "⚡",
+      "sheet": "МК-9",
+      "equipment": [
+        "c_mwdj7akm"
       ]
     }
   ]
