@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a5eb0">
-<script>(function(){try{var t=localStorage.getItem("checklist_theme_v1");if(!["tmh","standard","dark"].includes(t))t="tmh";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","tmh");}})();</script>
+<script>(function(){var k="checklist_theme_v1",a=["tmh","standard","dark"];function sync(v){document.documentElement.setAttribute("data-theme",a.includes(v)?v:"tmh");}try{sync(localStorage.getItem(k));}catch(e){sync("tmh");}window.addEventListener("storage",function(e){if(e.key===k)sync(e.newValue);});})();</script>
 <title>ТМХ — Личный кабинет</title>
 <style>
 :root{color-scheme:light;--bg:#f4f6fa;--card:#fff;--ink:#172033;--muted:#718096;--line:#e6eaf0;--blue:#315efb;--green:#16845b;--red:#b42318}
@@ -44,21 +44,18 @@ body{transition:background-color .16s,color .16s}.logo{background:var(--blue)}
 .notice{background:color-mix(in srgb,#d4a017 12%,var(--card));border-color:color-mix(in srgb,#d4a017 40%,var(--line));color:var(--ink)}
 .admin-pill{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}.admin-pill.off{background:color-mix(in srgb,var(--red) 15%,transparent);color:var(--red)}
 input{background:var(--card)!important;color:var(--ink)!important;border-color:var(--line)!important}
-.theme-switch{display:flex;gap:2px;align-items:center;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
-.theme-btn{border:0;border-radius:7px;background:transparent;color:var(--soft-ink);padding:7px 9px;font:inherit;font-size:12px;font-weight:600;line-height:1.2;cursor:pointer}
-.theme-btn.active{background:var(--blue);color:#fff}
 .welcome-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.welcome-top h1{margin:0}
 .connection-pill{display:inline-flex;align-items:center;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:700;background:var(--soft);color:var(--soft-ink);border:1px solid var(--line)}
 .connection-pill.online{background:#e5f7ed;color:#167448;border-color:#b9e6cc}.connection-pill.offline{background:#fff4df;color:#8a5a00;border-color:#efd49a}
 html[data-theme="dark"] .connection-pill.online{background:#193a2a;color:#83d6a6;border-color:#28583f}html[data-theme="dark"] .connection-pill.offline{background:#44351d;color:#f0ca78;border-color:#6a5128}
-@media(max-width:620px){.top>.actions{grid-template-columns:repeat(2,minmax(0,1fr))}.theme-switch{grid-column:1/-1;justify-content:center}.theme-btn{flex:1}.welcome-top h1{font-size:21px}}
+@media(max-width:620px){.top>.actions{grid-template-columns:repeat(2,minmax(0,1fr))}.welcome-top h1{font-size:21px}}
 </style>
 </head>
 <body>
 <div class="app">
 <header class="top">
  <div class="brand"><div class="logo">ЧК</div><div>Рабочая система<br><span class="muted">Личный кабинет</span></div></div>
- <div class="actions"><a class="btn secondary" href="./prototype/checklist/">К чек-листам</a><div class="theme-switch" role="group" aria-label="Тема оформления"><button class="theme-btn" data-theme-value="tmh" type="button">ТМХ</button><button class="theme-btn" data-theme-value="standard" type="button">Светлая</button><button class="theme-btn" data-theme-value="dark" type="button">Тёмная</button></div><button class="btn secondary" id="refreshBtn" type="button">Обновить</button><button class="btn secondary" id="logoutBtn" type="button">Выйти</button></div>
+ <div class="actions"><a class="btn secondary" href="./prototype/checklist/">К чек-листам</a><button class="btn secondary" id="refreshBtn" type="button">Обновить</button><button class="btn secondary" id="logoutBtn" type="button">Выйти</button></div>
 </header>
 <main>
  <section class="welcome"><div class="welcome-top"><h1 id="greeting">Личный кабинет</h1><span id="connectionState" class="connection-pill">Проверка соединения…</span></div><div class="muted" id="subtitle">Загрузка данных аккаунта…</div></section>
@@ -117,7 +114,6 @@ html[data-theme="dark"] .connection-pill.online{background:#193a2a;color:#83d6a6
  <div id="error" class="panel error hidden" role="alert"></div>
 </main>
 </div>
-<script>(function(){var allowed=["tmh","standard","dark"];function applyTheme(value){var t=allowed.includes(value)?value:"tmh";document.documentElement.setAttribute("data-theme",t);try{localStorage.setItem("checklist_theme_v1",t);}catch(e){}document.querySelectorAll(".theme-btn").forEach(function(b){var on=b.getAttribute("data-theme-value")===t;b.classList.toggle("active",on);b.setAttribute("aria-pressed",String(on));});var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="dark"?"#141b23":t==="standard"?"#ffffff":"#0a5eb0";}document.addEventListener("click",function(e){var b=e.target.closest(".theme-btn");if(b)applyTheme(b.getAttribute("data-theme-value"));});window.addEventListener("storage",function(e){if(e.key==="checklist_theme_v1")applyTheme(e.newValue);});applyTheme(document.documentElement.getAttribute("data-theme"));})();</script>
 <script type="module" src="./prototype/supabase-auth.js"></script>
 <script type="module">
 import { isChecklistComplete, summarizeChecklistStatuses } from "./prototype/checklist-status.js";
