@@ -58,3 +58,7 @@ On 2026-11-12 the connected project was inspected without modifying data:
 5. Keep Production data and Edge Functions unchanged until separately authorized.
 
 No migration was applied and no migration-history row was modified during this audit.
+
+## Published Edge Function comparison
+
+The connected project reports `account-admin` ACTIVE at version 6. Its retrieved deployed source does not match the current branch source: the deployed deletion query selects only `id, title, equipment_type, payload, created_at`, while the branch additionally selects `revision` and `updated_at` and now contains retry-safe archive logic. No Edge Function deployment was performed because this function is active in the connected Supabase project and the project was explicitly kept unchanged. The branch source and tests must be reviewed and deployed only under a separate explicit Production/Edge Function release authorization.
