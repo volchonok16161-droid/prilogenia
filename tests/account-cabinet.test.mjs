@@ -180,3 +180,29 @@ test("account cabinet opens the selected encrypted local checklist in its matchi
   assert.match(html, /open\.href = "\.\/prototype\/checklist\/\?mode=" \+ encodeURIComponent\(entry\.mode\) \+ "&openLocalChecklist=" \+ encodeURIComponent\(entry\.instanceId\)/);
   assert.match(html, /open\.textContent = "Открыть"/);
 });
+
+
+test("cabinet uses the verified device-unlocked identity fallback and has an offline-only render path", () => {
+  assert.match(html, /getCabinetIdentity\(\)/);
+  assert.match(html, /identity\?\.offline === true/);
+  assert.match(html, /renderOfflineCabinet\(api, identity, requestId\)/);
+  assert.match(html, /listOfflineChecklistInstances\(\)/);
+  assert.match(html, /Облачная история временно недоступна без интернета/);
+  assert.match(html, /Изменение профиля, пароля, управление сотрудниками и облачная история требуют подключения/);
+  assert.match(html, /Офлайн · локально/);
+});
+
+test("cabinet shares the checklist TMH, light and dark theme preference", () => {
+  assert.match(html, /checklist_theme_v1/);
+  assert.match(html, /data-theme-value="tmh"/);
+  assert.match(html, /data-theme-value="standard"/);
+  assert.match(html, /data-theme-value="dark"/);
+  assert.match(html, /setAttribute\("data-theme",t\)/);
+  assert.match(html, /window\.addEventListener\("storage"/);
+});
+
+test("offline cabinet hides cloud-only profile, password and employee administration controls", () => {
+  assert.match(html, /\$\("profileForm"\)\.classList\.add\("hidden"\)/);
+  assert.match(html, /\$\("securityPanel"\)\.classList\.add\("hidden"\)/);
+  assert.match(html, /\$\("adminPanel"\)\.classList\.add\("hidden"\)/);
+});
