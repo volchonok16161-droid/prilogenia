@@ -247,10 +247,19 @@ async function loadEmployees(api, requestId = cabinetLoadSequence) {
             if (latestIdentity?.user?.id !== identity.user.id || latestIdentity?.profile?.role !== "developer") {
               throw new Error("Сессия или права разработчика изменились. Обновите страницу.");
             }
-            await callAdmin(api, { action: "delete_employee", user_id: employee.id });
-            status.textContent = "Аккаунт «" + label + "» удалён.";
+            const deleteResult = await callAdmin(api, { action: "delete_employee", user_id: employee.id });
+            if (deleteResult?.deleted !== true || deleteResult?.user_id !== employee.id) {
+              throw new Error("Аккаунт не удалён: сервер не подтвердил удаление. Обновите список и проверьте статус пользователя.");
+            }
+            status.textContent = "Сервер подтвердил удаление аккаунта «" + label + "». Проверяем список…";
             status.className = "muted";
             await loadEmployees(api, requestId);
+            if (requestId === cabinetLoadSequence) {
+              const stillListed = Array.from($("employeeList").querySelectorAll(".admin-meta"))
+                .some((node) => node.textContent === employee.id);
+              if (stillListed) throw new Error("Сервер подтвердил удаление, но аккаунт остался в списке. Обновите страницу и проверьте Auth.");
+              status.textContent = "Аккаунт «" + label + "» удалён и отсутствует в списке сотрудников.";
+            }
           } catch (error) {
             status.textContent = error?.message || "Не удалось удалить аккаунт.";
             status.className = "error";
