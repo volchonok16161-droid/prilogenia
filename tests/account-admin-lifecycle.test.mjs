@@ -52,3 +52,10 @@ test("developer UI verifies server-confirmed deletion and refreshed employee lis
 test("offline device data warning remains visible in developer cabinet", () => {
   assert.match(cabinet, /сервер не может проверить локальные данные на устройствах/);
 });
+
+
+test("transfer preserves checklist revision and update timestamp", () => {
+  assert.match(admin, /select\("id, title, equipment_type, payload, revision, created_at, updated_at"\)/);
+  assert.match(admin, /revision: checklist\.revision/);
+  assert.match(admin, /updated_at: checklist\.updated_at/);
+});
