@@ -206,3 +206,11 @@ test("offline cabinet hides cloud-only profile, password and employee administra
   assert.match(html, /\$\("securityPanel"\)\.classList\.add\("hidden"\)/);
   assert.match(html, /\$\("adminPanel"\)\.classList\.add\("hidden"\)/);
 });
+
+
+test("cabinet inherits the checklist theme without exposing a theme picker", () => {
+  assert.match(html, /localStorage\.getItem\("checklist_theme_v1"\)/);
+  assert.match(html, /addEventListener\("storage"/);
+  assert.doesNotMatch(html, /data-theme-value="(tmh|standard|dark)"/);
+  assert.doesNotMatch(html, /class="theme-switch"/);
+});
