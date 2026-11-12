@@ -28,3 +28,12 @@ test("the existing pending-write unload guard remains in every checklist runtime
   assert.equal(occurrences(html, /var __tmhOfflinePendingWrites = 0;\s*var __tmhOfflineSaveError = null;/g), 5);
   assert.equal(occurrences(html, /window\.addEventListener\('beforeunload'/g), 10);
 });
+
+test("offline saves synchronously persist the account-scoped local snapshot before encrypted IndexedDB writes", () => {
+  for (const path of ["prototype/embedded/complex.js","prototype/embedded/tt.js","prototype/embedded/bi.js","prototype/embedded/hydro.js"]) {
+    // Source-level acceptance: the offline branch must invoke the original
+    // synchronous localStorage saver before enqueueing asynchronous encryption.
+  }
+  assert.equal(occurrences(html, /var legacySaved = __tmhOriginalSaveState\\.apply\\(this, arguments\\);/g), 4);
+  assert.equal(occurrences(html, /if \\(legacySaved === false\\) return false;/g), 4);
+});
