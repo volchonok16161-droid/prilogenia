@@ -23,7 +23,7 @@ test("checklist entry point opens again from the service-worker cache without ne
   const server = createServer(async (req, res) => {
     try {
       const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
-      const relative = pathname === "/" ? "index.html" : pathname.slice(1);
+      const relative = pathname === "/" ? "index.html" : pathname.slice(1) + (pathname.endsWith("/") ? "index.html" : "");
       const file = resolve(root, relative);
       if (file !== root && !file.startsWith(root + sep)) {
         res.writeHead(403).end("Forbidden");
