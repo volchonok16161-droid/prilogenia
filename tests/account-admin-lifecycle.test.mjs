@@ -56,6 +56,31 @@ test("offline device data warning remains visible in developer cabinet", () => {
 
 test("transfer preserves checklist revision and update timestamp", () => {
   assert.match(admin, /select\("id, title, equipment_type, payload, revision, created_at, updated_at"\)/);
-  assert.match(admin, /revision: checklist\.revision/);
-  assert.match(admin, /updated_at: checklist\.updated_at/);
+  assert.match(admin, /sourceRevision,/);
+  assert.match(admin, /sourceCreatedAt: checklist\.created_at/);
+  assert.match(admin, /sourceUpdatedAt: checklist\.updated_at/);
+  assert.match(admin, /__tmhArchive/);
+});
+
+
+test("archive transfer uses deterministic checklist IDs and validates existing copies on retry", () => {
+  assert.match(admin, /tmh-checklist-archive:v1:/);
+  assert.match(admin, /crypto\.subtle\.digest\(\s*"SHA-256"/);
+  assert.match(admin, /\.eq\("id", archiveId\)/);
+  assert.match(admin, /marker\?\.sourceChecklistId === checklist\.id/);
+  assert.match(admin, /marker\?\.sourceRevision === sourceRevision/);
+});
+
+test("archive transfer reuses already-copied Storage objects instead of duplicating them", () => {
+  assert.match(admin, /\.list\(archiveFolder, \{ search: archiveName, limit: 100 \}\)/);
+  assert.match(admin, /alreadyArchived/);
+  assert.match(admin, /if \(!alreadyArchived\)/);
+});
+
+test("archive source rows are not deleted until every deterministic archive copy is verified", () => {
+  const archiveEnd = admin.indexOf("// Remove original checklist rows only after every archive row exists.");
+  const archiveStart = admin.indexOf("for (const checklist of checklists ?? [])");
+  const deleteStart = admin.indexOf("admin.from(\"checklists\").delete().eq(\"owner_id\", userId)");
+  assert.ok(archiveStart >= 0 && archiveEnd > archiveStart && deleteStart > archiveEnd);
+  assert.match(admin, /sameArchive/);
 });
