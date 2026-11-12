@@ -43,3 +43,12 @@ test("service worker maps the clean checklist URL to its own offline entry point
   assert.match(sw, /url\.pathname === '\/prototype\/checklist\/' \|\| url\.pathname === '\/prototype\/checklist'/);
   assert.match(sw, /caches\.match\('\.\/prototype\/checklist\/index\.html'\)/);
 });
+
+test("standalone checklist runtime restores the fixed bottom-left connection badge", async () => {
+  const runtime = await readFile(new URL("../prototype/checklist-runtime.js", import.meta.url), "utf8");
+  assert.match(runtime, /tmhStandaloneConnectionRuntime/);
+  assert.match(runtime, /position:fixed;left:10px;right:auto;bottom:/);
+  assert.match(runtime, /Офлайн · локально/);
+  assert.match(runtime, /Ожидает синхронизации/);
+  assert.match(runtime, /tmh-offline-sync-status/);
+});
