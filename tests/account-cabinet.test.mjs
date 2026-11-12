@@ -22,7 +22,7 @@ test("account cabinet loads only the signed-in user's cloud checklists", () => {
 });
 
 test("account cabinet renders database content as text, not injected HTML", () => {
-  assert.match(html, /title\.textContent = row\.title/);
+  assert.match(html, /title\.textContent = \(row\.title \|\| "Чек-лист"\)/);
   assert.match(html, /meta\.textContent =/);
   assert.match(html, /info\.append\(title, category, status, meta\)/);
   assert.doesNotMatch(html, /innerHTML\s*=/);
