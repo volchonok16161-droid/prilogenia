@@ -306,7 +306,7 @@ async function renderLocalOfflineChecklists(api, requestId) {
     empty.className = "empty";
     empty.textContent = "Локальное хранилище ещё не разблокировано на этом устройстве. Выполните вход онлайн, чтобы подключить его.";
     host.append(empty);
-    return;
+    return [];
   }
   try {
     const entries = await api.listOfflineChecklistInstances();
@@ -348,13 +348,53 @@ async function renderLocalOfflineChecklists(api, requestId) {
       item.append(icon, info, actions);
       host.append(item);
     }
+    return entries;
   } catch (error) {
-    if (requestId !== cabinetLoadSequence) return;
+    if (requestId !== cabinetLoadSequence) return [];
     const message = document.createElement("div");
     message.className = "empty";
     message.textContent = "Не удалось прочитать локальные чек-листы: " + (error?.message || "ошибка хранилища");
     host.append(message);
+    return [];
   }
+}
+async function renderOfflineCabinet(api, identity, requestId) {
+  const { user, profile } = identity;
+  activeCabinetUserId = user.id;
+  const badge = $("connectionState");
+  badge.textContent = "Офлайн · локально";
+  badge.className = "connection-pill offline";
+  $("greeting").textContent = profile.display_name ? "Здравствуйте, " + profile.display_name + "!" : "Личный кабинет";
+  $("subtitle").textContent = "Локальный профиль этого устройства. Облачные действия временно недоступны.";
+  $("email").textContent = user.email || "Сохранённый аккаунт";
+  $("userId").textContent = user.id;
+  $("roleProfileValue").textContent = roleLabels[profile.role] || profile.role || "Сотрудник";
+  $("emailStatus").textContent = "Данные профиля сохранены на устройстве";
+  $("createdAt").textContent = "Доступно онлайн";
+  $("lastSignIn").textContent = "Доступно онлайн";
+  $("profileForm").classList.add("hidden");
+  $("profileStatus").classList.add("hidden");
+  $("securityPanel").classList.add("hidden");
+  $("resendConfirmBtn").classList.add("hidden");
+  $("adminPanel").classList.add("hidden");
+  const entries = await renderLocalOfflineChecklists(api, requestId);
+  if (requestId !== cabinetLoadSequence) return;
+  const safeEntries = Array.isArray(entries) ? entries : [];
+  const completed = safeEntries.filter((entry) => isChecklistComplete(entry.state?.stats || entry.state?.general?.stats)).length;
+  $("checklistCount").textContent = String(safeEntries.length);
+  $("completedCount").textContent = String(completed);
+  $("inProgressCount").textContent = String(Math.max(0, safeEntries.length - completed));
+  const latest = safeEntries.reduce((value, entry) => Math.max(value, Date.parse(entry.updatedAt || "") || 0), 0);
+  $("lastSaved").textContent = latest ? formatDate(latest) : "Пока нет";
+  $("checklists").replaceChildren();
+  const cloudNotice = document.createElement("div");
+  cloudNotice.className = "empty";
+  cloudNotice.textContent = "Облачная история временно недоступна без интернета. Здесь отображаются только зашифрованные работы, сохранённые на этом устройстве.";
+  $("checklists").append(cloudNotice);
+  const notice = document.querySelector(".notice");
+  if (notice) notice.textContent = "Офлайн-режим: локальные работы доступны для просмотра и продолжения. Изменение профиля, пароля, управление сотрудниками и облачная история требуют подключения к интернету.";
+  $("content").classList.remove("hidden");
+  $("loading").classList.add("hidden");
 }
 async function loadCabinet() {
   const requestId = ++cabinetLoadSequence;
@@ -365,14 +405,27 @@ async function loadCabinet() {
   if (requestId !== cabinetLoadSequence) return;
   const api = window.TMHAuth;
   if (!api) throw new Error("Модуль авторизации не загрузился. Откройте страницу через основной сайт.");
-  const identity = await api.getCurrentIdentity();
+  const identity = typeof api.getCabinetIdentity === "function"
+    ? await api.getCabinetIdentity()
+    : await api.getCurrentIdentity();
   if (requestId !== cabinetLoadSequence) return;
+  if (identity?.offline === true) {
+    await renderOfflineCabinet(api, identity, requestId);
+    return;
+  }
   if (identity?.error) throw identity.error;
   if (!identity?.user || !identity?.profile) {
     location.replace("./prototype/checklist/");
     return;
   }
   const { user, profile } = identity;
+  const connectionBadge = $("connectionState");
+  connectionBadge.textContent = "Онлайн";
+  connectionBadge.className = "connection-pill online";
+  $("profileForm").classList.remove("hidden");
+  $("profileStatus").classList.remove("hidden");
+  $("securityPanel").classList.remove("hidden");
+  $("cloudPanel").classList.remove("hidden");
   // Remove only expired complex-mode restore safety copies. Never touch ordinary backups.
   try {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
