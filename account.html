@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#172b57">
-<title>Личный кабинет</title>
+<meta name="theme-color" content="#0a5eb0">
+<script>(function(){try{var t=localStorage.getItem("checklist_theme_v1");if(!["tmh","standard","dark"].includes(t))t="tmh";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","tmh");}})();</script>
+<title>ТМХ — Личный кабинет</title>
 <style>
 :root{color-scheme:light;--bg:#f4f6fa;--card:#fff;--ink:#172033;--muted:#718096;--line:#e6eaf0;--blue:#315efb;--green:#16845b;--red:#b42318}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -30,16 +31,37 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
 .admin-info{flex:1 1 100%;min-width:0}
 .admin-row .btn{flex:1 1 130px}
 }
+
+html[data-theme="tmh"]{color-scheme:light;--bg:#eef5fb;--card:#fff;--ink:#0c2f52;--muted:#5c7a99;--line:#c6def2;--blue:#0a5eb0;--green:#1f9d55;--red:#d1453b;--soft:#e8f2fb;--soft-ink:#315b82}
+html[data-theme="standard"]{color-scheme:light;--bg:#f4f6fa;--card:#fff;--ink:#172033;--muted:#718096;--line:#e6eaf0;--blue:#315efb;--green:#16845b;--red:#b42318;--soft:#e9edf5;--soft-ink:#344054}
+html[data-theme="dark"]{color-scheme:dark;--bg:#12181f;--card:#1a222c;--ink:#e8edf2;--muted:#9aabba;--line:#2c3a48;--blue:#3f8ce0;--green:#3fae6a;--red:#e16a5b;--soft:#263342;--soft-ink:#d5e1ec}
+html,body{min-height:100%;background:var(--bg);color:var(--ink)}
+body{transition:background-color .16s,color .16s}.logo{background:var(--blue)}
+.btn.secondary{background:var(--soft);color:var(--soft-ink);border:1px solid var(--line)}
+.field,.item,.admin-row{border-color:var(--line)}.item-icon,.progress-track{background:var(--soft)}
+.status-pill.done{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+.status-pill.progress{background:color-mix(in srgb,#d4a017 18%,transparent);color:var(--ink)}
+.notice{background:color-mix(in srgb,#d4a017 12%,var(--card));border-color:color-mix(in srgb,#d4a017 40%,var(--line));color:var(--ink)}
+.admin-pill{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}.admin-pill.off{background:color-mix(in srgb,var(--red) 15%,transparent);color:var(--red)}
+input{background:var(--card)!important;color:var(--ink)!important;border-color:var(--line)!important}
+.theme-switch{display:flex;gap:2px;align-items:center;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
+.theme-btn{border:0;border-radius:7px;background:transparent;color:var(--soft-ink);padding:7px 9px;font:600 12px/1.2 inherit;cursor:pointer}
+.theme-btn.active{background:var(--blue);color:#fff}
+.welcome-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.welcome-top h1{margin:0}
+.connection-pill{display:inline-flex;align-items:center;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:700;background:var(--soft);color:var(--soft-ink);border:1px solid var(--line)}
+.connection-pill.online{background:#e5f7ed;color:#167448;border-color:#b9e6cc}.connection-pill.offline{background:#fff4df;color:#8a5a00;border-color:#efd49a}
+html[data-theme="dark"] .connection-pill.online{background:#193a2a;color:#83d6a6;border-color:#28583f}html[data-theme="dark"] .connection-pill.offline{background:#44351d;color:#f0ca78;border-color:#6a5128}
+@media(max-width:620px){.top>.actions{grid-template-columns:repeat(2,minmax(0,1fr))}.theme-switch{grid-column:1/-1;justify-content:center}.theme-btn{flex:1}.welcome-top h1{font-size:21px}}
 </style>
 </head>
 <body>
 <div class="app">
 <header class="top">
  <div class="brand"><div class="logo">ЧК</div><div>Рабочая система<br><span class="muted">Личный кабинет</span></div></div>
- <div class="actions"><a class="btn secondary" href="./prototype/checklist/">К чек-листам</a><button class="btn secondary" id="refreshBtn" type="button">Обновить</button><button class="btn secondary" id="logoutBtn" type="button">Выйти</button></div>
+ <div class="actions"><a class="btn secondary" href="./prototype/checklist/">К чек-листам</a><div class="theme-switch" role="group" aria-label="Тема оформления"><button class="theme-btn" data-theme-value="tmh" type="button">ТМХ</button><button class="theme-btn" data-theme-value="standard" type="button">Светлая</button><button class="theme-btn" data-theme-value="dark" type="button">Тёмная</button></div><button class="btn secondary" id="refreshBtn" type="button">Обновить</button><button class="btn secondary" id="logoutBtn" type="button">Выйти</button></div>
 </header>
 <main>
- <section class="welcome"><h1 id="greeting">Личный кабинет</h1><div class="muted" id="subtitle">Загрузка данных аккаунта…</div></section>
+ <section class="welcome"><div class="welcome-top"><h1 id="greeting">Личный кабинет</h1><span id="connectionState" class="connection-pill">Проверка соединения…</span></div><div class="muted" id="subtitle">Загрузка данных аккаунта…</div></section>
    
  <div id="loading" class="panel loading">Проверяем сессию и загружаем ваши данные…</div>
  <div id="content" class="hidden">
@@ -62,7 +84,7 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
    <button class="btn" id="saveProfileBtn" type="submit">Сохранить имя</button>
   </form>
   <p id="profileStatus" class="muted" role="status" aria-live="polite" style="margin:10px 0 0"></p>
-  <div style="border-top:1px solid var(--line);margin-top:18px;padding-top:16px">
+  <div id="securityPanel" style="border-top:1px solid var(--line);margin-top:18px;padding-top:16px">
    <h3 style="font-size:15px;margin:0 0 12px">Безопасность аккаунта</h3>
    <form id="passwordForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end">
     <label style="display:grid;gap:6px"><span class="muted">Новый пароль</span><input id="newPassword" type="password" minlength="8" autocomplete="new-password" required style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink)"></label>
@@ -72,7 +94,7 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
    <p id="passwordStatus" class="muted" role="status" aria-live="polite" style="margin:10px 0 0"></p>
   </div>
   </section>
-  <section class="panel"><h2>Мои облачные чек-листы</h2><div id="checklists"><div class="empty">Загрузка списка…</div></div></section>
+  <section class="panel" id="cloudPanel"><h2>Мои облачные чек-листы</h2><div id="checklists"><div class="empty">Загрузка списка…</div></div></section>
   <section class="panel"><h2>Локальные чек-листы на этом устройстве</h2><div id="localOfflineChecklists"><div class="empty">Проверяем локальное хранилище…</div></div><p class="muted" style="font-size:12px;margin:10px 0 0">Локальные копии зашифрованы на устройстве. Для отправки в облако требуется действующая онлайн-сессия того же сотрудника.</p></section>
 
   <section class="panel hidden" id="adminPanel" aria-labelledby="adminHeading">
@@ -95,6 +117,7 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
  <div id="error" class="panel error hidden" role="alert"></div>
 </main>
 </div>
+<script>(function(){var allowed=["tmh","standard","dark"];function applyTheme(value){var t=allowed.includes(value)?value:"tmh";document.documentElement.setAttribute("data-theme",t);try{localStorage.setItem("checklist_theme_v1",t);}catch(e){}document.querySelectorAll(".theme-btn").forEach(function(b){var on=b.getAttribute("data-theme-value")===t;b.classList.toggle("active",on);b.setAttribute("aria-pressed",String(on));});var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="dark"?"#141b23":t==="standard"?"#ffffff":"#0a5eb0";}document.addEventListener("click",function(e){var b=e.target.closest(".theme-btn");if(b)applyTheme(b.getAttribute("data-theme-value"));});window.addEventListener("storage",function(e){if(e.key==="checklist_theme_v1")applyTheme(e.newValue);});applyTheme(document.documentElement.getAttribute("data-theme"));})();</script>
 <script type="module" src="./prototype/supabase-auth.js"></script>
 <script type="module">
 import { isChecklistComplete, summarizeChecklistStatuses } from "./prototype/checklist-status.js";
