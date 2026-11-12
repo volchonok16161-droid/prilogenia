@@ -330,9 +330,21 @@ Deno.serve(async (req: Request) => {
         const bucket = object.bucket_id as string;
         const sourcePath = object.name as string;
         const archivePath = "__developer_archive/" + authData.user.id + "/" + userId + "/" + object.id + "/" + sourcePath.split("/").pop();
-        const { error } = await admin.storage.from(bucket).copy(sourcePath, archivePath);
-        if (error) {
-          return json({ error: "Не удалось полностью скопировать файлы в архив разработчика. Исходные файлы сохранены; аккаунт заблокирован для безопасной проверки.", detail: error.message, copied_files: copied.length }, 500);
+        const archiveFolder = archivePath.slice(0, archivePath.lastIndexOf("/"));
+        const archiveName = archivePath.slice(archivePath.lastIndexOf("/") + 1);
+        // Storage copy is not an upsert. On a retry after a partial transfer,
+        // first detect the deterministic destination created by this operation.
+        const { data: existingObjects, error: listArchiveError } = await admin.storage.from(bucket)
+          .list(archiveFolder, { search: archiveName, limit: 100 });
+        if (listArchiveError) {
+          return json({ error: "Не удалось проверить предыдущую копию файла в архиве. Исходные файлы сохранены; аккаунт заблокирован для безопасной проверки.", detail: listArchiveError.message, copied_files: copied.length }, 500);
+        }
+        const alreadyArchived = (existingObjects ?? []).some((entry) => entry.name === archiveName);
+        if (!alreadyArchived) {
+          const { error } = await admin.storage.from(bucket).copy(sourcePath, archivePath);
+          if (error) {
+            return json({ error: "Не удалось полностью скопировать файлы в архив разработчика. Исходные файлы сохранены; аккаунт заблокирован для безопасной проверки.", detail: error.message, copied_files: copied.length }, 500);
+          }
         }
         copied.push({ bucket, path: archivePath });
         pathMap.set(bucket + "/" + sourcePath, bucket + "/" + archivePath);
@@ -355,21 +367,66 @@ Deno.serve(async (req: Request) => {
       };
 
       for (const checklist of checklists ?? []) {
-        const updatedPayload = rewrite(checklist.payload);
-        // Checklist ownership is intentionally immutable at the database layer.
-        // Preserve the original creation time and content by creating a new
-        // developer-owned archive record, then remove the employee-owned row.
-        const { error } = await admin.from("checklists").insert({
+        const sourceRevision = Number(checklist.revision);
+        if (!Number.isSafeInteger(sourceRevision) || sourceRevision < 1 ||
+            !checklist.id || !checklist.created_at || !checklist.updated_at) {
+          return json({ error: "У чек-листа отсутствуют обязательные метаданные архива. Исходные записи и файлы сохранены; аккаунт заблокирован для проверки." }, 500);
+        }
+        const rewrittenPayload = rewrite(checklist.payload);
+        // The checklist revision trigger intentionally resets INSERT revision
+        // and updated_at. Preserve source metadata in an explicit archive
+        // envelope instead of pretending the target row retained those columns.
+        const updatedPayload = {
+          ...(rewrittenPayload && typeof rewrittenPayload === "object" && !Array.isArray(rewrittenPayload)
+            ? rewrittenPayload as Record<string, unknown>
+            : { value: rewrittenPayload }),
+          __tmhArchive: {
+            sourceOwnerId: userId,
+            sourceChecklistId: checklist.id,
+            sourceRevision,
+            sourceCreatedAt: checklist.created_at,
+            sourceUpdatedAt: checklist.updated_at,
+            archivedBy: authData.user.id,
+          },
+        };
+        // Deterministic primary key makes retrying the same transfer idempotent.
+        const digest = await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode("tmh-checklist-archive:v1:" + authData.user.id + ":" + userId + ":" + checklist.id),
+        );
+        const archiveIdBytes = new Uint8Array(digest).slice(0, 16);
+        archiveIdBytes[6] = (archiveIdBytes[6] & 0x0f) | 0x80;
+        archiveIdBytes[8] = (archiveIdBytes[8] & 0x3f) | 0x80;
+        const archiveId = Array.from(archiveIdBytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
+          .replace(/^(........)(....)(....)(....)(............)$/, "$1-$2-$3-$4-$5");
+        const archiveRow = {
+          id: archiveId,
           owner_id: authData.user.id,
           title: checklist.title,
           equipment_type: checklist.equipment_type,
           payload: updatedPayload,
-          revision: checklist.revision,
           created_at: checklist.created_at,
-          updated_at: checklist.updated_at,
-        });
+        };
+        const { error } = await admin.from("checklists").insert(archiveRow);
         if (error) {
-          return json({ error: "Не удалось скопировать все чек-листы разработчику. Исходные записи и файлы сохранены; аккаунт заблокирован для безопасной проверки.", detail: error.message }, 500);
+          // A duplicate deterministic id is an expected retry only if the
+          // existing row is the exact archive for this source checklist.
+          const { data: existingArchive, error: readArchiveError } = await admin.from("checklists")
+            .select("id, owner_id, title, equipment_type, payload")
+            .eq("id", archiveId)
+            .maybeSingle();
+          const marker = existingArchive?.payload?.__tmhArchive;
+          const sameArchive = !readArchiveError && existingArchive?.owner_id === authData.user.id &&
+            existingArchive?.title === checklist.title &&
+            existingArchive?.equipment_type === checklist.equipment_type &&
+            marker?.sourceOwnerId === userId &&
+            marker?.sourceChecklistId === checklist.id &&
+            marker?.sourceRevision === sourceRevision &&
+            marker?.sourceCreatedAt === checklist.created_at &&
+            marker?.sourceUpdatedAt === checklist.updated_at;
+          if (!sameArchive) {
+            return json({ error: "Не удалось подтвердить целостность архивной копии чек-листа. Исходные записи и файлы сохранены; аккаунт заблокирован для проверки.", detail: error.message }, 500);
+          }
         }
       }
       // Remove original checklist rows only after every archive row exists.
