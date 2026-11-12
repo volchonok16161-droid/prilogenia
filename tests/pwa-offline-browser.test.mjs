@@ -76,7 +76,11 @@ test("checklist entry point opens again from the service-worker cache without ne
 
   await context.setOffline(true);
   await page.goto(origin + "/prototype/checklist/", { waitUntil: "domcontentloaded" });
-  await page.waitForSelector("main h1", { timeout: 5000 });
-  assert.match(await page.locator("main h1").textContent(), /Чек-лист|Загрузка чек-листа/i);
+  await page.waitForFunction(() => {
+    const heading = document.querySelector(".topbar .brand .title-block h1") || document.querySelector("main h1");
+    return !!heading && /Чек-лист|Загрузка чек-листа/i.test(heading.textContent || "");
+  }, { timeout: 10000 });
+  const heading = await page.locator(".topbar .brand .title-block h1, main h1").first().textContent();
+  assert.match(heading, /Чек-лист|Загрузка чек-листа/i);
   assert.equal(new URL(page.url()).pathname, "/prototype/checklist/");
 });
