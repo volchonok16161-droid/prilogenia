@@ -34,7 +34,7 @@ export function createOfflineChecklistInstances({
 } = {}) {
   const uid = assertUserId(userId);
   if (!database?.putRecord || !database?.getRecord || !database?.listRecords ||
-      !database?.getMeta || !database?.setMeta || !database?.getCloudState ||
+      !database?.getMeta || !database?.putMetaIfAbsent || !database?.getCloudState ||
       typeof vault?.encrypt !== "function" || typeof vault?.decrypt !== "function" ||
       typeof store?.saveChecklist !== "function") {
     throw new TypeError("Offline checklist instance dependencies are incomplete");
@@ -89,9 +89,14 @@ export function createOfflineChecklistInstances({
     const mappingKey = "offline:cloud-id:" + uid + ":instance:" + instanceId;
     let cloudId = await database.getMeta(mappingKey);
     if (!cloudId) {
-      cloudId = cloudIdFactory();
-      if (typeof cloudId !== "string" || !UUID_RE.test(cloudId)) throw new TypeError("Cloud checklist id factory must return a UUID");
-      await database.setMeta(mappingKey, cloudId);
+      const candidate = cloudIdFactory();
+      if (typeof candidate !== "string" || !UUID_RE.test(candidate)) throw new TypeError("Cloud checklist id factory must return a UUID");
+      // Another tab may have allocated an id after getMeta. Preserve the
+      // first durable mapping instead of overwriting it with a second cloud id.
+      cloudId = await database.putMetaIfAbsent(mappingKey, candidate);
+    }
+    if (typeof cloudId !== "string" || !UUID_RE.test(cloudId)) {
+      throw new Error("Stored cloud checklist identity is invalid");
     }
     const cloudState = await database.getCloudState(uid, cloudId);
     const envelope = buildOfflineCloudEnvelope({
