@@ -233,13 +233,23 @@ async function loadEmployees(api, requestId = cabinetLoadSequence) {
         deleteButton.setAttribute("aria-label", "Удалить аккаунт " + (employee.display_name || employee.id));
         deleteButton.addEventListener("click", async () => {
           const label = employee.display_name || employee.id;
-          const confirmation = window.prompt(
-            "Окончательное удаление аккаунта «" + label + "».\n\nУдаление возможно только если у пользователя нет облачных чек-листов и файлов в Supabase Storage.\n\nПеред продолжением убедитесь, что все изменения и фотографии синхронизированы или отдельно сохранены. Сервер не может проверить несинхронизированные данные на устройствах. Удаление аккаунта не гарантирует мгновенную недействительность уже выданных access token: они могут оставаться действительными до истечения срока JWT.\n\nДля подтверждения введите DELETE:"
+          const modeChoice = window.prompt(
+            "Как поступить с данными сотрудника «" + label + "»?\\n\\nВведите TRANSFER — передать чек-листы и файлы разработчику, сохранив историю.\\nВведите DELETE — безвозвратно удалить чек-листы и файлы.\\n\\nОтмена — ничего не менять."
           );
-          if (confirmation !== "DELETE") return;
+          if (modeChoice !== "TRANSFER" && modeChoice !== "DELETE") return;
+          const mode = modeChoice === "TRANSFER" ? "transfer" : "permanent";
+          const confirmation = window.prompt(
+            (mode === "transfer" ? "Передача данных разработчику" : "БЕЗВОЗВРАТНОЕ УДАЛЕНИЕ") +
+            " для аккаунта «" + label + "».\\n\\n" +
+            (mode === "transfer"
+              ? "Чек-листы будут переназначены разработчику, файлы скопированы в его архив, а исходный аккаунт удалён."
+              : "Все облачные чек-листы и файлы будут удалены без возможности восстановления.") +
+            "\\n\\nДля подтверждения введите " + (mode === "transfer" ? "TRANSFER" : "DELETE") + ":"
+          );
+          if (confirmation !== (mode === "transfer" ? "TRANSFER" : "DELETE")) return;
           deleteButton.disabled = true;
           deleteButton.textContent = "Удаление…";
-          status.textContent = "Проверяем связанные данные и удаляем аккаунт…";
+          status.textContent = mode === "transfer" ? "Передаём чек-листы и файлы разработчику…" : "Удаляем чек-листы, файлы и аккаунт…";
           status.className = "muted";
           try {
             const latestIdentity = await window.TMHAuth.getCurrentIdentity();
@@ -247,18 +257,18 @@ async function loadEmployees(api, requestId = cabinetLoadSequence) {
             if (latestIdentity?.user?.id !== identity.user.id || latestIdentity?.profile?.role !== "developer") {
               throw new Error("Сессия или права разработчика изменились. Обновите страницу.");
             }
-            const deleteResult = await callAdmin(api, { action: "delete_employee", user_id: employee.id });
+            const deleteResult = await callAdmin(api, { action: "delete_employee", user_id: employee.id, mode });
             if (deleteResult?.deleted !== true || deleteResult?.user_id !== employee.id) {
               throw new Error("Аккаунт не удалён: сервер не подтвердил удаление. Обновите список и проверьте статус пользователя.");
             }
-            status.textContent = "Сервер подтвердил удаление аккаунта «" + label + "». Проверяем список…";
+            status.textContent = "Сервер подтвердил операцию (" + (mode === "transfer" ? "данные переданы" : "данные удалены") + "). Проверяем список…";
             status.className = "muted";
             await loadEmployees(api, requestId);
             if (requestId === cabinetLoadSequence) {
               const stillListed = Array.from($("employeeList").querySelectorAll(".admin-meta"))
                 .some((node) => node.textContent === employee.id);
               if (stillListed) throw new Error("Сервер подтвердил удаление, но аккаунт остался в списке. Обновите страницу и проверьте Auth.");
-              status.textContent = "Аккаунт «" + label + "» удалён и отсутствует в списке сотрудников.";
+              status.textContent = "Аккаунт «" + label + "» удалён. " + (mode === "transfer" ? "Данные переданы разработчику." : "Данные удалены без восстановления.");
             }
           } catch (error) {
             status.textContent = error?.message || "Не удалось удалить аккаунт.";
