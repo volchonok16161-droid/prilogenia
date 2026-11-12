@@ -290,95 +290,115 @@ Deno.serve(async (req: Request) => {
   }
 
   if (body.action === "delete_employee") {
-    // Permanent account deletion is deliberately restricted to developers.
-    if (actor.role !== "developer") {
-      return json({ error: "Удалять аккаунты может только разработчик" }, 403);
-    }
+    // Only developers can delete employee/helper accounts. The caller's own
+    // account and privileged accounts are never eligible.
+    if (actor.role !== "developer") return json({ error: "Удалять аккаунты может только разработчик" }, 403);
     const userId = typeof body.user_id === "string" ? body.user_id : "";
+    const mode = body.mode;
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
       return json({ error: "Некорректный ID аккаунта" }, 400);
     }
-    if (userId === authData.user.id) {
-      return json({ error: "Нельзя удалить собственную учётную запись" }, 400);
-    }
+    if (userId === authData.user.id) return json({ error: "Нельзя удалить собственную учётную запись" }, 400);
+    if (mode !== "transfer" && mode !== "permanent") return json({ error: "Выберите передачу данных разработчику или безвозвратное удаление" }, 400);
 
-    const { data: target, error: targetError } = await admin
-      .from("profiles")
-      .select("id, display_name, role")
-      .eq("id", userId)
-      .maybeSingle();
+    const { data: target, error: targetError } = await admin.from("profiles")
+      .select("id, display_name, role").eq("id", userId).maybeSingle();
     if (targetError) return json({ error: "Не удалось проверить аккаунт" }, 500);
     if (!target || !["employee", "assistant"].includes(target.role)) {
       return json({ error: "Удалять можно только аккаунты сотрудников и помощников" }, 404);
     }
 
-    // profiles/checklists use ON DELETE CASCADE. Never hard-delete an account
-    // while it owns cloud checklists: that would destroy business records.
-    const { count: checklistCount, error: checklistError } = await admin
-      .from("checklists")
-      .select("id", { count: "exact", head: true })
-      .eq("owner_id", userId);
-    if (checklistError) return json({ error: "Не удалось проверить облачные чек-листы; удаление отменено" }, 500);
-    if ((checklistCount ?? 0) > 0) {
-      return json({
-        error: "Удаление запрещено: у аккаунта есть облачные чек-листы. Сначала сохраните или передайте их, затем повторите удаление.",
-        checklist_count: checklistCount,
-      }, 409);
-    }
-
-    // Supabase Auth refuses deletion while the user owns Storage objects.
-    // Fail closed if Storage ownership cannot be checked.
-    const { count: storageObjectCount, error: storageError } = await admin
-      .schema("storage")
-      .from("objects")
-      .select("id", { count: "exact", head: true })
-      .eq("owner_id", userId);
-    if (storageError) return json({ error: "Не удалось проверить файлы аккаунта; удаление отменено" }, 500);
-    if ((storageObjectCount ?? 0) > 0) {
-      return json({
-        error: "Удаление запрещено: у аккаунта остались файлы в Supabase Storage. Сначала сохраните или передайте файлы.",
-        storage_object_count: storageObjectCount,
-      }, 409);
-    }
-
-    // Ban first to prevent new sign-ins while the account is being removed.
-    const { error: banError } = await admin.auth.admin.updateUserById(userId, {
-      ban_duration: "876000h",
-    });
-    if (banError) return json({ error: "Не удалось временно закрыть доступ; аккаунт не удалён" }, 500);
-
-    // Recheck after blocking access to reduce the chance of deleting data
-    // created between the initial preflight and the ban.
-    const [{ count: finalChecklistCount, error: finalChecklistError }, { count: finalStorageCount, error: finalStorageError }] = await Promise.all([
-      admin.from("checklists").select("id", { count: "exact", head: true }).eq("owner_id", userId),
-      admin.schema("storage").from("objects").select("id", { count: "exact", head: true }).eq("owner_id", userId),
+    const [{ data: checklists, error: checklistError }, { data: objects, error: storageError }] = await Promise.all([
+      admin.from("checklists").select("id, payload").eq("owner_id", userId),
+      admin.schema("storage").from("objects").select("id, bucket_id, name").eq("owner_id", userId),
     ]);
-    if (finalChecklistError || finalStorageError || (finalChecklistCount ?? 0) > 0 || (finalStorageCount ?? 0) > 0) {
-      const { error: restoreError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
-      if (restoreError) {
-        return json({ error: "Удаление отменено, но автоматическое восстановление доступа не удалось. Аккаунт остаётся заблокированным; требуется ручная проверка." }, 500);
-      }
-      return json({ error: "После блокировки доступа обнаружены связанные данные или ошибка проверки. Аккаунт не удалён; доступ восстановлен." }, 409);
-    }
+    if (checklistError) return json({ error: "Не удалось проверить чек-листы; удаление отменено" }, 500);
+    if (storageError) return json({ error: "Не удалось проверить фотографии и файлы; удаление отменено" }, 500);
 
-    // Remove every refresh session first. The RLS guard above rejects
-    // previously-issued access JWTs once their auth.sessions row is gone.
-    const { data: revokedSessionCount, error: revokeSessionsError } = await admin.rpc("revoke_auth_sessions_for_user", {
-      p_user_id: userId,
-    });
-    if (revokeSessionsError) {
-      return json({ error: "Не удалось отозвать сессии аккаунта. Аккаунт остаётся заблокированным; требуется ручная проверка." }, 500);
+    // Block sign-in and revoke sessions before moving or deleting any data.
+    const { error: banError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "876000h" });
+    if (banError) return json({ error: "Не удалось закрыть доступ к аккаунту; данные не изменены" }, 500);
+    const { data: revokedSessionCount, error: revokeError } = await admin.rpc("revoke_auth_sessions_for_user", { p_user_id: userId });
+    if (revokeError) return json({ error: "Не удалось отозвать сессии. Аккаунт заблокирован; данные сохранены для проверки." }, 500);
+
+    if (mode === "transfer") {
+      // Copy files to a developer-managed archive first. The source remains
+      // intact until every copy and checklist-reference update succeeds.
+      const pathMap = new Map<string, string>();
+      const copied: Array<{ bucket: string; path: string }> = [];
+      for (const object of objects ?? []) {
+        const bucket = object.bucket_id as string;
+        const sourcePath = object.name as string;
+        const archivePath = "__developer_archive/" + authData.user.id + "/" + userId + "/" + object.id + "/" + sourcePath.split("/").pop();
+        const { error } = await admin.storage.from(bucket).copy(sourcePath, archivePath);
+        if (error) {
+          return json({ error: "Не удалось полностью скопировать файлы в архив разработчика. Исходные файлы сохранены; аккаунт заблокирован для безопасной проверки.", detail: error.message, copied_files: copied.length }, 500);
+        }
+        copied.push({ bucket, path: archivePath });
+        pathMap.set(bucket + "/" + sourcePath, bucket + "/" + archivePath);
+      }
+
+      const rewrite = (value: unknown): unknown => {
+        if (typeof value === "string") {
+          let result = value;
+          for (const [oldPath, newPath] of pathMap) {
+            result = result.split(oldPath).join(newPath);
+            result = result.split(encodeURIComponent(oldPath)).join(encodeURIComponent(newPath));
+          }
+          return result;
+        }
+        if (Array.isArray(value)) return value.map(rewrite);
+        if (value && typeof value === "object") {
+          return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, rewrite(item)]));
+        }
+        return value;
+      };
+
+      for (const checklist of checklists ?? []) {
+        const updatedPayload = rewrite(checklist.payload);
+        const { error } = await admin.from("checklists").update({ owner_id: authData.user.id, payload: updatedPayload })
+          .eq("id", checklist.id).eq("owner_id", userId);
+        if (error) {
+          return json({ error: "Не удалось передать все чек-листы разработчику. Исходные файлы сохранены; аккаунт заблокирован для безопасной проверки.", detail: error.message }, 500);
+        }
+      }
+      // Remove originals only after all archived copies and references exist.
+      const byBucket = new Map<string, string[]>();
+      for (const object of objects ?? []) {
+        const bucket = object.bucket_id as string;
+        byBucket.set(bucket, [...(byBucket.get(bucket) ?? []), object.name as string]);
+      }
+      for (const [bucket, paths] of byBucket) {
+        const { error } = await admin.storage.from(bucket).remove(paths);
+        if (error) {
+          return json({ error: "История передана разработчику, но часть исходных файлов не удалось убрать. Архивные копии сохранены; аккаунт заблокирован для проверки.", detail: error.message }, 500);
+        }
+      }
+    } else {
+      // Irreversible mode: delete records, then Storage objects, then Auth user.
+      const byBucket = new Map<string, string[]>();
+      for (const object of objects ?? []) {
+        const bucket = object.bucket_id as string;
+        byBucket.set(bucket, [...(byBucket.get(bucket) ?? []), object.name as string]);
+      }
+      for (const [bucket, paths] of byBucket) {
+        const { error } = await admin.storage.from(bucket).remove(paths);
+        if (error) return json({ error: "Не удалось удалить все файлы. Аккаунт заблокирован; оставшиеся данные требуют проверки.", detail: error.message }, 500);
+      }
+      const { error: checklistDeleteError } = await admin.from("checklists").delete().eq("owner_id", userId);
+      if (checklistDeleteError) return json({ error: "Не удалось удалить чек-листы. Аккаунт заблокирован; требуется проверка.", detail: checklistDeleteError.message }, 500);
     }
 
     const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
-    if (deleteError) {
-      const { error: restoreError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
-      if (restoreError) {
-        return json({ error: "Supabase не подтвердил удаление, и восстановить доступ автоматически не удалось. Аккаунт остаётся заблокированным; требуется ручная проверка." }, 500);
-      }
-      return json({ error: "Supabase не подтвердил удаление аккаунта; доступ восстановлен. " + deleteError.message }, 500);
-    }
-    return json({ success: true, user_id: userId, deleted: true, revoked_sessions: revokedSessionCount ?? 0 });
+    if (deleteError) return json({ error: "Данные обработаны, но Supabase не подтвердил удаление Auth-аккаунта. Аккаунт остаётся заблокированным; требуется проверка.", detail: deleteError.message }, 500);
+    return json({
+      success: true, user_id: userId, deleted: true, mode,
+      transferred_checklists: mode === "transfer" ? (checklists ?? []).length : 0,
+      transferred_files: mode === "transfer" ? (objects ?? []).length : 0,
+      deleted_checklists: mode === "permanent" ? (checklists ?? []).length : 0,
+      deleted_files: mode === "permanent" ? (objects ?? []).length : 0,
+      revoked_sessions: revokedSessionCount ?? 0,
+    });
   }
 
   if (body.action === "set_employee_access") {
