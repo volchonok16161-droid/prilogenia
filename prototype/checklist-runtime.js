@@ -511,6 +511,11 @@ async function main() {
     clearTimeout(window.__tmhBootTimer);
     window.__tmhBootTimer = null;
   }
+  // document.write replaces the bootstrap document; retain PWA metadata in the final document
+  // so Chrome/Safari continue to associate the standalone checklist with its manifest.
+  if (!/<link\\b[^>]*rel=["']manifest["']/i.test(source)) {
+    source = source.replace(/<head([^>]*)>/i, '<head$1><link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0a5eb0"><link rel="apple-touch-icon" href="/icon-192.png">');
+  }
   document.open();
   document.write(source);
   document.close();
