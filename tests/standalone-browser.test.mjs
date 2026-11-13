@@ -585,8 +585,22 @@ for (const [mode, expected] of [
     try {
       await page.waitForFunction(() => {
         const doc = document.querySelector("#embeddedFrame")?.contentDocument;
-        return !!doc?.querySelector("#generalGrid input") && !!doc?.querySelector("#equipRoot .equip");
-      }, { timeout: 20000 });
+        return !!doc?.querySelector("#generalGrid select");
+      }, null, { timeout: 20000 });
+      await page.locator("#embeddedFrame").evaluate(frame => {
+        const doc = frame.contentDocument;
+        const type = doc.querySelector("#generalGrid select");
+        if (!type || type.options.length < 2) throw new Error("Locomotive types missing");
+        type.selectedIndex = 1;
+        type.dispatchEvent(new Event("change", { bubbles: true }));
+        const chip = doc.querySelector("#picker .chip");
+        if (!chip) throw new Error("Equipment picker has no choices");
+        chip.click();
+      });
+      await page.waitForFunction(() => {
+        const doc = document.querySelector("#embeddedFrame")?.contentDocument;
+        return !!doc?.querySelector("#equipRoot .equip");
+      }, null, { timeout: 15000 });
       const state = await page.locator("#embeddedFrame").evaluate(frame => ({
         generalInputs: frame.contentDocument.querySelectorAll("#generalGrid input, #generalGrid select").length,
         equipment: [...frame.contentDocument.querySelectorAll("#equipRoot .equip h2")].map(e => e.textContent)
