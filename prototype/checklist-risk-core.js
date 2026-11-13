@@ -490,8 +490,10 @@
       });
       if(!fields.length){issues.push('Оборудование «'+title+'»: нет ни одного поля — пропущено');return;}
       if(fields.length>30)issues.push('Оборудование «'+title+'»: полей '+fields.length+', а в выгрузку Excel попадают только первые 30 операций — разделите узел на два');
-      var inComplex=Array.isArray(e.checklists)?(e.checklists.indexOf('complex')>=0):true;
-      out.push({id:id,title:title,checklists:inComplex?['complex']:[],layout:{scope:scope,blocks:blocks,count:count},fields:fields});
+      var allowedModes=['complex','housings','tt','bi','hydro'];
+      var assigned=Array.isArray(e.checklists)?e.checklists:['complex'];
+      var modes=[];assigned.forEach(function(m){if(allowedModes.indexOf(m)>=0&&modes.indexOf(m)<0)modes.push(m);});
+      out.push({id:id,title:title,checklists:modes,layout:{scope:scope,blocks:blocks,count:count},fields:fields});
     });
     var ck=cleanChecklists((raw&&raw.checklists)||[],out.map(function(e){return e.id;}));
     return {list:out,checklists:ck.list,issues:issues.concat(ck.issues)};
@@ -634,7 +636,9 @@
       if(store.data){if(!findSheet(store.data,sheet))info.reason='sheet';else if(!reg)info.reason='empty';else{info.source='excel';info.reason='ok';info.count=reg.count;}}
       var extra='\nconst NODE_RULES='+safeJson(rl.rules)+';\nconst REGISTRY_INFO='+safeJson(info)+';';
       var chk=modeInfo(mode);
-      if(mode==='complex'||chk){var cu=(window.__RISK_CORE__&&window.__RISK_CORE__.devOverride)||store.custom||[];extra+='\nconst CUSTOM_EQUIPMENT='+safeJson(cu)+';';if(chk)extra+='\nconst CUSTOM_CHECKLIST='+safeJson(chk)+';';}
+      var cu=(window.__RISK_CORE__&&window.__RISK_CORE__.devOverride)||store.custom||[];
+      extra+='\nconst CUSTOM_EQUIPMENT='+safeJson(cu)+';';
+      if(chk)extra+='\nconst CUSTOM_CHECKLIST='+safeJson(chk)+';';
       var hasMil=/const\s+MILEAGE_DATA\s*=/.test(html),milTable=null;
       if(ml.found)milTable=ml.table;else{try{if(typeof MILEAGE_DATA!=='undefined')milTable=MILEAGE_DATA;}catch(e){}}
       if(!hasMil&&milTable)extra+='\nconst MILEAGE_DATA='+safeJson(milTable)+';';   // ТТ и БИ: своей таблицы нет — передаём
