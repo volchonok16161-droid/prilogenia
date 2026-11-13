@@ -2070,6 +2070,7 @@ async function startApp(useNew){
     const type=STATE.general.type||'';
     buildEquipment(type);
     renderGeneral();
+    renderPicker();
     renderEquip();
     updateStats();
     document.getElementById('continueDialog').style.display='none';
