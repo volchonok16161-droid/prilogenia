@@ -39,7 +39,7 @@ test("developer tools runtime is included in service-worker precache and gets a 
   const entry = await readFile(resolve(ROOT, "prototype/checklist/index.html"), "utf8");
   assert.match(sw, /checklist-cache-v\d+/);
   assert.match(sw, /\.\/prototype\/developer-tools-runtime\.js/);
-  assert.match(entry, /prototype\/checklist-runtime\.js\?v=boot110/);
+  assert.match(entry, /prototype\/checklist-runtime\.js\?v=boot\d+/);
 });
 
 test("editable built-in equipment labels are wired into all existing checklist modes", async () => {
