@@ -82,7 +82,7 @@ test("TT and BI custom equipment preserve layout blocks as separate saved instan
   const bi = await readFile(resolve(ROOT, "prototype/embedded/bi.js"), "utf8");
   for (const [mode, source] of [["TT", tt], ["BI", bi]]) {
     assert.match(source, /selectedBlocks\.forEach\(function\(block\)/, mode + " must expand configured layout blocks");
-    assert.match(source, /eq&&eq\.custom\?\(instance\.block\|\|''\)/, mode + " should distinguish custom instances");
+    assert.match(source, /eq&&eq\.custom\?\((?:instance|inst)\.block\|\|''\):''/, mode + " should distinguish custom instances");
     assert.match(source, /eq\.custom && .*instance\.block|eq\.custom && .*inst\.block/, mode + " should show the configured block label");
     assert.match(source, /fl\.explain/, mode + " should retain field explanations");
     assert.match(source, /field\.calc === false/, mode + " should respect fields excluded from deviation calculation");
