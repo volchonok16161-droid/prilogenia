@@ -856,7 +856,7 @@ var __ceOrigBuild=buildEquipment;
 buildEquipment=function(type){
   var r=__ceOrigBuild.apply(this,arguments);
   try{
-    if(!type||(typeof MODE!=='undefined'&&MODE==='housings'))return r;
+    if(!type)return r;
     var chk=(typeof CUSTOM_CHECKLIST!=='undefined')?CUSTOM_CHECKLIST:null;
     var list=(typeof CUSTOM_EQUIPMENT!=='undefined')?CUSTOM_EQUIPMENT:[];
     list.forEach(function(ce){
@@ -1394,8 +1394,24 @@ renderPicker();
 function renderSectionsSelection(){const c=document.getElementById('sectionsSelection');const type=STATE.general.type||'';if(!type){c.innerHTML='<div style="color:var(--ink-dim);font-size:12px;">Выберите тип электровоза для выбора секций</div>';return;}const so=getSections(type);const sel=STATE.selectedSections||[];c.innerHTML='';const lbl=document.createElement('div');lbl.style.cssText='font-size:11.5px;color:var(--ink-dim);font-weight:600;margin-bottom:8px;';lbl.textContent='Выберите секции для осмотра';c.appendChild(lbl);const wr=document.createElement('div');wr.className='picker';const all=document.createElement('div');const allSel=sel.length===so.length;all.className='chip'+(allSel?' active':'');all.innerHTML='<span>Все</span>';all.onclick=function(){if(allSel)STATE.selectedSections=[];else STATE.selectedSections=so.map(s=>s.label);saveState(true);renderSectionsSelection();renderEquip();updateStats();};wr.appendChild(all);for(const s of so){const chip=document.createElement('div');const isAct=sel.includes(s.label);chip.className='chip'+(isAct?' active':'');const tn=s.typeName?\` (\${s.typeName})\`:'';chip.innerHTML=\`<span>\${s.label}\${tn}</span>\`;chip.onclick=function(){const i=STATE.selectedSections.indexOf(s.label);if(i>=0)STATE.selectedSections.splice(i,1);else STATE.selectedSections.push(s.label);saveState(true);renderSectionsSelection();renderEquip();updateStats();};wr.appendChild(chip);}c.appendChild(wr);}
 
 function renderPicker(){const picker=document.getElementById('picker');picker.innerHTML='';if(!STATE.general.type){const m=document.createElement('div');m.style.cssText='width:100%;text-align:center;color:var(--ink-dim);padding:12px 0;';m.textContent='Сначала выберите тип электровоза в разделе "Общие данные"';picker.appendChild(m);return;}
-// В режиме "Только Кожуха" — фиксируем выбор только на кожухах
-if(MODE==='housings'){if(STATE.selected.length!==1||STATE.selected[0]!=='housings'){STATE.selected=['housings'];saveState(true);}const eq=EQUIPMENT[0];if(!eq)return;const n=eq.instances().length;const chip=document.createElement('div');chip.className='chip active';chip.innerHTML=\`<span>\${eq.title}</span><span class="n">\${n}</span>\`;chip.onclick=()=>{};picker.appendChild(chip);return;}
+// В режиме «Кожуха» основной узел остаётся обязательным, но пользовательское
+// оборудование, назначенное этому режиму в конструкторе, тоже доступно для выбора.
+if(MODE==='housings'){
+const base=EQUIPMENT.find(e=>e.id==='housings')||EQUIPMENT[0];if(!base)return;
+const custom=EQUIPMENT.filter(e=>e.custom);
+const valid=[base.id].concat(custom.map(e=>e.id));
+STATE.selected=(STATE.selected||[]).filter(id=>valid.includes(id));
+if(!STATE.selected.includes(base.id))STATE.selected.unshift(base.id);
+function addHousingChip(eq,locked){
+const chip=document.createElement('div');chip.className='chip'+(locked||STATE.selected.includes(eq.id)?' active':'');
+const label=document.createElement('span');label.textContent=eq.title;chip.appendChild(label);
+const n=document.createElement('span');n.className='n';n.textContent=String(eq.instances().length);chip.appendChild(n);
+chip.onclick=function(){if(locked)return;const i=STATE.selected.indexOf(eq.id);if(i>=0)STATE.selected.splice(i,1);else STATE.selected.push(eq.id);saveState(true);renderPicker();renderEquip();updateStats();};
+picker.appendChild(chip);
+}
+addHousingChip(base,true);custom.forEach(function(eq){addHousingChip(eq,false);});
+return;
+}
 const all=document.createElement('div');const allSel=STATE.selected.length===EQUIPMENT.length;all.className='chip'+(allSel?' active':'');all.innerHTML='<span>Весь чек-лист</span>';all.onclick=()=>{if(allSel)STATE.selected=[];else STATE.selected=EQUIPMENT.map(e=>e.id);saveState(true);renderPicker();renderEquip();};picker.appendChild(all);for(const eq of EQUIPMENT){const n=eq.instances().length;const chip=document.createElement('div');const isAct=STATE.selected.includes(eq.id);chip.className='chip'+(isAct?' active':'');chip.innerHTML=\`<span>\${eq.title}</span><span class="n">\${n}</span>\`;chip.onclick=()=>{const i=STATE.selected.indexOf(eq.id);if(i>=0)STATE.selected.splice(i,1);else STATE.selected.push(eq.id);saveState(true);renderPicker();renderEquip();};picker.appendChild(chip);}}
 
 function getPartStatus(section,part,sub){return STATE.values['p_'+section+'_'+part+'_'+sub]||'';}
