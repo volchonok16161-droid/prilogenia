@@ -41,3 +41,17 @@ test("developer tools runtime is included in service-worker precache and gets a 
   assert.match(sw, /\.\/prototype\/developer-tools-runtime\.js/);
   assert.match(entry, /prototype\/checklist-runtime\.js\?v=boot110/);
 });
+
+test("editable built-in equipment labels are wired into all existing checklist modes", async () => {
+  const core=await readFile(resolve(ROOT,"prototype/checklist-risk-core.js"),"utf8");
+  const dev=await readFile(resolve(ROOT,"prototype/developer-tools-runtime.js"),"utf8");
+  assert.match(core,/function cleanBuiltinOverrides/);
+  assert.match(core,/function applyBuiltinOverrides/);
+  assert.match(dev,/builtinOverrides:c\.builtinOverrides/);
+  for (const mode of ["complex","tt","bi","hydro"]) {
+    const source=await readFile(resolve(ROOT,"prototype/embedded",mode+".js"),"utf8");
+    assert.match(source,/applyBuiltinOverrides/);
+  }
+  const sw=await readFile(resolve(ROOT,"sw.js"),"utf8");
+  assert.match(sw,/checklist-cache-v124/);
+});
