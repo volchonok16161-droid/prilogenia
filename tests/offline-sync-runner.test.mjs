@@ -5,9 +5,9 @@ import { createOfflineSyncRunner } from "../prototype/offline-sync-runner.js";
 const UID = "11111111-1111-4111-8111-111111111111";
 const OP = { opId:"op-1", userId:UID, entityId:"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", operation:"update", encrypted:{version:1,iv:"iv",ciphertext:"cipher"}, status:"pending", attempts:0 };
 
-function fixture({ identity, online=true, cloud={}, setIntervalImpl, clearIntervalImpl, leaseDurationMs, leaseRenewIntervalMs } = {}) {
+function fixture({ identity, online=true, cloud={}, setIntervalImpl, clearIntervalImpl, leaseDurationMs, leaseRenewIntervalMs, retryRevision = null } = {}) {
   const queue=[{...OP}]; const conflicts=[]; const calls=[]; const leaseRenewals=[];
-  let cloudState = null;
+  let cloudState = retryRevision === null ? null : { revision: retryRevision };
   const database={
     async listPending(uid, nowIso = new Date().toISOString()){
       assert.equal(uid,UID);
@@ -27,7 +27,7 @@ function fixture({ identity, online=true, cloud={}, setIntervalImpl, clearInterv
     async saveConflict(value){ conflicts.push(value); },
   };
   const authApi={async getCurrentIdentity(){return identity ?? {user:{id:UID},profile:{id:UID,role:"employee"},error:null};}};
-  const vault={async decrypt(){return {title:"local"};},async encrypt(value){return {version:1,iv:"remote-iv",ciphertext:JSON.stringify(value)};}};
+  const vault={async decrypt(){return {title:"local", ...(retryRevision === null ? {} : { cloud: { expectedRevision: retryRevision } })};},async encrypt(value){return {version:1,iv:"remote-iv",ciphertext:JSON.stringify(value)};}};
   const cloudSync={
     async create(input){calls.push(["create",input]); if(cloud.create) return cloud.create(input); return {id:OP.entityId,revision:1};},
     async update(input){calls.push(["update",input]); if(cloud.update) return cloud.update(input); return {id:OP.entityId,revision:2};},
@@ -81,6 +81,7 @@ test("transient cloud failure preserves the encrypted item as pending",async()=>
 
 test("retry with advanced remote revision stores encrypted conflict before uploading photos", async () => {
   const { runner, queue, conflicts, calls } = fixture({
+    retryRevision: 1,
     cloud: { get: async () => ({ id: OP.entityId, revision: 3, payload: { state: { remote: true } } }) },
   });
   queue[0].attempts = 1;
@@ -96,6 +97,7 @@ test("retry with advanced remote revision stores encrypted conflict before uploa
 
 test("retry with unchanged remote revision continues normal cloud update", async () => {
   const { runner, queue, calls } = fixture({
+    retryRevision: 1,
     cloud: { get: async () => ({ id: OP.entityId, revision: 1, payload: {} }) },
   });
   queue[0].attempts = 1;
@@ -107,6 +109,7 @@ test("retry with unchanged remote revision continues normal cloud update", async
 
 test("retry with failed owner-scoped lookup keeps encrypted operation pending", async () => {
   const { runner, queue, calls } = fixture({
+    retryRevision: 1,
     cloud: { get: async () => { throw new Error("temporary lookup outage"); } },
   });
   queue[0].attempts = 1;
