@@ -70,3 +70,9 @@ test("published custom checklists are resolved before the first form opens", asy
   assert.match(html,/store\.checklists\.some\(function\(c\)\{return c\.id===candidateCustomMode/);
   assert.match(html,/EMBEDDED_MODES\.push\(MODE\)/);
 });
+
+test("visual constructor supports search, duplication and non-technical operation selection", async () => {
+  const source=await readFile(resolve(ROOT,"prototype/developer-tools-runtime.js"),"utf8");
+  for(const feature of ["Найти по названию","Копировать оборудование","Копировать чек-лист","Выберите операцию выше","Предпросмотр формы","next.setSelectionRange"])assert.ok(source.includes(feature),feature);
+  assert.match(source,/readOnly:true/);
+});
