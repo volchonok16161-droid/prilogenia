@@ -63,3 +63,10 @@ test("developer can choose built-in checklist operations without typing field ID
   assert.match(ui,/Выберите операцию/);
   for (const key of ["techi_steklo","zashchita_disks","zavodskoy_nomer"])assert.ok(ui.includes(key),key);
 });
+
+test("published custom checklists are resolved before the first form opens", async () => {
+  const html=await readFile(resolve(ROOT,"index.html"),"utf8");
+  assert.match(html,/const candidateCustomMode=requestedCustomMode\|\|savedCustomMode/);
+  assert.match(html,/store\.checklists\.some\(function\(c\)\{return c\.id===candidateCustomMode/);
+  assert.match(html,/EMBEDDED_MODES\.push\(MODE\)/);
+});

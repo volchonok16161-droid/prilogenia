@@ -3278,6 +3278,27 @@ async function init(){
     const ifBack=document.getElementById('iframeBackBtn');
     if(ifBack)ifBack.onclick=function(){openModeModal(true);};
 
+    // The checklist definitions may load after MODE was initialized. Resolve saved
+    // custom modes against the current definitions before deciding which form to open.
+    if(window.__RISK_CORE__&&typeof window.__RISK_CORE__.loadCustom==='function'){
+        try{
+            await Promise.race([
+                window.__RISK_CORE__.loadCustom(),
+                new Promise(function(resolve){setTimeout(resolve,2500);})
+            ]);
+        }catch(error){console.warn('Не удалось обновить список чек-листов',error);}
+    }
+    const savedCustomMode=(function(){try{return localStorage.getItem(MODE_KEY);}catch(e){return null;}})();
+    const requestedCustomMode=(function(){try{return new URLSearchParams(location.search).get('mode');}catch(e){return null;}})();
+    const candidateCustomMode=requestedCustomMode||savedCustomMode;
+    if(candidateCustomMode&&/^k_[a-z0-9_]+$/.test(candidateCustomMode)
+       &&window.__RISK_CORE__&&window.__RISK_CORE__.store.checklists.some(function(c){return c.id===candidateCustomMode;})){
+        MODE=candidateCustomMode;
+        if(ALL_MODES.indexOf(MODE)<0)ALL_MODES.push(MODE);
+        if(EMBEDDED_MODES.indexOf(MODE)<0)EMBEDDED_MODES.push(MODE);
+        MODE_NAMES[MODE]=window.__RISK_CORE__.store.checklists.find(function(c){return c.id===MODE;}).title;
+        updateModePicker();
+    }
     if(!MODE){
         openModeModal(false);
         setupCommonHandlers();
