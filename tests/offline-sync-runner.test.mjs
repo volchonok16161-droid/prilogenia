@@ -79,6 +79,44 @@ test("transient cloud failure preserves the encrypted item as pending",async()=>
  assert.match(queue[0].lastError,/network timeout/); assert.equal(queue[0].encrypted,OP.encrypted);
 });
 
+test("retry with advanced remote revision stores encrypted conflict before uploading photos", async () => {
+  const { runner, queue, conflicts, calls } = fixture({
+    cloud: { get: async () => ({ id: OP.entityId, revision: 3, payload: { state: { remote: true } } }) },
+  });
+  queue[0].attempts = 1;
+  const result = await runner.syncPending({ userId: UID });
+  assert.equal(result.conflicts, 1);
+  assert.equal(result.failed, 0);
+  assert.equal(queue[0].status, "conflict");
+  assert.equal(queue[0].encrypted, OP.encrypted);
+  assert.equal(conflicts.length, 1);
+  assert.equal(conflicts[0].remoteEncrypted.version, 1);
+  assert.deepEqual(calls.map(call => call[0]), ["get"]);
+});
+
+test("retry with unchanged remote revision continues normal cloud update", async () => {
+  const { runner, queue, calls } = fixture({
+    cloud: { get: async () => ({ id: OP.entityId, revision: 1, payload: {} }) },
+  });
+  queue[0].attempts = 1;
+  const result = await runner.syncPending({ userId: UID });
+  assert.equal(result.synced, 1);
+  assert.equal(queue.length, 0);
+  assert.deepEqual(calls.map(call => call[0]), ["get", "update"]);
+});
+
+test("retry with failed owner-scoped lookup keeps encrypted operation pending", async () => {
+  const { runner, queue, calls } = fixture({
+    cloud: { get: async () => { throw new Error("temporary lookup outage"); } },
+  });
+  queue[0].attempts = 1;
+  const result = await runner.syncPending({ userId: UID });
+  assert.equal(result.failed, 1);
+  assert.equal(queue[0].status, "pending");
+  assert.equal(queue[0].encrypted, OP.encrypted);
+  assert.deepEqual(calls.map(call => call[0]), ["get"]);
+});
+
 test("validates batch size and account UUID",async()=>{
  const {runner}=fixture();
  await assert.rejects(runner.syncPending({userId:"bad"}),/UUID/);

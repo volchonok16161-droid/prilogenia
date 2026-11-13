@@ -206,6 +206,36 @@ export function createOfflineSyncRunner({
             cloud: { ...localValue.cloud, expectedRevision: cloudState.revision },
           };
         }
+        // On a retry, first check whether the server revision has moved.
+        // A previous request may have committed despite a lost HTTP response.
+        // Never upload a new batch of photos against an already stale revision.
+        if (operation.operation === "update" && Number(operation.attempts) > 0) {
+          const expectedRevision = Number(effectiveValue?.cloud?.expectedRevision);
+          if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
+            throw new Error("Retry requires a confirmed cloud revision");
+          }
+          const remote = await cloudSync.get(operation.entityId);
+          if (Number(remote?.revision) !== expectedRevision) {
+            const remoteEncrypted = await vault.encrypt(remote);
+            await database.saveConflict({
+              conflictId: operation.opId,
+              userId: uid,
+              entityId: operation.entityId,
+              localEncrypted: operation.encrypted,
+              remoteEncrypted,
+              createdAt: now(),
+            });
+            const conflictMarked = await database.updateQueueOperation(operation.opId, uid, {
+              status: "conflict",
+              leaseClaimId: null,
+              leaseUntil: null,
+              lastError: "RETRY_REVISION_CONFLICT",
+            }, claimId);
+            if (!conflictMarked) throw new Error("Sync queue lease expired while saving retry conflict");
+            conflicts += 1;
+            continue;
+          }
+        }
         const request = await mapOperation(effectiveOperation, effectiveValue, cloudState);
         if (!request || !["create", "update", "remove"].includes(request.method)) {
           throw new TypeError("mapOperation must return create, update, or remove");
