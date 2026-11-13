@@ -93,7 +93,7 @@ for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
             return { path, status: result.status };
           }));
         })(),
-        iframes: document.querySelectorAll("iframe").length,
+        iframes: document.querySelectorAll("iframe:not(#devPrevFrame)").length,
         parentAuthPending: !!document.getElementById("tmhParentAuthPending"),
         topbar: !!document.querySelector(".topbar"),
         cloudBackup: !!document.getElementById("tmhCloudBackupBtn"),
