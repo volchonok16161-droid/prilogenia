@@ -860,7 +860,8 @@ buildEquipment=function(type){
     var chk=(typeof CUSTOM_CHECKLIST!=='undefined')?CUSTOM_CHECKLIST:null;
     var list=(typeof CUSTOM_EQUIPMENT!=='undefined')?CUSTOM_EQUIPMENT:[];
     list.forEach(function(ce){
-      var want=chk?(chk.equipment.indexOf(ce.id)>=0):!!(ce.checklists&&ce.checklists.indexOf('complex')>=0);
+      var activeMode=(typeof MODE!=='undefined'?MODE:'complex');
+      var want=chk?(chk.equipment.indexOf(ce.id)>=0):!!(ce.checklists&&ce.checklists.indexOf(activeMode)>=0);
       if(!want)return;
       if(EQUIPMENT.some(function(e){return e.id===ce.id;}))return;
       EQUIPMENT.push({id:ce.id,title:ce.title,custom:true,fields:ce.fields.map(__ceField),instances:__ceInstances(ce.layout)});
