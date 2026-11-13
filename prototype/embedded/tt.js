@@ -2026,7 +2026,28 @@ function updateUserUI() {
             });
         }
 
-        /* ========================================================================
+        /* Custom equipment assigned from the developer checklist constructor. */
+var __tmhBaseBuildEquipment=buildEquipment;
+buildEquipment=function(type){
+  var result=__tmhBaseBuildEquipment.apply(this,arguments);
+  try{
+    if(!type)return result;
+    var chk=(typeof CUSTOM_CHECKLIST!=='undefined')?CUSTOM_CHECKLIST:null;
+    var list=(typeof CUSTOM_EQUIPMENT!=='undefined')?CUSTOM_EQUIPMENT:[];
+    var secs=getSections(type)||[];
+    list.forEach(function(item){
+      var include=chk?(chk.equipment.indexOf(item.id)>=0):!!(item.checklists&&item.checklists.indexOf('tt')>=0);
+      if(!include||EQUIPMENT.some(function(eq){return eq.id===item.id;}))return;
+      var fields=(item.fields||[]).map(function(fl){return {key:fl.key,label:fl.label,type:fl.type==='text'?'text':'select',options:(fl.options||[]).slice(),ok:(fl.ok||[]).slice(),hint:fl.hint||'',photo:fl.photo!=='never',photoAlways:fl.photo==='always',calc:fl.calc!==false};});
+      var scope=(item.layout&&item.layout.scope)||'all';
+      var instances=secs.filter(function(sec){var booster=/Секция №\\s*[3-9]/.test(String(sec.label||''));return scope==='all'||(scope==='cabins'&&!booster)||(scope==='boosters'&&booster);}).map(function(sec){return {section:sec.label};});
+      if(!instances.length)return;
+      EQUIPMENT.push({id:item.id,title:item.title,custom:true,fields:fields,getFields:function(){return this.fields;},instances:function(){return instances;}});
+    });
+  }catch(error){console.warn('[custom equipment]',error);}
+  return result;
+};
+/* ========================================================================
            СОСТОЯНИЕ / ХРАНЕНИЕ
            ======================================================================== */
         let LS_KEY = 'checklist_tt_v1';
