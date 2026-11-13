@@ -2873,7 +2873,7 @@ buildEquipment=function(type){
     list.forEach(function(item){
       var include=chk?(chk.equipment.indexOf(item.id)>=0):!!(item.checklists&&item.checklists.indexOf('hydro')>=0);
       if(!include||EQUIPMENT.some(function(eq){return eq.id===item.id;}))return;
-      var fields=(item.fields||[]).map(function(fl){return {key:fl.key,label:fl.label,type:fl.type==='text'?'text':'select',options:(fl.options||[]).slice(),ok:(fl.ok||[]).slice(),hint:fl.hint||'',photo:fl.photo!=='never',photoAlways:fl.photo==='always',calc:fl.calc!==false};});
+      var fields=(item.fields||[]).map(function(fl){return {key:fl.key,label:fl.label,type:fl.type==='text'?'text':'select',options:(fl.options||[]).slice(),ok:(fl.ok||[]).slice(),hint:[fl.hint,fl.explain].filter(Boolean).join('\\n'),photo:fl.photo!=='never',photoAlways:fl.photo==='always',calc:fl.calc!==false};});
       var layout=item.layout||{},blocks=Array.isArray(layout.blocks)&&layout.blocks.length?layout.blocks.slice():allowedBlocks.slice();
       blocks.forEach(function(block){if(ALL_POSSIBLE_TYPES.indexOf(block)<0)ALL_POSSIBLE_TYPES.push(block);});
       var instances=[];
