@@ -35,3 +35,35 @@ test("legacy checklist definitions imported from main are editable constructor r
     for (const equipmentId of checklist.equipment) assert.ok(ids.has(equipmentId), checklist.title + " must reference existing equipment " + equipmentId);
   }
 });
+
+
+test("constructor supports assigning custom equipment to all five checklist modes", async () => {
+  const core = await readFile(resolve(ROOT, "prototype/checklist-risk-core.js"), "utf8");
+  const editor = await readFile(resolve(ROOT, "prototype/developer-tools-runtime.js"), "utf8");
+  for (const mode of ["complex", "housings", "tt", "bi", "hydro"]) {
+    assert.ok(core.includes("'" + mode + "'"), "core should allow " + mode);
+    assert.ok(editor.includes("['" + mode + "',"), "editor should expose " + mode);
+  }
+  assert.match(core, /out\.push\(\{id:id,title:title,checklists:modes/);
+  assert.match(editor, /it\.checklists=assigned\.slice\(\)/);
+});
+
+test("all five embedded checklist engines receive constructor equipment without replacing built-in equipment", async () => {
+  const files = {
+    complex: await readFile(resolve(ROOT, "prototype/embedded/complex.js"), "utf8"),
+    tt: await readFile(resolve(ROOT, "prototype/embedded/tt.js"), "utf8"),
+    bi: await readFile(resolve(ROOT, "prototype/embedded/bi.js"), "utf8"),
+    hydro: await readFile(resolve(ROOT, "prototype/embedded/hydro.js"), "utf8")
+  };
+  assert.match(files.complex, /CUSTOM_EQUIPMENT/);
+  assert.match(files.complex, /item\.checklists\.indexOf\('complex'\)/);
+  assert.match(files.complex, /if\(!type\)return r/);
+  assert.match(files.tt, /item\.checklists&&item\.checklists\.indexOf\('tt'\)/);
+  assert.match(files.bi, /item\.checklists&&item\.checklists\.indexOf\('bi'\)/);
+  assert.match(files.hydro, /item\.checklists&&item\.checklists\.indexOf\('hydro'\)/);
+  assert.match(files.bi, /eq\.custom && field\.type==='text'/);
+  assert.match(files.hydro, /if\(eq\.custom\)/);
+  for (const [mode, source] of Object.entries(files)) {
+    assert.match(source, /CUSTOM_EQUIPMENT/, mode + " must receive custom equipment payload");
+  }
+});
