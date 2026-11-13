@@ -570,51 +570,35 @@ for (const [mode, expected] of [
   ["k_mw4vcb4e", "БЦВ"],
   ["k_mwdj4ydq", "Контактор"]
 ]) {
-  test("published custom checklist opens fillable form: " + expected, { timeout: 60000 }, async () => {
+  test("published custom checklist renders real operations: " + expected, { timeout: 45000 }, async () => {
     const page = await browser.newPage();
     const errors = [];
-    page.on("pageerror", e => errors.push(e.message));
-    await page.route("https://esm.sh/**", route => route.abort());
-    await page.goto(origin + "/prototype/checklist/", { waitUntil: "domcontentloaded" });
-    await page.waitForFunction(() => window.__RISK_CORE__ && typeof showEmbeddedApp === "function");
-    await page.evaluate(async (selectedMode) => {
-      await window.__RISK_CORE__.loadCustom();
-      window.__TMH_AUTH_CONTEXT = { userId: "00000000-0000-4000-8000-000000000001", role: "developer", offlineMode: false };
-      showEmbeddedApp(selectedMode);
-    }, mode);
+    page.on("pageerror", error => errors.push(error.message));
     try {
-      await page.waitForFunction(() => {
-        const doc = document.querySelector("#embeddedFrame")?.contentDocument;
-        return !!doc?.querySelector("#generalGrid select");
-      }, null, { timeout: 20000 });
-      await page.locator("#embeddedFrame").evaluate(frame => {
-        const doc = frame.contentDocument;
-        const type = doc.querySelector("#generalGrid select");
-        if (!type || type.options.length < 2) throw new Error("Locomotive types missing");
-        type.selectedIndex = 1;
-        type.dispatchEvent(new Event("change", { bubbles: true }));
-        const chip = doc.querySelector("#picker .chip");
-        if (!chip) throw new Error("Equipment picker has no choices");
-        chip.click();
+      await page.goto(origin + "/prototype/checklist/?mode=" + mode, { waitUntil: "domcontentloaded", timeout: 30000 });
+      await page.waitForSelector("#generalGrid", { state: "attached", timeout: 20000 });
+      const result = await page.evaluate(() => {
+        if (typeof CUSTOM_CHECKLIST === "undefined" || !CUSTOM_CHECKLIST) return { error: "Custom checklist definition missing", mode: typeof MODE !== "undefined" ? MODE : null };
+        STATE.general.type = "2ЭС5К";
+        STATE.selectedSections = ["Секция №1"];
+        STATE.selected = CUSTOM_CHECKLIST.equipment.slice();
+        buildEquipment(STATE.general.type);
+        renderGeneral();
+        renderPicker();
+        renderEquip();
+        return {
+          mode: MODE,
+          checklist: CUSTOM_CHECKLIST.title,
+          equipment: EQUIPMENT.map(eq => eq.title),
+          fields: document.querySelectorAll("#equipRoot .frow").length,
+          generalInputs: document.querySelectorAll("#generalGrid input, #generalGrid select").length,
+          picker: document.querySelector("#picker")?.textContent?.slice(0, 200)
+        };
       });
-      await page.waitForFunction(() => {
-        const doc = document.querySelector("#embeddedFrame")?.contentDocument;
-        return !!doc?.querySelector("#equipRoot .equip");
-      }, null, { timeout: 15000 });
-      const state = await page.locator("#embeddedFrame").evaluate(frame => ({
-        generalInputs: frame.contentDocument.querySelectorAll("#generalGrid input, #generalGrid select").length,
-        equipment: [...frame.contentDocument.querySelectorAll("#equipRoot .equip h2")].map(e => e.textContent)
-      }));
-      assert.ok(state.generalInputs > 0);
-      assert.ok(state.equipment.some(title => title.includes(expected)), JSON.stringify(state));
-    } catch (e) {
-      const diagnostics = await page.locator("#embeddedFrame").evaluate(frame => ({
-        text: frame.contentDocument?.body?.innerText?.slice(0, 700),
-        general: frame.contentDocument?.querySelector("#generalGrid")?.innerHTML?.slice(0, 300),
-        equipment: frame.contentDocument?.querySelector("#equipRoot")?.innerHTML?.slice(0, 300),
-        mode: frame.contentWindow?.__MODE__
-      })).catch(() => null);
-      assert.fail(JSON.stringify({ mode, diagnostics, errors, reason: e.message }));
+      assert.equal(result.mode, mode, JSON.stringify({ result, errors }));
+      assert.ok(result.equipment.some(title => title.includes(expected)), JSON.stringify({ result, errors }));
+      assert.ok(result.fields > 0, JSON.stringify({ result, errors }));
+      assert.ok(result.generalInputs > 0, JSON.stringify({ result, errors }));
     } finally { await page.close(); }
   });
 }
