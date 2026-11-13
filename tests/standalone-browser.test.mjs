@@ -518,3 +518,49 @@ test("offline vault restores encrypted checklist, pending queue, conflict and ex
     await page.close();
   }
 });
+
+
+test("standalone checklist mounts developer menu and all three existing tools for a developer", { timeout: 60000 }, async () => {
+  const page = await browser.newPage();
+  const pageErrors = [];
+  page.on("pageerror", (error) => pageErrors.push(error.stack || error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error" && !message.text().includes("Auth check failed") && !message.text().includes("Failed to load resource")) {
+      pageErrors.push("console: " + message.text());
+    }
+  });
+  await page.route("https://esm.sh/**", (route) => route.abort());
+  await page.route("https://fecigiwjtbtabnsfsdym.supabase.co/**", (route) =>
+    route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ message: "Browser test: no signed-in user" }) })
+  );
+  try {
+    await page.goto(origin + "/prototype/checklist/?mode=complex", { waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.waitForSelector("#modeSelectModal", { state: "attached", timeout: 45000 });
+    await page.evaluate(() => localStorage.setItem("checklist_user", JSON.stringify({
+      login: "developer-test@example.invalid",
+      role: "admin",
+      profileRole: "developer",
+      dev: true,
+      authUid: "00000000-0000-4000-8000-000000000001"
+    })));
+    await page.waitForFunction(() => {
+      const button = document.getElementById("devFab");
+      return button && getComputedStyle(button).display !== "none";
+    }, { timeout: 10000 });
+    await page.click("#devFab");
+    await page.waitForSelector("#devMenu", { state: "visible" });
+    const menuText = await page.locator("#devMenu").innerText();
+    assert.match(menuText, /Конструктор оборудования/);
+    assert.match(menuText, /Конструктор чек-листов/);
+    assert.match(menuText, /Справочник \(Excel\)/);
+    assert.equal(await page.evaluate(() => typeof window.__DEV_PANEL_V1__), "object");
+    assert.equal(await page.evaluate(() => typeof window.__XL_PANEL_V1__), "object");
+    await page.getByRole("menuitem", { name: /Конструктор оборудования/ }).click();
+    await page.waitForFunction(() => document.getElementById("devOverlay")?.classList.contains("open"));
+    await page.click("#devTabCk");
+    await page.waitForSelector("#devNewCk", { state: "visible" });
+    assert.deepEqual(pageErrors, []);
+  } finally {
+    await page.close();
+  }
+});
