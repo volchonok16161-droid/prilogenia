@@ -55,3 +55,11 @@ test("editable built-in equipment labels are wired into all existing checklist m
   const sw=await readFile(resolve(ROOT,"sw.js"),"utf8");
   assert.match(sw,/checklist-cache-v124/);
 });
+
+test("developer can choose built-in checklist operations without typing field IDs", async () => {
+  const ui=await readFile(resolve(ROOT,"prototype/developer-tools-runtime.js"),"utf8");
+  assert.match(ui,/builtinFieldCatalog/);
+  assert.match(ui,/builtinPick/);
+  assert.match(ui,/Выберите операцию/);
+  for (const key of ["techi_steklo","zashchita_disks","zavodskoy_nomer"])assert.ok(ui.includes(key),key);
+});
