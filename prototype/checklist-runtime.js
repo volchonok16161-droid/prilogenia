@@ -1,4 +1,5 @@
 import "./supabase-auth.js";
+import { attachDeveloperTools } from "./developer-tools-runtime.js";
 import "./checklist-risk-core.js";
 import { STANDALONE_PATCHES } from "./standalone-patches.js";
 import { createChecklistCloudBackup } from "./supabase-cloud-backup.js";
@@ -496,6 +497,9 @@ async function main() {
   source = __tmhAttachFooterLayout(source);
   source = injectUnifiedChrome(source, mode);
   source = __tmhAttachHeaderLayout(source);
+  // Mount the established developer constructors and Excel reference editor
+  // on the standalone checklist route actually served by Render Preview.
+  source = attachDeveloperTools(source);
   window.__TMH_ACTIVE_MODE__ = mode;
   const migratedPatches = STANDALONE_PATCHES.map(function(patch) {
     return '<script id="' + patch.id + '">' + patch.code.replaceAll("window.parent", "window") + '</script>';
