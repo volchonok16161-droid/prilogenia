@@ -57,7 +57,7 @@ test("all five embedded checklist engines receive constructor equipment without 
   };
   assert.match(files.complex, /CUSTOM_EQUIPMENT/);
   assert.match(files.complex, /ce\.checklists\.indexOf\(activeMode\)/);
-  assert.match(files.complex, /if\(!type\)return r/);
+  assert.match(files.complex, /checklists\.indexOf\(activeMode\)/);
   assert.match(files.tt, /item\.checklists&&item\.checklists\.indexOf\('tt'\)/);
   assert.match(files.bi, /item\.checklists&&item\.checklists\.indexOf\('bi'\)/);
   assert.match(files.hydro, /item\.checklists&&item\.checklists\.indexOf\('hydro'\)/);
