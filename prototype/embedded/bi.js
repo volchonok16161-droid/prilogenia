@@ -2327,9 +2327,17 @@ buildEquipment=function(type){
     list.forEach(function(item){
       var include=chk?(chk.equipment.indexOf(item.id)>=0):!!(item.checklists&&item.checklists.indexOf('bi')>=0);
       if(!include||EQUIPMENT.some(function(eq){return eq.id===item.id;}))return;
-      var fields=(item.fields||[]).map(function(fl){return {key:fl.key,label:fl.label,type:fl.type==='text'?'text':'select',options:(fl.options||[]).slice(),ok:(fl.ok||[]).slice(),hint:fl.hint||'',photo:fl.photo!=='never',photoAlways:fl.photo==='always',calc:fl.calc!==false};});
-      var scope=(item.layout&&item.layout.scope)||'all';
-      var instances=secs.filter(function(sec){var booster=/Секция №\\s*[3-9]/.test(String(sec.label||''));return scope==='all'||(scope==='cabins'&&!booster)||(scope==='boosters'&&booster);}).map(function(sec){return {section:sec.label};});
+      var fields=(item.fields||[]).map(function(fl){return {key:fl.key,label:fl.label,type:fl.type==='text'?'text':'select',options:(fl.options||[]).slice(),ok:(fl.ok||[]).slice(),hint:[fl.hint,fl.explain].filter(Boolean).join('\\n'),photo:fl.photo!=='never',photoAlways:fl.photo==='always',calc:fl.calc!==false};});
+      var layout=item.layout||{},scope=layout.scope||'all';
+      var selectedBlocks=Array.isArray(layout.blocks)?layout.blocks.filter(Boolean):[];
+      if(!selectedBlocks.length&&layout.count>1){for(var bi=1;bi<=Math.min(30,layout.count);bi++)selectedBlocks.push('№'+bi);}
+      var instances=[];
+      secs.forEach(function(sec){
+        var booster=/Секция №\\s*[3-9]/.test(String(sec.label||''));
+        if(scope==='cabins'&&booster||scope==='boosters'&&!booster)return;
+        if(selectedBlocks.length)selectedBlocks.forEach(function(block){instances.push({section:sec.label,block:block});});
+        else instances.push({section:sec.label});
+      });
       if(!instances.length)return;
       EQUIPMENT.push({id:item.id,title:item.title,custom:true,fields:fields,getFields:function(){return this.fields;},instances:function(){return instances;}});
     });
@@ -3055,7 +3063,8 @@ saveState = function(silent) {
            ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ РАБОТЫ С ПОЛЯМИ И ФОТО
            ======================================================================== */
         function instId(eqId, inst, idx) {
-            return [eqId, inst.section].join('|');
+            const eq=EQUIPMENT.find(function(item){return item.id===eqId;});
+            return [eqId,inst.section,eq&&eq.custom?(inst.block||''):''].join('|');
         }
 
         function getVal(iid, key) { return (STATE.values[iid] && STATE.values[iid][key]) || ''; }
@@ -3245,7 +3254,7 @@ saveState = function(silent) {
         function fieldRow(eq, inst, iid, field) {
             if(eq.custom && field.type==='text'){
                 const textRow=document.createElement('div');textRow.className='frow';textRow.dataset.fieldKey=field.key;
-                const textLabel=document.createElement('div');textLabel.className='flabel';textLabel.textContent=field.label;textRow.appendChild(textLabel);
+                const textLabel=document.createElement('div');textLabel.className='flabel';textLabel.textContent=field.label;textRow.appendChild(textLabel);if(field.hint){const hint=document.createElement('span');hint.className='hint';hint.textContent=field.hint;textLabel.appendChild(hint);}
                 const textInput=document.createElement('input');textInput.type='text';textInput.placeholder='Введите значение';textInput.value=getVal(iid,field.key);
                 textInput.addEventListener('input',function(){setVal(iid,field.key,this.value);refreshInstance(eq,inst,iid);});
                 textRow.appendChild(textInput);if(field.photo)addPhotoSupport(textRow,field,iid);return textRow;
