@@ -91,7 +91,7 @@ test("TT and BI custom equipment preserve layout blocks as separate saved instan
 
 test("hydro custom equipment uses configured blocks and honours field normal values and calculation flags", async () => {
   const hydro = await readFile(resolve(ROOT, "prototype/embedded/hydro.js"), "utf8");
-  assert.match(hydro, /layout\.blocks\)\?layout\.blocks\.slice\(\):allowedBlocks\.slice\(\)/);
+  assert.match(hydro, /Array\.isArray\(layout\.blocks\)&&layout\.blocks\.length\?layout\.blocks\.slice\(\):allowedBlocks\.slice\(\)/);
   assert.match(hydro, /ALL_POSSIBLE_TYPES\.push\(block\)/);
   assert.match(hydro, /if\(Array\.isArray\(STATE\.selected\).*STATE\.selected\.push\(item\.id\)/);
   assert.match(hydro, /fl\.calc!==false/);
