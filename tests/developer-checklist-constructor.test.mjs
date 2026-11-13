@@ -67,3 +67,34 @@ test("all five embedded checklist engines receive constructor equipment without 
     assert.match(source, /CUSTOM_EQUIPMENT/, mode + " must receive custom equipment payload");
   }
 });
+
+
+test("housings mode keeps its built-in checklist and exposes assigned custom equipment", async () => {
+  const complex = await readFile(resolve(ROOT, "prototype/embedded/complex.js"), "utf8");
+  assert.match(complex, /if\(!type\)return r;/);
+  assert.doesNotMatch(complex, /if\(!type\|\|\(typeof MODE!=='undefined'&&MODE==='housings'\)\)return r/);
+  assert.match(complex, /const custom=EQUIPMENT\.filter\(e=>e\.custom\)/);
+  assert.match(complex, /addHousingChip\(base,true\);custom\.forEach/);
+});
+
+test("TT and BI custom equipment preserve layout blocks as separate saved instances", async () => {
+  const tt = await readFile(resolve(ROOT, "prototype/embedded/tt.js"), "utf8");
+  const bi = await readFile(resolve(ROOT, "prototype/embedded/bi.js"), "utf8");
+  for (const [mode, source] of [["TT", tt], ["BI", bi]]) {
+    assert.match(source, /selectedBlocks\.forEach\(function\(block\)/, mode + " must expand configured layout blocks");
+    assert.match(source, /eq&&eq\.custom\?\(instance?\.block\|\|' '\)/, mode + " should distinguish custom instances");
+    assert.match(source, /eq\.custom && .*instance\.block|eq\.custom && .*inst\.block/, mode + " should show the configured block label");
+    assert.match(source, /fl\.explain/, mode + " should retain field explanations");
+    assert.match(source, /field\.calc === false/, mode + " should respect fields excluded from deviation calculation");
+  }
+});
+
+test("hydro custom equipment uses configured blocks and honours field normal values and calculation flags", async () => {
+  const hydro = await readFile(resolve(ROOT, "prototype/embedded/hydro.js"), "utf8");
+  assert.match(hydro, /layout\.blocks\)\?layout\.blocks\.slice\(\):allowedBlocks\.slice\(\)/);
+  assert.match(hydro, /ALL_POSSIBLE_TYPES\.push\(block\)/);
+  assert.match(hydro, /if\(Array\.isArray\(STATE\.selected\).*STATE\.selected\.push\(item\.id\)/);
+  assert.match(hydro, /fl\.calc!==false/);
+  assert.match(hydro, /fl\.ok\.indexOf\(v\)<0/);
+  assert.match(hydro, /field\.hint\|\|field\.explain/);
+});
