@@ -3088,12 +3088,11 @@ saveState = function(silent) {
             if (!inst) return { state: 'na', label: 'Нет' };
             const fields = eq.getFields(inst.position);
             for (const field of fields) {
+                if (field.calc === false) continue;
                 const val = getVal(iid, field.key);
                 if (val && val !== '') {
                     anyFilled = true;
-                    if (val === 'Нет') {
-                        hasBad = true;
-                    }
+                    if (field.ok && field.ok.length ? !field.ok.includes(val) : val === 'Нет') hasBad = true;
                 }
             }
             if (!anyFilled) return { state: 'na', label: 'Нет' };
@@ -3313,7 +3312,7 @@ saveState = function(silent) {
             card.dataset.iid = iid;
             const head = document.createElement('div');
             head.className = 'ih';
-            const lblParts = [\`\${inst.section}\`];
+            const lblParts = [\`\${inst.section}\${eq.custom && inst.block ? ' · ' + inst.block : ''}\`];
             const lbl = document.createElement('div');
             lbl.innerHTML = \`<span class="lbl">\${lblParts.join(' · ')}</span>\`;
             head.appendChild(lbl);
