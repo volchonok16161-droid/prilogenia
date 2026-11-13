@@ -223,7 +223,7 @@ test("service worker reopens the standalone checklist after network loss", { tim
       mode: document.querySelector("#modeSelectModal [data-tmh-mode][aria-current=\"page\"]")?.getAttribute("data-tmh-mode") || null,
       offline: navigator.onLine === false,
       controlled: !!navigator.serviceWorker.controller,
-      iframes: document.querySelectorAll("iframe").length,
+      iframes: document.querySelectorAll("iframe:not(#devPrevFrame)").length,
       cachedPhotoStatus: (await fetch("/examples/e_11hwbr_ok_mvurndpt.jpg")).status
     }));
     assert.equal(state.mode, "hydro");
