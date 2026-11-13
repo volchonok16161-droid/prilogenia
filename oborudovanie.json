@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated": "2026-11-12T12:56:53.678Z",
+  "updated": "2026-11-13T05:29:58.591Z",
   "equipment": [
     {
       "id": "c_mvs318ku",
@@ -273,8 +273,12 @@
         {
           "key": "f2",
           "label": "Год изготовления",
-          "type": "text",
-          "options": [],
+          "type": "select",
+          "options": [
+            "2024",
+            "2025",
+            "2026"
+          ],
           "ok": [],
           "photo": "never",
           "calc": true,
@@ -305,10 +309,13 @@
           "options": [
             "Левый",
             "Правый",
-            "Оба"
+            "Оба",
+            "Нет"
           ],
-          "ok": [],
-          "photo": "deviation",
+          "ok": [
+            "Нет"
+          ],
+          "photo": "always",
           "calc": true,
           "hint": "",
           "explain": ""
@@ -378,9 +385,25 @@
           "calc": false,
           "hint": "",
           "explain": ""
-        },
+        }
+      ]
+    },
+    {
+      "id": "c_mwejasz2",
+      "title": "Оттиски линии касаний",
+      "checklists": [
+        "complex"
+      ],
+      "layout": {
+        "scope": "all",
+        "blocks": [
+          "КМ1, КМ11-КМ14"
+        ],
+        "count": 1
+      },
+      "fields": [
         {
-          "key": "f10",
+          "key": "f1",
           "label": "Общее фото оттисков линии касаний",
           "type": "select",
           "options": [
@@ -388,7 +411,7 @@
           ],
           "ok": [],
           "photo": "always",
-          "calc": false,
+          "calc": true,
           "hint": "",
           "explain": ""
         }
@@ -423,7 +446,8 @@
       "icon": "⚡",
       "sheet": "МК-9",
       "equipment": [
-        "c_mwdj7akm"
+        "c_mwdj7akm",
+        "c_mwejasz2"
       ]
     }
   ]
