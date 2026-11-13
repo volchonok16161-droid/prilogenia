@@ -2874,9 +2874,9 @@ buildEquipment=function(type){
       var include=chk?(chk.equipment.indexOf(item.id)>=0):!!(item.checklists&&item.checklists.indexOf('hydro')>=0);
       if(!include||EQUIPMENT.some(function(eq){return eq.id===item.id;}))return;
       var fields=(item.fields||[]).map(function(fl){return {key:fl.key,label:fl.label,type:fl.type==='text'?'text':'select',options:(fl.options||[]).slice(),ok:(fl.ok||[]).slice(),hint:fl.hint||'',photo:fl.photo!=='never',photoAlways:fl.photo==='always',calc:fl.calc!==false};});
-      var layout=item.layout||{},blocks=allowedBlocks.slice();
+      var layout=item.layout||{},blocks=Array.isArray(layout.blocks)&&layout.blocks.length?layout.blocks.slice():allowedBlocks.slice();
       var instances=[];
-      sections.forEach(function(sec){var booster=/Секция №\\s*[3-9]/.test(String(sec));if(layout.scope==='cabins'&&booster)return;if(layout.scope==='boosters'&&!booster)return;['1','2'].forEach(function(t){blocks.forEach(function(b){instances.push({section:sec,group:'Тележка '+t,block:b});});});});
+      sections.forEach(function(sec){var booster=/Секция №\\s*[3-9]/.test(String(sec));if(layout.scope==='cabins'&&booster)return;if(layout.scope==='boosters'&&!booster)return;var telezhki=Array.isArray(layout.telezhki)&&layout.telezhki.length?layout.telezhki:['1','2'];telezhki.forEach(function(t){blocks.forEach(function(b){instances.push({section:sec,group:'Тележка '+t,block:b});});});});
       if(!instances.length)return;
       EQUIPMENT.push({id:item.id,title:item.title,custom:true,fields:fields,instances:function(){return instances;}});
       if(Array.isArray(STATE.selected)&&STATE.selected.indexOf(item.id)<0)STATE.selected.push(item.id);
@@ -4105,7 +4105,7 @@ function createCardElement(eq, inst, idx) {
     const title=document.createElement('div');title.className='block-type';title.textContent=eq.title+(inst.block?' · '+inst.block:'');card.appendChild(title);
     (eq.fields||[]).forEach(function(field){
       const row=document.createElement('div');row.className='field-row';row.dataset.fieldKey=field.key;
-      const label=document.createElement('label');label.textContent=field.label;row.appendChild(label);
+      const label=document.createElement('label');label.textContent=field.label;row.appendChild(label);if(field.hint||field.explain){const hint=document.createElement('span');hint.className='hint';hint.textContent=[field.hint,field.explain].filter(Boolean).join('\\n');row.appendChild(hint);}
       let control;if(field.type==='text'){control=document.createElement('input');control.type='text';control.value=getVal(iid,field.key)||'';control.addEventListener('input',function(){setVal(iid,field.key,this.value);status.textContent='Состояние: '+computeFlag(eq,iid).label;updateStats();});}
       else{control=document.createElement('select');[''].concat(field.options||[]).forEach(function(value){const option=document.createElement('option');option.value=value;option.textContent=value||'— выбрать —';control.appendChild(option);});control.value=getVal(iid,field.key)||'';control.addEventListener('change',function(){setVal(iid,field.key,this.value);row.classList.remove('frow-ok','frow-bad');if(field.ok&&field.ok.indexOf(this.value)>=0)row.classList.add('frow-ok');else if(this.value)row.classList.add('frow-bad');status.textContent='Состояние: '+computeFlag(eq,iid).label;updateStats();});}
       row.appendChild(control);if(field.photo)addPhotoSupport(row,field,iid);card.appendChild(row);
