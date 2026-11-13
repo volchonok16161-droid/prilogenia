@@ -56,7 +56,7 @@ test("all five embedded checklist engines receive constructor equipment without 
     hydro: await readFile(resolve(ROOT, "prototype/embedded/hydro.js"), "utf8")
   };
   assert.match(files.complex, /CUSTOM_EQUIPMENT/);
-  assert.match(files.complex, /item\.checklists\.indexOf\('complex'\)/);
+  assert.match(files.complex, /ce\.checklists\.indexOf\(activeMode\)/);
   assert.match(files.complex, /if\(!type\)return r/);
   assert.match(files.tt, /item\.checklists&&item\.checklists\.indexOf\('tt'\)/);
   assert.match(files.bi, /item\.checklists&&item\.checklists\.indexOf\('bi'\)/);
