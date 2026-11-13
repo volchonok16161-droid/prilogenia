@@ -2875,10 +2875,12 @@ buildEquipment=function(type){
       if(!include||EQUIPMENT.some(function(eq){return eq.id===item.id;}))return;
       var fields=(item.fields||[]).map(function(fl){return {key:fl.key,label:fl.label,type:fl.type==='text'?'text':'select',options:(fl.options||[]).slice(),ok:(fl.ok||[]).slice(),hint:fl.hint||'',photo:fl.photo!=='never',photoAlways:fl.photo==='always',calc:fl.calc!==false};});
       var layout=item.layout||{},blocks=Array.isArray(layout.blocks)&&layout.blocks.length?layout.blocks.slice():allowedBlocks.slice();
+      blocks.forEach(function(block){if(ALL_POSSIBLE_TYPES.indexOf(block)<0)ALL_POSSIBLE_TYPES.push(block);});
       var instances=[];
       sections.forEach(function(sec){var booster=/Секция №\\s*[3-9]/.test(String(sec));if(layout.scope==='cabins'&&booster)return;if(layout.scope==='boosters'&&!booster)return;var telezhki=Array.isArray(layout.telezhki)&&layout.telezhki.length?layout.telezhki:['1','2'];telezhki.forEach(function(t){blocks.forEach(function(b){instances.push({section:sec,group:'Тележка '+t,block:b});});});});
       if(!instances.length)return;
       EQUIPMENT.push({id:item.id,title:item.title,custom:true,fields:fields,instances:function(){return instances;}});
+      if(Array.isArray(STATE.selected)&&STATE.selected.indexOf(item.id)<0)STATE.selected.push(item.id);
       if(Array.isArray(STATE.selected)&&STATE.selected.indexOf(item.id)<0)STATE.selected.push(item.id);
     });
   }catch(error){console.warn('[custom equipment]',error);}
@@ -4089,7 +4091,7 @@ function updateGlobalNotice() {
    ФУНКЦИЯ ДЛЯ ВЫЧИСЛЕНИЯ ФЛАГА НАЛИЧИЯ НЕСООТВЕТСТВИЙ (только по состоянию)
    ======================================================================== */
 function computeFlag(eq, iid) {
-  if(eq.custom){var any=false,bad=false;(eq.fields||[]).forEach(function(fl){var v=getVal(iid,fl.key);if(v!==''&&v!=null){any=true;if(fl.ok&&fl.ok.length&&fl.ok.indexOf(v)<0)bad=true;}});if(!any)return {state:'na',label:'Нет'};return bad?{state:'bad',label:'Да'}:{state:'ok',label:'Нет'};}
+  if(eq.custom){var any=false,bad=false;(eq.fields||[]).forEach(function(fl){var v=getVal(iid,fl.key);if(fl.calc!==false&&v!==''&&v!=null){any=true;if(fl.ok&&fl.ok.length?fl.ok.indexOf(v)<0:v==='Нет')bad=true;}});if(!any)return {state:'na',label:'Нет'};return bad?{state:'bad',label:'Да'}:{state:'ok',label:'Нет'};}
   const state = getVal(iid, 'state');
   if (state === 'Неисправен') return { state: 'bad', label: 'Да' };
   if (state === 'Исправен') return { state: 'ok', label: 'Нет' };
