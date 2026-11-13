@@ -2793,6 +2793,7 @@ function fullClearState() { __psClear();
             let hasBad = false;
             const fields = eq.getFields({});
             for (const field of fields) {
+                if (field.calc === false) continue;
                 const val = getVal(iid, field.key);
                 if (val && val !== '') {
                     anyFilled = true;
@@ -3087,7 +3088,7 @@ function fullClearState() { __psClear();
             const head = document.createElement('div');
             head.className = 'ih';
             const lbl = document.createElement('div');
-            lbl.innerHTML = \`<span class="lbl">\${instance.section}</span>\`;
+            lbl.innerHTML = \`<span class="lbl">\${instance.section}\${eq.custom && instance.block ? ' · ' + instance.block : ''}</span>\`;
             head.appendChild(lbl);
             const pill = document.createElement('span');
             pill.className = 'pill na';
