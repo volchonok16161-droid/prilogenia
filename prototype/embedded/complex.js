@@ -1160,6 +1160,10 @@ sel('install','Соответствует установки рассекате�
 
 EQUIPMENT.push({id:'kps',title:'КПС-0,5-38',customRender:true,instances:function(){const out=[];for(const section of sections){for(const gid in GROUPS)out.push({section,gid});}return out;}});
 
+// Preserve original equipment IDs, layout and validation; only display metadata may change.
+try{var __core=window.parent&&window.parent.__RISK_CORE__;
+  if(__core&&__core.applyBuiltinOverrides)__core.applyBuiltinOverrides(EQUIPMENT,__core.devBuiltinOverrides||__core.store.builtinOverrides);
+}catch(e){console.warn('Built-in metadata not available',e);}
 // Фильтрация по режиму
 
 

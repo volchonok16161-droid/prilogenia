@@ -4,7 +4,7 @@
   var SHEET_BY_MODE={complex:'Комплексный',housings:'КМБ',tt:'ТТ',bi:'БИ',hydro:'Гидродемпферы'};
   var TITLE_BY_MODE={complex:'Комплексный чек-лист',housings:'КМБ',tt:'ТТ (тяговый трансформатор)',bi:'БИ (МСУД-015)',hydro:'Гидродемпферы'};
   var INSTR_SHEET='Инструкция',PLACES_SHEET='Места осмотра',NODES_SHEET='Узлы',MILEAGE_SHEET='Пробег';
-  var store={data:null,error:null,loading:null,stamp:'',lastTry:0,cache:{},places:null,milCache:null,issues:{},used:{},nodeIssues:{},rules:{},custom:[],customStamp:'',customError:null,customLoaded:false,checklists:[]};
+  var store={data:null,error:null,loading:null,stamp:'',lastTry:0,cache:{},places:null,milCache:null,issues:{},used:{},nodeIssues:{},rules:{},custom:[],builtinOverrides:{},customStamp:'',customError:null,customLoaded:false,checklists:[]};
 
   /* ---------- чтение xlsx (zip + xml), без внешних библиотек ---------- */
   function u8str(u8){return new TextDecoder('utf-8').decode(u8);}
@@ -458,6 +458,25 @@
   function reportNodeIssues(mode,list){if(mode)store.nodeIssues[mode]=list||[];}
   /* ---------- оборудование из конструктора (oborudovanie.json) ---------- */
   var CUSTOM_FILE='oborudovanie.json';
+  function cleanBuiltinOverrides(raw){
+    var out={},allowed={};BUILTIN_EQ.forEach(function(e){allowed[e.id]=true;});
+    Object.keys(raw&&typeof raw==='object'?raw:{}).forEach(function(id){
+      if(!allowed[id])return;var x=raw[id];if(!x||typeof x!=='object')return;
+      var fields={};Object.keys(x.fields||{}).forEach(function(key){
+        if(!/^[a-z0-9_]{1,40}$/.test(key))return;
+        var label=cleanStr(x.fields[key]&&x.fields[key].label).slice(0,300);
+        if(label)fields[key]={label:label};
+      });
+      var title=cleanStr(x.title).slice(0,180);
+      if(title||Object.keys(fields).length)out[id]={title:title,fields:fields};
+    });return out;
+  }
+  function applyBuiltinOverrides(equipment,overrides){
+    (equipment||[]).forEach(function(eq){var o=overrides&&overrides[eq.id];if(!o)return;
+      if(o.title)eq.title=o.title;
+      (eq.fields||[]).forEach(function(f){var v=o.fields&&o.fields[f.key];if(v&&v.label)f.label=v.label;});
+    });return equipment;
+  }
   function cleanStr(v){return String(v==null?'':v).replace(/[<>]/g,'').replace(/\s+/g,' ').trim();}   // < и > вырезаются: названия попадают в разметку чек-листа
   function cleanText(v){return String(v==null?'':v).replace(/\r/g,'').trim();}
   function slug(v){return String(v||'').toLowerCase().replace(/[^a-z0-9_]/g,'_').replace(/^_+|_+$/g,'');}
@@ -496,7 +515,7 @@
       out.push({id:id,title:title,checklists:modes,layout:{scope:scope,blocks:blocks,count:count},fields:fields});
     });
     var ck=cleanChecklists((raw&&raw.checklists)||[],out.map(function(e){return e.id;}));
-    return {list:out,checklists:ck.list,issues:issues.concat(ck.issues)};
+    return {list:out,checklists:ck.list,builtinOverrides:cleanBuiltinOverrides(raw&&raw.builtinOverrides),issues:issues.concat(ck.issues)};
   }
   var BUILTIN_EQ=[
     {id:'vb8',title:'Выключатель быстродействующий ВБ-8'},{id:'bvv',title:'БВВ-057'},{id:'mk9',title:'Контактор МК-9'},{id:'re16t',title:'РЭ16Т'},
@@ -562,13 +581,13 @@
   }
   function loadCustom(){
     return fetch(CUSTOM_FILE+'?v='+Date.now(),{cache:'no-store'}).then(function(resp){
-      if(resp.status===404){store.custom=[];store.checklists=[];applyModes([]);try{localStorage.removeItem('custom_modes_v1');}catch(e){}renderModeButtons();store.customError=null;store.customLoaded=true;return [];}
+      if(resp.status===404){store.custom=[];store.checklists=[];store.builtinOverrides={};applyModes([]);try{localStorage.removeItem('custom_modes_v1');}catch(e){}renderModeButtons();store.customError=null;store.customLoaded=true;return [];}
       if(!resp.ok)throw new Error('Файл '+CUSTOM_FILE+': код '+resp.status);
       store.customStamp=fmtStamp(resp.headers.get('last-modified'));
       return resp.json();
     }).then(function(j){
       if(!j)return [];
-      var c=cleanCustom(j);store.custom=c.list;store.checklists=c.checklists;store.customError=null;store.customLoaded=true;
+      var c=cleanCustom(j);store.custom=c.list;store.checklists=c.checklists;store.builtinOverrides=c.builtinOverrides;store.customError=null;store.customLoaded=true;
       store.issues.custom=c.issues;
       var modes=c.checklists.map(function(k){return {id:k.id,title:k.title,subtitle:k.subtitle,icon:k.icon,sheet:k.sheet};});
       applyModes(modes);try{localStorage.setItem('custom_modes_v1',JSON.stringify(modes));}catch(e){}
@@ -673,5 +692,5 @@
   document.addEventListener('DOMContentLoaded',function(){renderModeButtons();loadCustom().catch(function(){});});
   window.__RISK_CORE__={store:store,load:load,ready:ready,applyRegistry:applyRegistry,entriesFor:entriesFor,findSheet:findSheet,
     norm:norm,sheetKey:sheetKey,numberMatches:numberMatches,searchMatches:searchMatches,placesMap:placesMap,parseXlsx:parseXlsx,
-    FILE:FILE,SHEET_BY_MODE:SHEET_BY_MODE,TITLE_BY_MODE:TITLE_BY_MODE,INSTR_SHEET:INSTR_SHEET,nodeRulesText:nodeRulesText,reportNodeIssues:reportNodeIssues,NODES_SHEET:NODES_SHEET,loadCustom:loadCustom,applyModes:applyModes,renderModeButtons:renderModeButtons,cleanChecklists:cleanChecklists,BUILTIN_EQ:BUILTIN_EQ,devChecklists:null,mileageFor:mileageFor,xlsx:{index:xlsxIndex,build:buildXlsx,addSheets:addSheets,sigOf:sigOf,entryBytes:entryBytes},normSeries:normSeries,builtinSeries:builtinSeries,flat:flat,MILEAGE_SHEET:MILEAGE_SHEET,cleanCustom:cleanCustom,CUSTOM_FILE:CUSTOM_FILE,devOverride:null};
+    FILE:FILE,SHEET_BY_MODE:SHEET_BY_MODE,TITLE_BY_MODE:TITLE_BY_MODE,INSTR_SHEET:INSTR_SHEET,nodeRulesText:nodeRulesText,reportNodeIssues:reportNodeIssues,NODES_SHEET:NODES_SHEET,loadCustom:loadCustom,applyModes:applyModes,renderModeButtons:renderModeButtons,cleanChecklists:cleanChecklists,BUILTIN_EQ:BUILTIN_EQ,devChecklists:null,mileageFor:mileageFor,xlsx:{index:xlsxIndex,build:buildXlsx,addSheets:addSheets,sigOf:sigOf,entryBytes:entryBytes},normSeries:normSeries,builtinSeries:builtinSeries,flat:flat,MILEAGE_SHEET:MILEAGE_SHEET,cleanCustom:cleanCustom,cleanBuiltinOverrides:cleanBuiltinOverrides,applyBuiltinOverrides:applyBuiltinOverrides,CUSTOM_FILE:CUSTOM_FILE,devOverride:null};
 })();
