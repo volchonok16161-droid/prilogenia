@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "updated": "2026-11-13T05:29:58.591Z",
+  "updated": "2026-11-13T12:40:31.410Z",
   "equipment": [
     {
       "id": "c_mvs318ku",
@@ -391,9 +391,7 @@
     {
       "id": "c_mwejasz2",
       "title": "Оттиски линии касаний",
-      "checklists": [
-        "complex"
-      ],
+      "checklists": [],
       "layout": {
         "scope": "all",
         "blocks": [
