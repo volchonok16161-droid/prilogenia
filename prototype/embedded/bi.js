@@ -3362,6 +3362,25 @@ saveState = function(silent) {
            РЕНДЕР ОБОРУДОВАНИЯ (только выбранные секции)
            ======================================================================== */
         function renderEquip() {
+  // Apply editable labels to existing mode-specific equipment without changing stable IDs or scoring.
+  try {
+    var __core=window.parent&&window.parent.__RISK_CORE__;
+    if(__core&&__core.applyBuiltinOverrides){
+      EQUIPMENT.forEach(function(eq){
+        if(eq.custom)return;
+        __core.applyBuiltinOverrides([eq],__core.devBuiltinOverrides||__core.store.builtinOverrides);
+        if(typeof eq.getFields==='function'&&!eq.__builtinLabelWrapped){
+          var original=eq.getFields;
+          eq.getFields=function(){var fields=original.apply(this,arguments);
+            var changes=(__core.devBuiltinOverrides||__core.store.builtinOverrides||{})[eq.id];
+            if(changes&&changes.fields)(fields||[]).forEach(function(f){var v=changes.fields[f.key];if(v&&v.label)f.label=v.label;});
+            return fields;};
+          eq.__builtinLabelWrapped=true;
+        }
+      });
+    }
+  }catch(e){console.warn('Builtin label overrides unavailable',e);}
+
             const root = document.getElementById('equipRoot');
             const type = STATE.general.type || '';
 

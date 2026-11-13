@@ -518,6 +518,7 @@
     return {list:out,checklists:ck.list,builtinOverrides:cleanBuiltinOverrides(raw&&raw.builtinOverrides),issues:issues.concat(ck.issues)};
   }
   var BUILTIN_EQ=[
+    {id:'tt',title:'Тяговый трансформатор'},{id:'gidro',title:'Гидродемпфер'},
     {id:'vb8',title:'Выключатель быстродействующий ВБ-8'},{id:'bvv',title:'БВВ-057'},{id:'mk9',title:'Контактор МК-9'},{id:'re16t',title:'РЭ16Т'},
     {id:'nvmontazh',title:'Низковольтный электрический монтаж'},{id:'rassekatel',title:'Рассекатель'},{id:'shina',title:'Силовой электрический монтаж — шинный монтаж'},
     {id:'gres',title:'Главный резервуар'},{id:'kps',title:'КПС-0,5-38'},{id:'nb514',title:'НБ-514Е — щёткодержатель'},{id:'housings',title:'Кожуха'},
