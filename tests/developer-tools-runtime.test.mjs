@@ -37,7 +37,7 @@ test("developer tools remain role-gated in the standalone route", async () => {
 test("developer tools runtime is included in service-worker precache and gets a new cache version", async () => {
   const sw = await readFile(resolve(ROOT, "sw.js"), "utf8");
   const entry = await readFile(resolve(ROOT, "prototype/checklist/index.html"), "utf8");
-  assert.match(sw, /checklist-cache-v120/);
+  assert.match(sw, /checklist-cache-v121/);
   assert.match(sw, /\.\/prototype\/developer-tools-runtime\.js/);
-  assert.match(entry, /prototype\/checklist-runtime\.js\?v=boot109/);
+  assert.match(entry, /prototype\/checklist-runtime\.js\?v=boot110/);
 });
