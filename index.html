@@ -2970,7 +2970,11 @@ function showEmbeddedApp(mode){
         return;
       }
       if(openSeq!==window.__TMH_EMBED_OPEN_SEQ)return;
-      frame.srcdoc=prepared;
+      // srcdoc shares storage but not the parent's JavaScript globals. Set the
+      // requested mode explicitly before the embedded document executes.
+      const bootModeScript='<script>window.__MODE__='+JSON.stringify(mode)+';<\/script>';
+      const readySource=prepared.replace(/<head([^>]*)>/i,function(tag){return tag+bootModeScript;});
+      frame.srcdoc=readySource;
       window.__TMH_ACTIVE_EMBEDDED_MODE=mode;
       host.style.display='flex';
       if(nativeApp)nativeApp.style.display='none';
