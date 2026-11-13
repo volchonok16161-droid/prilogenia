@@ -99,3 +99,21 @@ test("hydro custom equipment uses configured blocks and honours field normal val
   assert.match(hydro, /fl\.ok\.indexOf\(v\)<0/);
   assert.match(hydro, /field\.hint\|\|field\.explain/);
 });
+
+test("main checklist content and reference photos are imported without replacing development definitions", async () => {
+  const data = JSON.parse(await readFile(resolve(ROOT, "oborudovanie.json"), "utf8"));
+  const photos = JSON.parse(await readFile(resolve(ROOT, "examples.json"), "utf8"));
+  const { access } = await import("node:fs/promises");
+  const imported = data.equipment.find(item => item.id === "c_mwejasz2");
+  assert.equal(imported?.title, "Оттиски линии касаний");
+  assert.ok(imported.fields.some(field => field.key === "f1"));
+  const checklist = data.checklists.find(item => item.id === "k_mwdj4ydq");
+  assert.ok(checklist.equipment.includes(imported.id));
+  const contactor = data.equipment.find(item => item.id === "c_mwdj7akm");
+  assert.equal(contactor.fields.find(field => field.key === "f2").type, "text", "keep development edits instead of main code/data overwrite");
+  for (const key of ["cx|c_mwdj7akm|f10", "cx|c_mwejasz2|f1"]) {
+    const photo = photos.items[key]?.ok;
+    assert.ok(photo?.startsWith("/examples/"), key + " must have a usable absolute photo URL");
+    await access(resolve(ROOT, photo.slice(1)));
+  }
+});

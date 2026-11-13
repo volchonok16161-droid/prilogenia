@@ -393,6 +393,35 @@
           "explain": ""
         }
       ]
+    },
+    {
+      "id": "c_mwejasz2",
+      "title": "Оттиски линии касаний",
+      "checklists": [
+        "complex"
+      ],
+      "layout": {
+        "scope": "all",
+        "blocks": [
+          "КМ1, КМ11-КМ14"
+        ],
+        "count": 1
+      },
+      "fields": [
+        {
+          "key": "f1",
+          "label": "Общее фото оттисков линии касаний",
+          "type": "select",
+          "options": [
+            "Общее фото оттисков линии касаний"
+          ],
+          "ok": [],
+          "photo": "always",
+          "calc": true,
+          "hint": "",
+          "explain": ""
+        }
+      ]
     }
   ],
   "checklists": [
@@ -423,7 +452,8 @@
       "icon": "⚡",
       "sheet": "МК-9",
       "equipment": [
-        "c_mwdj7akm"
+        "c_mwdj7akm",
+        "c_mwejasz2"
       ]
     }
   ]
