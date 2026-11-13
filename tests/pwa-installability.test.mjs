@@ -34,7 +34,7 @@ test("declared PWA icon files are real PNGs with their declared dimensions", asy
 test("checklist entry and final standalone document retain PWA metadata", () => {
   assert.match(checklistHtml, /<link rel="manifest" href="\/manifest\.json">/);
   assert.match(checklistHtml, /navigator\.serviceWorker\.register\("\/sw\.js",\{scope:"\/"\}\)/);
-  assert.match(sw, /checklist-cache-v119/);
+  assert.match(sw, /checklist-cache-v120/);
   assert.ok(runtime.includes('<link rel="manifest" href="/manifest.json">'));
 });
 
