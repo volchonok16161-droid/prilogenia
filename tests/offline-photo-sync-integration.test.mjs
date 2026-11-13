@@ -9,7 +9,7 @@ const ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const PHOTO_PATH = UID + "/" + ID + "/1/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const ENCRYPTED = Object.freeze({ version: 1, iv: "local-iv", ciphertext: "local-ciphertext" });
 
-function fixture({ identity = true, cloudError = null, operation = "create" } = {}) {
+function fixture({ identity = true, cloudError = null, operation = "create", committedBeforeError = false } = {}) {
   const state = {
     general: { type: "ТТ", number: "746" },
     values: { item1: { checked: true, comment: "Проверено", front_photo: "data:image/jpeg;base64,AQID" } },
@@ -65,16 +65,30 @@ function fixture({ identity = true, cloudError = null, operation = "create" } = 
     },
     async removeManifest(value) { removed.push(structuredClone(value)); return value.length; },
   };
+  let committedInput = null;
   const cloudSync = {
     async create(input) {
       calls.push(["create", structuredClone(input)]);
-      if (cloudError) throw cloudError;
+      if (cloudError) {
+        if (committedBeforeError) committedInput = structuredClone(input);
+        throw cloudError;
+      }
       return { id: ID, revision: 1 };
     },
-    async update(input) { calls.push(["update", structuredClone(input)]); if (cloudError) throw cloudError; return { id: ID, revision: 2 }; },
+    async update(input) {
+      calls.push(["update", structuredClone(input)]);
+      if (cloudError) {
+        if (committedBeforeError) committedInput = structuredClone(input);
+        throw cloudError;
+      }
+      return { id: ID, revision: 2 };
+    },
     async remove(id) { calls.push(["remove", id]); return true; },
     async get(id) {
       calls.push(["get", id]);
+      if (committedInput) return { id, revision: operation === "create" ? 1 : 5,
+        title: committedInput.title, equipment_type: committedInput.equipmentType,
+        payload: structuredClone(committedInput.payload) };
       if (operation === "create") {
         const error = new Error("not found");
         error.code = "NOT_FOUND";
@@ -127,16 +141,30 @@ test("cloud write conflict rolls back uploaded photos and retains encrypted loca
   }]]);
 });
 
-test("transient cloud failure rolls back uploads but leaves encrypted operation retryable", async () => {
+test("ambiguous cloud failure preserves possibly referenced photos and encrypted operation", async () => {
   const f = fixture({ cloudError: new Error("network unavailable") });
   const result = await f.runner.syncPending({ userId: UID });
   assert.equal(result.failed, 1);
   assert.equal(f.queue[0].status, "pending");
   assert.equal(f.queue[0].encrypted, ENCRYPTED);
   assert.equal(f.queue[0].lastError, "network unavailable");
-  assert.equal(f.removed.length, 1);
+  assert.equal(f.removed.length, 0, "remote commit could still reference photos");
   assert.equal(f.conflicts.length, 0);
 });
+
+for (const operation of ["create", "update"]) {
+  test(`lost ${operation} response acknowledges exact committed snapshot without deleting photos`, async () => {
+    const f = fixture({ operation, cloudError: new Error("response lost"), committedBeforeError: true });
+    const result = await f.runner.syncPending({ userId: UID });
+    assert.equal(result.synced, 1);
+    assert.equal(result.failed, 0);
+    assert.equal(f.queue.length, 0);
+    assert.equal(f.removed.length, 0);
+    assert.equal(f.cloudState.revision, operation === "create" ? 1 : 5);
+    assert.equal(f.calls.filter(([method]) => method === operation).length, 1);
+    assert.equal(f.calls.at(-1)[0], "get");
+  });
+}
 
 test("local-only identity is rejected before any photo reaches Storage", async () => {
   const f = fixture({ identity: false });

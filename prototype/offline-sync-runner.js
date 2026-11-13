@@ -30,6 +30,22 @@ function assertVerifiedIdentity(identity, expectedUserId) {
   return id.toLowerCase();
 }
 
+// A lost HTTP response can follow a successful database commit.
+// JSONB reorders object keys; require an exact normalized snapshot match.
+function normalizedJson(v) {
+  if (Array.isArray(v)) return v.map(normalizedJson);
+  if (v && typeof v === "object") return Object.fromEntries(Object.keys(v).sort().map(k => [k, normalizedJson(v[k])]));
+  return v;
+}
+function matchesConfirmedWrite(request, remote) {
+  const input = request.input;
+  if (!input || !remote || remote.id !== input.id) return false;
+  const revision = request.method === "create" ? 1 : Number(input.expectedRevision) + 1;
+  return Number(remote.revision) === revision && remote.title === input.title &&
+    remote.equipment_type === input.equipmentType &&
+    JSON.stringify(normalizedJson(remote.payload)) === JSON.stringify(normalizedJson(input.payload));
+}
+
 function createLeaseKeeper({ renew, setIntervalImpl, clearIntervalImpl, intervalMs }) {
   let timer = null;
   let renewal = Promise.resolve();
@@ -210,13 +226,30 @@ export function createOfflineSyncRunner({
             cloudResult = await cloudSync[request.method](request.method === "remove" ? request.id : request.input);
             await leaseKeeper.renewNow();
           } catch (cloudError) {
-            // Photo objects are uploaded before the checklist row. If the row
-            // write fails or conflicts, remove only this operation's uploads.
-            if (typeof request.rollback === "function") {
-              try { await request.rollback(); }
-              catch (cleanupError) { cloudError.cleanupError = cleanupError; }
+            // A timeout may follow a committed write. Do not remove photos
+            // that the cloud record may reference.
+            let confirmed = false;
+            if (cloudError?.code !== "REVISION_CONFLICT" && request.method !== "remove") {
+              try {
+                const remote = await cloudSync.get(request.input.id);
+                if (matchesConfirmedWrite(request, remote)) {
+                  cloudResult = remote;
+                  confirmed = true;
+                  await leaseKeeper.renewNow();
+                }
+              } catch (_) {
+                // The probe may itself fail. Preserve encrypted data and photos.
+              }
             }
-            throw cloudError;
+            if (!confirmed) {
+              // Only a definitive revision rejection permits rollback; an
+              // uncertain network error could have committed on the server.
+              if (cloudError?.code === "REVISION_CONFLICT" && typeof request.rollback === "function") {
+                try { await request.rollback(); }
+                catch (cleanupError) { cloudError.cleanupError = cleanupError; }
+              }
+              throw cloudError;
+            }
           }
           let acknowledgement;
           if (request.method === "remove") {
