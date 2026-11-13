@@ -564,3 +564,43 @@ test("standalone checklist mounts developer menu and all three existing tools fo
     await page.close();
   }
 });
+
+for (const [mode, expected] of [
+  ["k_mvs2yl66", "РТ-130"],
+  ["k_mw4vcb4e", "БЦВ"],
+  ["k_mwdj4ydq", "Контактор"]
+]) {
+  test("published custom checklist opens fillable form: " + expected, { timeout: 60000 }, async () => {
+    const page = await browser.newPage();
+    const errors = [];
+    page.on("pageerror", e => errors.push(e.message));
+    await page.route("https://esm.sh/**", route => route.abort());
+    await page.goto(origin + "/prototype/checklist/", { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => window.__RISK_CORE__ && typeof showEmbeddedApp === "function");
+    await page.evaluate(async (selectedMode) => {
+      await window.__RISK_CORE__.loadCustom();
+      window.__TMH_AUTH_CONTEXT = { userId: "00000000-0000-4000-8000-000000000001", role: "developer", offlineMode: false };
+      showEmbeddedApp(selectedMode);
+    }, mode);
+    try {
+      await page.waitForFunction(() => {
+        const doc = document.querySelector("#embeddedFrame")?.contentDocument;
+        return !!doc?.querySelector("#generalGrid input") && !!doc?.querySelector("#equipRoot .equip");
+      }, { timeout: 20000 });
+      const state = await page.locator("#embeddedFrame").evaluate(frame => ({
+        generalInputs: frame.contentDocument.querySelectorAll("#generalGrid input, #generalGrid select").length,
+        equipment: [...frame.contentDocument.querySelectorAll("#equipRoot .equip h2")].map(e => e.textContent)
+      }));
+      assert.ok(state.generalInputs > 0);
+      assert.ok(state.equipment.some(title => title.includes(expected)), JSON.stringify(state));
+    } catch (e) {
+      const diagnostics = await page.locator("#embeddedFrame").evaluate(frame => ({
+        text: frame.contentDocument?.body?.innerText?.slice(0, 700),
+        general: frame.contentDocument?.querySelector("#generalGrid")?.innerHTML?.slice(0, 300),
+        equipment: frame.contentDocument?.querySelector("#equipRoot")?.innerHTML?.slice(0, 300),
+        mode: frame.contentWindow?.__MODE__
+      })).catch(() => null);
+      assert.fail(JSON.stringify({ mode, diagnostics, errors, reason: e.message }));
+    } finally { await page.close(); }
+  });
+}
