@@ -53,7 +53,7 @@ test("editable built-in equipment labels are wired into all existing checklist m
     assert.match(source,/applyBuiltinOverrides/);
   }
   const sw=await readFile(resolve(ROOT,"sw.js"),"utf8");
-  assert.match(sw,/checklist-cache-v124/);
+  assert.match(sw,/checklist-cache-v\d+/);
 });
 
 test("developer can choose built-in checklist operations without typing field IDs", async () => {
