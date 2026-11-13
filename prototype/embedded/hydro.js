@@ -2862,6 +2862,29 @@ function buildEquipment(type) {
   });
 }
 
+/* Custom equipment assigned from the developer checklist constructor. */
+var __tmhBaseBuildEquipment=buildEquipment;
+buildEquipment=function(type){
+  var result=__tmhBaseBuildEquipment.apply(this,arguments);
+  try{
+    if(!type)return result;
+    var chk=(typeof CUSTOM_CHECKLIST!=='undefined')?CUSTOM_CHECKLIST:null;
+    var list=(typeof CUSTOM_EQUIPMENT!=='undefined')?CUSTOM_EQUIPMENT:[];
+    list.forEach(function(item){
+      var include=chk?(chk.equipment.indexOf(item.id)>=0):!!(item.checklists&&item.checklists.indexOf('hydro')>=0);
+      if(!include||EQUIPMENT.some(function(eq){return eq.id===item.id;}))return;
+      var fields=(item.fields||[]).map(function(fl){return {key:fl.key,label:fl.label,type:fl.type==='text'?'text':'select',options:(fl.options||[]).slice(),ok:(fl.ok||[]).slice(),hint:fl.hint||'',photo:fl.photo!=='never',photoAlways:fl.photo==='always',calc:fl.calc!==false};});
+      var layout=item.layout||{},blocks=(layout.blocks&&layout.blocks.length)?layout.blocks.slice():[];
+      if(!blocks.length){for(var n=1;n<=Math.max(1,Math.min(30,Number(layout.count)||1));n++)blocks.push('№'+n);}
+      var instances=[];
+      sections.forEach(function(sec){var booster=/Секция №\\s*[3-9]/.test(String(sec));if(layout.scope==='cabins'&&booster)return;if(layout.scope==='boosters'&&!booster)return;['1','2'].forEach(function(t){blocks.forEach(function(b){instances.push({section:sec,group:'Тележка '+t,block:b});});});});
+      if(!instances.length)return;
+      EQUIPMENT.push({id:item.id,title:item.title,custom:true,fields:fields,instances:function(){return instances;}});
+      if(Array.isArray(STATE.selected)&&STATE.selected.indexOf(item.id)<0)STATE.selected.push(item.id);
+    });
+  }catch(error){console.warn('[custom equipment]',error);}
+  return result;
+};
 /* ========================================================================
    СОСТОЯНИЕ / ХРАНЕНИЕ
    ======================================================================== */
@@ -4067,6 +4090,7 @@ function updateGlobalNotice() {
    ФУНКЦИЯ ДЛЯ ВЫЧИСЛЕНИЯ ФЛАГА НАЛИЧИЯ НЕСООТВЕТСТВИЙ (только по состоянию)
    ======================================================================== */
 function computeFlag(eq, iid) {
+  if(eq.custom){var any=false,bad=false;(eq.fields||[]).forEach(function(fl){var v=getVal(iid,fl.key);if(v!==''&&v!=null){any=true;if(fl.ok&&fl.ok.length&&fl.ok.indexOf(v)<0)bad=true;}});if(!any)return {state:'na',label:'Нет'};return bad?{state:'bad',label:'Да'}:{state:'ok',label:'Нет'};}
   const state = getVal(iid, 'state');
   if (state === 'Неисправен') return { state: 'bad', label: 'Да' };
   if (state === 'Исправен') return { state: 'ok', label: 'Нет' };
@@ -4077,6 +4101,18 @@ function computeFlag(eq, iid) {
    СОЗДАНИЕ КАРТОЧКИ
    ======================================================================== */
 function createCardElement(eq, inst, idx) {
+  if(eq.custom){
+    const iid=instId(eq.id,inst,idx),card=document.createElement('div');card.className='card-item';card.dataset.iid=iid;
+    const title=document.createElement('div');title.className='block-type';title.textContent=eq.title+(inst.block?' · '+inst.block:'');card.appendChild(title);
+    (eq.fields||[]).forEach(function(field){
+      const row=document.createElement('div');row.className='field-row';row.dataset.fieldKey=field.key;
+      const label=document.createElement('label');label.textContent=field.label;row.appendChild(label);
+      let control;if(field.type==='text'){control=document.createElement('input');control.type='text';control.value=getVal(iid,field.key)||'';control.addEventListener('input',function(){setVal(iid,field.key,this.value);updateStats();});}
+      else{control=document.createElement('select');[''].concat(field.options||[]).forEach(function(value){const option=document.createElement('option');option.value=value;option.textContent=value||'— выбрать —';control.appendChild(option);});control.value=getVal(iid,field.key)||'';control.addEventListener('change',function(){setVal(iid,field.key,this.value);row.classList.remove('frow-ok','frow-bad');if(field.ok&&field.ok.indexOf(this.value)>=0)row.classList.add('frow-ok');else if(this.value)row.classList.add('frow-bad');updateStats();});}
+      row.appendChild(control);if(field.photo)addPhotoSupport(row,field,iid);card.appendChild(row);
+    });
+    const status=document.createElement('div');status.className='field-row auto';status.textContent='Состояние: '+computeFlag(eq,iid).label;card.appendChild(status);card._customStatus=status;return card;
+  }
   const iid = instId(eq.id, inst, idx);
   const card = document.createElement('div');
   card.className = 'card-item';
