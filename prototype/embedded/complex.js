@@ -2311,6 +2311,8 @@ saveState = function(silent) {
 
 
 async function init(){
+    window.__TMH_INIT_PENDING = true;
+    try {
     initPhotoModal();
     updateModeTitle();
     const hasAuth = await checkAuth();
@@ -2352,6 +2354,9 @@ async function init(){
       catch (error) { __tmhShowStartupFailure(error); }
     }
     setupCommonHandlers();
+    } finally {
+      window.__TMH_INIT_PENDING = false;
+    }
 }
 function __tmhShowStartupFailure(error) {
   console.error('Checklist startup failed', error);
@@ -2389,8 +2394,12 @@ setTimeout(function() {
   var cont = document.getElementById('continueDialog');
   if ((login && getComputedStyle(login).display !== 'none') ||
       (cont && getComputedStyle(cont).display !== 'none')) return;
+  if (window.__TMH_INIT_PENDING) {
+    __tmhShowStartupFailure(new Error('Проверка авторизации занимает слишком много времени. Проверьте соединение и повторите загрузку.'));
+    return;
+  }
   __tmhShowStartupFailure(new Error('Инициализация формы не завершилась'));
-}, 6500);
+}, 20000);
 
 
 
@@ -2885,7 +2894,10 @@ setTimeout(function() {
   document.head.appendChild(css);
 })();
 
-init();
+init().catch(function(error) {
+  window.__TMH_INIT_PENDING = false;
+  __tmhShowStartupFailure(error);
+});
 <\/script>
 </body>
 </html>
