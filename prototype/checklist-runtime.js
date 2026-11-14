@@ -469,8 +469,21 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
 async function main() {
   const risk = window.__RISK_CORE__;
   if (!risk || typeof risk.ready !== "function") throw new Error("Не удалось загрузить справочник режимов");
+  // Custom checklist definitions must be ready before route validation.
+  // The legacy 2.5s timeout may otherwise silently redirect k_* modes to complex.
   await risk.ready(2500);
   const params = new URLSearchParams(window.location.search);
+  const requestedMode = params.get("mode");
+  if (requestedMode && /^k_[a-z0-9_-]+$/i.test(requestedMode) &&
+      !availableModes().some(function(item){ return item.id === requestedMode; })) {
+    if (typeof risk.loadCustom === "function") {
+      await risk.loadCustom();
+    }
+    if (!availableModes().some(function(item){ return item.id === requestedMode; })) {
+      throw new Error("Пользовательский чек-лист " + requestedMode +
+        " не найден в справочнике оборудования. Проверьте публикацию oborudovanie.json и обновите страницу.");
+    }
+  }
   let storedMode = null;
   try { storedMode = localStorage.getItem("checklist_mode_v2"); } catch (_) {}
   let mode = params.get("mode") || storedMode || "complex";
