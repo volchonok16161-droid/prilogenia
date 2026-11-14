@@ -41,6 +41,23 @@ function makeSync({ user = USER_A, responses = [] } = {}) {
   return { sync: createCloudSync(authApi), client };
 }
 
+
+test("offline startup can construct cloud sync without loading Supabase until a cloud request", async () => {
+  const client = mockClient([{ data: [], error: null }]);
+  let clientLoads = 0;
+  const authApi = {
+    async getClient() { clientLoads += 1; return client; },
+    async getCurrentIdentity() {
+      return { user: { id: USER_A }, profile: { role: "employee" }, error: null };
+    },
+  };
+  const sync = createCloudSync(authApi);
+  assert.equal(clientLoads, 0);
+  assert.deepEqual(await sync.list(), []);
+  assert.equal(clientLoads, 1);
+  assert.deepEqual(client.calls[0].filters, [["owner_id", USER_A]]);
+});
+
 test("list scopes the query to the verified Supabase user", async () => {
   const { sync, client } = makeSync({ responses: [{ data: [], error: null }] });
   assert.deepEqual(await sync.list(), []);
@@ -122,4 +139,10 @@ test("get scopes cloud record lookup to id and verified owner", async () => {
 test("get reports inaccessible or missing records without exposing other owners", async () => {
   const { sync } = makeSync({ responses: [{ data: null, error: null }] });
   await assert.rejects(sync.get(ROW_ID), (error) => error.code === "NOT_FOUND");
+});
+
+test("auth integration passes the TMHAuth API directly to createCloudSync", async () => {
+  const source = await readFile(new URL("../prototype/supabase-auth.js", import.meta.url), "utf8");
+  assert.match(source, /createCloudSync\(api\)/);
+  assert.doesNotMatch(source, /createCloudSync\(\{\s*authApi:\s*api\s*\}\)/);
 });

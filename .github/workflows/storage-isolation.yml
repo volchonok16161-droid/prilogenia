@@ -5,17 +5,25 @@ on:
     branches:
       - development/account-system
       - fix/srcdoc-signed-out-no-reload
+      - feat/cloud-checklist-progress
   pull_request:
     branches:
       - development/account-system
       - fix/auth-watcher-embedded-signin
+      - fix/srcdoc-signed-out-no-reload
 
 jobs:
   storage-isolation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: npm install --no-save --no-package-lock playwright@1.56.1 acorn@8.15.0
+      # GitHub-hosted ubuntu runners already include Chromium's system libraries.
+      # Avoid apt-based --with-deps here: transient Ubuntu mirror/DNS failures
+      # prevented the test suite from starting even though npm dependencies installed.
+      - run: npx playwright install chromium
       - run: node --test tests/*.test.mjs

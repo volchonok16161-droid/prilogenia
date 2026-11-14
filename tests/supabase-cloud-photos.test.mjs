@@ -7,6 +7,7 @@ const ROW = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const PHOTO = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 function harness({ userId = USER } = {}) {
+  let currentUserId = userId;
   const files = new Map();
   const calls = [];
   const removed = [];
@@ -39,16 +40,16 @@ function harness({ userId = USER } = {}) {
   const sync = createChecklistPhotoSync({
     authApi: {
       async getCurrentIdentity() {
-        return { user: userId ? { id: userId } : null, error: null };
+        return { user: currentUserId ? { id: currentUserId } : null, error: null };
       },
     },
     storageApi,
     idFactory: () => PHOTO,
   });
-  return { sync, files, calls, removed };
+  return { sync, files, calls, removed, switchUser(id) { currentUserId = id; } };
 }
 
-test("uploads checklist photos to private user/checklist/revision paths and returns a manifest", async () => {
+test("uploads checklist photos to UUID-only private user/checklist/revision paths and returns a manifest", async () => {
   const h = harness();
   const state = { general: { type: "TT" }, values: { item1: {
     front_photo: "data:image/jpeg;base64,AQID",
@@ -59,7 +60,7 @@ test("uploads checklist photos to private user/checklist/revision paths and retu
   assert.equal(result.manifest.length, 1);
   assert.equal(result.manifest[0].itemId, "item1");
   assert.equal(result.manifest[0].field, "front_photo");
-  assert.match(result.manifest[0].path, new RegExp("^" + USER + "/" + ROW + "/4/item1/front_photo-"));
+  assert.match(result.manifest[0].path, new RegExp("^" + USER + "/" + ROW + "/4/" + PHOTO + "$"));
   assert.equal(h.files.size, 1);
   assert.deepEqual([...new Uint8Array(await [...h.files.values()][0].arrayBuffer())], [1, 2, 3]);
   assert.equal(state.values.item1.front_photo, "data:image/jpeg;base64,AQID");
@@ -194,4 +195,229 @@ test("partial photo upload failure removes files already uploaded in the same ba
   );
   assert.equal(files.size, 0);
   assert.deepEqual(calls, [["remove", 1]]);
+});
+
+
+test("surfaces actionable Supabase Storage error details without losing the original cause", async () => {
+  const cause = Object.assign(new Error("new row violates row-level security\\npolicy"), {
+    code: "42501",
+    statusCode: "403",
+  });
+  const storageApi = {
+    from() {
+      return {
+        async upload() { return { data: null, error: cause }; },
+      };
+    },
+  };
+  const sync = createChecklistPhotoSync({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    storageApi,
+    idFactory: () => PHOTO,
+  });
+  await assert.rejects(
+    sync.uploadState({
+      state: { values: { item1: { front_photo: "data:image/jpeg;base64,AQID" } } },
+      checklistId: ROW,
+      revision: 1,
+    }),
+    (error) => {
+      assert.equal(error.code, "STORAGE_REQUEST_FAILED");
+      assert.match(error.message, /row-level security policy/);
+      assert.match(error.message, /42501/);
+      assert.match(error.message, /403/);
+      assert.equal(error.cause, cause);
+      return true;
+    },
+  );
+});
+
+test("uploads photos when checklist item identifiers contain localized punctuation and newlines", async () => {
+  const h = harness();
+  const itemId = "rassekatel\\nСекция №1||U2||1";
+  const result = await h.sync.uploadState({
+    state: { values: { [itemId]: { install_photo: "data:image/jpeg;base64,AQID" } } },
+    checklistId: ROW,
+    revision: 13,
+  });
+  assert.equal(result.uploaded, 1);
+  assert.equal(result.manifest[0].itemId, itemId);
+  assert.equal(result.manifest[0].field, "install_photo");
+  assert.equal(result.manifest[0].path, USER + "/" + ROW + "/13/" + PHOTO);
+});
+
+
+test("restores legacy photo paths with encoded item and field segments", async () => {
+  const h = harness();
+  const itemId = "секция №1|узел";
+  const field = "front_photo";
+  const legacyPath = USER + "/" + ROW + "/7/" +
+    encodeURIComponent(itemId) + "/" + encodeURIComponent(field) + "-" + PHOTO;
+  h.files.set(legacyPath, new Blob([new Uint8Array([7, 8, 9])], { type: "image/jpeg" }));
+
+  const result = await h.sync.restoreState({
+    state: { values: { [itemId]: { status: "ok" } } },
+    checklistId: ROW,
+    manifest: [{
+      itemId,
+      field,
+      path: legacyPath,
+      contentType: "image/jpeg",
+    }],
+  });
+
+  assert.equal(result.restored, 1);
+  assert.equal(
+    result.state.values[itemId][field],
+    "data:image/jpeg;base64,BwgJ",
+  );
+  assert.equal(result.state.values[itemId].status, "ok");
+  assert.equal(h.calls.filter((call) => call.action === "download").length, 1);
+});
+
+test("removes legacy photo paths only when encoded item and field match the manifest", async () => {
+  const h = harness();
+  const itemId = "секция №1|узел";
+  const field = "front_photo";
+  const legacyPath = USER + "/" + ROW + "/7/" +
+    encodeURIComponent(itemId) + "/" + encodeURIComponent(field) + "-" + PHOTO;
+
+  assert.equal(await h.sync.removeManifest([{ itemId, field, path: legacyPath }]), 1);
+  assert.deepEqual(h.removed, [legacyPath]);
+
+  await assert.rejects(
+    h.sync.removeManifest([{
+      itemId,
+      field: "rear_photo",
+      path: legacyPath,
+    }]),
+    (error) => error.code === "INVALID_MANIFEST",
+  );
+  assert.deepEqual(h.removed, [legacyPath], "invalid legacy manifest must not reach Storage");
+});
+
+
+test("validates every restore manifest entry before downloading any photo", async () => {
+  const h = harness();
+  const validPath = USER + "/" + ROW + "/3/" + PHOTO;
+  const malformedPath = USER + "/" + ROW + "/3/not-a-uuid";
+  await assert.rejects(
+    h.sync.restoreState({
+      state: { values: { item1: {}, item2: {} } },
+      checklistId: ROW,
+      manifest: [
+        { itemId: "item1", field: "front_photo", path: validPath, contentType: "image/jpeg" },
+        { itemId: "item2", field: "rear_photo", path: malformedPath, contentType: "image/jpeg" },
+      ],
+    }),
+    (error) => error.code === "INVALID_MANIFEST",
+  );
+  assert.equal(h.calls.filter((call) => call.action === "download").length, 0);
+});
+
+test("rejects duplicate photo destinations before downloading", async () => {
+  const h = harness();
+  await assert.rejects(
+    h.sync.restoreState({
+      state: { values: { item1: {} } },
+      checklistId: ROW,
+      manifest: [
+        { itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/1/" + PHOTO, contentType: "image/jpeg" },
+        { itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/2/" + PHOTO, contentType: "image/jpeg" },
+      ],
+    }),
+    (error) => error.code === "INVALID_MANIFEST",
+  );
+  assert.equal(h.calls.filter((call) => call.action === "download").length, 0);
+});
+
+test("rejects a missing destination item before any photo download", async () => {
+  const h = harness();
+  await assert.rejects(
+    h.sync.restoreState({
+      state: { values: { item1: {} } },
+      checklistId: ROW,
+      manifest: [
+        { itemId: "missing-item", field: "front_photo", path: USER + "/" + ROW + "/1/" + PHOTO, contentType: "image/jpeg" },
+      ],
+    }),
+    (error) => error.code === "INVALID_MANIFEST",
+  );
+  assert.equal(h.calls.filter((call) => call.action === "download").length, 0);
+});
+
+
+test("a Storage download failure midway through restore never mutates the caller's state", async () => {
+  const h = harness();
+  const state = { values: { item1: { status: "ok" }, item2: { status: "checked" } } };
+  const firstPath = USER + "/" + ROW + "/3/" + PHOTO;
+  const missingPhoto = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  h.files.set(firstPath, new Blob([new Uint8Array([1, 2, 3])], { type: "image/jpeg" }));
+
+  await assert.rejects(
+    h.sync.restoreState({
+      state,
+      checklistId: ROW,
+      manifest: [
+        { itemId: "item1", field: "front_photo", path: firstPath, contentType: "image/jpeg" },
+        { itemId: "item2", field: "rear_photo", path: USER + "/" + ROW + "/3/" + missingPhoto, contentType: "image/jpeg" },
+      ],
+    }),
+    (error) => error.code === "STORAGE_REQUEST_FAILED",
+  );
+
+  assert.deepEqual(state, {
+    values: { item1: { status: "ok" }, item2: { status: "checked" } },
+  });
+  assert.equal(h.calls.filter((call) => call.action === "download").length, 2);
+});
+
+
+test("photo upload stops if Supabase account changes while Storage upload is in flight", async () => {
+  let liveUserId = USER;
+  const storageApi = {
+    from() {
+      return { async upload(path) {
+        liveUserId = "22222222-2222-4222-8222-222222222222";
+        return { data: { path }, error: null };
+      } };
+    },
+  };
+  const guarded = createChecklistPhotoSync({
+    authApi: { async getCurrentIdentity() { return { user: { id: liveUserId }, error: null }; } },
+    storageApi,
+    idFactory: () => PHOTO,
+  });
+  await assert.rejects(
+    guarded.uploadState({
+      state: { values: { item1: { front_photo: "data:image/jpeg;base64,AQID" } } },
+      checklistId: ROW,
+      revision: 1,
+    }),
+    (error) => error.code === "AUTH_CONTEXT_CHANGED",
+  );
+});
+
+test("photo restore aborts when the active account changes during Storage download", async () => {
+  let liveUserId = USER;
+  const storageApi = {
+    from() {
+      return { async download() {
+        liveUserId = "22222222-2222-4222-8222-222222222222";
+        return { data: new Blob([new Uint8Array([1, 2, 3])], { type: "image/jpeg" }), error: null };
+      } };
+    },
+  };
+  const guarded = createChecklistPhotoSync({
+    authApi: { async getCurrentIdentity() { return { user: { id: liveUserId }, error: null }; } },
+    storageApi,
+  });
+  await assert.rejects(
+    guarded.restoreState({
+      state: { values: { item1: {} } },
+      checklistId: ROW,
+      manifest: [{ itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/1/" + PHOTO, contentType: "image/jpeg" }],
+    }),
+    (error) => error.code === "AUTH_CONTEXT_CHANGED",
+  );
 });

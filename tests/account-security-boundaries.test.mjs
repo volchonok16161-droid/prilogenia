@@ -20,6 +20,6 @@ test("account administration requires a valid JWT and a trusted developer/admin 
 });
 
 test("employee access changes cannot target another role", () => {
-  assert.match(adminFunction, /target\.role !== "employee"/);
+  assert.match(adminFunction, /!\["employee", "assistant"\]\.includes\(target\.role\)/);
   assert.match(adminFunction, /admin\.auth\.admin\.updateUserById\(userId/);
 });
