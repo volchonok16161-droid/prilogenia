@@ -2345,9 +2345,52 @@ async function init(){
         return;
       }
       __tmhShowLoginModal();
-    } else showContinueDialogOrStart();
+    } else {
+      // Do not leave an authenticated user looking at three empty panels if
+      // startup/restoration fails. Never clear an existing draft on recovery.
+      try { await showContinueDialogOrStart(); }
+      catch (error) { __tmhShowStartupFailure(error); }
+    }
     setupCommonHandlers();
 }
+function __tmhShowStartupFailure(error) {
+  console.error('Checklist startup failed', error);
+  var grid = document.getElementById('generalGrid');
+  if (!grid) return;
+  var existing = document.getElementById('tmhStartupFailure');
+  if (existing) existing.remove();
+  var panel = document.createElement('div');
+  panel.id = 'tmhStartupFailure';
+  panel.style.cssText = 'padding:16px;border:2px solid #d1453b;border-radius:12px;background:var(--panel,#fff);color:var(--ink,#222);line-height:1.5';
+  var message = document.createElement('p');
+  message.textContent = 'Не удалось загрузить поля чек-листа: ' + (error && error.message || 'неизвестная ошибка') + '. Сохранённые данные не удалены.';
+  var retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'btn primary';
+  retry.textContent = 'Повторить загрузку';
+  retry.onclick = async function() {
+    retry.disabled = true;
+    try {
+      await startApp(false);
+      if (!grid.querySelector('.field')) throw new Error('Поля общих данных не созданы');
+      panel.remove();
+    } catch (failure) {
+      message.textContent = 'Не удалось загрузить поля: ' + (failure && failure.message || 'неизвестная ошибка') + '. Данные не удалены.';
+    } finally { retry.disabled = false; }
+  };
+  panel.appendChild(message);
+  panel.appendChild(retry);
+  grid.appendChild(panel);
+}
+// Detect a silent startup failure without modifying or clearing the user's draft.
+setTimeout(function() {
+  if (!window.__TMH_STORAGE_UID || document.querySelector('#generalGrid .field')) return;
+  var login = document.getElementById('loginModal');
+  var cont = document.getElementById('continueDialog');
+  if ((login && getComputedStyle(login).display !== 'none') ||
+      (cont && getComputedStyle(cont).display !== 'none')) return;
+  __tmhShowStartupFailure(new Error('Инициализация формы не завершилась'));
+}, 6500);
 
 
 
