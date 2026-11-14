@@ -606,6 +606,6 @@ for (const [mode, expected] of [
 test("published checklist fixes invalidate the offline app shell", async () => {
   const sw=await readFile(resolve(ROOT,"sw.js"),"utf8");
   const html=await readFile(resolve(ROOT,"prototype/checklist/index.html"),"utf8");
-  assert.match(sw,/checklist-cache-v127/);
+  assert.match(sw,/checklist-cache-v128/);
   assert.match(html,/checklist-runtime\.js\?v=boot111/);
 });
