@@ -457,7 +457,7 @@
   }
   function reportNodeIssues(mode,list){if(mode)store.nodeIssues[mode]=list||[];}
   /* ---------- оборудование из конструктора (oborudovanie.json) ---------- */
-  var CUSTOM_FILE='oborudovanie.json';
+  var CUSTOM_FILE='/oborudovanie.json';
   function cleanBuiltinOverrides(raw){
     var out={},allowed={};BUILTIN_EQ.forEach(function(e){allowed[e.id]=true;});
     Object.keys(raw&&typeof raw==='object'?raw:{}).forEach(function(id){
