@@ -2043,14 +2043,14 @@ async function showContinueDialogOrStart(){
                 hasSaved = hasSaved || await api.hasOfflineChecklist(LS_KEY);
             }
     if(typeof __EMBEDDED_STATE!=='undefined'&&__EMBEDDED_STATE){
-        startApp(false);
+        await startApp(false);
         return;
     }
     if(hasSaved){
         document.getElementById('continueDialog').style.display='flex';
         dialogShown=true;
     }else{
-        startApp(true);
+        await startApp(true);
     }
 }
 async function __tmhRestoreActiveOfflineState() {
