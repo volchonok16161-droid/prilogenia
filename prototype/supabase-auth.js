@@ -92,7 +92,8 @@ function getChecklistMode(storageId) {
     checklist_hydro_v1: "hydro",
   };
   const baseId = String(storageId).split("::user:")[0];
-  const mode = modes[baseId];
+  const customMatch = /^checklist_custom_(k_[a-z0-9_-]+)_v1$/i.exec(baseId);
+  const mode = modes[baseId] || (customMatch && customMatch[1]);
   if (!mode) {
     const error = new Error("Этот пользовательский режим пока не поддерживает облачную синхронизацию");
     error.code = "UNSUPPORTED_CHECKLIST_MODE";
