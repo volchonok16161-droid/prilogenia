@@ -458,23 +458,62 @@
   function reportNodeIssues(mode,list){if(mode)store.nodeIssues[mode]=list||[];}
   /* ---------- оборудование из конструктора (oborudovanie.json) ---------- */
   var CUSTOM_FILE='/oborudovanie.json';
+  // Built-in definitions stay as a compatibility fallback; the constructor owns
+  // field order, additions and per-field configuration without changing stable keys.
   function cleanBuiltinOverrides(raw){
     var out={},allowed={};BUILTIN_EQ.forEach(function(e){allowed[e.id]=true;});
     Object.keys(raw&&typeof raw==='object'?raw:{}).forEach(function(id){
-      if(!allowed[id])return;var x=raw[id];if(!x||typeof x!=='object')return;
-      var fields={};Object.keys(x.fields||{}).forEach(function(key){
+      if(!allowed[id])return;
+      var x=raw[id];if(!x||typeof x!=='object')return;
+      var fields={};
+      Object.keys(x.fields||{}).forEach(function(key){
         if(!/^[a-z0-9_]{1,40}$/.test(key))return;
-        var label=cleanStr(x.fields[key]&&x.fields[key].label).slice(0,300);
-        if(label)fields[key]={label:label};
+        var v=x.fields[key];if(!v||typeof v!=='object')return;
+        var o={};
+        if(cleanStr(v.label))o.label=cleanStr(v.label).slice(0,300);
+        if(v.type==='select'||v.type==='text')o.type=v.type;
+        if(Array.isArray(v.options))o.options=v.options.map(cleanStr).filter(Boolean).slice(0,40);
+        if(Array.isArray(v.ok))o.ok=v.ok.map(cleanStr).filter(Boolean).slice(0,40);
+        if(v.photo==='always'||v.photo==='never'||v.photo==='deviation')o.photo=v.photo;
+        if(typeof v.calc==='boolean')o.calc=v.calc;
+        if(typeof v.hint==='string')o.hint=cleanText(v.hint).slice(0,3000);
+        if(typeof v.explain==='string')o.explain=cleanText(v.explain).slice(0,3000);
+        if(v.hidden===true)o.hidden=true;
+        if(Object.keys(o).length)fields[key]=o;
       });
       var title=cleanStr(x.title).slice(0,180);
-      if(title||Object.keys(fields).length)out[id]={title:title,fields:fields};
+      var order=Array.isArray(x.order)?x.order.filter(function(k){return /^[a-z0-9_]{1,40}$/.test(k);}).slice(0,150):[];
+      if(title||Object.keys(fields).length||order.length)out[id]={title:title,fields:fields,order:order};
     });return out;
   }
   function applyBuiltinOverrides(equipment,overrides){
-    (equipment||[]).forEach(function(eq){var o=overrides&&overrides[eq.id];if(!o)return;
+    (equipment||[]).forEach(function(eq){
+      var o=overrides&&overrides[eq.id];if(!o)return;
       if(o.title)eq.title=o.title;
-      (eq.fields||[]).forEach(function(f){var v=o.fields&&o.fields[f.key];if(v&&v.label)f.label=v.label;});
+      var fields=Array.isArray(eq.fields)?eq.fields:[];
+      var existing={};fields.forEach(function(f){existing[f.key]=true;});
+      Object.keys(o.fields||{}).forEach(function(key){
+        if(existing[key])return;
+        var v=o.fields[key];
+        if(!v||!v.label||v.hidden)return;
+        fields.push({key:key,label:v.label,type:v.type==='select'?'select':'text',
+          options:Array.isArray(v.options)?v.options:[],ok:Array.isArray(v.ok)?v.ok:[],
+          photo:v.photo||'deviation',calc:v.calc!==false,hint:v.hint||'',explain:v.explain||''});
+      });
+      fields.forEach(function(f){
+        var v=o.fields&&o.fields[f.key];if(!v)return;
+        ['label','type','photo','calc','hint','explain'].forEach(function(k){
+          if(Object.prototype.hasOwnProperty.call(v,k))f[k]=v[k];
+        });
+        if(Array.isArray(v.options)&&v.options.length)f.options=v.options.slice();
+        if(Array.isArray(v.ok))f.ok=v.ok.slice();
+      });
+      var order=o.order||[];
+      if(order.length)fields.sort(function(a,b){
+        var ai=order.indexOf(a.key),bi=order.indexOf(b.key);
+        return (ai<0?10000:ai)-(bi<0?10000:bi);
+      });
+      eq.fields=fields.filter(function(f){return !(o.fields&&o.fields[f.key]&&o.fields[f.key].hidden);});
     });return equipment;
   }
   function cleanStr(v){return String(v==null?'':v).replace(/[<>]/g,'').replace(/\s+/g,' ').trim();}   // < и > вырезаются: названия попадают в разметку чек-листа
