@@ -68,6 +68,21 @@ function getPersistedAuthUserId() {
   }
 }
 
+function isCustomChecklistStorageId(id) {
+  return /^checklist_custom_k_[a-z0-9_-]+_v1::user:[0-9a-f-]{36}$/i.test(String(id));
+}
+
+async function readCustomChecklistSnapshot(id) {
+  const userId = activeOfflineUserId, vault = activeOfflineVault;
+  if (!userId || !vault) return null;
+  const row = await offlineVault.database.getRecord(id, userId);
+  assertActiveOfflineContext(userId, vault);
+  if (!row || row.kind !== "checklist-snapshot") return null;
+  const snapshot = await vault.decrypt(row.encrypted);
+  assertActiveOfflineContext(userId, vault);
+  return snapshot;
+}
+
 function getChecklistMode(storageId) {
   const modes = {
     checklist_2es5k_v1: "complex",
@@ -446,6 +461,11 @@ async function saveOfflineChecklist(id, snapshot) {
   assertActiveOfflineContext(userId, vault);
   await offlineVault.database.putRecord({ id, userId, kind: "checklist-snapshot", encrypted: localEncrypted });
   assertActiveOfflineContext(userId, vault);
+  // Custom checklist modes have no validated cloud envelope yet. Their encrypted
+  // owner-scoped snapshot is still a successful local save, even with cloud sync enabled.
+  if (isCustomChecklistStorageId(id)) {
+    return { saved: true, encrypted: true, queued: false, status: "local-only", userId, id };
+  }
   const cloudEnabled = await offlineVault.database.getMeta("offline:cloud-sync-enabled:" + userId);
   assertActiveOfflineContext(userId, vault);
   if (cloudEnabled !== true) {
@@ -639,6 +659,7 @@ async function enableOfflineCloudSync() {
 async function loadOfflineChecklist(id) {
   const userId = activeOfflineUserId, vault = activeOfflineVault;
   if (!vault || !userId) return null;
+  if (isCustomChecklistStorageId(id)) return readCustomChecklistSnapshot(id);
   const instanceId = await offlineVault.database.getMeta(activeInstanceMetaKey(id, userId));
   assertActiveOfflineContext(userId, vault);
   if (!instanceId) return null;
@@ -650,6 +671,7 @@ async function loadOfflineChecklist(id) {
 async function hasOfflineChecklist(id) {
   const userId = activeOfflineUserId, vault = activeOfflineVault;
   if (!vault || !userId) return false;
+  if (isCustomChecklistStorageId(id)) return (await readCustomChecklistSnapshot(id)) !== null;
   const instanceId = await offlineVault.database.getMeta(activeInstanceMetaKey(id, userId));
   assertActiveOfflineContext(userId, vault);
   if (!instanceId) return false;
