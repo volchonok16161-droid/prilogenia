@@ -475,6 +475,8 @@
         if(Array.isArray(v.options))o.options=v.options.map(cleanStr).filter(Boolean).slice(0,40);
         if(Array.isArray(v.ok))o.ok=v.ok.map(cleanStr).filter(Boolean).slice(0,40);
         if(v.photo==='always'||v.photo==='never'||v.photo==='deviation')o.photo=v.photo;
+        if(v.answerColors&&typeof v.answerColors==='object'){o.answerColors={};Object.keys(v.answerColors).forEach(function(k){if(['green','red','gray','auto'].indexOf(v.answerColors[k])>=0)o.answerColors[k]=v.answerColors[k];});}
+        if(v.answerPhotos&&typeof v.answerPhotos==='object'){o.answerPhotos={};Object.keys(v.answerPhotos).forEach(function(k){if(['required','optional','none','default'].indexOf(v.answerPhotos[k])>=0)o.answerPhotos[k]=v.answerPhotos[k];});}
         if(typeof v.calc==='boolean')o.calc=v.calc;
         if(typeof v.hint==='string')o.hint=cleanText(v.hint).slice(0,3000);
         if(typeof v.explain==='string')o.explain=cleanText(v.explain).slice(0,3000);
@@ -502,7 +504,7 @@
       });
       fields.forEach(function(f){
         var v=o.fields&&o.fields[f.key];if(!v)return;
-        ['label','type','photo','calc','hint','explain'].forEach(function(k){
+        ['label','type','photo','calc','hint','explain','answerColors','answerPhotos'].forEach(function(k){
           if(Object.prototype.hasOwnProperty.call(v,k))f[k]=v[k];
         });
         if(Array.isArray(v.options)&&v.options.length)f.options=v.options.slice();
@@ -544,7 +546,7 @@
           ok=(Array.isArray(f.ok)?f.ok:[]).map(cleanStr).filter(function(x){return options.indexOf(x)>=0;});
         }
         var photo=(f.photo==='always'||f.photo==='never')?f.photo:'deviation';
-        fields.push({key:key,label:label,type:type,options:options,ok:ok,photo:photo,calc:f.calc!==false,hint:cleanText(f.hint),explain:cleanText(f.explain)});
+        fields.push({key:key,label:label,type:type,options:options,ok:ok,photo:photo,calc:f.calc!==false,hint:cleanText(f.hint),explain:cleanText(f.explain),answerColors:f.answerColors||{},answerPhotos:f.answerPhotos||{}});
       });
       if(!fields.length){issues.push('Оборудование «'+title+'»: нет ни одного поля — пропущено');return;}
       if(fields.length>30)issues.push('Оборудование «'+title+'»: полей '+fields.length+', а в выгрузку Excel попадают только первые 30 операций — разделите узел на два');
