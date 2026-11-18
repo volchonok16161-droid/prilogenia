@@ -1241,42 +1241,6 @@ if(field.answerColors&&Object.keys(field.answerColors).length){
 }
 if(mk84){addNotRequiredOption(control);control.disabled=true;control.value='не требуется';if(saved!=='не требуется')setVal(iid,field.key,'не требуется');}control.addEventListener('change',function(){const val=this.value;if(val==='не требуется'){this.disabled=true;setVal(iid,field.key,val);}else{this.disabled=false;setVal(iid,field.key,val);}if((eq.id==='mk9'||eq.id==='bvv')&&field.key==='f1'){const card=this.closest('.inst');if(card)syncShuntF2(eq,iid,card);}if(eq.id==='vb8'&&field.key==='f0'){const card=this.closest('.inst');if(card){syncVb8OldNew(iid,card);updatePhotoRequirementForField(iid,'f0',card);}}refreshInstance(eq,inst,iid);if(isZav)checkMk84Status(eq,iid);if(field.photo&&field.key!=='zav'){setTimeout(()=>updatePhotoRequirementForField(iid,field.key),50);}row.classList.remove('frow-ok','frow-bad');if(val&&val!==''&&val!=='— выбрать'&&val!=='не требуется'&&val!=='отсутствует ШУ'){if(field.ok&&field.ok.includes(val))row.classList.add('frow-ok');else if(field.ok&&!field.ok.includes(val))row.classList.add('frow-bad');}if(eq.id==='housings'&&(field.key==='leak'||field.key==='oil'||field.key==='formation')){const card=this.closest('.inst');if(card){const iid2=card.dataset.iid;if(iid2)refreshInstance(eq,inst,iid2,card);}}if(eq.id==='rassekatel'&&field.key==='presence'){const card=this.closest('.inst');if(card){const iid2=card.dataset.iid;if(iid2)refreshInstance(eq,inst,iid2,card);}}});}else{control=document.createElement('input');control.type='text';control.value=saved;if(mk84){control.disabled=true;control.value='не требуется';if(saved!=='не требуется')setVal(iid,field.key,'не требуется');}if(field.key==='zav'&&eq.id!=='mk9'){control.addEventListener('input',function(){this.value=this.value.replace(/[^0-9\\-\\.]/g,'');setVal(iid,field.key,this.value);});control.addEventListener('blur',function(){this.value=this.value.replace(/[^0-9\\-\\.]/g,'');setVal(iid,field.key,this.value);refreshInstance(eq,inst,iid);if(field.photo)updatePhotoRequirementForField(iid,field.key);});}control.addEventListener('input',function(){setVal(iid,field.key,this.value);if(isZav)setTimeout(()=>checkMk84Status(eq,iid),10);if(field.photo&&field.key!=='zav')updatePhotoRequirementForField(iid,field.key);});control.addEventListener('blur',function(){const cv=getVal(iid,field.key);if(this.value!==cv)setVal(iid,field.key,this.value);refreshInstance(eq,inst,iid);if(isZav)checkMk84Status(eq,iid);if(field.photo&&field.key!=='zav')updatePhotoRequirementForField(iid,field.key);});control.addEventListener('change',function(){setVal(iid,field.key,this.value);refreshInstance(eq,inst,iid);if(isZav)checkMk84Status(eq,iid);if(field.photo&&field.key!=='zav')updatePhotoRequirementForField(iid,field.key);});}
 const cw=document.createElement('div');cw.style.display='grid';cw.style.gridTemplateColumns='1fr';cw.appendChild(control);
-if(field.type==='select'&&field.answerColors&&Object.keys(field.answerColors).length&&Array.isArray(field.options)&&field.options.length){
-  const choices=document.createElement('div');
-  choices.className='tmh-answer-buttons';
-  choices.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-top:8px';
-  control.style.display='none';
-  control.setAttribute('aria-hidden','true');
-  function updateChoiceButtons(){
-    choices.querySelectorAll('button').forEach(function(btn){
-      var active=control.value===btn.dataset.answer;
-      btn.setAttribute('aria-pressed',active?'true':'false');
-      btn.style.outline=active?'3px solid #225b96':'none';
-      btn.style.outlineOffset='2px';
-    });
-  }
-  field.options.forEach(function(answer){
-    const btn=document.createElement('button');
-    btn.type='button';
-    btn.dataset.answer=answer;
-    btn.textContent=answer;
-    var configured=field.answerColors[answer]||'auto';
-    var tone=configured==='auto'?(field.ok&&field.ok.includes(answer)?'green':'red'):configured;
-    var palette=tone==='green'?['#d8f4df','#12652b']:tone==='red'?['#ffe1e1','#a62121']:['#edf0f4','#344052'];
-    btn.style.cssText='border:1px solid currentColor;border-radius:10px;padding:12px 15px;min-height:44px;font-size:15px;font-weight:700;flex:1 1 120px;cursor:pointer';
-    btn.style.backgroundColor=palette[0];btn.style.color=palette[1];
-    btn.addEventListener('click',function(){
-      if(control.disabled)return;
-      control.value=answer;
-      control.dispatchEvent(new Event('change',{bubbles:true}));
-      updateChoiceButtons();
-    });
-    choices.appendChild(btn);
-  });
-  control.addEventListener('change',updateChoiceButtons);
-  updateChoiceButtons();
-  cw.appendChild(choices);
-}
 row.appendChild(cw);if(field.photo)addPhotoSupport(row,field,eq,iid);if(isZav){const warning=document.createElement('div');warning.className='mk84-warning';warning.textContent='⚠️ ВНИМАНИЕ: Установлен контактор МК-84 — остальные поля автоматически установлены в "не требуется"!';row.appendChild(warning);row._mk84Warning=warning;}return row;}
 
 function buildInstanceCard(eq,inst,idx){const iid=instId(eq.id,inst,idx);const card=document.createElement('div');card.className='inst';card.dataset.iid=iid;const head=document.createElement('div');head.className='ih';let title=eq.title;if(eq.id==='housings'&&inst.housingLabel){title=inst.housingLabel;}else{const p=[inst.group,inst.block,inst.sub].filter(Boolean).join(' · ');if(p)title=p;}const lbl=document.createElement('div');lbl.innerHTML=\`<span class="lbl">\${title}</span>\`;head.appendChild(lbl);const pill=document.createElement('span');pill.className='pill na';pill.textContent='—';head.appendChild(pill);card.appendChild(head);const badgeContainer=document.createElement('div');badgeContainer.className='notice-badge';badgeContainer.id=\`badge_\${iid}\`;badgeContainer.style.display='none';badgeContainer.textContent='⚠️ Требуется уведомление';badgeContainer.addEventListener('click',function(e){e.stopPropagation();card.scrollIntoView({behavior:'smooth',block:'center'});highlightCard(card);});card.appendChild(badgeContainer);const isSF37Hidden=(eq.id==='msud')&&isSF37NotRequired();for(const field of eq.fields){if(isSF37Hidden&&(field.key==='f3'||field.key==='f7'))continue;card.appendChild(fieldRow(eq,inst,iid,field));}const autoRow=document.createElement('div');autoRow.className='frow auto';const aLbl=document.createElement('div');aLbl.className='flabel';aLbl.textContent='Наличие выявленных несоответствий (заполняется автоматически)';const aVal=document.createElement('div');aVal.className='val na';aVal.textContent='—';autoRow.appendChild(aLbl);autoRow.appendChild(aVal);card.appendChild(autoRow);card._pill=pill;card._autoVal=aVal;refreshInstance(eq,inst,iid,card);if(eq.id==='mk9'){const now=isMk84(iid);card.dataset.wasMk84=now;if(now)setMk84Fields(iid);else syncShuntF2(eq,iid,card);}else if(eq.id==='bvv'){syncShuntF2(eq,iid,card);}else if(eq.id==='vb8'){syncVb8OldNew(iid,card);}return card;}
