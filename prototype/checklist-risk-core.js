@@ -476,6 +476,7 @@
         if(Array.isArray(v.ok))o.ok=v.ok.map(cleanStr).filter(Boolean).slice(0,40);
         if(v.photo==='always'||v.photo==='never'||v.photo==='deviation')o.photo=v.photo;
         if(v.answerColors&&typeof v.answerColors==='object'){o.answerColors={};Object.keys(v.answerColors).forEach(function(k){if(['green','red','gray','auto'].indexOf(v.answerColors[k])>=0)o.answerColors[k]=v.answerColors[k];});}
+        if(Array.isArray(v.exampleButtons))o.exampleButtons=v.exampleButtons.slice(0,12).map(function(x){return {id:cleanStr(x.id).slice(0,80),label:cleanStr(x.label).slice(0,80),color:['green','red','gray'].includes(x.color)?x.color:'gray',image:typeof x.image==='string'&&/^data:image\/(png|jpeg|webp);base64,/.test(x.image)&&x.image.length<350000?x.image:''};}).filter(function(x){return x.id&&x.label;});
         if(v.answerPhotos&&typeof v.answerPhotos==='object'){o.answerPhotos={};Object.keys(v.answerPhotos).forEach(function(k){if(['required','optional','none','default'].indexOf(v.answerPhotos[k])>=0)o.answerPhotos[k]=v.answerPhotos[k];});}
         if(typeof v.calc==='boolean')o.calc=v.calc;
         if(typeof v.hint==='string')o.hint=cleanText(v.hint).slice(0,3000);
@@ -500,11 +501,11 @@
         if(!v||!v.label||v.hidden)return;
         fields.push({key:key,label:v.label,type:v.type==='select'?'select':'text',
           options:Array.isArray(v.options)?v.options:[],ok:Array.isArray(v.ok)?v.ok:[],
-          photo:v.photo||'deviation',calc:v.calc!==false,hint:v.hint||'',explain:v.explain||''});
+          photo:v.photo||'deviation',calc:v.calc!==false,hint:v.hint||'',explain:v.explain||'',exampleButtons:v.exampleButtons||[]});
       });
       fields.forEach(function(f){
         var v=o.fields&&o.fields[f.key];if(!v)return;
-        ['label','type','photo','calc','hint','explain','answerColors','answerPhotos'].forEach(function(k){
+        ['label','type','photo','calc','hint','explain','answerColors','answerPhotos','exampleButtons'].forEach(function(k){
           if(Object.prototype.hasOwnProperty.call(v,k))f[k]=v[k];
         });
         if(Array.isArray(v.options)&&v.options.length)f.options=v.options.slice();
@@ -546,7 +547,7 @@
           ok=(Array.isArray(f.ok)?f.ok:[]).map(cleanStr).filter(function(x){return options.indexOf(x)>=0;});
         }
         var photo=(f.photo==='always'||f.photo==='never')?f.photo:'deviation';
-        fields.push({key:key,label:label,type:type,options:options,ok:ok,photo:photo,calc:f.calc!==false,hint:cleanText(f.hint),explain:cleanText(f.explain),answerColors:f.answerColors||{},answerPhotos:f.answerPhotos||{}});
+        fields.push({key:key,label:label,type:type,options:options,ok:ok,photo:photo,calc:f.calc!==false,hint:cleanText(f.hint),explain:cleanText(f.explain),answerColors:f.answerColors||{},answerPhotos:f.answerPhotos||{},exampleButtons:f.exampleButtons||[]});
       });
       if(!fields.length){issues.push('Оборудование «'+title+'»: нет ни одного поля — пропущено');return;}
       if(fields.length>30)issues.push('Оборудование «'+title+'»: полей '+fields.length+', а в выгрузку Excel попадают только первые 30 операций — разделите узел на два');
