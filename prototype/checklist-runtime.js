@@ -506,6 +506,9 @@ async function main() {
   // resolve locally rather than waiting for a non-existent host shell.
   source = source.replaceAll("window.parent", "window");
   source = risk.applyRegistry(source, mode) || source;
+  // Retain the already assembled native checklist template for an isolated developer preview.
+  // It contains the same operation renderer and registry as the worker form.
+  window.__TMH_NATIVE_PREVIEW_SOURCE__ = source;
   source = __tmhAttachCloudBackup(source, mode);
   source = __tmhAttachFooterLayout(source);
   source = injectUnifiedChrome(source, mode);
