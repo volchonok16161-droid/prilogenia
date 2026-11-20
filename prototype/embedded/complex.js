@@ -1470,7 +1470,7 @@ window.__TMH_PREVIEW_LAYOUT__=function(equipmentId){
   const eq=EQUIPMENT.find(function(item){return item.id===equipmentId;});
   if(!eq||typeof eq.instances!=='function')return null;
   const all=eq.instances();
-  return {title:eq.title,instances:all.map(function(inst){return {
+  return {title:eq.title,fields:(eq.fields||[]).map(function(field){return {...field};}),instances:all.map(function(inst){return {
     section:String(inst.section||''),group:String(inst.group||''),
     block:String(inst.block||''),sub:String(inst.sub||''),
     housingLabel:String(inst.housingLabel||'')
