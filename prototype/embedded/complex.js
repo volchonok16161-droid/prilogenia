@@ -1465,6 +1465,17 @@ block.appendChild(subC);const autoRow=document.createElement('div');autoRow.clas
 
 function renderKps(eq,sectionsToShow){const root=document.getElementById('equipRoot');if(!sectionsToShow||sectionsToShow.length===0){const msg=document.createElement('div');msg.className='select-type-message';msg.innerHTML='<span class="icon">📋</span><div class="title">Выберите секции</div><div class="sub">Для отображения КПС выберите хотя бы одну секцию</div>';root.appendChild(msg);return;}const wrap=document.createElement('div');wrap.className='equip';const eh=document.createElement('div');eh.className='eh';const total=sectionsToShow.length*Object.keys(GROUPS).length;eh.innerHTML=\`<h2>\${eq.title}</h2><span class="badge">\${total} поз.</span>\`;wrap.appendChild(eh);for(const section of sectionsToShow){const wrapper=document.createElement('div');wrapper.className='sec-wrapper';const header=document.createElement('div');header.className='sec-header';const icon=document.createElement('span');icon.className='sec-toggle-icon';icon.textContent='▼';header.innerHTML=\`<span>\${section}</span>\`;header.appendChild(icon);wrapper.appendChild(header);const body=document.createElement('div');body.className='sec-body';const sec=document.createElement('div');sec.className='sec';for(const gid in GROUPS){sec.appendChild(buildKpsGroupCard(GROUPS[gid],section));}body.appendChild(sec);wrapper.appendChild(body);let collapsed=false;header.addEventListener('click',function(){collapsed=!collapsed;body.classList.toggle('collapsed',collapsed);icon.classList.toggle('collapsed',collapsed);});wrap.appendChild(wrapper);}root.appendChild(wrap);document.querySelectorAll('.inst[data-gid]').forEach(b=>{const s=b.dataset.section;const g=b.dataset.gid;if(s&&g)updateKpsBlockStatus(b,s,g);});}
 
+window.__TMH_PREVIEW_LAYOUT__=function(equipmentId){
+  if(typeof EQUIPMENT==='undefined'||!Array.isArray(EQUIPMENT))return null;
+  const eq=EQUIPMENT.find(function(item){return item.id===equipmentId;});
+  if(!eq||typeof eq.instances!=='function')return null;
+  const all=eq.instances();
+  return {title:eq.title,instances:all.map(function(inst){return {
+    section:String(inst.section||''),group:String(inst.group||''),
+    block:String(inst.block||''),sub:String(inst.sub||''),
+    housingLabel:String(inst.housingLabel||'')
+  };})};
+};
 function renderEquip(){const root=document.getElementById('equipRoot');root.innerHTML='';if(!STATE.general.type){root.innerHTML=\`<div class="select-type-message"><span class="icon">🚆</span><div class="title">Выберите тип электровоза</div><div class="sub">Для отображения чек-листа необходимо выбрать тип электровоза в разделе «Общие данные»</div></div>\`;updateStats();return;}
 const selSec=STATE.selectedSections||[];const allSec=getSections(STATE.general.type).map(s=>s.label);const sectionsToShow=selSec.length>0?selSec:allSec;const hasSelEq=STATE.selected.length>0;
 if(sectionsToShow.length===0||!hasSelEq){let msg='';if(sectionsToShow.length===0&&!hasSelEq)msg='Выберите секции для осмотра и выберите узел(ы) для проверки (или «Весь чек-лист»).';else if(sectionsToShow.length===0)msg='Выберите секции для осмотра.';else msg='Выберите узел(ы) для проверки (или «Весь чек-лист»).';root.innerHTML=\`<div class="select-type-message"><span class="icon">📋</span><div class="title">\${msg}</div><div class="sub">Чек-лист отобразится после выбора секций и хотя бы одного узла.</div></div>\`;updateStats();return;}
