@@ -1,0 +1,31 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+const source = await readFile(new URL("../sw.js", import.meta.url), "utf8");
+test("offline runtime modules are in app shell cache without demo-only pages", () => {
+  for (const path of ["offline-vault-crypto.js","offline-vault-db.js","offline-sync-runner.js","offline-sync-coordinator.js","offline-checklist-schema.js","supabase-auth.js","supabase-cloud-sync.js","supabase-cloud-photos.js"]) {
+    assert.match(source, new RegExp(path.replaceAll(".", "\\.")));
+  }
+  assert.doesNotMatch(source, /offline-legacy-migration-ui\.js/);
+  assert.doesNotMatch(source, /offline-five-mode-demo\.html|offline-demo-photo-store\.js|offline-cleanup-demo\.html/);
+  assert.match(source, /checklist-cache-v\d+/);
+});
+test("service worker caches GET only and excludes auth writes", () => {
+  assert.match(source, /if \(req\.method !== 'GET'\) return/);
+  assert.match(source, /const APP_SHELL = \[/);
+});
+test("Supabase ESM and versioned modules are cached for offline startup", () => {
+  assert.match(source, /https:\/\/esm\.sh\/\@supabase\/supabase-js\@2\.118\.0/);
+  assert.match(source, /url\.origin === 'https:\/\/esm\.sh'/);
+  assert.match(source, /url\.pathname\.startsWith\('\/@supabase\/'\)/);
+  assert.match(source, /cache\.put\(url, response\)/);
+  assert.match(source, /cache\.put\(cacheRequest, resp\)/);
+});
+
+test("reference data returns cached content quickly while refreshing in background", () => {
+  assert.match(source, /const cached = await caches\.match\(key\)/);
+  assert.match(source, /const timeoutMs = cached \? 1200 : 4000/);
+  assert.match(source, /event\.waitUntil\(networkPromise\.catch\(\(\) => \{\}\)\)/);
+  assert.match(source, /if \(outcome\.response\) return outcome\.response/);
+  assert.match(source, /if \(cached\) return cached/);
+});

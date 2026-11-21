@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#172b57">
+<title>Вход сотрудников</title>
+<style>
+:root{color-scheme:light;--bg:#f4f6fa;--card:#fff;--ink:#172033;--muted:#718096;--line:#e6eaf0;--blue:#315efb;--red:#b42318;--green:#16845b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.wrap{max-width:560px;margin:7vh auto;padding:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;margin-bottom:16px}h1{font-size:24px;margin:0 0 6px}h2{font-size:18px;margin:0 0 14px}.muted{color:var(--muted)}label{display:grid;gap:6px;margin:12px 0}input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink);background:#fff}button,.link{display:inline-flex;justify-content:center;align-items:center;padding:11px 15px;border:0;border-radius:10px;background:var(--blue);color:#fff;font:inherit;font-weight:650;text-decoration:none;cursor:pointer}button:disabled{opacity:.6;cursor:wait}.secondary{background:#e9edf5;color:#344054}.status{margin:12px 0 0;overflow-wrap:anywhere}.error{color:var(--red)}.success{color:var(--green)}.hidden{display:none!important}
+</style>
+</head>
+<body>
+<main class="wrap">
+<section class="card">
+<h1>Вход в рабочую систему</h1>
+<p class="muted">Введите выданный вам логин и пароль. Email не требуется.</p>
+<form id="loginForm">
+<label>Логин<input id="login" autocomplete="username" required placeholder="Например, ЦГиСПЛ-Карасук"></label>
+<label>Пароль<input id="password" type="password" autocomplete="current-password" required></label>
+<button id="loginBtn" type="submit">Войти</button>
+<p id="loginStatus" class="status" role="status" aria-live="polite"></p>
+</form>
+</section>
+<section id="adminPanel" class="card hidden">
+<h2>Создание аккаунтов сотрудников</h2>
+<p class="muted">Доступно только администраторам и разработчикам. Создаются только два заранее заданных логина с ролью «Сотрудник».</p>
+<form id="createForm">
+<label>Аккаунт
+<select id="username" required>
+<option value="ЦГиСПЛ-Карасук">ЦГиСПЛ-Карасук</option>
+<option value="ЦГиСПЛ-Тимашевск">ЦГиСПЛ-Тимашевск</option>
+</select></label>
+<label>Временный пароль<input id="newPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+<button id="createBtn" type="submit">Создать аккаунт</button>
+<p id="createStatus" class="status" role="status" aria-live="polite"></p>
+</form>
+</section>
+<section class="card">
+<a class="link secondary" href="./index.html">Перейти к чек-листам</a>
+</section>
+</main>
+<script type="module">
+import "./prototype/supabase-auth.js";
+await window.TMHAuthReady;
+const $ = (id) => document.getElementById(id);
+const setStatus = (id, message, kind = "") => { $(id).textContent = message; $(id).className = "status " + kind; };
+async function showAdmin(identity) {
+  $("adminPanel").classList.toggle("hidden", !["admin", "developer"].includes(identity?.profile?.role));
+}
+$("loginForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = $("loginBtn");
+  button.disabled = true;
+  setStatus("loginStatus", "Проверяем данные…");
+  try {
+    const result = await window.TMHAuth.signIn($("login").value, $("password").value);
+    if (result.error) throw result.error;
+    if (!result.profile) throw new Error("Профиль аккаунта не найден.");
+    $("password").value = "";
+    if (["admin", "developer"].includes(result.profile.role)) {
+      setStatus("loginStatus", "Вход выполнен. Можно управлять аккаунтами.", "success");
+      await showAdmin(result);
+    } else {
+      location.replace("./index.html");
+    }
+  } catch (error) {
+    setStatus("loginStatus", error?.message || "Не удалось войти.", "error");
+  } finally {
+    button.disabled = false;
+  }
+});
+$("createForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = $("createBtn");
+  const password = $("newPassword").value;
+  if (password.length < 8) {
+    setStatus("createStatus", "Пароль должен содержать не менее 8 символов.", "error");
+    return;
+  }
+  button.disabled = true;
+  setStatus("createStatus", "Создаём аккаунт…");
+  try {
+    const identity = await window.TMHAuth.getCurrentIdentity();
+    if (identity.error) throw identity.error;
+    if (!["admin", "developer"].includes(identity.profile?.role)) {
+      throw new Error("Недостаточно прав. Войдите под администратором.");
+    }
+    const { data, error } = await window.TMHAuth.client.functions.invoke("account-admin", {
+      body: { action: "create_named_employee", username: $("username").value, password }
+    });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    $("newPassword").value = "";
+    setStatus("createStatus", "Создан аккаунт: " + data.employee.display_name + ". Роль: Сотрудник.", "success");
+  } catch (error) {
+    setStatus("createStatus", error?.message || "Не удалось создать аккаунт.", "error");
+  } finally {
+    button.disabled = false;
+  }
+});
+const current = await window.TMHAuth.getCurrentIdentity();
+if (current?.profile && ["admin", "developer"].includes(current.profile.role)) await showAdmin(current);
+</script>
+</body>
+</html>

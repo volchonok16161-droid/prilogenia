@@ -3,29 +3,70 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#172b57">
-<title>Личный кабинет</title>
+<meta name="theme-color" content="#0a5eb0">
+<script>(function(){var k="checklist_theme_v1",a=["tmh","standard","dark"];function sync(v){document.documentElement.setAttribute("data-theme",a.includes(v)?v:"tmh");}try{sync(localStorage.getItem(k));}catch(e){sync("tmh");}window.addEventListener("storage",function(e){if(e.key===k)sync(e.newValue);});})();</script>
+<title>ТМХ — Личный кабинет</title>
 <style>
 :root{color-scheme:light;--bg:#f4f6fa;--card:#fff;--ink:#172033;--muted:#718096;--line:#e6eaf0;--blue:#315efb;--green:#16845b;--red:#b42318}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.brand{display:flex;align-items:center;gap:12px;font-weight:750}.logo{width:42px;height:42px;border-radius:13px;background:#172b57;color:#fff;display:grid;place-items:center}.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;padding:10px 14px;background:var(--blue);color:white;text-decoration:none;font-weight:650;cursor:pointer}.btn.secondary{background:#e9edf5;color:#344054}.btn:disabled{opacity:.55;cursor:wait}.welcome,.panel,.stat{background:var(--card);border:1px solid var(--line);border-radius:17px}.welcome{padding:23px 25px;margin-bottom:16px}.welcome h1{margin:0 0 5px;font-size:25px}.muted{color:var(--muted)}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:16px}.stat{padding:17px 19px}.stat-label{font-size:13px;color:var(--muted)}.stat-value{font-size:28px;font-weight:780;margin-top:4px}.panel{padding:20px 21px;margin-bottom:16px}.panel h2{font-size:17px;margin:0 0 14px}.profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.field{border:1px solid var(--line);border-radius:11px;padding:12px 13px;min-width:0}.field span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.field strong{overflow-wrap:anywhere}.item{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}.item-icon{width:37px;height:37px;border-radius:10px;background:#f0f3f8;display:grid;place-items:center;flex:none}.item-info{flex:1;min-width:0}.item-info strong{display:block;overflow-wrap:anywhere}.item-info small{color:var(--muted)}.revision{font-size:12px;color:var(--muted);white-space:nowrap}.notice{padding:12px 14px;background:#fff8e7;border:1px solid #f4e5b8;border-radius:11px;color:#795b16;font-size:13px}.error{color:var(--red)}.empty{padding:20px 0;color:var(--muted);text-align:center}.loading{color:var(--muted)}.hidden{display:none!important}
-.admin-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.admin-row:first-child{border-top:0}.admin-info{flex:1;min-width:0}.admin-info strong{display:block;overflow-wrap:anywhere}.admin-meta{font-size:12px;color:var(--muted);overflow-wrap:anywhere}.admin-pill{display:inline-block;margin-top:4px;padding:3px 8px;border-radius:20px;background:#e8f7ef;color:#14744e;font-size:12px}.admin-pill.off{background:#fff0ee;color:#a33b30}.admin-row button{flex:none}@media(max-width:620px){.app{padding:16px 12px 34px}.top{align-items:flex-start}.stats{gap:8px}.stat{padding:13px 11px}.stat-value{font-size:23px}.welcome{padding:19px}.welcome h1{font-size:22px}.panel{padding:16px 14px}.profile{grid-template-columns:1fr}.revision{display:none}.actions{justify-content:flex-end}}
+button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.brand{display:flex;align-items:center;gap:12px;font-weight:750}.logo{width:42px;height:42px;border-radius:13px;background:#172b57;color:#fff;display:grid;place-items:center}.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;padding:10px 14px;background:var(--blue);color:white;text-decoration:none;font-weight:650;cursor:pointer}.btn.secondary{background:#e9edf5;color:#344054}.btn:disabled{opacity:.55;cursor:wait}.welcome,.panel,.stat{background:var(--card);border:1px solid var(--line);border-radius:17px}.welcome{padding:23px 25px;margin-bottom:16px}.welcome h1{margin:0 0 5px;font-size:25px}.muted{color:var(--muted)}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:16px}.stat{padding:17px 19px}.stat-filter{cursor:pointer;transition:border-color .15s,box-shadow .15s}.stat-filter:hover,.stat-filter:focus-visible{border-color:var(--blue);outline:none}.stat-filter[aria-pressed="true"]{border-color:var(--blue);box-shadow:0 0 0 2px #315efb20}.stat-label{font-size:13px;color:var(--muted)}.stat-value{font-size:28px;font-weight:780;margin-top:4px}.panel{padding:20px 21px;margin-bottom:16px}.panel h2{font-size:17px;margin:0 0 14px}.profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.field{border:1px solid var(--line);border-radius:11px;padding:12px 13px;min-width:0}.field span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.field strong{overflow-wrap:anywhere}.item{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}.item-icon{width:37px;height:37px;border-radius:10px;background:#f0f3f8;display:grid;place-items:center;flex:none}.item-info{flex:1;min-width:0}.item-info strong{display:block;overflow-wrap:anywhere}.item-info small{color:var(--muted)}.progress-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:13px}.progress-track{height:6px;background:#edf0f5;border-radius:99px;overflow:hidden;margin-top:5px;max-width:240px}.progress-fill{height:100%;background:var(--green);border-radius:99px}.deviation-count{color:var(--red);font-weight:650}.status-pill{display:inline-flex;align-items:center;margin:5px 0 0 8px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;vertical-align:middle}.status-pill.done{background:#e8f7ef;color:#14744e}.status-pill.progress{background:#fff4df;color:#8a5a00}.revision{font-size:12px;color:var(--muted);white-space:nowrap}.notice{padding:12px 14px;background:#fff8e7;border:1px solid #f4e5b8;border-radius:11px;color:#795b16;font-size:13px}.error{color:var(--red)}.empty{padding:20px 0;color:var(--muted);text-align:center}.loading{color:var(--muted)}.hidden{display:none!important}
+.admin-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.admin-row:first-child{border-top:0}.admin-info{flex:1;min-width:0}.admin-info strong{display:block;overflow-wrap:anywhere}.admin-meta{font-size:12px;color:var(--muted);overflow-wrap:anywhere}.admin-pill{display:inline-block;margin-top:4px;padding:3px 8px;border-radius:20px;background:#e8f7ef;color:#14744e;font-size:12px}.admin-pill.off{background:#fff0ee;color:#a33b30}.admin-row button{flex:none}@media(max-width:620px){
+.app{padding:16px 12px 34px}
+.top{align-items:flex-start;flex-wrap:wrap}
+.top>.brand{min-width:0}
+.top>.actions{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.top>.actions .btn{padding:10px 8px;font-size:13px;white-space:nowrap}
+.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.stat{padding:13px 11px}.stat-value{font-size:23px}
+.welcome{padding:19px}.welcome h1{font-size:22px}
+.panel{padding:16px 14px}.profile{grid-template-columns:1fr}
+.item{display:grid;grid-template-columns:37px minmax(0,1fr);gap:8px 10px;padding:14px 0}
+.item-icon{grid-column:1;grid-row:1}
+.item-info{grid-column:2;min-width:0}
+.item-info strong{overflow-wrap:anywhere}
+.item>.revision{display:block;grid-column:2;white-space:normal}
+.item>div:last-child{grid-column:2;display:flex!important;flex-wrap:wrap;gap:8px!important;min-width:0;flex:initial!important}
+.item>div:last-child .btn{flex:1 1 110px;min-height:42px}
+.admin-row{align-items:flex-start;flex-wrap:wrap}
+.admin-info{flex:1 1 100%;min-width:0}
+.admin-row .btn{flex:1 1 130px}
+}
+
+html[data-theme="tmh"]{color-scheme:light;--bg:#eef5fb;--card:#fff;--ink:#0c2f52;--muted:#5c7a99;--line:#c6def2;--blue:#0a5eb0;--green:#1f9d55;--red:#d1453b;--soft:#e8f2fb;--soft-ink:#315b82}
+html[data-theme="standard"]{color-scheme:light;--bg:#f4f6fa;--card:#fff;--ink:#172033;--muted:#718096;--line:#e6eaf0;--blue:#315efb;--green:#16845b;--red:#b42318;--soft:#e9edf5;--soft-ink:#344054}
+html[data-theme="dark"]{color-scheme:dark;--bg:#12181f;--card:#1a222c;--ink:#e8edf2;--muted:#9aabba;--line:#2c3a48;--blue:#3f8ce0;--green:#3fae6a;--red:#e16a5b;--soft:#263342;--soft-ink:#d5e1ec}
+html,body{min-height:100%;background:var(--bg);color:var(--ink)}
+body{transition:background-color .16s,color .16s}.logo{background:var(--blue)}
+.btn.secondary{background:var(--soft);color:var(--soft-ink);border:1px solid var(--line)}
+.field,.item,.admin-row{border-color:var(--line)}.item-icon,.progress-track{background:var(--soft)}
+.status-pill.done{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+.status-pill.progress{background:color-mix(in srgb,#d4a017 18%,transparent);color:var(--ink)}
+.notice{background:color-mix(in srgb,#d4a017 12%,var(--card));border-color:color-mix(in srgb,#d4a017 40%,var(--line));color:var(--ink)}
+.admin-pill{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}.admin-pill.off{background:color-mix(in srgb,var(--red) 15%,transparent);color:var(--red)}
+input{background:var(--card)!important;color:var(--ink)!important;border-color:var(--line)!important}
+.welcome-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.welcome-top h1{margin:0}
+.connection-pill{display:inline-flex;align-items:center;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:700;background:var(--soft);color:var(--soft-ink);border:1px solid var(--line)}
+.connection-pill.online{background:#e5f7ed;color:#167448;border-color:#b9e6cc}.connection-pill.offline{background:#fff4df;color:#8a5a00;border-color:#efd49a}
+html[data-theme="dark"] .connection-pill.online{background:#193a2a;color:#83d6a6;border-color:#28583f}html[data-theme="dark"] .connection-pill.offline{background:#44351d;color:#f0ca78;border-color:#6a5128}
+@media(max-width:620px){.top>.actions{grid-template-columns:repeat(2,minmax(0,1fr))}.welcome-top h1{font-size:21px}}
 </style>
 </head>
 <body>
 <div class="app">
 <header class="top">
  <div class="brand"><div class="logo">ЧК</div><div>Рабочая система<br><span class="muted">Личный кабинет</span></div></div>
- <div class="actions"><a class="btn secondary" href="./index.html">К чек-листам</a><button class="btn secondary" id="refreshBtn" type="button">Обновить</button><button class="btn secondary" id="logoutBtn" type="button">Выйти</button></div>
+ <div class="actions"><a class="btn secondary" href="./prototype/checklist/">К чек-листам</a><button class="btn secondary" id="refreshBtn" type="button">Обновить</button><button class="btn secondary" id="logoutBtn" type="button">Выйти</button></div>
 </header>
 <main>
- <section class="welcome"><h1 id="greeting">Личный кабинет</h1><div class="muted" id="subtitle">Загрузка данных аккаунта…</div></section>
+ <section class="welcome"><div class="welcome-top"><h1 id="greeting">Личный кабинет</h1><span id="connectionState" class="connection-pill">Проверка соединения…</span></div><div class="muted" id="subtitle">Загрузка данных аккаунта…</div></section>
+   
  <div id="loading" class="panel loading">Проверяем сессию и загружаем ваши данные…</div>
  <div id="content" class="hidden">
-  <section class="stats">
-   <div class="stat"><div class="stat-label">Мои облачные чек-листы</div><div class="stat-value" id="checklistCount">—</div></div>
+  <section class="stats" aria-label="Статистика чек-листов">
+   <div class="stat stat-filter" data-filter="all" role="button" tabindex="0" aria-pressed="true"><div class="stat-label">Всего чек-листов</div><div class="stat-value" id="checklistCount">—</div></div>
+   <div class="stat stat-filter" data-filter="completed" role="button" tabindex="0" aria-pressed="false"><div class="stat-label">Выполнено</div><div class="stat-value" id="completedCount">—</div></div>
+   <div class="stat stat-filter" data-filter="inProgress" role="button" tabindex="0" aria-pressed="false"><div class="stat-label">В работе</div><div class="stat-value" id="inProgressCount">—</div></div>
    <div class="stat"><div class="stat-label">Последнее сохранение</div><div class="stat-value" id="lastSaved" style="font-size:17px">—</div></div>
-   <div class="stat"><div class="stat-label">Роль аккаунта</div><div class="stat-value" id="roleValue" style="font-size:20px">—</div></div>
   </section>
   <section class="panel"><h2>Профиль</h2><div class="profile">
    <div class="field"><span>Email</span><strong id="email">—</strong></div>
@@ -40,7 +81,7 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
    <button class="btn" id="saveProfileBtn" type="submit">Сохранить имя</button>
   </form>
   <p id="profileStatus" class="muted" role="status" aria-live="polite" style="margin:10px 0 0"></p>
-  <div style="border-top:1px solid var(--line);margin-top:18px;padding-top:16px">
+  <div id="securityPanel" style="border-top:1px solid var(--line);margin-top:18px;padding-top:16px">
    <h3 style="font-size:15px;margin:0 0 12px">Безопасность аккаунта</h3>
    <form id="passwordForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;align-items:end">
     <label style="display:grid;gap:6px"><span class="muted">Новый пароль</span><input id="newPassword" type="password" minlength="8" autocomplete="new-password" required style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink)"></label>
@@ -50,10 +91,18 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
    <p id="passwordStatus" class="muted" role="status" aria-live="polite" style="margin:10px 0 0"></p>
   </div>
   </section>
-  <section class="panel"><h2>Мои облачные чек-листы</h2><div id="checklists"><div class="empty">Загрузка списка…</div></div></section>
+  <section class="panel" id="cloudPanel"><h2>Мои облачные чек-листы</h2><div id="checklists"><div class="empty">Загрузка списка…</div></div></section>
+  <section class="panel"><h2>Локальные чек-листы на этом устройстве</h2><div id="localOfflineChecklists"><div class="empty">Проверяем локальное хранилище…</div></div><p class="muted" style="font-size:12px;margin:10px 0 0">Локальные копии зашифрованы на устройстве. Для отправки в облако требуется действующая онлайн-сессия того же сотрудника.</p></section>
+
   <section class="panel hidden" id="adminPanel" aria-labelledby="adminHeading">
    <h2 id="adminHeading">Управление сотрудниками</h2>
-   <p class="muted" style="margin:0 0 12px">Доступно администраторам и разработчикам. Действия выполняются серверной функцией с проверкой прав.</p>
+   <p class="muted" style="margin:0 0 12px">Доступно администраторам и разработчикам. Создавайте аккаунты с любыми логинами и управляйте доступом сотрудников прямо из личного кабинета.</p>
+   <form id="createEmployeeForm" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;align-items:end;padding:14px;background:#f8faff;border:1px solid var(--line);border-radius:12px;margin-bottom:14px">
+    <label style="display:grid;gap:6px"><span class="muted">Логин сотрудника</span><input id="employeeUsername" type="text" minlength="1" maxlength="64" autocomplete="off" required placeholder="Например, ЦГиСПЛ-Карасук" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink);background:#fff"></label>
+    <label style="display:grid;gap:6px"><span class="muted">Пароль (от 8 символов)</span><input id="employeePassword" type="password" minlength="8" maxlength="128" autocomplete="new-password" required style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink);background:#fff"></label>
+    <button class="btn" id="createEmployeeBtn" type="submit">Создать аккаунт</button>
+    <span id="createEmployeeStatus" class="muted" role="status" aria-live="polite" style="grid-column:1/-1"></span>
+   </form>
    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     <button class="btn secondary" id="refreshEmployeesBtn" type="button">Обновить список</button>
     <span id="adminStatus" class="muted" role="status" aria-live="polite"></span>
@@ -67,13 +116,38 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
 </div>
 <script type="module" src="./prototype/supabase-auth.js"></script>
 <script type="module">
+import { isChecklistComplete, summarizeChecklistStatuses } from "./prototype/checklist-status.js";
+import { deleteCloudChecklist } from "./prototype/supabase-cloud-delete.js";
 const $ = (id) => document.getElementById(id);
-const roleLabels = { employee: "Сотрудник", admin: "Администратор", developer: "Разработчик" };
+const roleLabels = { employee: "Сотрудник", assistant: "Помощник", admin: "Администратор", developer: "Разработчик" };
 const formatDate = (value) => {
   if (!value) return "—";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" }).format(date);
 };
+let activeChecklistFilter = "all";
+let cabinetLoadSequence = 0;
+let activeCabinetUserId = null;
+function clearCabinet() {
+  cabinetLoadSequence += 1;
+  activeCabinetUserId = null;
+  $("content").classList.add("hidden");
+  $("loading").classList.remove("hidden");
+  $("error").classList.add("hidden");
+  $("greeting").textContent = "Личный кабинет";
+  $("subtitle").textContent = "Сессия завершена. Данные предыдущего аккаунта очищены.";
+  for (const id of ["email", "userId", "roleProfileValue", "emailStatus", "createdAt", "lastSignIn", "checklistCount", "completedCount", "inProgressCount", "lastSaved"]) {
+    $(id).textContent = "—";
+  }
+  $("displayNameInput").value = "";
+  $("emailConfirmStatus").textContent = "";
+  $("profileStatus").textContent = "";
+  $("passwordStatus").textContent = "";
+  $("checklists").replaceChildren();
+  $("employeeList").replaceChildren();
+  $("adminPanel").classList.add("hidden");
+  
+}
 function showError(message) {
   $("loading").classList.add("hidden");
   $("content").classList.add("hidden");
@@ -86,7 +160,7 @@ async function callAdmin(api, body) {
   if (data?.error) throw new Error(data.error);
   return data;
 }
-async function loadEmployees(api) {
+async function loadEmployees(api, requestId = cabinetLoadSequence) {
   const host = $("employeeList");
   const status = $("adminStatus");
   host.replaceChildren();
@@ -97,6 +171,7 @@ async function loadEmployees(api) {
   status.textContent = "";
   try {
     const result = await callAdmin(api, { action: "list_employees" });
+    if (requestId !== cabinetLoadSequence) return;
     const employees = Array.isArray(result?.employees) ? result.employees : [];
     host.replaceChildren();
     if (!employees.length) {
@@ -106,6 +181,9 @@ async function loadEmployees(api) {
       host.append(empty);
       return;
     }
+    const identity = await window.TMHAuth.getCurrentIdentity();
+    if (requestId !== cabinetLoadSequence) return;
+    if (identity?.error) throw identity.error;
     for (const employee of employees) {
       const row = document.createElement("article");
       row.className = "admin-row";
@@ -120,6 +198,87 @@ async function loadEmployees(api) {
       pill.className = "admin-pill" + (employee.suspended ? " off" : "");
       pill.textContent = employee.suspended ? "Доступ заблокирован" : "Доступ активен";
       info.append(name, meta, pill);
+      const roleLabel = document.createElement("div");
+      roleLabel.className = "admin-meta";
+      roleLabel.textContent = "Роль: " + (roleLabels[employee.role] || employee.role || "Сотрудник");
+      info.append(roleLabel);
+      if (identity?.profile?.role === "developer") {
+          const roleButton = document.createElement("button");
+          roleButton.type = "button";
+          roleButton.className = employee.role === "assistant" ? "btn secondary" : "btn";
+          roleButton.textContent = employee.role === "assistant" ? "Забрать роль помощника" : "Назначить помощником";
+          roleButton.addEventListener("click", async () => {
+            const nextRole = employee.role === "assistant" ? "employee" : "assistant";
+            const verb = nextRole === "assistant" ? "выдать роль помощника" : "отозвать роль помощника";
+            if (!window.confirm("Подтвердить действие: " + verb + " для «" + (employee.display_name || employee.id) + "»?")) return;
+            roleButton.disabled = true;
+            status.textContent = "Изменяем роль…";
+            try {
+              await callAdmin(api, { action: "set_employee_role", user_id: employee.id, role: nextRole });
+              status.textContent = nextRole === "assistant" ? "Роль помощника выдана." : "Роль помощника отозвана.";
+              await loadEmployees(api);
+            } catch (error) {
+              status.textContent = error?.message || "Не удалось изменить роль.";
+              status.className = "error";
+              roleButton.disabled = false;
+            }
+          });
+          row.append(roleButton);
+      }
+      if (identity?.profile?.role === "developer" && ["employee", "assistant"].includes(employee.role)) {
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "btn secondary";
+        deleteButton.textContent = "Удалить аккаунт";
+        deleteButton.setAttribute("aria-label", "Удалить аккаунт " + (employee.display_name || employee.id));
+        deleteButton.addEventListener("click", async () => {
+          const label = employee.display_name || employee.id;
+          const modeChoice = window.prompt(
+            "Как поступить с данными сотрудника «" + label + "»?\\n\\nВведите TRANSFER — передать чек-листы и файлы разработчику, сохранив историю.\\nВведите DELETE — безвозвратно удалить чек-листы и файлы.\\n\\nСначала сохраните несинхронизированные данные: сервер не может проверить локальные данные на устройствах. Отмена — ничего не менять."
+          );
+          if (modeChoice !== "TRANSFER" && modeChoice !== "DELETE") return;
+          const mode = modeChoice === "TRANSFER" ? "transfer" : "permanent";
+          const confirmation = window.prompt(
+            (mode === "transfer" ? "Передача данных разработчику" : "БЕЗВОЗВРАТНОЕ УДАЛЕНИЕ") +
+            " для аккаунта «" + label + "».\\n\\n" +
+            (mode === "transfer"
+              ? "Чек-листы будут переназначены разработчику, файлы скопированы в его архив, а исходный аккаунт удалён."
+              : "Все облачные чек-листы и файлы будут удалены без возможности восстановления.") +
+            "\\n\\nДля подтверждения введите " + (mode === "transfer" ? "TRANSFER" : "DELETE") + ":"
+          );
+          if (confirmation !== (mode === "transfer" ? "TRANSFER" : "DELETE")) return;
+          deleteButton.disabled = true;
+          deleteButton.textContent = "Удаление…";
+          status.textContent = mode === "transfer" ? "Передаём чек-листы и файлы разработчику…" : "Удаляем чек-листы, файлы и аккаунт…";
+          status.className = "muted";
+          try {
+            const latestIdentity = await window.TMHAuth.getCurrentIdentity();
+            if (latestIdentity?.error) throw latestIdentity.error;
+            if (latestIdentity?.user?.id !== identity.user.id || latestIdentity?.profile?.role !== "developer") {
+              throw new Error("Сессия или права разработчика изменились. Обновите страницу.");
+            }
+            const deleteResult = await callAdmin(api, { action: "delete_employee", user_id: employee.id, mode });
+            if (deleteResult?.deleted !== true || deleteResult?.user_id !== employee.id) {
+              throw new Error("Аккаунт не удалён: сервер не подтвердил удаление. Обновите список и проверьте статус пользователя.");
+            }
+            status.textContent = "Сервер подтвердил операцию (" + (mode === "transfer" ? "данные переданы" : "данные удалены") + "). Проверяем список…";
+            status.className = "muted";
+            await loadEmployees(api, requestId);
+            if (requestId === cabinetLoadSequence) {
+              const stillListed = Array.from($("employeeList").querySelectorAll(".admin-meta"))
+                .some((node) => node.textContent === employee.id);
+              if (stillListed) throw new Error("Сервер подтвердил удаление, но аккаунт остался в списке. Обновите страницу и проверьте Auth.");
+              status.textContent = "Аккаунт «" + label + "» удалён. " + (mode === "transfer" ? "Данные переданы разработчику." : "Данные удалены без восстановления.");
+            }
+          } catch (error) {
+            status.textContent = error?.message || "Не удалось удалить аккаунт.";
+            status.className = "error";
+            deleteButton.disabled = false;
+            deleteButton.textContent = "Удалить аккаунт";
+          }
+        });
+        row.append(deleteButton);
+      }
       const button = document.createElement("button");
       button.type = "button";
       button.className = employee.suspended ? "btn secondary" : "btn";
@@ -143,6 +302,7 @@ async function loadEmployees(api) {
       host.append(row);
     }
   } catch (error) {
+    if (requestId !== cabinetLoadSequence) return;
     host.replaceChildren();
     const message = document.createElement("div");
     message.className = "empty error";
@@ -152,28 +312,208 @@ async function loadEmployees(api) {
     status.className = "error";
   }
 }
+async function renderLocalOfflineChecklists(api, requestId) {
+  const host = $("localOfflineChecklists");
+  host.replaceChildren();
+  if (typeof api.isOfflineVaultUnlocked !== "function" || !api.isOfflineVaultUnlocked() ||
+      typeof api.listOfflineChecklistInstances !== "function") {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Локальное хранилище ещё не разблокировано на этом устройстве. Выполните вход онлайн, чтобы подключить его.";
+    host.append(empty);
+    return [];
+  }
+  try {
+    const entries = await api.listOfflineChecklistInstances();
+    if (requestId !== cabinetLoadSequence) return;
+    if (!entries.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "На этом устройстве пока нет локальных чек-листов.";
+      host.append(empty);
+      return;
+    }
+    const labels = { complex: "Комплексный чек-лист", housings: "КМБ", tt: "ТТ", bi: "БИ", hydro: "Гидродемпферы" };
+    for (const entry of entries) {
+      const item = document.createElement("article");
+      item.className = "item";
+      const icon = document.createElement("div");
+      icon.className = "item-icon";
+      icon.textContent = "▤";
+      const info = document.createElement("div");
+      info.className = "item-info";
+      const title = document.createElement("strong");
+      title.textContent = entry.title || labels[entry.mode] || "Локальный чек-лист";
+      const meta = document.createElement("small");
+      const equipment = [entry.state?.general?.type, entry.state?.general?.number ? "№ " + entry.state.general.number : ""].filter(Boolean).join(" ");
+      meta.textContent = (labels[entry.mode] || entry.mode) + (equipment ? " · " + equipment : "") + " · Изменён " + formatDate(entry.updatedAt);
+      const status = document.createElement("span");
+      status.className = "status-pill " + (entry.sync === "synced" ? "done" : "progress");
+      status.textContent = entry.sync === "synced" ? "✓ В облаке" : entry.sync === "pending-sync" ? "Ожидает синхронизации" : "Только на устройстве";
+      info.append(title, meta, status);
+      const actions = document.createElement("div");
+      actions.style.display = "flex";
+      actions.style.gap = "8px";
+      const open = document.createElement("a");
+      open.className = "btn secondary";
+      open.textContent = "Открыть";
+      open.href = "./prototype/checklist/?mode=" + encodeURIComponent(entry.mode) + "&openLocalChecklist=" + encodeURIComponent(entry.instanceId);
+      open.setAttribute("aria-label", "Открыть " + (entry.title || "локальный чек-лист"));
+      actions.append(open);
+      item.append(icon, info, actions);
+      host.append(item);
+    }
+    return entries;
+  } catch (error) {
+    if (requestId !== cabinetLoadSequence) return [];
+    const message = document.createElement("div");
+    message.className = "empty";
+    message.textContent = "Не удалось прочитать локальные чек-листы: " + (error?.message || "ошибка хранилища");
+    host.append(message);
+    return [];
+  }
+}
+async function renderOfflineCabinet(api, identity, requestId) {
+  const { user, profile } = identity;
+  activeCabinetUserId = user.id;
+  const badge = $("connectionState");
+  badge.textContent = "Офлайн · локально";
+  badge.className = "connection-pill offline";
+  $("greeting").textContent = profile.display_name ? "Здравствуйте, " + profile.display_name + "!" : "Личный кабинет";
+  $("subtitle").textContent = "Локальный профиль этого устройства. Облачные действия временно недоступны.";
+  $("email").textContent = user.email || "Сохранённый аккаунт";
+  $("userId").textContent = user.id;
+  $("roleProfileValue").textContent = roleLabels[profile.role] || profile.role || "Сотрудник";
+  $("emailStatus").textContent = "Данные профиля сохранены на устройстве";
+  $("createdAt").textContent = "Доступно онлайн";
+  $("lastSignIn").textContent = "Доступно онлайн";
+  $("profileForm").classList.add("hidden");
+  $("profileStatus").classList.add("hidden");
+  $("securityPanel").classList.add("hidden");
+  $("resendConfirmBtn").classList.add("hidden");
+  $("adminPanel").classList.add("hidden");
+  const entries = await renderLocalOfflineChecklists(api, requestId);
+  if (requestId !== cabinetLoadSequence) return;
+  const safeEntries = Array.isArray(entries) ? entries : [];
+  const completed = safeEntries.filter((entry) => isChecklistComplete(entry.state?.stats || entry.state?.general?.stats)).length;
+  $("checklistCount").textContent = String(safeEntries.length);
+  $("completedCount").textContent = String(completed);
+  $("inProgressCount").textContent = String(Math.max(0, safeEntries.length - completed));
+  const latest = safeEntries.reduce((value, entry) => Math.max(value, Date.parse(entry.updatedAt || "") || 0), 0);
+  $("lastSaved").textContent = latest ? formatDate(latest) : "Пока нет";
+  $("checklists").replaceChildren();
+  const cloudNotice = document.createElement("div");
+  cloudNotice.className = "empty";
+  cloudNotice.textContent = "Облачная история временно недоступна без интернета. Здесь отображаются только зашифрованные работы, сохранённые на этом устройстве.";
+  $("checklists").append(cloudNotice);
+  const notice = document.querySelector(".notice");
+  if (notice) notice.textContent = "Офлайн-режим: локальные работы доступны для просмотра и продолжения. Изменение профиля, пароля, управление сотрудниками и облачная история требуют подключения к интернету.";
+  $("content").classList.remove("hidden");
+  $("loading").classList.add("hidden");
+}
 async function loadCabinet() {
+  const requestId = ++cabinetLoadSequence;
   $("loading").classList.remove("hidden");
   $("error").classList.add("hidden");
   $("content").classList.add("hidden");
   await window.TMHAuthReady;
+  if (requestId !== cabinetLoadSequence) return;
   const api = window.TMHAuth;
   if (!api) throw new Error("Модуль авторизации не загрузился. Откройте страницу через основной сайт.");
-  const identity = await api.getCurrentIdentity();
+  const identity = typeof api.getCabinetIdentity === "function"
+    ? await api.getCabinetIdentity()
+    : await api.getCurrentIdentity();
+  if (requestId !== cabinetLoadSequence) return;
+  if (identity?.offline === true) {
+    await renderOfflineCabinet(api, identity, requestId);
+    return;
+  }
   if (identity?.error) throw identity.error;
   if (!identity?.user || !identity?.profile) {
-    location.replace("./index.html");
+    location.replace("./prototype/checklist/");
     return;
   }
   const { user, profile } = identity;
-  const { data, error } = await api.client
-    .from("checklists")
-    .select("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode")
-    .eq("owner_id", user.id)
-    .order("updated_at", { ascending: false })
-    .limit(50);
-  if (error) throw error;
-  const rows = Array.isArray(data) ? data : [];
+  const connectionBadge = $("connectionState");
+  connectionBadge.textContent = "Онлайн";
+  connectionBadge.className = "connection-pill online";
+  $("profileForm").classList.remove("hidden");
+  $("profileStatus").classList.remove("hidden");
+  $("securityPanel").classList.remove("hidden");
+  $("cloudPanel").classList.remove("hidden");
+  // Remove only expired complex-mode restore safety copies. Never touch ordinary backups.
+  try {
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const titlePrefix = "Автокопия перед восстановлением — complex";
+    const { data: safetyCopies, error: safetyListError } = await api.client
+      .from("checklists")
+      .select("id,title,equipment_type,payload,created_at")
+      .eq("owner_id", user.id)
+      .eq("equipment_type", "complex")
+      .eq("payload->>mode", "complex")
+      .like("title", titlePrefix + "%");
+    if (safetyListError) throw safetyListError;
+    const photoSync = createChecklistPhotoSync({ authApi: api });
+    for (const copy of Array.isArray(safetyCopies) ? safetyCopies : []) {
+      const titleMatches = copy?.title === titlePrefix ||
+        (typeof copy?.title === "string" && copy.title.startsWith(titlePrefix + " — "));
+      const createdAt = Date.parse(copy?.created_at || "");
+      if (!titleMatches || !Number.isFinite(createdAt) || createdAt > cutoff ||
+          copy?.equipment_type !== "complex" || copy?.payload?.mode !== "complex") continue;
+      const { data: deleted, error: deleteError } = await api.client
+        .from("checklists")
+        .delete()
+        .eq("id", copy.id)
+        .eq("owner_id", user.id)
+        .eq("title", copy.title)
+        .eq("equipment_type", "complex")
+        .select("id")
+        .maybeSingle();
+      if (deleteError) throw deleteError;
+      if (deleted?.id) {
+        const manifest = Array.isArray(copy.payload?.photoManifest) ? copy.payload.photoManifest :
+          (Array.isArray(copy.payload?.photos) ? copy.payload.photos : []);
+        if (manifest.length) {
+          try { await photoSync.removeManifest(manifest); }
+          catch (photoError) { console.warn("Expired safety-copy photos could not be cleaned up", photoError); }
+        }
+      }
+    }
+  } catch (cleanupError) {
+    // Cleanup is best-effort and must never block access to the user's cabinet.
+    console.warn("Expired complex restore safety-copy cleanup was deferred", cleanupError);
+  }
+  if (typeof api.activateDeviceVault === "function") {
+    try { await api.activateDeviceVault(identity); }
+    catch (error) { console.warn("Device-local checklist storage is unavailable", error); }
+  }
+  await renderLocalOfflineChecklists(api, requestId);
+  if (requestId !== cabinetLoadSequence) return;
+  activeCabinetUserId = user.id;
+  const rows = [];
+  const pageSize = 500;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await api.client
+      .from("checklists")
+      .select("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode,checklist_type:payload->>checklistType,stats:payload->stats,archive:payload->__tmhArchive")
+      .eq("owner_id", user.id)
+      .order("updated_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (requestId !== cabinetLoadSequence) return;
+    if (error) throw error;
+    const page = Array.isArray(data) ? data : [];
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  const latestIdentity = await api.getCurrentIdentity();
+  if (requestId !== cabinetLoadSequence) return;
+  if (latestIdentity?.error) throw latestIdentity.error;
+  if (latestIdentity?.user?.id !== user.id) {
+    clearCabinet();
+    location.replace("./prototype/checklist/");
+    return;
+  }
   $("greeting").textContent = profile.display_name ? "Здравствуйте, " + profile.display_name + "!" : "Личный кабинет";
   $("subtitle").textContent = "Ваш профиль и облачные копии чек-листов";
   $("displayNameInput").value = profile.display_name || "";
@@ -185,22 +525,34 @@ async function loadCabinet() {
   $("emailConfirmStatus").textContent = emailConfirmed ? "Адрес электронной почты подтверждён." : "";
   $("createdAt").textContent = formatDate(user.created_at);
   $("lastSignIn").textContent = formatDate(user.last_sign_in_at);
-  $("roleValue").textContent = roleLabels[profile.role] || profile.role;
   $("roleProfileValue").textContent = roleLabels[profile.role] || profile.role;
   const canManageEmployees = ["developer", "admin"].includes(profile.role);
   $("adminPanel").classList.toggle("hidden", !canManageEmployees);
-  if (canManageEmployees) await loadEmployees(api);
-  $("checklistCount").textContent = String(rows.length);
+  
+  if (canManageEmployees) await loadEmployees(api, requestId);
+  if (requestId !== cabinetLoadSequence) return;
+  const checklistSummary = summarizeChecklistStatuses(rows);
+  $("checklistCount").textContent = String(checklistSummary.total);
+  $("completedCount").textContent = String(checklistSummary.completed);
+  $("inProgressCount").textContent = String(checklistSummary.inProgress);
   $("lastSaved").textContent = rows.length ? formatDate(rows[0].updated_at) : "Пока нет";
   const list = $("checklists");
   list.replaceChildren();
+  const visibleRows = rows.filter((row) => activeChecklistFilter === "all" ||
+    (activeChecklistFilter === "completed" ? isChecklistComplete(row.stats) : !isChecklistComplete(row.stats)));
+  document.querySelectorAll(".stat-filter").forEach((card) => card.setAttribute("aria-pressed", String(card.dataset.filter === activeChecklistFilter)));
   if (!rows.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
     empty.textContent = "Облачных копий пока нет. Откройте чек-лист и нажмите «Сохранить в облако».";
     list.append(empty);
+  } else if (!visibleRows.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = activeChecklistFilter === "completed" ? "Выполненных чек-листов пока нет." : "Чек-листов в работе пока нет.";
+    list.append(empty);
   } else {
-    for (const row of rows) {
+    for (const row of visibleRows) {
       const item = document.createElement("article");
       item.className = "item";
       const icon = document.createElement("div");
@@ -209,10 +561,44 @@ async function loadCabinet() {
       const info = document.createElement("div");
       info.className = "item-info";
       const title = document.createElement("strong");
-      title.textContent = row.title || "Чек-лист";
+      const isDeveloperArchive = Boolean(row.archive?.sourceChecklistId && row.archive?.sourceOwnerId);
+      title.textContent = (row.title || "Чек-лист") + (isDeveloperArchive ? " · Архив" : "");
+      const category = document.createElement("small");
+      const categoryByMode = { complex: "Комплексный чек-лист", housings: "КМБ", tt: "ТТ", bi: "БИ", hydro: "Гидродемпферы" };
+      const categoryLabel = row.checklist_type || categoryByMode[row.mode] || (String(row.mode || "").startsWith("k_") ? "Пользовательский чек-лист" : "Тип чек-листа не указан");
+      category.textContent = isDeveloperArchive
+        ? categoryLabel + " · Архив сотрудника · исходная ревизия " + String(row.archive.sourceRevision || "—") +
+          " · изменён " + formatDate(row.archive.sourceUpdatedAt)
+        : categoryLabel;
+      category.className = "checklist-category";
+      const status = document.createElement("span");
+      const completed = isChecklistComplete(row.stats);
+      status.className = "status-pill " + (completed ? "done" : "progress");
+      status.textContent = completed ? "✓ Выполнен" : "В работе";
       const meta = document.createElement("small");
-      meta.textContent = (row.equipment_type || "Тип не указан") + " · Обновлён " + formatDate(row.updated_at);
-      info.append(title, meta);
+      meta.textContent = (row.equipment_type || "Оборудование не указано") + " · Обновлён " + formatDate(row.updated_at);
+      info.append(title, category, status, meta);
+      const stats = row.stats && typeof row.stats === "object" ? row.stats : null;
+      const progress = document.createElement("div");
+      progress.className = "progress-meta";
+      const percent = Number.isFinite(Number(stats?.completionPercent)) ? Math.max(0, Math.min(100, Number(stats.completionPercent))) : null;
+      const deviations = Number.isFinite(Number(stats?.deviations)) ? Math.max(0, Number(stats.deviations)) : null;
+      const progressLabel = document.createElement("span");
+      progressLabel.textContent = percent === null ? "Заполнение: —" : "Заполнение: " + percent + "%";
+      const deviationLabel = document.createElement("span");
+      deviationLabel.className = "deviation-count";
+      deviationLabel.textContent = deviations === null ? "Несоответствия: —" : "Несоответствия: " + deviations;
+      progress.append(progressLabel, deviationLabel);
+      info.append(progress);
+      if (percent !== null) {
+        const track = document.createElement("div");
+        track.className = "progress-track";
+        const fill = document.createElement("div");
+        fill.className = "progress-fill";
+        fill.style.width = percent + "%";
+        track.append(fill);
+        info.append(track);
+      }
       const revision = document.createElement("span");
       revision.className = "revision";
       revision.textContent = "Версия " + String(row.revision ?? "—");
@@ -224,7 +610,7 @@ async function loadCabinet() {
       open.className = "btn";
       open.textContent = "Открыть";
       const mode = typeof row.mode === "string" ? row.mode : "";
-      open.href = "./index.html?openChecklist=" + encodeURIComponent(row.id) + (mode ? "&mode=" + encodeURIComponent(mode) : "");
+      open.href = "./prototype/checklist/?openChecklist=" + encodeURIComponent(row.id) + (mode ? "&mode=" + encodeURIComponent(mode) : "");
       open.style.padding = "8px 12px";
       open.style.fontSize = "13px";
       const remove = document.createElement("button");
@@ -245,16 +631,15 @@ async function loadCabinet() {
           if (latestIdentity?.user?.id !== user.id) {
             throw new Error("Сеанс пользователя изменился. Обновите кабинет и войдите снова.");
           }
-          const { data: deleted, error: deleteError } = await api.client
-            .from("checklists")
-            .delete()
-            .eq("id", row.id)
-            .eq("owner_id", user.id)
-            .select("id")
-            .maybeSingle();
-          if (deleteError) throw deleteError;
-          if (!deleted?.id) throw new Error("Чек-лист не удалён: запись не найдена или нет прав.");
+          const result = await deleteCloudChecklist({
+            authApi: api,
+            checklistId: row.id,
+            expectedUserId: user.id,
+          });
           await loadCabinet();
+          if (result.photoCleanupWarning) {
+            window.alert("Чек-лист удалён, но часть фотографий не удалось очистить из хранилища. Потребуется повторная очистка.");
+          }
         } catch (error) {
           remove.disabled = false;
           remove.textContent = "Удалить";
@@ -270,6 +655,57 @@ async function loadCabinet() {
   $("error").classList.add("hidden");
   $("content").classList.remove("hidden");
 }
+
+document.querySelectorAll(".stat-filter").forEach((card) => {
+  const activate = () => {
+    activeChecklistFilter = card.dataset.filter || "all";
+    loadCabinet().catch((error) => showError(error?.message || "Не удалось обновить список чек-листов."));
+  };
+  card.addEventListener("click", activate);
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(); }
+  });
+});
+$("createEmployeeForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = $("createEmployeeBtn");
+  const status = $("createEmployeeStatus");
+  const username = $("employeeUsername").value;
+  const password = $("employeePassword").value;
+  if (password.length < 8 || password.length > 128) {
+    status.textContent = "Пароль должен содержать от 8 до 128 символов.";
+    status.className = "error";
+    return;
+  }
+  button.disabled = true;
+  button.textContent = "Создание…";
+  status.textContent = "Проверяем права и создаём аккаунт…";
+  status.className = "muted";
+  try {
+    await window.TMHAuthReady;
+    const api = window.TMHAuth;
+    const identity = await api.getCurrentIdentity();
+    if (identity?.error) throw identity.error;
+    if (!identity?.user?.id || !["developer", "admin"].includes(identity.profile?.role)) {
+      throw new Error("Недостаточно прав. Создавать сотрудников может только разработчик или администратор.");
+    }
+    const result = await callAdmin(api, {
+      action: "create_named_employee",
+      username,
+      password
+    });
+    $("employeePassword").value = "";
+    status.textContent = "Аккаунт «" + (result.employee?.display_name || username) + "» успешно создан. Роль: Сотрудник.";
+    status.className = "muted";
+    await loadEmployees(api);
+  } catch (error) {
+    status.textContent = error?.message || "Не удалось создать аккаунт.";
+    status.className = "error";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Создать аккаунт";
+  }
+});
 $("refreshEmployeesBtn").addEventListener("click", async () => {
   const button = $("refreshEmployeesBtn");
   button.disabled = true;
@@ -328,7 +764,21 @@ $("profileForm").addEventListener("submit", async (event) => {
 });
 await window.TMHAuthReady;
 window.TMHAuth.onAuthStateChange((event, session) => {
-  if (!["SIGNED_IN", "USER_UPDATED", "TOKEN_REFRESHED"].includes(event) || !session?.user) return;
+  if (event === "SIGNED_OUT") {
+    clearCabinet();
+    location.replace("./prototype/checklist/");
+    return;
+  }
+  if (!session?.user || !["SIGNED_IN", "USER_UPDATED", "TOKEN_REFRESHED"].includes(event)) return;
+  if (activeCabinetUserId && activeCabinetUserId !== session.user.id) {
+    clearCabinet();
+    void loadCabinet().catch((error) => showError(error?.message || "Не удалось загрузить данные нового аккаунта."));
+    return;
+  }
+  if (!activeCabinetUserId && event === "SIGNED_IN") {
+    void loadCabinet().catch((error) => showError(error?.message || "Не удалось загрузить данные аккаунта."));
+    return;
+  }
   const confirmed = Boolean(session.user.email_confirmed_at);
   $("emailStatus").textContent = confirmed ? "Подтверждён" : "Не подтверждён";
   $("resendConfirmBtn").classList.toggle("hidden", confirmed);
@@ -423,7 +873,7 @@ $("logoutBtn").addEventListener("click", async () => {
     await window.TMHAuthReady;
     const result = await window.TMHAuth.signOut();
     if (result?.error) throw result.error;
-    location.replace("./index.html");
+    location.replace("./prototype/checklist/");
   } catch (error) {
     button.disabled = false;
     showError(error?.message || "Не удалось завершить сеанс.");
@@ -441,6 +891,12 @@ $("refreshBtn").addEventListener("click", async () => {
     button.disabled = false;
     button.textContent = "Обновить";
   }
+});
+window.addEventListener("offline", () => {
+  void loadCabinet().catch((error) => showError(error?.message || "Не удалось открыть локальный кабинет."));
+});
+window.addEventListener("online", () => {
+  void loadCabinet().catch((error) => showError(error?.message || "Не удалось обновить кабинет после подключения."));
 });
 try { await loadCabinet(); }
 catch (error) { showError(error?.message || "Не удалось загрузить личный кабинет."); }

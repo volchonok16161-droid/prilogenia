@@ -1,6 +1,16 @@
--- RLS isolation smoke test for the TEST Supabase project only.
--- Uses the two existing test employee Auth IDs created for project fecigiwjtbtabnsfsdym.
--- All fixture rows are rolled back. Do not run against production.
+-- TEMPLATE ONLY: RLS isolation smoke test for a newly created, isolated TEST Supabase project.
+-- This file was previously tied to Auth IDs in the Production project. Those IDs
+-- have been removed. The UUIDs below are deliberately non-existent placeholders.
+-- Do NOT run this template in Production or until a separate test project exists.
+--
+-- Before any execution:
+--   1. Verify the project ref in the Supabase Dashboard URL is NOT
+--      fecigiwjtbtabnsfsdym (Production).
+--   2. Create two disposable Auth users in that separate test project.
+--   3. Replace both placeholder UUIDs below with those test users' Auth UUIDs.
+--   4. Review the target database and confirm no employee/customer data is present.
+-- This SQL cannot independently identify the Supabase project it is connected to.
+-- All fixture rows are wrapped in a transaction and rolled back on normal completion.
 --
 -- Expected:
 --   A sees exactly 1 checklist (its own marker), never B's.
@@ -9,10 +19,7 @@
 --   A cannot delete B's row (0 rows affected; B row remains).
 --   authenticated has no UPDATE privilege on profiles.
 --
--- Run the whole script in Supabase SQL Editor. If a deliberate RLS violation
--- aborts execution, that is an expected security rejection. In that case run
--- the remaining test sections separately, or use the result of the failing
--- statement as confirmation of the relevant negative test.
+-- Do not execute until the separate test backend has been provisioned and reviewed.
 
 begin;
 
@@ -21,10 +28,10 @@ insert into public.checklists
   (id, owner_id, title, equipment_type, payload, revision)
 values
   ('a1000000-0000-4000-8000-000000000001',
-   '779a5cfa-d01d-4c5f-845b-cd1a066dcfc4',
+   '00000000-0000-4000-8000-00000000000a',
    'RLS TEST A - TEMP', 'test', '{"marker":"EMPLOYEE_A_ONLY"}'::jsonb, 1),
   ('b1000000-0000-4000-8000-000000000002',
-   '7b66bb74-5d53-4847-be4b-0f100671f797',
+   '00000000-0000-4000-8000-00000000000b',
    'RLS TEST B - TEMP', 'test', '{"marker":"EMPLOYEE_B_ONLY"}'::jsonb, 1)
 on conflict (id) do update
 set owner_id = excluded.owner_id,
@@ -36,9 +43,9 @@ set owner_id = excluded.owner_id,
 -- Switch to the authenticated database role and emulate Employee A's JWT subject.
 set local role authenticated;
 select set_config('request.jwt.claim.sub',
-  '779a5cfa-d01d-4c5f-845b-cd1a066dcfc4', true);
+  '00000000-0000-4000-8000-00000000000a', true);
 select set_config('request.jwt.claims',
-  '{"sub":"779a5cfa-d01d-4c5f-845b-cd1a066dcfc4","role":"authenticated"}', true);
+  '{"sub":"00000000-0000-4000-8000-00000000000a","role":"authenticated"}', true);
 
 -- TEST 1: should return only A's marker; B's row must not appear.
 select id, owner_id, payload
@@ -76,16 +83,16 @@ rollback;
 -- A must NOT be able to insert a row for B:
 --   begin;
 --   set local role authenticated;
---   select set_config('request.jwt.claim.sub','779a5cfa-d01d-4c5f-845b-cd1a066dcfc4',true);
+--   select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000000a',true);
 --   insert into public.checklists(owner_id,title)
---   values ('7b66bb74-5d53-4847-be4b-0f100671f797','MUST FAIL');
+--   values ('00000000-0000-4000-8000-00000000000b','MUST FAIL');
 --   rollback;
 --
 -- A must NOT be able to transfer its own row to B:
 --   begin;
 --   set local role authenticated;
---   select set_config('request.jwt.claim.sub','779a5cfa-d01d-4c5f-845b-cd1a066dcfc4',true);
+--   select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-00000000000a',true);
 --   update public.checklists
---   set owner_id='7b66bb74-5d53-4847-be4b-0f100671f797'
+--   set owner_id='00000000-0000-4000-8000-00000000000b'
 --   where id='a1000000-0000-4000-8000-000000000001';
 --   rollback;

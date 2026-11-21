@@ -69,6 +69,7 @@ test("restore creates a safety snapshot before applying incoming state", async (
     authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
     cloudApi: { async list() { return [h.row]; }, async get(id) { calls.push("get"); return h.row; } },
     getMode: () => "complex",
+    getCurrentState: () => ({ general: { number: "old" } }),
     async beforeApply(meta) { calls.push(["snapshot", meta.revision]); },
     async applyState() { calls.push("apply"); },
   });
@@ -114,8 +115,8 @@ test("restore hydrates private photo manifest before applying the checklist stat
   });
   await restore.restore(ROW);
   assert.deepEqual(calls, [
-    "snapshot",
     ["hydrate", ROW, 1],
+    "snapshot",
     ["apply", "data:image/jpeg;base64,AQID"],
   ]);
 });
@@ -132,4 +133,134 @@ test("legacy cloud records without a photo manifest restore with an empty manife
   });
   await restore.restore(ROW);
   assert.deepEqual(hydrated, []);
+});
+
+
+test("restoring an identical state skips redundant safety snapshots", async () => {
+  const h = harness();
+  let snapshots = 0;
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    getCurrentState: () => ({ general: { number: "42" }, __cloudChecklistId: "local-only-id" }),
+    async beforeApply() { snapshots += 1; },
+    async applyState() {},
+  });
+  await restore.restore(ROW);
+  assert.equal(snapshots, 0);
+});
+
+test("photo hydration failure happens before a safety snapshot is created", async () => {
+  const h = harness();
+  let snapshots = 0;
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    getCurrentState: () => ({ general: { number: "old" } }),
+    async hydrateState() { throw new Error("photo restore failed"); },
+    async beforeApply() { snapshots += 1; },
+    async applyState() {},
+  });
+  await assert.rejects(restore.restore(ROW), /photo restore failed/);
+  assert.equal(snapshots, 0);
+});
+
+test("restore hydrates the photoManifest emitted by offline cloud sync", async () => {
+  const manifest = [{
+    itemId: "item1",
+    field: "front_photo",
+    path: USER + "/" + ROW + "/4/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    contentType: "image/jpeg",
+  }];
+  const h = harness({
+    payload: {
+      mode: "complex",
+      state: { values: { item1: { status: "ok" } } },
+      photoManifest: manifest,
+    },
+  });
+  let received;
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    async hydrateState(state, metadata, photos) {
+      received = photos;
+      state.values.item1.front_photo = "data:image/jpeg;base64,AQID";
+      return state;
+    },
+    async applyState(state) { assert.equal(state.values.item1.front_photo, "data:image/jpeg;base64,AQID"); },
+  });
+  await restore.restore(ROW);
+  assert.deepEqual(received, manifest);
+});
+
+test("photoManifest takes precedence over legacy photos when both are present", async () => {
+  const current = [{ itemId: "item1", field: "front_photo", path: USER + "/" + ROW + "/5/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", contentType: "image/jpeg" }];
+  const legacy = [{ itemId: "item1", field: "rear_photo", path: USER + "/" + ROW + "/4/cccccccc-cccc-4ccc-8ccc-cccccccccccc", contentType: "image/jpeg" }];
+  const h = harness({
+    payload: {
+      mode: "complex",
+      state: { values: { item1: { status: "ok" } } },
+      photoManifest: current,
+      photos: legacy,
+    },
+  });
+  let received;
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    async hydrateState(state, metadata, photos) { received = photos; return state; },
+    async applyState() {},
+  });
+  await restore.restore(ROW);
+  assert.deepEqual(received, current);
+});
+
+
+test("preserved local-only photos do not trigger repeated safety snapshots", async () => {
+  const h = harness({ payload: { mode: "complex", state: { general: { number: "42" }, values: { item1: { status: "ok" } } } } });
+  let snapshots = 0;
+  const localPhoto = "data:image/jpeg;base64,LOCAL";
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    getCurrentState: () => ({ general: { number: "42" }, values: { item1: { status: "ok", front_photo: localPhoto } }, __cloudChecklistId: "local-only-id" }),
+    async beforeApply() { snapshots += 1; },
+    async applyState() {},
+  });
+  await restore.restore(ROW);
+  assert.equal(snapshots, 0);
+});
+
+test("real checklist changes still create a safety snapshot when local photos are preserved", async () => {
+  const h = harness({ payload: { mode: "complex", state: { general: { number: "42" }, values: { item1: { status: "ok" } } } } });
+  let snapshots = 0;
+  const restore = createChecklistCloudRestore({
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return h.row; }, async list() { return [h.row]; } },
+    getMode: () => "complex",
+    getCurrentState: () => ({ general: { number: "local unsaved edit" }, values: { item1: { status: "ok", front_photo: "data:image/jpeg;base64,LOCAL" } } }),
+    async beforeApply() { snapshots += 1; },
+    async applyState() {},
+  });
+  await restore.restore(ROW);
+  assert.equal(snapshots, 1);
+});
+
+
+test("restore constructor rejects non-function optional callbacks", () => {
+  const base = {
+    authApi: { async getCurrentIdentity() { return { user: { id: USER }, error: null }; } },
+    cloudApi: { async get() { return null; }, async list() { return []; } },
+    getMode: () => "complex",
+    async applyState() {},
+  };
+  for (const key of ["beforeApply", "hydrateState", "getCurrentState"]) {
+    assert.throws(() => createChecklistCloudRestore({ ...base, [key]: true }), /Для восстановления/);
+  }
 });

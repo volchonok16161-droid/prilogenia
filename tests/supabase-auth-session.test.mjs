@@ -13,7 +13,7 @@ test("temporary profile lookup errors preserve the authenticated session", () =>
 
 test("confirmed missing or disallowed profiles are still denied", () => {
   assert.match(source, /reason: "profile_not_authorized"/);
-  assert.match(source, /await client\.auth\.signOut\(\{ scope: "local" \}\)/);
+  assert.match(source, /await supabase\.auth\.signOut\(\{ scope: "local" \}\)/);
   assert.match(source, /ALLOWED_ROLES\.has\(data\.role\)/);
 });
 
@@ -29,4 +29,20 @@ test("session restore and sign-in retry transient profile reads once", () => {
   assert.match(source, /attempt \+ 1 >= attempts/);
   assert.match(source, /setTimeout\(resolve, 400\)/);
   assert.equal((source.match(/getProfileWithRetry\(data\.user\)/g) || []).length, 2);
+});
+
+
+test("cabinet identity uses device-bound offline identity only after verified local vault unlock", () => {
+  assert.match(source, /async function getCabinetIdentity\(\)/);
+  assert.match(source, /const offline = await getCachedOfflineIdentity\(online\?\.error\)/);
+  assert.match(source, /offline\.supabaseAuthenticated === false/);
+  assert.match(source, /isOfflineVaultUnlocked\(\)/);
+  assert.match(source, /getCabinetIdentity,/);
+});
+
+
+test("cabinet avoids loading remote Supabase ESM when browser reports offline", () => {
+  assert.match(source, /if \(globalThis\.navigator\?\.onLine === false\)/);
+  assert.match(source, /getCachedOfflineIdentity\(new TypeError\("offline"\)\)/);
+  assert.match(source, /Нет сети и не найдено разблокированное локальное хранилище/);
 });
