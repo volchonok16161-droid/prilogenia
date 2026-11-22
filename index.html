@@ -20473,7 +20473,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   </div>
   <div id="devBody"><div id="devList"></div><div id="devEditor"></div></div>
 </div>
-<div id="devPreview"><div class="dv-bar"><b>👁 Предпросмотр: так оборудование выглядит в комплексном чек-листе (данные не сохраняются в рабочий чек-лист)</b><button class="btn" id="devPrevClose" type="button">✕ Закрыть предпросмотр</button></div><iframe id="devPrevFrame" title="Предпросмотр"></iframe></div>
+<div id="devPreview"><div class="dv-bar"><b>👁 Предпросмотр рабочей формы 1:1 — черновик до публикации (ответы не сохраняются)</b><button class="btn" id="devPrevClose" type="button">✕ Закрыть предпросмотр</button></div><iframe id="devPrevFrame" title="Предпросмотр"></iframe></div>
 <div id="devGh"><div class="dv-modal">
   <h3>⚙ Публикация в GitHub</h3>
   <div class="dv-row"><div><label>Владелец</label><input id="ghOwner"></div><div><label>Репозиторий</label><input id="ghRepo"></div></div>
@@ -20670,32 +20670,62 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   }
   function render(){renderList();renderEditor();save();}
 
-  /* ---------- предпросмотр на настоящем движке ---------- */
+  /* ---------- предпросмотр 1:1: тот же движок формы, но без записи рабочих данных ---------- */
   function openPreview(){
     var c=cleaned(),ck=null,mode='complex';
+    if(c.issues.length){say('warn','Исправьте ошибки конструктора перед предпросмотром:\\n• '+c.issues.join('\\n• '));return;}
     if(st.view==='ck'){
-      var cur=st.checks[st.csel];ck=cur?c.checklists.filter(function(x){return x.id===(cur.id.indexOf('k_')===0?cur.id:'k_'+cur.id);})[0]:null;
-      if(!ck){say('warn','Чек-лист не прошёл проверку — исправьте замечания (см. выше) и повторите.');return;}
+      var cur=st.checks[st.csel];
+      ck=cur?c.checklists.filter(function(x){return x.id===(cur.id.indexOf('k_')===0?cur.id:'k_'+cur.id);})[0]:null;
+      if(!ck){say('warn','Выберите корректный чек-лист для предпросмотра.');return;}
       mode=ck.id;
     }
     var list=copy(c.list);
-    if(!ck){list.forEach(function(e){e.checklists=['complex'];});}   // показываем всё созданное, даже если не включено в комплексный
-    if(!list.length){say('warn','Для предпросмотра нужно хотя бы одно корректное оборудование.');return;}
+    if(!ck){list.forEach(function(e){e.checklists=['complex'];});}
+    if(!ck&&!list.length){say('warn','Добавьте оборудование с хотя бы одной операцией.');return;}
     var oldModes=(C.store.checklists||[]).map(function(x){return {id:x.id,title:x.title,subtitle:x.subtitle,icon:x.icon,sheet:x.sheet};});
+    var previousMode=window.__EMBEDDED_MODE__;
     try{
-      C.devOverride=list;C.devChecklists=ck?[ck]:null;
-      if(ck)C.applyModes(oldModes.filter(function(m){return m.id!==ck.id;}).concat([{id:ck.id,title:ck.title,subtitle:ck.subtitle,icon:ck.icon,sheet:ck.sheet}]));
-      var html=getEmbeddedSource(mode);
-      var ids=ck?ck.equipment:list.map(function(e){return e.id;});
-      var today=new Date().toISOString().slice(0,10),num='591',depot='ТЧЭ-10 Карасук',place='СЛД-9 КАРАСУК';
-      try{depot=LOCOMOTIVE_DATA['2ЭС5К'][num]||depot;var pl=(DEPOT_PLACES[depot]||[])[0];if(pl)place=pl;}catch(e){}
-      var state={general:{type:'2ЭС5К',number:num,date:today,depot:depot,place:place,mileage:'999999'},values:{},selectedSections:[],selected:ids,changeLog:[]};
-      html=html.split('checklist_2es5k_v1').join('checklist_2es5k_preview').split("'checklist_custom_'+MODE+'_v1'").join("'checklist_custom_'+MODE+'_preview'");   // отдельное хранилище
-      var inj='<script>window.__EMBEDDED_STATE = '+JSON.stringify(state).replace(/</g,'\\u003c')+';</'+'script>';
-      var i=html.indexOf('<script');html=html.slice(0,i)+inj+html.slice(i);
-      $('devPrevFrame').srcdoc=html;$('devPreview').classList.add('open');
+      C.devOverride=list;
+      C.devChecklists=ck?[ck]:null;
+      C.applyModes(oldModes.filter(function(m){return m.id!==mode;}).concat(ck?[{id:ck.id,title:ck.title,subtitle:ck.subtitle,icon:ck.icon,sheet:ck.sheet}]:[]));
+      var source=getEmbeddedSource(mode);
+      if(!source)throw new Error('Не удалось получить HTML рабочей формы.');
+      var ids=ck?ck.equipment.slice():list.map(function(e){return e.id;});
+      var today=new Date().toLocaleDateString('sv-SE');
+      var state={general:{type:'2ЭС5К',number:'591',date:today,depot:'ТЧЭ-10 Карасук',place:'СЛД-9 КАРАСУК',mileage:'999999'},values:{},selectedSections:['Секция 1','Секция 2'],selected:ids,changeLog:[]};
+      // В предпросмотре не разрешаем опубликованным данным и сохранённому режиму
+      // заменять черновик. Открываем непосредственно форму, а не второй вложенный iframe.
+      var edits=[
+        ["try{const sm=localStorage.getItem(MODE_KEY);if(ALL_MODES.indexOf(sm)!==-1)MODE=sm;}catch(e){}",
+         "if(!window.__TMH_PREVIEW__){try{const sm=localStorage.getItem(MODE_KEY);if(ALL_MODES.indexOf(sm)!==-1)MODE=sm;}catch(e){}}"],
+        ["if(MODE){try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}}",
+         "if(MODE&&!window.__TMH_PREVIEW__){try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}}"],
+        ["if(EMBEDDED_MODES.indexOf(MODE)!==-1){",
+         "if(!window.__TMH_PREVIEW__&&EMBEDDED_MODES.indexOf(MODE)!==-1){"],
+        ["function loadState(){try{const raw=localStorage.getItem(LS_KEY);",
+         "function loadState(){if(window.__TMH_PREVIEW__)return;try{const raw=localStorage.getItem(LS_KEY);"],
+        ["function saveState(silent){",
+         "function saveState(silent){if(window.__TMH_PREVIEW__)return true;"],
+        ["const hasAuth = await checkAuth();",
+         "const hasAuth = window.__TMH_PREVIEW__ ? true : await checkAuth();"]
+      ];
+      edits.forEach(function(pair){
+        if(source.indexOf(pair[0])<0)throw new Error('Рабочая форма изменилась: не найден участок для безопасного предпросмотра.');
+        source=source.split(pair[0]).join(pair[1]);
+      });
+      var prelude='<script>window.__TMH_PREVIEW__=true;window.__TMH_STORAGE_UID="preview-only";window.__EMBEDDED_MODE='+JSON.stringify(mode)+';window.__EMBEDDED_STATE='+JSON.stringify(state).replace(/</g,'\\u003c')+';</'+'script>';
+      var at=source.indexOf('<script');
+      if(at<0)throw new Error('В рабочей форме отсутствует сценарий запуска.');
+      source=source.slice(0,at)+prelude+source.slice(at);
+      var frame=$('devPrevFrame');
+      frame.srcdoc=source;
+      $('devPreview').classList.add('open');
     }catch(e){say('bad','Не удалось открыть предпросмотр: '+e.message);}
-    finally{C.devOverride=null;C.devChecklists=null;C.applyModes(oldModes);}
+    finally{
+      C.devOverride=null;C.devChecklists=null;C.applyModes(oldModes);
+      window.__EMBEDDED_MODE__=previousMode;
+    }
   }
 
   /* ---------- экспорт / импорт ---------- */
