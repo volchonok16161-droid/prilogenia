@@ -15081,7 +15081,36 @@ return{totalInstances:ti,okInstances:oi,badInstances:bi,allFieldsCount:afc,fille
 }
 function updateStats(){const stats=computeStats();document.getElementById('statTotal').textContent=stats.totalInstances;document.getElementById('statOk').textContent=stats.okInstances;document.getElementById('statBad').textContent=stats.badInstances;document.getElementById('statFilled').textContent=stats.percent+'%';const bar=document.getElementById('statProgressFill');if(bar)bar.style.width=stats.percent+'%';const exp=document.getElementById('btnExport');if(currentUser==='admin'){exp.disabled=false;exp.title='Администратор: экспорт доступен всегда';}else{if(stats.percent>=100){exp.disabled=false;exp.title='Чек-лист заполнен на 100%, экспорт разрешён';}else{exp.disabled=true;exp.title='Экспорт доступен только при 100% заполнении (сейчас '+stats.percent+'%)';}}updateFindBadge();}
 
-async function exportWithPhotos(){ try{await __psReady();}catch(e){}
+function __ceMissingRequiredPhotos(){
+ if(!STATE||!STATE.general||!STATE.general.type)return [];
+ var all=(typeof getSections==='function'?getSections(STATE.general.type).map(function(s){return s.label;}):[]);
+ var chosen=STATE.selectedSections&&STATE.selectedSections.length?STATE.selectedSections:all;
+ var missing=[];
+ (EQUIPMENT||[]).forEach(function(eq){
+   if(!eq.fields||!eq.fields.some(function(field){return !!field.custom;}))return;
+   if(STATE.selected&&STATE.selected.length&&STATE.selected.indexOf(eq.id)<0)return;
+   eq.instances().forEach(function(inst,idx){
+     if(chosen.length&&chosen.indexOf(inst.section)<0)return;
+     var iid=instId(eq.id,inst,idx);
+     eq.fields.forEach(function(field){
+       if(!field.custom)return;
+       var val=getVal(iid,field.key),photo=getVal(iid,field.key+'_photo');
+       if(__ceNeedsPhoto(field,val,photo))missing.push({iid:iid,key:field.key,title:eq.title+' — '+field.label});
+     });
+   });
+ });
+ return missing;
+}
+function __ceCheckPhotosBeforeExport(){
+ var missing=__ceMissingRequiredPhotos();
+ if(!missing.length)return true;
+ showToast('⚠️ Нельзя выгрузить чек-лист: отсутствуют обязательные фотографии ('+missing.length+').');
+ var first=document.querySelector('.inst[data-iid="'+CSS.escape(missing[0].iid)+'"] .frow[data-field-key="'+CSS.escape(missing[0].key)+'"]');
+ if(first){first.scrollIntoView({behavior:'smooth',block:'center'});first.classList.add('photo-required-field');}
+ return false;
+}
+async function exportWithPhotos(){
+    if(!__ceCheckPhotosBeforeExport())return; try{await __psReady();}catch(e){}
     try{
         if(currentUser!=='admin'){
             const s=computeStats();
@@ -17132,7 +17161,36 @@ return{totalInstances:ti,okInstances:oi,badInstances:bi,allFieldsCount:afc,fille
 }
 function updateStats(){const stats=computeStats();document.getElementById('statTotal').textContent=stats.totalInstances;document.getElementById('statOk').textContent=stats.okInstances;document.getElementById('statBad').textContent=stats.badInstances;document.getElementById('statFilled').textContent=stats.percent+'%';const bar=document.getElementById('statProgressFill');if(bar)bar.style.width=stats.percent+'%';const exp=document.getElementById('btnExport');if(currentUser==='admin'){exp.disabled=false;exp.title='Администратор: экспорт доступен всегда';}else{if(stats.percent>=100){exp.disabled=false;exp.title='Чек-лист заполнен на 100%, экспорт разрешён';}else{exp.disabled=true;exp.title='Экспорт доступен только при 100% заполнении (сейчас '+stats.percent+'%)';}}updateFindBadge();}
 
+function __ceMissingRequiredPhotos(){
+ if(!STATE||!STATE.general||!STATE.general.type)return [];
+ var all=(typeof getSections==='function'?getSections(STATE.general.type).map(function(s){return s.label;}):[]);
+ var chosen=STATE.selectedSections&&STATE.selectedSections.length?STATE.selectedSections:all;
+ var missing=[];
+ (EQUIPMENT||[]).forEach(function(eq){
+   if(!eq.fields||!eq.fields.some(function(field){return !!field.custom;}))return;
+   if(STATE.selected&&STATE.selected.length&&STATE.selected.indexOf(eq.id)<0)return;
+   eq.instances().forEach(function(inst,idx){
+     if(chosen.length&&chosen.indexOf(inst.section)<0)return;
+     var iid=instId(eq.id,inst,idx);
+     eq.fields.forEach(function(field){
+       if(!field.custom)return;
+       var val=getVal(iid,field.key),photo=getVal(iid,field.key+'_photo');
+       if(__ceNeedsPhoto(field,val,photo))missing.push({iid:iid,key:field.key,title:eq.title+' — '+field.label});
+     });
+   });
+ });
+ return missing;
+}
+function __ceCheckPhotosBeforeExport(){
+ var missing=__ceMissingRequiredPhotos();
+ if(!missing.length)return true;
+ showToast('⚠️ Нельзя выгрузить чек-лист: отсутствуют обязательные фотографии ('+missing.length+').');
+ var first=document.querySelector('.inst[data-iid="'+CSS.escape(missing[0].iid)+'"] .frow[data-field-key="'+CSS.escape(missing[0].key)+'"]');
+ if(first){first.scrollIntoView({behavior:'smooth',block:'center'});first.classList.add('photo-required-field');}
+ return false;
+}
 async function exportWithPhotos(){
+    if(!__ceCheckPhotosBeforeExport())return;
     try{
         if(currentUser!=='admin'){
             const s=computeStats();
@@ -17474,7 +17532,7 @@ showToast('✅ JSON экспортирован'+(includePhotos?' (с фото)':
 function importJson(){document.getElementById('jsonFileInput').click();}
 function handleJsonFile(file){const reader=new FileReader();reader.onload=function(e){try{const json=JSON.parse(e.target.result);if(typeof json!=='object'||!json.general||typeof json.values!=='object')throw new Error('Неверный формат JSON');if(json._meta&&json._meta.mode&&json._meta.mode!==MODE){if(!confirm(`Файл создан для режима "${json._meta.mode==='housings'?'Кожуха':'Комплексный'}". Загрузить как есть?`))return;}STATE=json;delete STATE._meta;if(!Array.isArray(STATE.selectedSections))STATE.selectedSections=[];if(!Array.isArray(STATE.selected))STATE.selected=[];_photoMigrationPromise=migrateExistingPhotosToIndexedDB();saveState(true);const type=STATE.general.type||'';buildEquipment(type);renderGeneral();renderEquip();updateStats();showToast('✅ JSON загружен, данные восстановлены');}catch(err){showToast('⚠️ Ошибка загрузки JSON: '+err.message);console.error(err);}};reader.onerror=function(){showToast('⚠️ Ошибка чтения файла');};reader.readAsText(file);}
 
-async function saveAsHtmlFile(){loadState();if(_photoMigrationPromise){try{await _photoMigrationPromise;}catch(e){}}const type=STATE.general.type||'';const number=STATE.general.number||'';const mileage=STATE.general.mileage||'';if(!isValidMileage(mileage,type,number)){const err=getMileageError(mileage,type,number);showToast('⚠️ Некорректный пробег: '+(err||''));return;}saveState(true);
+async function saveAsHtmlFile(){if(!__ceCheckPhotosBeforeExport())return;loadState();if(_photoMigrationPromise){try{await _photoMigrationPromise;}catch(e){}}const type=STATE.general.type||'';const number=STATE.general.number||'';const mileage=STATE.general.mileage||'';if(!isValidMileage(mileage,type,number)){const err=getMileageError(mileage,type,number);showToast('⚠️ Некорректный пробег: '+(err||''));return;}saveState(true);
 const htmlContent='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
 const stateJson=JSON.stringify(STATE).replace(/<\//g,'<\\/');
 const modeJson=JSON.stringify(MODE||'complex').replace(/<\//g,'<\\/');
