@@ -20703,7 +20703,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
       if(!source)throw new Error('Не удалось получить HTML рабочей формы.');
       var ids=ck?ck.equipment.slice():list.map(function(e){return e.id;});
       var today=new Date().toLocaleDateString('sv-SE');
-      var state={general:{type:'2ЭС5К',number:'591',date:today,depot:'ТЧЭ-10 Карасук',place:'СЛД-9 КАРАСУК',mileage:'999999'},values:{},selectedSections:['Секция 1','Секция 2'],selected:ids,changeLog:[]};
+      var state={general:{type:'2ЭС5К',number:'591',date:today,depot:'ТЧЭ-10 Карасук',place:'СЛД-9 КАРАСУК',mileage:'999999'},values:{},selectedSections:[],selected:ids,changeLog:[]};
       // В предпросмотре не разрешаем опубликованным данным и сохранённому режиму
       // заменять черновик. Открываем непосредственно форму, а не второй вложенный iframe.
       var edits=[
