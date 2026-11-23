@@ -14371,7 +14371,7 @@ function __ceField(fl){
   var extra={photo:fl.photo!=='never'};
   if(fl.photo==='always')extra.photoAlways=true;
   if(fl.calc===false)extra.calc=false;
-  if(fl.type==='select')return f(fl.key,fl.label,'select',fl.options.slice(),(fl.ok&&fl.ok.length)?fl.ok.slice():null,__ceHint(fl),extra);
+  if(fl.type==='select')return f(fl.key,fl.label,'select',fl.options.slice(),Array.isArray(fl.ok)?fl.ok.slice():[],__ceHint(fl),extra);
   return f(fl.key,fl.label,'text',null,null,__ceHint(fl),extra);
 }
 function __ceInstances(ly){
@@ -14767,6 +14767,93 @@ function addPhotoSupport(row,field,eq,iid){const photoKey=field.key+'_photo';con
 
 function fieldRow(eq,inst,iid,field){const row=document.createElement('div');row.className='frow';row.dataset.fieldKey=field.key;const lbl=document.createElement('div');lbl.className='flabel';let hintText=field.hint||'';if(eq.id==='rassekatel'&&field.key==='install'){if(inst.block==='U1')hintText='Рассекатель должен находиться со стороны тягового трансформатора — справа от ВИП при взгляде на него со стороны прохода <span class="legend"> Соответствует - "Да" <br> Не соответствует - "Нет"';else if(inst.block==='U2')hintText='Рассекатель должен находиться со стороны 8 блока — справа от ВИП при взгляде на него со стороны прохода ';}lbl.innerHTML=field.label+(hintText?\`<span class="hint">\${hintText}</span>\`:'');row.appendChild(lbl);let control;const mk84=(eq.id==='mk9'&&field.key!=='zav'&&isMk84(iid));const isZav=(eq.id==='mk9'&&field.key==='zav');const saved=getVal(iid,field.key);if(field.type==='select'){control=document.createElement('select');control.dataset.fieldKey=field.key;const blank=document.createElement('option');blank.value='';blank.textContent='— выбрать —';control.appendChild(blank);for(const o of field.options){const op=document.createElement('option');op.value=o;op.textContent=o;control.appendChild(op);}if((eq.id==='mk9'||eq.id==='bvv')&&field.key==='f2'){if(saved==='отсутствует ШУ'){const o=document.createElement('option');o.value='отсутствует ШУ';o.textContent='отсутствует ШУ';control.appendChild(o);}}control.value=saved;if(mk84){addNotRequiredOption(control);control.disabled=true;control.value='не требуется';if(saved!=='не требуется')setVal(iid,field.key,'не требуется');}control.addEventListener('change',function(){const val=this.value;if(val==='не требуется'){this.disabled=true;setVal(iid,field.key,val);}else{this.disabled=false;setVal(iid,field.key,val);}if((eq.id==='mk9'||eq.id==='bvv')&&field.key==='f1'){const card=this.closest('.inst');if(card)syncShuntF2(eq,iid,card);}if(eq.id==='vb8'&&field.key==='f0'){const card=this.closest('.inst');if(card){syncVb8OldNew(iid,card);updatePhotoRequirementForField(iid,'f0',card);}}refreshInstance(eq,inst,iid);if(isZav)checkMk84Status(eq,iid);if(field.photo&&field.key!=='zav'){setTimeout(()=>updatePhotoRequirementForField(iid,field.key),50);}row.classList.remove('frow-ok','frow-bad');if(val&&val!==''&&val!=='— выбрать'&&val!=='не требуется'&&val!=='отсутствует ШУ'){if(field.ok&&field.ok.includes(val))row.classList.add('frow-ok');else if(field.ok&&!field.ok.includes(val))row.classList.add('frow-bad');}if(eq.id==='housings'&&(field.key==='leak'||field.key==='oil'||field.key==='formation')){const card=this.closest('.inst');if(card){const iid2=card.dataset.iid;if(iid2)refreshInstance(eq,inst,iid2,card);}}if(eq.id==='rassekatel'&&field.key==='presence'){const card=this.closest('.inst');if(card){const iid2=card.dataset.iid;if(iid2)refreshInstance(eq,inst,iid2,card);}}});}else{control=document.createElement('input');control.type='text';control.value=saved;if(mk84){control.disabled=true;control.value='не требуется';if(saved!=='не требуется')setVal(iid,field.key,'не требуется');}if(field.key==='zav'&&eq.id!=='mk9'){control.addEventListener('input',function(){this.value=this.value.replace(/[^0-9\\-\\.]/g,'');setVal(iid,field.key,this.value);});control.addEventListener('blur',function(){this.value=this.value.replace(/[^0-9\\-\\.]/g,'');setVal(iid,field.key,this.value);refreshInstance(eq,inst,iid);if(field.photo)updatePhotoRequirementForField(iid,field.key);});}control.addEventListener('input',function(){setVal(iid,field.key,this.value);if(isZav)setTimeout(()=>checkMk84Status(eq,iid),10);if(field.photo&&field.key!=='zav')updatePhotoRequirementForField(iid,field.key);});control.addEventListener('blur',function(){const cv=getVal(iid,field.key);if(this.value!==cv)setVal(iid,field.key,this.value);refreshInstance(eq,inst,iid);if(isZav)checkMk84Status(eq,iid);if(field.photo&&field.key!=='zav')updatePhotoRequirementForField(iid,field.key);});control.addEventListener('change',function(){setVal(iid,field.key,this.value);refreshInstance(eq,inst,iid);if(isZav)checkMk84Status(eq,iid);if(field.photo&&field.key!=='zav')updatePhotoRequirementForField(iid,field.key);});}
 const cw=document.createElement('div');cw.style.display='grid';cw.style.gridTemplateColumns='1fr';cw.appendChild(control);row.appendChild(cw);if(field.photo)addPhotoSupport(row,field,eq,iid);if(isZav){const warning=document.createElement('div');warning.className='mk84-warning';warning.textContent='⚠️ ВНИМАНИЕ: Установлен контактор МК-84 — остальные поля автоматически установлены в "не требуется"!';row.appendChild(warning);row._mk84Warning=warning;}return row;}
+
+
+/* Единый интерфейс ответов для пользовательских операций: используется и в опубликованной форме, и в предпросмотре. */
+var __ceNativeFieldRow=fieldRow;
+fieldRow=function(eq,inst,iid,field){
+  var row=__ceNativeFieldRow(eq,inst,iid,field);
+  if(!eq.custom||field.type!=='select'||!Array.isArray(field.options)||field.options.length<1||field.options.length>8)return row;
+  var select=row.querySelector('select');
+  if(!select)return row;
+  var host=select.parentNode,answers=document.createElement('div'),area=row.querySelector('.photo-area'),tiles=[];
+  answers.className='ce-answer-grid';
+  select.style.display='none';
+  select.tabIndex=-1;
+  select.setAttribute('aria-hidden','true');
+  function paint(){
+    var selected=select.value,active=null;
+    tiles.forEach(function(tile){
+      var on=tile.dataset.answer===selected;
+      tile.classList.toggle('active',on);
+      tile.setAttribute('aria-pressed',on?'true':'false');
+      if(on)active=tile;
+    });
+    if(area){
+      if(active){active.appendChild(area);area.style.display='flex';}
+      else{host.appendChild(area);area.style.display='none';}
+    }
+  }
+  function choose(value,keep){
+    select.value=(!keep&&select.value===value)?'':value;
+    select.dispatchEvent(new Event('change',{bubbles:true}));
+    paint();
+  }
+  field.options.forEach(function(option){
+    var tile=document.createElement('div'),name=document.createElement('span');
+    tile.className='ce-answer '+((field.ok||[]).indexOf(option)>=0?'ce-normal':'ce-deviation');
+    tile.dataset.answer=option;
+    tile.setAttribute('role','button');
+    tile.setAttribute('tabindex','0');
+    name.className='ce-answer-label';
+    name.textContent=option;
+    tile.appendChild(name);
+    tile.addEventListener('click',function(){choose(option,false);});
+    tile.addEventListener('keydown',function(ev){
+      if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();choose(option,false);}
+    });
+    if(area){
+      var controls=document.createElement('span');
+      controls.className='ce-answer-photo-controls';
+      [['📷','Сделать фото',0],['🖼','Выбрать фото',1]].forEach(function(spec){
+        var photo=document.createElement('button');
+        photo.type='button';photo.className='ce-camera';photo.textContent=spec[0];photo.title=spec[1];
+        photo.setAttribute('aria-label',spec[1]+' — '+option);
+        photo.addEventListener('click',function(ev){
+          ev.preventDefault();ev.stopPropagation();
+          choose(option,true);
+          var buttons=area.querySelectorAll('.photo-btn');
+          if(buttons[spec[2]])buttons[spec[2]].click();
+        });
+        controls.appendChild(photo);
+      });
+      tile.appendChild(controls);
+    }
+    tiles.push(tile);
+    answers.appendChild(tile);
+  });
+  host.appendChild(answers);
+  paint();
+  return row;
+};
+(function(){
+  var css=document.createElement('style');
+  css.textContent='.ce-answer-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px;width:100%}'
+    +'.ce-answer{display:flex;flex-direction:column;gap:5px;min-width:0;border:2px solid var(--line,#cfe0f0);border-radius:10px;padding:10px;background:var(--panel2,#f2f7fc);cursor:pointer;transition:border-color .15s,background .15s}'
+    +'.ce-answer:focus-visible{outline:3px solid var(--amber,#0a5eb0);outline-offset:2px}'
+    +'.ce-answer.active{border-color:var(--amber,#0a5eb0)}'
+    +'.ce-answer.ce-normal.active{background:#e6f4ea;border-color:#1f9d55}'
+    +'.ce-answer.ce-deviation.active{background:#fde9e7;border-color:#d1453b}'
+    +'.ce-answer-label{font-size:14px;font-weight:700;overflow-wrap:anywhere;text-align:center}'
+    +'.ce-answer-photo-controls{display:flex;gap:5px;justify-content:center}'
+    +'.ce-camera{background:var(--panel,#fff);color:var(--ink,#16324f);border:1px solid var(--line,#cfe0f0);border-radius:7px;min-height:34px;min-width:40px;cursor:pointer}'
+    +'.ce-answer .photo-area{width:100%;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:5px;margin:3px 0 0;padding:6px 0 0;border-top:1px solid var(--line,#cfe0f0)}'
+    +'.ce-answer .photo-area .photo-btn{display:none!important}'
+    +'.ce-answer .photo-area .photo-preview{width:66px;height:66px;max-width:100%;object-fit:cover}'
+    +'.frow.photo-required-field .ce-answer.active{border-color:#d1453b;box-shadow:0 0 0 2px #d1453b44}'
+    +'@media(max-width:440px){.ce-answer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ce-answer{padding:8px 6px}}';
+  document.head.appendChild(css);
+})();
 
 function buildInstanceCard(eq,inst,idx){const iid=instId(eq.id,inst,idx);const card=document.createElement('div');card.className='inst';card.dataset.iid=iid;const head=document.createElement('div');head.className='ih';let title=eq.title;if(eq.id==='housings'&&inst.housingLabel){title=inst.housingLabel;}else{const p=[inst.group,inst.block,inst.sub].filter(Boolean).join(' · ');if(p)title=p;}const lbl=document.createElement('div');lbl.innerHTML=\`<span class="lbl">\${title}</span>\`;head.appendChild(lbl);const pill=document.createElement('span');pill.className='pill na';pill.textContent='—';head.appendChild(pill);card.appendChild(head);const badgeContainer=document.createElement('div');badgeContainer.className='notice-badge';badgeContainer.id=\`badge_\${iid}\`;badgeContainer.style.display='none';badgeContainer.textContent='⚠️ Требуется уведомление';badgeContainer.addEventListener('click',function(e){e.stopPropagation();card.scrollIntoView({behavior:'smooth',block:'center'});highlightCard(card);});card.appendChild(badgeContainer);const isSF37Hidden=(eq.id==='msud')&&isSF37NotRequired();for(const field of eq.fields){if(isSF37Hidden&&(field.key==='f3'||field.key==='f7'))continue;card.appendChild(fieldRow(eq,inst,iid,field));}const autoRow=document.createElement('div');autoRow.className='frow auto';const aLbl=document.createElement('div');aLbl.className='flabel';aLbl.textContent='Наличие выявленных несоответствий (заполняется автоматически)';const aVal=document.createElement('div');aVal.className='val na';aVal.textContent='—';autoRow.appendChild(aLbl);autoRow.appendChild(aVal);card.appendChild(autoRow);card._pill=pill;card._autoVal=aVal;refreshInstance(eq,inst,iid,card);if(eq.id==='mk9'){const now=isMk84(iid);card.dataset.wasMk84=now;if(now)setMk84Fields(iid);else syncShuntF2(eq,iid,card);}else if(eq.id==='bvv'){syncShuntF2(eq,iid,card);}else if(eq.id==='vb8'){syncVb8OldNew(iid,card);}return card;}
 
@@ -20483,7 +20570,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   </div>
   <div id="devBody"><div id="devList"></div><div id="devEditor"></div></div>
 </div>
-<div id="devPreview"><div class="dv-bar"><b>👁 Предпросмотр рабочей формы 1:1 — черновик до публикации (ответы не сохраняются)</b><button class="btn" id="devPrevClose" type="button">✕ Закрыть</button></div><iframe id="devPrevFrame" title="Предпросмотр"></iframe></div>
+<div id="devPreview"><div class="dv-bar"><b>👁 Предпросмотр рабочей формы 1:1 — черновик до публикации (ответы не сохраняются)</b><span class="dv-status" id="devPrevStatus" aria-live="polite"></span><button class="btn" id="devPrevClose" type="button">✕ Закрыть</button></div><iframe id="devPrevFrame" title="Предпросмотр"></iframe></div>
 <div id="devGh"><div class="dv-modal">
   <h3>⚙ Публикация в GitHub</h3>
   <div class="dv-row"><div><label>Владелец</label><input id="ghOwner"></div><div><label>Репозиторий</label><input id="ghRepo"></div></div>
@@ -20683,7 +20770,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   /* ---------- предпросмотр 1:1: тот же движок формы, но без записи рабочих данных ---------- */
   function openPreview(){
     var c=cleaned(),ck=null,mode='complex';
-    if(c.issues.length){say('warn','Исправьте ошибки конструктора перед предпросмотром:\\n• '+c.issues.join('\\n• '));return;}
+    if(c.issues.length){say('warn','Исправьте ошибки конструктора перед предпросмотром:\n• '+c.issues.join('\n• '));return;}
     if(st.view==='ck'){
       var cur=st.checks[st.csel];
       ck=cur?c.checklists.filter(function(x){return x.id===(cur.id.indexOf('k_')===0?cur.id:'k_'+cur.id);})[0]:null;
@@ -20701,40 +20788,37 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
       C.applyModes(oldModes.filter(function(m){return m.id!==mode;}).concat(ck?[{id:ck.id,title:ck.title,subtitle:ck.subtitle,icon:ck.icon,sheet:ck.sheet}]:[]));
       var source=getEmbeddedSource(mode);
       if(!source)throw new Error('Не удалось получить HTML рабочей формы.');
-      var ids=ck?ck.equipment.slice():list.map(function(e){return e.id;});
+      var ids=ck?ck.equipment.slice():(st.view==='eq'&&st.items[st.sel]?[st.items[st.sel].id]:list.map(function(e){return e.id;}));
       var today=new Date().toLocaleDateString('sv-SE');
       var state={general:{type:'2ЭС5К',number:'591',date:today,depot:'ТЧЭ-10 Карасук',place:'СЛД-9 КАРАСУК',mileage:'999999'},values:{},selectedSections:[],selected:ids,changeLog:[]};
-      // В предпросмотре не разрешаем опубликованным данным и сохранённому режиму
-      // заменять черновик. Открываем непосредственно форму, а не второй вложенный iframe.
+      // Изменения ниже касаются ТОЛЬКО изолированной копии HTML в iframe.
+      // Поля, секции, оформление, фото и подсчёты остаются теми же, что при публикации.
       var edits=[
+        ["async function checkAuth() {","async function checkAuth() { if(window.__TMH_PREVIEW__){currentUser='admin';return true;}"],
+        ["try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}","if(!window.__TMH_PREVIEW__){try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}}"],
+        ["function loadState(){try{const raw=localStorage.getItem(LS_KEY);","function loadState(){if(window.__TMH_PREVIEW__)return;try{const raw=localStorage.getItem(LS_KEY);"],
+        ["function fullClearState(){","function fullClearState(){if(window.__TMH_PREVIEW__)return;"],
+        ["function saveState(silent){","function saveState(silent){if(window.__TMH_PREVIEW__)return true;"],
         ["function __psSync(){","function __psSync(){if(window.__TMH_PREVIEW__)return Promise.resolve(true);"],
         ["function __psFlagOn(){","function __psFlagOn(){if(window.__TMH_PREVIEW__)return false;"],
-        ["try{const sm=localStorage.getItem(MODE_KEY);if(ALL_MODES.indexOf(sm)!==-1)MODE=sm;}catch(e){}",
-         "if(!window.__TMH_PREVIEW__){try{const sm=localStorage.getItem(MODE_KEY);if(ALL_MODES.indexOf(sm)!==-1)MODE=sm;}catch(e){}}"],
-        ["if(MODE){try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}}",
-         "if(MODE&&!window.__TMH_PREVIEW__){try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}}"],
-        ["if(EMBEDDED_MODES.indexOf(MODE)!==-1){",
-         "if(!window.__TMH_PREVIEW__&&EMBEDDED_MODES.indexOf(MODE)!==-1){"],
-        ["function loadState(){try{const raw=localStorage.getItem(LS_KEY);",
-         "function loadState(){if(window.__TMH_PREVIEW__)return;try{const raw=localStorage.getItem(LS_KEY);"],
-        ["function saveState(silent){",
-         "function saveState(silent){if(window.__TMH_PREVIEW__)return true;"],
-        ["const hasAuth = await checkAuth();",
-         "const hasAuth = window.__TMH_PREVIEW__ ? true : await checkAuth();"]
+        ["function __psRestore(){","function __psRestore(){if(window.__TMH_PREVIEW__)return Promise.resolve(false);"]
       ];
       edits.forEach(function(pair){
-        if(source.indexOf(pair[0])<0)throw new Error('Рабочая форма изменилась: не найден участок для безопасного предпросмотра.');
-        source=source.split(pair[0]).join(pair[1]);
+        if(source.split(pair[0]).length!==2)throw new Error('Рабочая форма изменилась: проверка безопасного предпросмотра не пройдена.');
+        source=source.replace(pair[0],pair[1]);
       });
-      source=source.replace('if(window.parent&&window.parent!==window&&window.parent.__EMBEDDED_MODE__){',
-        'if(window.__TMH_PREVIEW__&&window.__EMBEDDED_MODE){m=window.__EMBEDDED_MODE;}else if(window.parent&&window.parent!==window&&window.parent.__EMBEDDED_MODE__){');
-      var prelude='<script>window.__TMH_PREVIEW__=true;window.__TMH_STORAGE_UID="preview-only";window.__EMBEDDED_MODE='+JSON.stringify(mode)+';window.__EMBEDDED_STATE='+JSON.stringify(state).replace(/</g,'\\u003c')+';</'+'script>';
+      var from='if(window.parent&&window.parent!==window&&window.parent.__EMBEDDED_MODE__){';
+      if(source.split(from).length!==2)throw new Error('Не удалось установить режим предпросмотра.');
+      source=source.replace(from,'if(window.__TMH_PREVIEW__&&window.__EMBEDDED_MODE){m=window.__EMBEDDED_MODE;}else '+from);
+      var prelude='<script>window.__TMH_PREVIEW__=true;window.__TMH_STORAGE_UID="preview-only";window.__EMBEDDED_MODE='+JSON.stringify(mode)+';window.__EMBEDDED_STATE='+JSON.stringify(state).replace(/</g,'\\u003c')+';window.addEventListener("error",function(ev){try{parent.postMessage({type:"tmh-dev-preview-error",message:ev.message},"*");}catch(e){}});</'+'script>';
       var at=source.indexOf('<script');
       if(at<0)throw new Error('В рабочей форме отсутствует сценарий запуска.');
       source=source.slice(0,at)+prelude+source.slice(at);
       var frame=$('devPrevFrame');
-      frame.srcdoc=source;
+      var status=$('devPrevStatus');
+      if(status)status.textContent=ck?('Черновик: '+ck.title):('Оборудование: '+(st.items[st.sel]&&st.items[st.sel].title||'все операции'));
       $('devPreview').classList.add('open');
+      frame.srcdoc=source;
     }catch(e){say('bad','Не удалось открыть предпросмотр: '+e.message);}
     finally{
       C.devOverride=null;C.devChecklists=null;C.applyModes(oldModes);
@@ -20894,6 +20978,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   document.addEventListener('click',function(ev){if(menu.style.display==='block'&&!menu.contains(ev.target))menu.style.display='none';});
   $('devClose').addEventListener('click',close);
   $('devPrev').addEventListener('click',openPreview);
+  window.addEventListener('message',function(ev){if(ev.source!==$('devPrevFrame').contentWindow||!ev.data||ev.data.type!=='tmh-dev-preview-error')return;var el=$('devPrevStatus');if(el)el.textContent='Ошибка формы: '+String(ev.data.message||'неизвестная ошибка').slice(0,180);});
   $('devPrevClose').addEventListener('click',function(){$('devPreview').classList.remove('open');$('devPrevFrame').srcdoc='';});
   $('devExp').addEventListener('click',doExport);
   $('devImp').addEventListener('click',function(){$('devFile').click();});
