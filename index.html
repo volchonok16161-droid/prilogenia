@@ -18932,7 +18932,11 @@ if ('serviceWorker' in navigator) {
       st.textContent = [
         '.oknok-bar{display:flex;gap:8px;margin:7px 0 10px;flex-wrap:wrap;align-items:stretch;}',
         '.oknok-btn{display:inline-flex;flex-direction:column;align-items:center;gap:5px;min-width:82px;max-width:132px;font:600 13px/1.2 var(--sans,system-ui,sans-serif);padding:7px;border-radius:9px;cursor:pointer;border:1px solid;text-align:center;}',
-        '.oknok-btn img.oknok-thumb{display:block;width:100%;max-width:112px;height:74px;object-fit:cover;border-radius:6px;pointer-events:none;}',
+        '.oknok-btn img.oknok-thumb{display:block;width:100%;max-width:100%;height:auto;max-height:120px;aspect-ratio:4/3;object-fit:cover;border-radius:6px;pointer-events:none;}',
+        '.oknok-btn{box-sizing:border-box;height:auto!important;max-height:none!important;overflow:hidden;white-space:normal;align-self:stretch;}',
+        '.ce-answer .oknok-inline-example{box-sizing:border-box;width:100%;display:flex;align-items:center;justify-content:center;min-height:34px;border:1px solid var(--line,#cfe0f0);border-radius:8px;background:var(--panel,#fff);color:var(--ink-dim,#5b7690);padding:4px;cursor:zoom-in;}',
+        '.ce-answer .oknok-inline-example img{display:block;width:100%;height:auto;max-height:150px;aspect-ratio:4/3;object-fit:contain;border-radius:5px;}',
+        '.ce-answer .oknok-inline-example.empty{font-size:11px;min-height:40px;cursor:pointer;}',
         '@media(max-width:560px){.oknok-btn{max-width:calc(50% - 4px)}.oknok-btn img.oknok-thumb{height:64px}}',
         '.oknok-ok{color:var(--ok,#1f9d55);border-color:var(--ok,#1f9d55);background:rgba(31,157,85,.12);}',
         '.oknok-nok{color:var(--bad,#c0392b);border-color:var(--bad,#c0392b);background:rgba(192,57,43,.10);}',
@@ -19087,6 +19091,50 @@ if ('serviceWorker' in navigator) {
       });
       bar.style.display=(any||dev)?'flex':'none';
     }
+    /* Примеры OK/NOK для операций из конструктора — внутри плиток ответов,
+       а не отдельными карточками над выпадающим списком. */
+    function answerExampleSide(tile, grid){
+      var label=String(tile.dataset.answer||'').trim().replace(/\s+/g,'').toUpperCase();
+      if(/^(OK|ОК|ДА|YES)$/.test(label))return 'ok';
+      if(/^(NOK|НОК|НЕТ|NO)$/.test(label))return 'nok';
+      // Для двухвариантного поля подсветка нормального ответа также определяет сторону.
+      if(grid.querySelectorAll('.ce-answer').length===2)return tile.classList.contains('ce-normal')?'ok':'nok';
+      return null;
+    }
+    function paintChoiceExamples(row,key){
+      var grid=row.querySelector('.ce-answer-grid'),A=api();
+      if(!grid||!A)return false;
+      var it=A.get(key),dev=isDev(),tiles=grid.querySelectorAll('.ce-answer');
+      Array.prototype.forEach.call(tiles,function(tile){
+        var side=answerExampleSide(tile,grid),ref=tile.querySelector('.oknok-inline-example');
+        if(!side){if(ref)ref.remove();return;}
+        var p=it&&it[side];
+        if(!p&&!dev){if(ref)ref.remove();return;}
+        if(!ref){
+          ref=el('button','oknok-inline-example');
+          ref.type='button';
+          ref.addEventListener('click',function(ev){
+            ev.preventDefault();ev.stopPropagation();
+            openViewer(key,side,titleOf(row));
+          });
+          var controls=tile.querySelector('.ce-answer-photo-controls');
+          if(controls)tile.insertBefore(ref,controls);
+          else tile.appendChild(ref);
+        }
+        ref.classList.toggle('empty',!p);
+        ref.setAttribute('aria-label',(p?'Посмотреть':'Добавить')+' пример '+side.toUpperCase());
+        var img=ref.querySelector('img');
+        if(p){
+          if(!img){img=el('img','oknok-thumb');img.alt='Образец '+side.toUpperCase();ref.textContent='';ref.appendChild(img);}
+          var url=A.src(p);
+          if(img.getAttribute('src')!==url)img.src=url;
+        }else{
+          if(img)img.remove();
+          ref.textContent='📷 Добавить образец '+side.toUpperCase();
+        }
+      });
+      return true;
+    }
     var lastSig = '';
     function rescan(force){
       var A = api(); if (!A) return;
@@ -19094,15 +19142,20 @@ if ('serviceWorker' in navigator) {
       var rows = document.querySelectorAll(SEL), added = false, i;
       for (i = 0; i < rows.length; i++){
         var row = rows[i];
-        if (row.__oknokBar && row.__oknokBar.isConnected) continue;
         if (!row.dataset.fieldKey || row.dataset.fieldKey === 'undefined') continue;
         var key = keyOf(row); if (!key) continue;
+        if (row.querySelector('.ce-answer-grid')){
+          if(row.__oknokBar){row.__oknokBar.remove();row.__oknokBar=null;}
+          if(paintChoiceExamples(row,key))added=true;
+          continue;
+        }
+        if(row.__oknokBar && row.__oknokBar.isConnected)continue;
         row.__oknokBar = makeBar(row, key); added = true;
       }
       var sig = A.rev() + '|' + isDev();
       if (added || force || sig !== lastSig){
         lastSig = sig;
-        for (i = 0; i < rows.length; i++) if (rows[i].__oknokBar) paint(rows[i].__oknokBar);
+        for (i = 0; i < rows.length; i++) if (rows[i].__oknokBar && rows[i].__oknokBar.isConnected) paint(rows[i].__oknokBar);
       }
     }
     var timer = null;
