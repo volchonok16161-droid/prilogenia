@@ -14777,6 +14777,8 @@ fieldRow=function(eq,inst,iid,field){
   var select=row.querySelector('select');
   if(!select)return row;
   var host=select.parentNode,answers=document.createElement('div'),area=row.querySelector('.photo-area'),tiles=[];
+  // Клики по миниатюре и удалению фото не должны отменять выбранный ответ.
+  if(area)area.addEventListener('click',function(ev){ev.stopPropagation();});
   answers.className='ce-answer-grid';
   select.style.display='none';
   select.tabIndex=-1;
@@ -20794,7 +20796,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
       // Изменения ниже касаются ТОЛЬКО изолированной копии HTML в iframe.
       // Поля, секции, оформление, фото и подсчёты остаются теми же, что при публикации.
       var edits=[
-        ["async function checkAuth() {","async function checkAuth() { if(window.__TMH_PREVIEW__){currentUser='admin';return true;}"],
+        ["async function checkAuth() {","async function checkAuth() { if(window.__TMH_PREVIEW__){currentUser='admin';updateUserUI();return true;}"],
         ["try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}","if(!window.__TMH_PREVIEW__){try{localStorage.setItem(MODE_KEY,MODE);}catch(e){}}"],
         ["function loadState(){try{const raw=localStorage.getItem(LS_KEY);","function loadState(){if(window.__TMH_PREVIEW__)return;try{const raw=localStorage.getItem(LS_KEY);"],
         ["function fullClearState(){","function fullClearState(){if(window.__TMH_PREVIEW__)return;"],
