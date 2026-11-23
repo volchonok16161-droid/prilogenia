@@ -19130,7 +19130,8 @@ if ('serviceWorker' in navigator) {
           if(img.getAttribute('src')!==url)img.src=url;
         }else{
           if(img)img.remove();
-          ref.textContent='📷 Добавить образец '+side.toUpperCase();
+          var placeholder='📷 Добавить образец '+side.toUpperCase();
+          if(ref.textContent!==placeholder)ref.textContent=placeholder;
         }
       });
       return true;
