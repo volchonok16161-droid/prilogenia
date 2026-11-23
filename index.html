@@ -14769,97 +14769,8 @@ function fieldRow(eq,inst,iid,field){const row=document.createElement('div');row
 const cw=document.createElement('div');cw.style.display='grid';cw.style.gridTemplateColumns='1fr';cw.appendChild(control);row.appendChild(cw);if(field.photo)addPhotoSupport(row,field,eq,iid);if(isZav){const warning=document.createElement('div');warning.className='mk84-warning';warning.textContent='⚠️ ВНИМАНИЕ: Установлен контактор МК-84 — остальные поля автоматически установлены в "не требуется"!';row.appendChild(warning);row._mk84Warning=warning;}return row;}
 
 
-/* Единый интерфейс ответов для пользовательских операций: используется и в опубликованной форме, и в предпросмотре. */
-var __ceNativeFieldRow=fieldRow;
-fieldRow=function(eq,inst,iid,field){
-  var row=__ceNativeFieldRow(eq,inst,iid,field);
-  if(!eq.custom||field.type!=='select'||!Array.isArray(field.options)||field.options.length<1||field.options.length>8)return row;
-  var select=row.querySelector('select');
-  if(!select)return row;
-  var host=select.parentNode,answers=document.createElement('div'),area=row.querySelector('.photo-area'),tiles=[];
-  // Клики по миниатюре и удалению фото не должны отменять выбранный ответ.
-  if(area)area.addEventListener('click',function(ev){ev.stopPropagation();});
-  answers.className='ce-answer-grid';
-  select.style.display='none';
-  select.tabIndex=-1;
-  select.setAttribute('aria-hidden','true');
-  function paint(){
-    var selected=select.value,active=null;
-    tiles.forEach(function(tile){
-      var on=tile.dataset.answer===selected;
-      tile.classList.toggle('active',on);
-      tile.setAttribute('aria-pressed',on?'true':'false');
-      if(on)active=tile;
-    });
-    if(area){
-      if(active){active.appendChild(area);area.style.display='flex';}
-      else{host.appendChild(area);area.style.display='none';}
-    }
-  }
-  function choose(value,keep){
-    select.value=(!keep&&select.value===value)?'':value;
-    select.dispatchEvent(new Event('change',{bubbles:true}));
-    paint();
-  }
-  field.options.forEach(function(option){
-    var tile=document.createElement('div'),name=document.createElement('span');
-    tile.className='ce-answer '+((field.ok||[]).indexOf(option)>=0?'ce-normal':'ce-deviation');
-    tile.dataset.answer=option;
-    tile.setAttribute('role','button');
-    tile.setAttribute('tabindex','0');
-    name.className='ce-answer-label';
-    name.textContent=option;
-    tile.appendChild(name);
-    tile.addEventListener('click',function(){choose(option,false);});
-    tile.addEventListener('keydown',function(ev){
-      if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();choose(option,false);}
-    });
-    if(area){
-      var controls=document.createElement('span');
-      controls.className='ce-answer-photo-controls';
-      [['📷','Сделать фото',0],['🖼','Выбрать фото',1]].forEach(function(spec){
-        var photo=document.createElement('button');
-        photo.type='button';photo.className='ce-camera';photo.textContent=spec[0];photo.title=spec[1];
-        photo.setAttribute('aria-label',spec[1]+' — '+option);
-        photo.addEventListener('click',function(ev){
-          ev.preventDefault();ev.stopPropagation();
-          choose(option,true);
-          var buttons=area.querySelectorAll('.photo-btn');
-          if(buttons[spec[2]])buttons[spec[2]].click();
-        });
-        controls.appendChild(photo);
-      });
-      tile.appendChild(controls);
-    }
-    tiles.push(tile);
-    answers.appendChild(tile);
-  });
-  host.appendChild(answers);
-  paint();
-  return row;
-};
-(function(){
-  var css=document.createElement('style');
-  css.textContent='.ce-answer-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px;width:100%}'
-    +'.ce-answer{display:flex;flex-direction:column;gap:5px;min-width:0;border:2px solid var(--line,#cfe0f0);border-radius:10px;padding:9px 8px;background:var(--panel2,#f2f7fc);cursor:pointer;transition:border-color .15s,background .15s}'
-    +'.ce-answer:focus-visible{outline:3px solid var(--amber,#0a5eb0);outline-offset:2px}'
-    +'.ce-answer.active{border-color:var(--amber,#0a5eb0)}'
-    +'.ce-answer.ce-normal.active{background:#e6f4ea;border-color:#1f9d55}'
-    +'.ce-answer.ce-deviation.active{background:#fde9e7;border-color:#d1453b}'
-    +'.ce-answer-label{font-size:15px;font-weight:700;overflow-wrap:anywhere;text-align:center}'
-    +'.ce-answer-photo-controls{display:none;gap:6px;justify-content:center;align-items:center;padding-top:4px;border-top:1px solid var(--line,#cfe0f0)}'
-    +'.ce-answer.active .ce-answer-photo-controls{display:flex}'
-    +'.ce-answer.active .ce-answer-photo-controls::before{content:"Фото осмотра";font-size:10px;color:var(--ink-dim,#6d84a0);line-height:1.1;max-width:55px}'
-    +'.frow.photo-required-field .ce-answer.active .ce-answer-photo-controls::before{content:"Фото обязательно";color:#b42318;font-weight:700}'
-    +'.ce-camera{background:var(--panel,#fff);color:var(--ink,#16324f);border:1px solid var(--line,#cfe0f0);border-radius:7px;min-height:34px;min-width:34px;cursor:pointer}'
-    +'.ce-answer .photo-area{width:100%;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:5px;margin:3px 0 0;padding:6px 0 0;border-top:1px solid var(--line,#cfe0f0)}'
-    +'.ce-answer .photo-area .photo-btn{display:none!important}'
-    +'.ce-answer .photo-area .photo-preview{width:66px;height:66px;max-width:100%;object-fit:cover}'
-    +'.frow.photo-required-field .ce-answer.active{border-color:#d1453b;box-shadow:0 0 0 2px #d1453b44}'
-    +'@media(max-width:440px){.ce-answer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ce-answer{padding:8px 5px}.ce-answer.active .ce-answer-photo-controls::before{max-width:48px;font-size:9px}}';
-  document.head.appendChild(css);
-})();
-
+/* Пользовательские операции используют тот же select, подсветку и фотофиксацию,
+   что рабочая форма: никаких отдельных крупных карточек ответа в предпросмотре. */
 function buildInstanceCard(eq,inst,idx){const iid=instId(eq.id,inst,idx);const card=document.createElement('div');card.className='inst';card.dataset.iid=iid;const head=document.createElement('div');head.className='ih';let title=eq.title;if(eq.id==='housings'&&inst.housingLabel){title=inst.housingLabel;}else{const p=[inst.group,inst.block,inst.sub].filter(Boolean).join(' · ');if(p)title=p;}const lbl=document.createElement('div');lbl.innerHTML=\`<span class="lbl">\${title}</span>\`;head.appendChild(lbl);const pill=document.createElement('span');pill.className='pill na';pill.textContent='—';head.appendChild(pill);card.appendChild(head);const badgeContainer=document.createElement('div');badgeContainer.className='notice-badge';badgeContainer.id=\`badge_\${iid}\`;badgeContainer.style.display='none';badgeContainer.textContent='⚠️ Требуется уведомление';badgeContainer.addEventListener('click',function(e){e.stopPropagation();card.scrollIntoView({behavior:'smooth',block:'center'});highlightCard(card);});card.appendChild(badgeContainer);const isSF37Hidden=(eq.id==='msud')&&isSF37NotRequired();for(const field of eq.fields){if(isSF37Hidden&&(field.key==='f3'||field.key==='f7'))continue;card.appendChild(fieldRow(eq,inst,iid,field));}const autoRow=document.createElement('div');autoRow.className='frow auto';const aLbl=document.createElement('div');aLbl.className='flabel';aLbl.textContent='Наличие выявленных несоответствий (заполняется автоматически)';const aVal=document.createElement('div');aVal.className='val na';aVal.textContent='—';autoRow.appendChild(aLbl);autoRow.appendChild(aVal);card.appendChild(autoRow);card._pill=pill;card._autoVal=aVal;refreshInstance(eq,inst,iid,card);if(eq.id==='mk9'){const now=isMk84(iid);card.dataset.wasMk84=now;if(now)setMk84Fields(iid);else syncShuntF2(eq,iid,card);}else if(eq.id==='bvv'){syncShuntF2(eq,iid,card);}else if(eq.id==='vb8'){syncVb8OldNew(iid,card);}return card;}
 
 function refreshInstance(eq,inst,iid,card){card=card||document.querySelector(\`.inst[data-iid="\${CSS.escape(iid)}"]\`);if(!card)return;const flag=computeFlag(eq,iid);card.classList.remove('flag-ok','flag-bad');card._pill.className='pill '+flag.state;card._pill.textContent=flag.state==='na'?'—':(flag.state==='ok'?'Норма':'Есть замечания');card._autoVal.className='val '+flag.state;card._autoVal.textContent=flag.label;if(flag.state==='ok')card.classList.add('flag-ok');if(flag.state==='bad')card.classList.add('flag-bad');if(eq.id==='housings'){const formRow=card.querySelector('.frow[data-field-key="formation"]');if(formRow){const show=shouldShowFormation(iid);formRow.style.display=show?'':'none';const s=formRow.querySelector('select');if(s){if(isFormationLocked()&&show){s.value='СЛД';setVal(iid,'formation','СЛД');s.disabled=true;}else{s.disabled=false;}}}[['oil',1],['leak',1]].forEach(([fk])=>{const s=card.querySelector(\`select[data-field-key="\${fk}"]\`);if(s){const v=getVal(iid,fk);if(v==='Нет'||v==='Устранено')s.classList.add('bad-select');else s.classList.remove('bad-select');}});const zavRow=card.querySelector('.frow[data-field-key="zav"]');if(zavRow){const f=getVal(iid,'formation');const l=getVal(iid,'leak');if(f==='НЭВЗ'&&l==='Нет')zavRow.style.display='';else{zavRow.style.display='none';const zi=zavRow.querySelector('input[type="text"]');if(zi){zi.value='';setVal(iid,'zav','');}}}}if(eq.id==='rassekatel'){const presence=getVal(iid,'presence');const iRow=card.querySelector('.frow[data-field-key="install"]');if(iRow){if(presence==='Да')iRow.style.display='';else{iRow.style.display='none';setVal(iid,'install','');const s=iRow.querySelector('select');if(s)s.value='';}}const iSel=card.querySelector('select[data-field-key="install"]');if(iSel){const v=getVal(iid,'install');if(v==='Нет')iSel.classList.add('bad-select');else iSel.classList.remove('bad-select');}}if(eq.id==='shina'){const f1=card.querySelector('select[data-field-key="f1"]');if(f1){const v=getVal(iid,'f1');if(v==='Нет'||v==='Устранено')f1.classList.add('bad-select');else f1.classList.remove('bad-select');}const f3=card.querySelector('select[data-field-key="f3"]');if(f3){const v=getVal(iid,'f3');if(v==='Нет')f3.classList.add('bad-select');else f3.classList.remove('bad-select');}}if(eq.id==='housings'){const badge=document.getElementById(\`badge_\${iid}\`);if(badge){const needed=isNoticeNeeded(iid);badge.style.display=needed?'inline-block':'none';card.classList.toggle('notice-needed',needed);}}updateStats();updateNoticeList();updateNoticeCount();}
@@ -18934,12 +18845,11 @@ if ('serviceWorker' in navigator) {
       st.id = '__oknok_style__';
       st.textContent = [
         '.oknok-bar{display:flex;gap:8px;margin:7px 0 10px;flex-wrap:wrap;align-items:stretch;}',
+        '.frow[data-field-key] .oknok-bar{margin:8px 0 10px}',
+        '.frow[data-field-key] .oknok-bar .oknok-btn{min-width:72px;max-width:140px;padding:6px 9px;gap:4px;font-size:13px}',
         '.oknok-btn{display:inline-flex;flex-direction:column;align-items:center;gap:5px;min-width:82px;max-width:132px;font:600 13px/1.2 var(--sans,system-ui,sans-serif);padding:7px;border-radius:9px;cursor:pointer;border:1px solid;text-align:center;}',
         '.oknok-btn img.oknok-thumb{display:block;width:100%;max-width:100%;height:auto;max-height:120px;aspect-ratio:4/3;object-fit:cover;border-radius:6px;pointer-events:none;}',
         '.oknok-btn{box-sizing:border-box;height:auto!important;max-height:none!important;overflow:hidden;white-space:normal;align-self:stretch;}',
-        '.ce-answer .oknok-inline-example{box-sizing:border-box;width:100%;display:flex;align-items:center;justify-content:center;min-height:26px;border:1px solid var(--line,#cfe0f0);border-radius:7px;background:var(--panel,#fff);color:var(--ink-dim,#5b7690);padding:3px 5px;cursor:zoom-in;font-size:11px;line-height:1.15;}',
-        '.ce-answer .oknok-inline-example img{display:block;width:100%;height:auto;max-height:150px;aspect-ratio:4/3;object-fit:contain;border-radius:5px;}',
-        '.ce-answer .oknok-inline-example.empty{font-size:10.5px;min-height:26px;cursor:pointer;border-style:dashed;}',
         '@media(max-width:560px){.oknok-btn{max-width:calc(50% - 4px)}.oknok-btn img.oknok-thumb{height:64px}}',
         '.oknok-ok{color:var(--ok,#1f9d55);border-color:var(--ok,#1f9d55);background:rgba(31,157,85,.12);}',
         '.oknok-nok{color:var(--bad,#c0392b);border-color:var(--bad,#c0392b);background:rgba(192,57,43,.10);}',
@@ -19094,51 +19004,6 @@ if ('serviceWorker' in navigator) {
       });
       bar.style.display=(any||dev)?'flex':'none';
     }
-    /* Примеры OK/NOK для операций из конструктора — внутри плиток ответов,
-       а не отдельными карточками над выпадающим списком. */
-    function answerExampleSide(tile, grid){
-      var label=String(tile.dataset.answer||'').trim().replace(/\s+/g,'').toUpperCase();
-      if(/^(OK|ОК|ДА|YES)$/.test(label))return 'ok';
-      if(/^(NOK|НОК|НЕТ|NO)$/.test(label))return 'nok';
-      // Для двухвариантного поля подсветка нормального ответа также определяет сторону.
-      if(grid.querySelectorAll('.ce-answer').length===2)return tile.classList.contains('ce-normal')?'ok':'nok';
-      return null;
-    }
-    function paintChoiceExamples(row,key){
-      var grid=row.querySelector('.ce-answer-grid'),A=api();
-      if(!grid||!A)return false;
-      var it=A.get(key),dev=isDev(),tiles=grid.querySelectorAll('.ce-answer');
-      Array.prototype.forEach.call(tiles,function(tile){
-        var side=answerExampleSide(tile,grid),ref=tile.querySelector('.oknok-inline-example');
-        if(!side){if(ref)ref.remove();return;}
-        var p=it&&it[side];
-        if(!p&&!dev){if(ref)ref.remove();return;}
-        if(!ref){
-          ref=el('button','oknok-inline-example');
-          ref.type='button';
-          ref.addEventListener('click',function(ev){
-            ev.preventDefault();ev.stopPropagation();
-            openViewer(key,side,titleOf(row));
-          });
-          var controls=tile.querySelector('.ce-answer-photo-controls');
-          if(controls)tile.insertBefore(ref,controls);
-          else tile.appendChild(ref);
-        }
-        ref.classList.toggle('empty',!p);
-        ref.setAttribute('aria-label',(p?'Посмотреть':'Добавить')+' пример '+side.toUpperCase());
-        var img=ref.querySelector('img');
-        if(p){
-          if(!img){img=el('img','oknok-thumb');img.alt='Образец '+side.toUpperCase();ref.textContent='';ref.appendChild(img);}
-          var url=A.src(p);
-          if(img.getAttribute('src')!==url)img.src=url;
-        }else{
-          if(img)img.remove();
-          var placeholder='＋ Образец '+side.toUpperCase();
-          if(ref.textContent!==placeholder)ref.textContent=placeholder;
-        }
-      });
-      return true;
-    }
     var lastSig = '';
     function rescan(force){
       var A = api(); if (!A) return;
@@ -19148,12 +19013,7 @@ if ('serviceWorker' in navigator) {
         var row = rows[i];
         if (!row.dataset.fieldKey || row.dataset.fieldKey === 'undefined') continue;
         var key = keyOf(row); if (!key) continue;
-        if (row.querySelector('.ce-answer-grid')){
-          if(row.__oknokBar){row.__oknokBar.remove();row.__oknokBar=null;}
-          if(paintChoiceExamples(row,key))added=true;
-          continue;
-        }
-        if(row.__oknokBar && row.__oknokBar.isConnected)continue;
+        if (row.__oknokBar && row.__oknokBar.isConnected) continue;
         row.__oknokBar = makeBar(row, key); added = true;
       }
       var sig = A.rev() + '|' + isDev();
