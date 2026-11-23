@@ -66,37 +66,55 @@ test('isolated 1:1 preview patches match and keep generated JavaScript valid', (
   checkInlineScriptSyntax(html);
 });
 
-test('custom answers render photo actions inside selected tiles without clearing the choice', () => {
+
+test('custom operations use the native dropdown and standard inspection photo controls', () => {
   const html = embeddedSource();
-  assert.match(html, /var __ceNativeFieldRow=fieldRow;/);
-  assert.match(html, /tile\.appendChild\(controls\)/);
-  assert.match(html, /if\(area\)area\.addEventListener\('click',function\(ev\)\{ev\.stopPropagation\(\);\}\)/);
+  assert.match(html, /function fieldRow\(eq,inst,iid,field\)\{/);
+  assert.match(html, /control=document\.createElement\('select'\)/);
+  assert.match(html, /control\.addEventListener\('change',function\(\)/);
+  assert.match(html, /if\(field\.photo\)addPhotoSupport\(row,field,eq,iid\)/);
+  assert.match(html, /function refreshInstance\(eq,inst,iid,card\)/);
+  assert.match(html, /function updatePhotoRequirementForField\(iid,fieldKey,card\)/);
+  assert.match(html, /row\.classList\.toggle\('photo-required-field',required&&!pd\)/);
   assert.match(html, /Array\.isArray\(fl\.ok\)\?fl\.ok\.slice\(\):\[\]/);
-  assert.match(markup, /id="devPrevStatus"/);
+  assert.doesNotMatch(html, /var __ceNativeFieldRow=fieldRow;/);
+  assert.doesNotMatch(html, /\.ce-answer-grid/);
 });
 
-test('reference photos are inserted inside custom answer buttons, not shown as duplicate OK/NOK bars', () => {
+test('reference photo examples are part of compact OK/NOK buttons rather than standalone photos', () => {
   const marker = '<script id="__OKNOK_EXAMPLES_V1__">';
   const begin = markup.indexOf(marker);
   assert.ok(begin >= 0, 'Reference photo injector is present');
   const end = markup.indexOf('</script>', begin);
   const code = markup.slice(begin + marker.length, end);
   assert.doesNotThrow(() => new vm.Script(code));
-  assert.match(code, /function paintChoiceExamples\(row,key\)/);
-  assert.match(code, /tile\.insertBefore\(ref,controls\)/);
-  assert.match(code, /row\.querySelector\('\.ce-answer-grid'\)/);
-  assert.match(code, /row\.__oknokBar\.remove\(\)/);
-  assert.match(code, /ev\.preventDefault\(\);ev\.stopPropagation\(\)/);
-  assert.match(code, /if\(ref\.textContent!==placeholder\)ref\.textContent=placeholder/);
+  assert.match(code, /function makeBar\(row, key\)/);
+  assert.match(code, /'✅ OK' : '❌ NOK'/);
+  assert.match(code, /img\.className='oknok-thumb';/);
+  assert.match(code, /b\.appendChild\(img\)/);
+  assert.match(code, /l\.appendChild\(bar\)/);
+  assert.match(code, /row\.__oknokBar && row\.__oknokBar\.isConnected/);
+  assert.doesNotMatch(code, /function paintChoiceExamples/);
 });
 
-test('mobile preview keeps header compact and separates examples from inspection photos', () => {
+test('preview keeps the mobile header compact and retains the published form layout', () => {
   const html = embeddedSource();
   assert.match(markup, /Предпросмотр · черновик/);
   assert.match(markup, /#devPreview \.dv-bar\{display:grid;grid-template-columns:/);
-  assert.match(html, /\.ce-answer-photo-controls\{display:none/);
-  assert.match(html, /\.ce-answer\.active \.ce-answer-photo-controls\{display:flex\}/);
-  assert.match(html, /Фото обязательно/);
-  assert.match(markup, /＋ Образец /);
-  assert.doesNotMatch(markup, /📷 Добавить образец /);
+  assert.match(html, /function addPhotoSupport\(row,field,eq,iid\)/);
+  assert.match(html, /function computeFlag\(eq,iid\)/);
+  assert.match(html, /card\.classList\.add\('flag-bad'\)/);
+  assert.match(html, /row\.classList\.add\('frow-bad'\)/);
+  assert.match(markup, /id="devPrevStatus"/);
+  assert.match(markup, /__TMH_PREVIEW__/);
+});
+
+test('RТ-130 preview position count follows demo locomotive sections, not a missing operation', () => {
+  const configuration = JSON.parse(fs.readFileSync(new URL('../oborudovanie.json', import.meta.url), 'utf8'));
+  const rt = configuration.equipment.find(item => item.title === 'РТ-130');
+  assert.ok(rt);
+  assert.equal(rt.layout.blocks.length, 2);
+  assert.match(markup, /general:\{type:'2ЭС5К'/);
+  assert.match(embeddedSource(), /if\(type==='2ЭС5К'\)return 2;/);
+  assert.equal(rt.layout.blocks.length * 2, 4);
 });
