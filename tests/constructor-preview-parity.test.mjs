@@ -74,3 +74,18 @@ test('custom answers render photo actions inside selected tiles without clearing
   assert.match(html, /Array\.isArray\(fl\.ok\)\?fl\.ok\.slice\(\):\[\]/);
   assert.match(markup, /id="devPrevStatus"/);
 });
+
+test('reference photos are inserted inside custom answer buttons, not shown as duplicate OK/NOK bars', () => {
+  const marker = '<script id="__OKNOK_EXAMPLES_V1__">';
+  const begin = markup.indexOf(marker);
+  assert.ok(begin >= 0, 'Reference photo injector is present');
+  const end = markup.indexOf('</script>', begin);
+  const code = markup.slice(begin + marker.length, end);
+  assert.doesNotThrow(() => new vm.Script(code));
+  assert.match(code, /function paintChoiceExamples\(row,key\)/);
+  assert.match(code, /tile\.insertBefore\(ref,controls\)/);
+  assert.match(code, /row\.querySelector\('\.ce-answer-grid'\)/);
+  assert.match(code, /row\.__oknokBar\.remove\(\)/);
+  assert.match(code, /ev\.preventDefault\(\);ev\.stopPropagation\(\)/);
+  assert.match(code, /if\(ref\.textContent!==placeholder\)ref\.textContent=placeholder/);
+});
