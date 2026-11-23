@@ -14841,19 +14841,22 @@ fieldRow=function(eq,inst,iid,field){
 (function(){
   var css=document.createElement('style');
   css.textContent='.ce-answer-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px;width:100%}'
-    +'.ce-answer{display:flex;flex-direction:column;gap:5px;min-width:0;border:2px solid var(--line,#cfe0f0);border-radius:10px;padding:10px;background:var(--panel2,#f2f7fc);cursor:pointer;transition:border-color .15s,background .15s}'
+    +'.ce-answer{display:flex;flex-direction:column;gap:5px;min-width:0;border:2px solid var(--line,#cfe0f0);border-radius:10px;padding:9px 8px;background:var(--panel2,#f2f7fc);cursor:pointer;transition:border-color .15s,background .15s}'
     +'.ce-answer:focus-visible{outline:3px solid var(--amber,#0a5eb0);outline-offset:2px}'
     +'.ce-answer.active{border-color:var(--amber,#0a5eb0)}'
     +'.ce-answer.ce-normal.active{background:#e6f4ea;border-color:#1f9d55}'
     +'.ce-answer.ce-deviation.active{background:#fde9e7;border-color:#d1453b}'
-    +'.ce-answer-label{font-size:14px;font-weight:700;overflow-wrap:anywhere;text-align:center}'
-    +'.ce-answer-photo-controls{display:flex;gap:5px;justify-content:center}'
-    +'.ce-camera{background:var(--panel,#fff);color:var(--ink,#16324f);border:1px solid var(--line,#cfe0f0);border-radius:7px;min-height:34px;min-width:40px;cursor:pointer}'
+    +'.ce-answer-label{font-size:15px;font-weight:700;overflow-wrap:anywhere;text-align:center}'
+    +'.ce-answer-photo-controls{display:none;gap:6px;justify-content:center;align-items:center;padding-top:4px;border-top:1px solid var(--line,#cfe0f0)}'
+    +'.ce-answer.active .ce-answer-photo-controls{display:flex}'
+    +'.ce-answer.active .ce-answer-photo-controls::before{content:"Фото осмотра";font-size:10px;color:var(--ink-dim,#6d84a0);line-height:1.1;max-width:55px}'
+    +'.frow.photo-required-field .ce-answer.active .ce-answer-photo-controls::before{content:"Фото обязательно";color:#b42318;font-weight:700}'
+    +'.ce-camera{background:var(--panel,#fff);color:var(--ink,#16324f);border:1px solid var(--line,#cfe0f0);border-radius:7px;min-height:34px;min-width:34px;cursor:pointer}'
     +'.ce-answer .photo-area{width:100%;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:5px;margin:3px 0 0;padding:6px 0 0;border-top:1px solid var(--line,#cfe0f0)}'
     +'.ce-answer .photo-area .photo-btn{display:none!important}'
     +'.ce-answer .photo-area .photo-preview{width:66px;height:66px;max-width:100%;object-fit:cover}'
     +'.frow.photo-required-field .ce-answer.active{border-color:#d1453b;box-shadow:0 0 0 2px #d1453b44}'
-    +'@media(max-width:440px){.ce-answer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ce-answer{padding:8px 6px}}';
+    +'@media(max-width:440px){.ce-answer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ce-answer{padding:8px 5px}.ce-answer.active .ce-answer-photo-controls::before{max-width:48px;font-size:9px}}';
   document.head.appendChild(css);
 })();
 
@@ -18934,9 +18937,9 @@ if ('serviceWorker' in navigator) {
         '.oknok-btn{display:inline-flex;flex-direction:column;align-items:center;gap:5px;min-width:82px;max-width:132px;font:600 13px/1.2 var(--sans,system-ui,sans-serif);padding:7px;border-radius:9px;cursor:pointer;border:1px solid;text-align:center;}',
         '.oknok-btn img.oknok-thumb{display:block;width:100%;max-width:100%;height:auto;max-height:120px;aspect-ratio:4/3;object-fit:cover;border-radius:6px;pointer-events:none;}',
         '.oknok-btn{box-sizing:border-box;height:auto!important;max-height:none!important;overflow:hidden;white-space:normal;align-self:stretch;}',
-        '.ce-answer .oknok-inline-example{box-sizing:border-box;width:100%;display:flex;align-items:center;justify-content:center;min-height:34px;border:1px solid var(--line,#cfe0f0);border-radius:8px;background:var(--panel,#fff);color:var(--ink-dim,#5b7690);padding:4px;cursor:zoom-in;}',
+        '.ce-answer .oknok-inline-example{box-sizing:border-box;width:100%;display:flex;align-items:center;justify-content:center;min-height:26px;border:1px solid var(--line,#cfe0f0);border-radius:7px;background:var(--panel,#fff);color:var(--ink-dim,#5b7690);padding:3px 5px;cursor:zoom-in;font-size:11px;line-height:1.15;}',
         '.ce-answer .oknok-inline-example img{display:block;width:100%;height:auto;max-height:150px;aspect-ratio:4/3;object-fit:contain;border-radius:5px;}',
-        '.ce-answer .oknok-inline-example.empty{font-size:11px;min-height:40px;cursor:pointer;}',
+        '.ce-answer .oknok-inline-example.empty{font-size:10.5px;min-height:26px;cursor:pointer;border-style:dashed;}',
         '@media(max-width:560px){.oknok-btn{max-width:calc(50% - 4px)}.oknok-btn img.oknok-thumb{height:64px}}',
         '.oknok-ok{color:var(--ok,#1f9d55);border-color:var(--ok,#1f9d55);background:rgba(31,157,85,.12);}',
         '.oknok-nok{color:var(--bad,#c0392b);border-color:var(--bad,#c0392b);background:rgba(192,57,43,.10);}',
@@ -19130,7 +19133,7 @@ if ('serviceWorker' in navigator) {
           if(img.getAttribute('src')!==url)img.src=url;
         }else{
           if(img)img.remove();
-          var placeholder='📷 Добавить образец '+side.toUpperCase();
+          var placeholder='＋ Образец '+side.toUpperCase();
           if(ref.textContent!==placeholder)ref.textContent=placeholder;
         }
       });
@@ -20607,9 +20610,11 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
 .dv-msg.ok{background:#e6f4ea;color:#17643a;border:1px solid #1f9d55}
 .dv-msg.warn{background:#fff4e0;color:#7a4b00;border:1px solid #d4a017}
 #devPreview iframe{flex:1;border:0;width:100%;background:#fff}
-#devPreview .dv-bar{padding:7px 12px;gap:6px;flex-wrap:nowrap}
-#devPreview .dv-bar b{font-size:13px;line-height:1.25;flex:1;min-width:0}
-#devPreview .dv-bar .btn{flex:0 0 auto;font-size:12px;padding:8px 10px}
+#devPreview .dv-bar{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:12px;row-gap:2px;align-items:center;padding:8px 12px;flex-wrap:nowrap}
+#devPreview .dv-bar b{font-size:15px;line-height:1.25;grid-column:1;grid-row:1;min-width:0}
+#devPreview .dv-bar .dv-status{font-size:11.5px;line-height:1.25;grid-column:1;grid-row:2;white-space:normal;overflow-wrap:anywhere}
+#devPreview .dv-bar .btn{grid-column:2;grid-row:1 / 3;flex:0 0 auto;font-size:12px;padding:8px 10px}
+@media(max-width:420px){#devPreview .dv-bar{padding:8px 10px;column-gap:6px}#devPreview .dv-bar b{font-size:13px}#devPreview .dv-bar .btn{font-size:11px;padding:7px 9px}}
 .dv-modal{background:var(--panel,#fff);color:var(--ink,#16324f);border-radius:14px;padding:16px;width:min(520px,94vw);max-height:90vh;overflow:auto}
 .dv-modal h3{margin:0 0 10px}
 .dv-modal .dv-row{grid-template-columns:1fr 1fr}
@@ -20629,7 +20634,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
   </div>
   <div id="devBody"><div id="devList"></div><div id="devEditor"></div></div>
 </div>
-<div id="devPreview"><div class="dv-bar"><b>👁 Предпросмотр рабочей формы 1:1 — черновик до публикации (ответы не сохраняются)</b><span class="dv-status" id="devPrevStatus" aria-live="polite"></span><button class="btn" id="devPrevClose" type="button">✕ Закрыть</button></div><iframe id="devPrevFrame" title="Предпросмотр"></iframe></div>
+<div id="devPreview"><div class="dv-bar"><b>👁 Предпросмотр · черновик</b><span class="dv-status" id="devPrevStatus" aria-live="polite"></span><button class="btn" id="devPrevClose" type="button">✕ Закрыть</button></div><iframe id="devPrevFrame" title="Предпросмотр"></iframe></div>
 <div id="devGh"><div class="dv-modal">
   <h3>⚙ Публикация в GitHub</h3>
   <div class="dv-row"><div><label>Владелец</label><input id="ghOwner"></div><div><label>Репозиторий</label><input id="ghRepo"></div></div>
@@ -20875,7 +20880,7 @@ html[data-theme="dark"] .rz-card.hit{background:#14283d}
       source=source.slice(0,at)+prelude+source.slice(at);
       var frame=$('devPrevFrame');
       var status=$('devPrevStatus');
-      if(status)status.textContent=ck?('Черновик: '+ck.title):('Оборудование: '+(st.items[st.sel]&&st.items[st.sel].title||'все операции'));
+      if(status)status.textContent=(ck?ck.title:(st.items[st.sel]&&st.items[st.sel].title||'Все операции'))+' · изменения до публикации · ответы не сохраняются';
       $('devPreview').classList.add('open');
       frame.srcdoc=source;
     }catch(e){say('bad','Не удалось открыть предпросмотр: '+e.message);}
