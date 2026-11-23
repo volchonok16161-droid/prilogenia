@@ -89,3 +89,14 @@ test('reference photos are inserted inside custom answer buttons, not shown as d
   assert.match(code, /ev\.preventDefault\(\);ev\.stopPropagation\(\)/);
   assert.match(code, /if\(ref\.textContent!==placeholder\)ref\.textContent=placeholder/);
 });
+
+test('mobile preview keeps header compact and separates examples from inspection photos', () => {
+  const html = embeddedSource();
+  assert.match(markup, /Предпросмотр · черновик/);
+  assert.match(markup, /#devPreview \.dv-bar\{display:grid;grid-template-columns:/);
+  assert.match(html, /\.ce-answer-photo-controls\{display:none/);
+  assert.match(html, /\.ce-answer\.active \.ce-answer-photo-controls\{display:flex\}/);
+  assert.match(html, /Фото обязательно/);
+  assert.match(markup, /＋ Образец /);
+  assert.doesNotMatch(markup, /📷 Добавить образец /);
+});
