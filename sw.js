@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v145';
+const CACHE_VERSION = 'checklist-cache-v146';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -246,6 +246,31 @@ self.addEventListener('fetch', (event) => {
     : isSameOrigin
       ? new Request(url.origin + url.pathname)
       : req;
+
+  // Navigation documents must prefer the deployed version when online.
+  // Cache-first here leaves an old constructor preview running after deployment.
+  // Offline users still receive the previously cached shell.
+  if (isSameOrigin && req.mode === 'navigate') {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(req, { cache: 'no-store' });
+        if (response && response.ok) {
+          const copy = response.clone();
+          event.waitUntil(caches.open(CACHE_VERSION).then((cache) => cache.put(cacheRequest, copy)).catch(() => {}));
+          return response;
+        }
+        const cached = await caches.match(cacheRequest);
+        return cached || response;
+      } catch (error) {
+        const cached = await caches.match(cacheRequest) ||
+          (isChecklistRoute ? await caches.match('./prototype/checklist/index.html') : null) ||
+          await caches.match('./index.html');
+        if (cached) return cached;
+        return new Response('Offline', { status: 503 });
+      }
+    })());
+    return;
+  }
 
   // Справочники должны быстро открываться из локальной копии даже при
   // медленном интернете. Сеть проверяем ограниченное время, а обновление кэша
