@@ -30,6 +30,15 @@ source=source.replace(footbar,footbar+'\n<button class="btn" id="tmhCloudBackupB
 var bridge=`<script>
 (function(){
   try {
+    window.__TMH_MARK_ACT_PREPARED__=function(metadata){
+      if(window.__TMH_DEVELOPER_PREVIEW__)return;
+      STATE.__tmhWorkflow=STATE.__tmhWorkflow||{};
+      STATE.__tmhWorkflow.act=Object.assign({},STATE.__tmhWorkflow.act||{},{
+        preparedAt:new Date().toISOString(),
+        number:String(metadata&&metadata.number||'').slice(0,100)
+      });
+      saveState(true);
+    };
     window.__TMH_GET_CLOUD_BACKUP_CONTEXT=function(){
       return {
         state:STATE,stats:(typeof computeStats==='function'?computeStats():null),workflow:(function(){
