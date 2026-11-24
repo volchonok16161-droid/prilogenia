@@ -32,7 +32,24 @@ var bridge=`<script>
   try {
     window.__TMH_GET_CLOUD_BACKUP_CONTEXT=function(){
       return {
-        state:STATE,stats:(typeof computeStats==='function'?computeStats():null),persistState:function(){return saveState(true);},definitions:(typeof EQUIPMENT!=='undefined'?EQUIPMENT:[]).map(function(eq){return {id:eq.id,fields:typeof eq.getFields==='function'?eq.getFields({}):(eq.fields||[]),instances:typeof eq.instances==='function'?eq.instances().filter(function(inst){return (STATE.selectedSections||[]).indexOf(inst.section)>=0;}).map(function(inst){return {id:[eq.id,inst.section].join('|'),fields:typeof eq.getFields==='function'?eq.getFields(inst):(eq.fields||[])};}):[]};}),checklistType:(typeof CUSTOM_CHECKLIST!=='undefined'&&CUSTOM_CHECKLIST?CUSTOM_CHECKLIST.title:({complex:'Комплексный чек-лист',housings:'КМБ',tt:'ТТ',bi:'БИ',hydro:'Гидродемпферы'}[${JSON.stringify(mode||((typeof MODE==='undefined')?'unknown':MODE))}]||${JSON.stringify(mode||((typeof MODE==='undefined')?'unknown':MODE))})),mode:${JSON.stringify(mode||((typeof MODE==='undefined')?'unknown':MODE))},storageKey:LS_KEY,
+        state:STATE,stats:(typeof computeStats==='function'?computeStats():null),workflow:(function(){
+          var selected=Array.isArray(STATE.selected)?STATE.selected:[];
+          var available=(typeof EQUIPMENT!=='undefined'&&Array.isArray(EQUIPMENT))?EQUIPMENT:[];
+          var selectedSections=Array.isArray(STATE.selectedSections)?STATE.selectedSections:[];
+          var allSections=(typeof getSections==='function'&&STATE.general&&STATE.general.type)?getSections(STATE.general.type):[];
+          var triggered=(typeof __tmhNoticeItems==='function')?__tmhNoticeItems():[];
+          var delivered=triggered.filter(function(x){return x.status==='Да';}).length;
+          var notDelivered=triggered.filter(function(x){return x.status==='Нет';}).length;
+          var missingEvidence=triggered.filter(function(x){return x.status==='Да'&&x.rule.requirePhoto!==false&&!x.photo;}).length;
+          return {
+            selection:{selectedEquipment:selected.length,availableEquipment:available.length,
+              selectedSections:selectedSections.length,availableSections:allSections.length},
+            notifications:{required:triggered.length,delivered:delivered,notDelivered:notDelivered,
+              pending:triggered.length-delivered-notDelivered,missingEvidence:missingEvidence},
+            excel:(STATE.__tmhWorkflow&&STATE.__tmhWorkflow.excel)||null,
+            act:(STATE.__tmhWorkflow&&STATE.__tmhWorkflow.act)||null
+          };
+        })(),persistState:function(){return saveState(true);},definitions:(typeof EQUIPMENT!=='undefined'?EQUIPMENT:[]).map(function(eq){return {id:eq.id,fields:typeof eq.getFields==='function'?eq.getFields({}):(eq.fields||[]),instances:typeof eq.instances==='function'?eq.instances().filter(function(inst){return (STATE.selectedSections||[]).indexOf(inst.section)>=0;}).map(function(inst){return {id:[eq.id,inst.section].join('|'),fields:typeof eq.getFields==='function'?eq.getFields(inst):(eq.fields||[])};}):[]};}),checklistType:(typeof CUSTOM_CHECKLIST!=='undefined'&&CUSTOM_CHECKLIST?CUSTOM_CHECKLIST.title:({complex:'Комплексный чек-лист',housings:'КМБ',tt:'ТТ',bi:'БИ',hydro:'Гидродемпферы'}[${JSON.stringify(mode||((typeof MODE==='undefined')?'unknown':MODE))}]||${JSON.stringify(mode||((typeof MODE==='undefined')?'unknown':MODE))})),mode:${JSON.stringify(mode||((typeof MODE==='undefined')?'unknown':MODE))},storageKey:LS_KEY,
         applyState:async function(incoming,metadata){
           if(!metadata||typeof metadata.id!=='string'||!Number.isSafeInteger(metadata.revision)||metadata.revision<1)throw new Error('Некорректная версия облачной записи');
           await __psEnsureCloudReady();
@@ -114,7 +131,7 @@ if(restoreButton){
       await __psEnsureCloudReady();
       const context=getContext();
       const photoSync=createChecklistPhotoSync({authApi:api});
-      const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,photoSync,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;},persistState:function(){return context.persistState();},getChecklistDefinitions:function(){return context.definitions;},getChecklistType:function(){return context.checklistType;}});
+      const backup=createChecklistCloudBackup({authApi:api,storage:window.localStorage,photoSync,getState:function(){return context.state;},getMode:function(){return context.mode;},getStorageKey:function(){return context.storageKey;},persistState:function(){return context.persistState();},getChecklistDefinitions:function(){return context.definitions;},getChecklistType:function(){return context.checklistType;},getChecklistWorkflow:function(){return context.workflow;}});
       const restore=createChecklistCloudRestore({authApi:api,getMode:function(){return context.mode;},getCurrentState:function(){return context.state;},beforeApply:async function(){await backup.createSnapshot({label:'Автокопия перед восстановлением'});},hydrateState:async function(state,metadata,manifest){return (await photoSync.restoreState({state,checklistId:metadata.id,manifest})).state;},applyState:context.applyState});
       const __openId=(function(){try{return new URLSearchParams(window.location.search).get('openChecklist');}catch(e){return null;}})();
       if(__openId){
@@ -193,6 +210,7 @@ window.__TMH_SAVE_CLOUD_BACKUP_CONTEXT = async function(context) {
     persistState: () => context.persistState(),
     getChecklistDefinitions: () => context.definitions || [],
     getChecklistStats: () => context.stats || null,
+    getChecklistWorkflow: () => context.workflow || null,
     getChecklistType: () => context.checklistType || ""
   });
   return backup.saveCurrent();
