@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-24T15:10:34.972Z",
+  "updated": "2026-11-24T15:11:50.948Z",
   "items": {
     "cx|vb8|zav": {
       "ok": "examples/e_11hwbr_ok_mvurndpt.jpg"
@@ -180,7 +180,8 @@
       "nok": "examples/e_x2mmb6_nok_mwuf5c95.jpg"
     },
     "cx|housings|oil": {
-      "ok": "examples/e_1r1z11y_ok_mwuu0a3k.jpg"
+      "ok": "examples/e_1r1z11y_ok_mwuu0a3k.jpg",
+      "nok": "examples/e_1r1z11y_nok_mwuu1wwy.jpg"
     }
   }
 }
