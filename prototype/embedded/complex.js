@@ -1244,47 +1244,32 @@ const cw=document.createElement('div');cw.style.display='grid';cw.style.gridTemp
 if(Array.isArray(field.exampleButtons)&&field.exampleButtons.length){
   const gallery=document.createElement('div');
   gallery.className='tmh-reference-examples';
-  gallery.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0 9px';
+  gallery.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:6px 0 9px';
   field.exampleButtons.forEach(function(example){
     if(!example||!example.label)return;
     const tone=example.color==='red'?['#fff0f0','#bd3131']:example.color==='green'?['#ecf9ed','#21814a']:['#f1f3f5','#475569'];
-    const item=document.createElement('div');
-    item.className='tmh-reference-example-item';
-    item.style.cssText='display:inline-flex;align-items:center;gap:5px;max-width:100%';
     const button=document.createElement('button');
     button.type='button';
     button.className='tmh-reference-example-btn';
-    button.style.cssText='display:inline-flex;align-items:center;justify-content:center;min-width:70px;max-width:126px;min-height:36px;box-sizing:border-box;border:1px dashed '+tone[1]+';border-radius:8px;padding:6px 8px;color:'+tone[1]+';background:'+tone[0]+';font:600 12px/1.2 system-ui,sans-serif;text-align:center;overflow-wrap:anywhere';
+    button.style.cssText='display:inline-flex;flex-direction:row;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;min-width:84px;max-width:126px;min-height:36px;box-sizing:border-box;border:1px dashed '+tone[1]+';border-radius:9px;padding:6px 8px;color:'+tone[1]+';background:'+tone[0]+';font:600 12px/1.25 system-ui,sans-serif;text-align:center;overflow-wrap:anywhere';
     const label=document.createElement('span');
+    label.style.cssText='min-width:0;overflow-wrap:anywhere;flex:1 1 60px';
     label.textContent=(example.color==='green'?'✅ ':example.color==='red'?'❌ ':'')+example.label;
     button.appendChild(label);
-    button.title='Фото открывается только нажатием на миниатюру';
-    button.addEventListener('click',function(){
-      if(control.tagName==='SELECT'&&Array.from(control.options).some(function(opt){return opt.value===example.label;})){
-        control.value=example.label;
-        control.dispatchEvent(new Event('change',{bubbles:true}));
-      }
-    });
-    item.appendChild(button);
     if(typeof example.image==='string'&&example.image.startsWith('data:image/')){
-      const photoButton=document.createElement('button');
-      photoButton.type='button';
-      photoButton.className='tmh-reference-photo-btn';
-      photoButton.setAttribute('aria-label','Открыть фото: '+example.label);
-      photoButton.title='Нажмите, чтобы открыть фотографию';
-      photoButton.style.cssText='display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:48px;height:42px;padding:3px;border:1px solid #b9d5e8;border-radius:6px;background:#fff;cursor:zoom-in';
       const pic=document.createElement('img');
       pic.src=example.image;
-      pic.alt='Фото: '+example.label;
-      pic.style.cssText='display:block;width:40px;height:34px;object-fit:cover;border-radius:4px;pointer-events:none';
-      photoButton.appendChild(pic);
-      photoButton.addEventListener('click',function(event){
-        event.preventDefault();event.stopPropagation();
-        if(typeof window.openPhotoModal==='function')window.openPhotoModal(pic.src);
-      });
-      item.appendChild(photoButton);
+      pic.alt='Образец: '+example.label;
+      pic.style.cssText='display:block;flex:0 0 48px;width:48px;height:38px;object-fit:cover;border-radius:5px;pointer-events:none';
+      button.appendChild(pic);
+      button.title='Открыть фотографию-образец';
+      button.addEventListener('click',function(){if(typeof window.openPhotoModal==='function')window.openPhotoModal(pic.src);});
+    }else{
+      button.title='Фотография-образец не добавлена';
+      button.disabled=true;
+      button.style.cursor='default';
     }
-    gallery.appendChild(item);
+    gallery.appendChild(button);
   });
   cw.insertBefore(gallery,control);
 }
