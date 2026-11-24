@@ -73,6 +73,7 @@ export function createChecklistCloudBackup({
   getStorageKey,
   getChecklistDefinitions = () => [],
   getChecklistStats = () => null,
+  getChecklistWorkflow = () => null,
   getChecklistType = () => "",
   cloudApi: injectedCloudApi,
   photoSync,
@@ -185,6 +186,7 @@ export function createChecklistCloudBackup({
       state: cloneWithoutPhotos(state, stats),
       photos: manifest,
       stats: checklistStats,
+      workflow: getChecklistWorkflow() || null,
     };
     const title = [
       "Чек-лист",
