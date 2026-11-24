@@ -128,6 +128,7 @@ html[data-theme="dark"] .connection-pill.online{background:#193a2a;color:#83d6a6
 <script type="module">
 import { isChecklistComplete, summarizeChecklistStatuses } from "./prototype/checklist-status.js";
 import { buildChecklistWorkflowView } from "./prototype/checklist-workflow-status.js";
+import { listChecklistActs, uploadChecklistAct, getChecklistActLink } from "./prototype/checklist-acts.js";
 import { deleteCloudChecklist } from "./prototype/supabase-cloud-delete.js";
 const $ = (id) => document.getElementById(id);
 const roleLabels = { employee: "Сотрудник", assistant: "Помощник", admin: "Администратор", developer: "Разработчик" };
@@ -517,6 +518,8 @@ async function loadCabinet() {
     rows.push(...page);
     if (page.length < pageSize) break;
   }
+  const actMap = await listChecklistActs(api, user.id);
+  if (requestId !== cabinetLoadSequence) return;
   const latestIdentity = await api.getCurrentIdentity();
   if (requestId !== cabinetLoadSequence) return;
   if (latestIdentity?.error) throw latestIdentity.error;
@@ -612,6 +615,7 @@ async function loadCabinet() {
       }
       // Lifecycle indicators show only data saved with this specific cloud checklist.
       const workflow = buildChecklistWorkflowView(row);
+      const verifiedAct = actMap.get(row.id) || null;
       const workflowGrid = document.createElement("div");
       workflowGrid.className = "workflow-grid";
       function indicator(label, value, tone = "unknown") {
@@ -639,8 +643,8 @@ async function loadCabinet() {
         workflow.actPreparedAt ? "Подготовлен к печати" : "Нет подтверждения",
         workflow.actPreparedAt ? "done" : "unknown");
       indicator("Загрузка акта",
-        workflow.actUploadedAt ? "Файл загружен" : "Не подтверждена",
-        workflow.actUploadedAt ? "done" : "unknown");
+        verifiedAct ? "Загружен · " + formatDate(verifiedAct.uploaded_at) : "Не подтверждена",
+        verifiedAct ? "done" : "unknown");
       const notices = workflow.notifications;
       indicator("Уведомления",
         !notices ? "Нет данных" : !notices.required ? "Не требовались" :
@@ -662,6 +666,7 @@ async function loadCabinet() {
       actions.style.display = "flex";
       actions.style.gap = "8px";
       actions.style.flex = "none";
+      actions.style.flexWrap = "wrap";
       const open = document.createElement("a");
       open.className = "btn";
       open.textContent = "Открыть";
@@ -702,6 +707,52 @@ async function loadCabinet() {
           window.alert(error?.message || "Не удалось удалить облачный чек-лист.");
         }
       });
+      const actUpload = document.createElement("button");
+      actUpload.type = "button";
+      actUpload.className = "btn secondary";
+      actUpload.textContent = "Загрузить акт";
+      actUpload.style.padding = "8px 12px";
+      actUpload.style.fontSize = "13px";
+      const actInput = document.createElement("input");
+      actInput.type = "file";
+      actInput.accept = ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png";
+      actInput.className = "hidden";
+      actUpload.addEventListener("click", () => actInput.click());
+      actInput.addEventListener("change", async () => {
+        const file = actInput.files?.[0];
+        if (!file) return;
+        actUpload.disabled = true;
+        actUpload.textContent = "Загрузка…";
+        try {
+          await uploadChecklistAct(api, { ownerId: user.id, checklistId: row.id, file });
+          await loadCabinet();
+        } catch (error) {
+          window.alert("Не удалось загрузить акт: " + (error?.message || error));
+        } finally {
+          actUpload.disabled = false;
+          actUpload.textContent = "Загрузить акт";
+          actInput.value = "";
+        }
+      });
+      actions.append(actUpload, actInput);
+      if (verifiedAct) {
+        const viewAct = document.createElement("button");
+        viewAct.type = "button";
+        viewAct.className = "btn secondary";
+        viewAct.textContent = "Открыть акт";
+        viewAct.style.padding = "8px 12px";
+        viewAct.style.fontSize = "13px";
+        viewAct.addEventListener("click", async () => {
+          viewAct.disabled = true;
+          try {
+            const link = await getChecklistActLink(api, verifiedAct);
+            window.open(link, "_blank", "noopener,noreferrer");
+          } catch (error) {
+            window.alert("Не удалось открыть акт: " + (error?.message || error));
+          } finally { viewAct.disabled = false; }
+        });
+        actions.append(viewAct);
+      }
       actions.append(open, remove);
       item.append(icon, info, revision, actions);
       list.append(item);
