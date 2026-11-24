@@ -463,9 +463,10 @@
   // Shared notification rules for custom and built-in operations.
   function cleanNotification(raw){
     if(!raw||raw.enabled!==true)return null;
-    var trigger=['deviation','always','answers'].indexOf(raw.trigger)>=0?raw.trigger:'deviation';
+    var trigger=['deviation','always','answers','conditions'].indexOf(raw.trigger)>=0?raw.trigger:'deviation';
     var answers=(Array.isArray(raw.answers)?raw.answers:[]).map(cleanStr).filter(Boolean).slice(0,40);
-    return {enabled:true,trigger:trigger,answers:answers,
+    var conditions=(Array.isArray(raw.conditions)?raw.conditions:[]).filter(function(c){return c&&/^[a-z0-9_]{1,40}$/.test(c.fieldKey||'')&&String(c.value||'').trim();}).slice(0,12).map(function(c){return {fieldKey:c.fieldKey,value:cleanStr(c.value).slice(0,100)};});
+    return {enabled:true,trigger:trigger,answers:answers,conditions:conditions,logic:raw.logic==='any'?'any':'all',
       requirePhoto:raw.requirePhoto!==false,requireReason:raw.requireReason!==false};
   }
   function cleanBuiltinOverrides(raw){
