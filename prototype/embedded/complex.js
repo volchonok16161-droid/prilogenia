@@ -1244,23 +1244,31 @@ const cw=document.createElement('div');cw.style.display='grid';cw.style.gridTemp
 if(Array.isArray(field.exampleButtons)&&field.exampleButtons.length){
   const gallery=document.createElement('div');
   gallery.className='tmh-reference-examples';
-  gallery.style.cssText='display:flex;flex-wrap:wrap;gap:9px;margin:8px 0 12px';
+  gallery.style.cssText='display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;margin:8px 0 12px';
   field.exampleButtons.forEach(function(example){
     if(!example||!example.label)return;
-    const item=document.createElement('div');
-    item.style.cssText='min-width:90px;max-width:100%;display:flex;flex-direction:column;gap:5px';
-    const badge=document.createElement('span');
     const tone=example.color==='red'?['#fff0f0','#bd3131']:example.color==='green'?['#ecf9ed','#21814a']:['#f1f3f5','#475569'];
-    badge.style.cssText='display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px dashed currentColor;border-radius:8px;padding:8px 12px;font-weight:700;font-size:14px;overflow-wrap:anywhere';
-    badge.style.color=tone[1];badge.style.backgroundColor=tone[0];
-    badge.textContent=(example.color==='green'?'☑ ':example.color==='red'?'✕ ':'')+example.label;
-    item.appendChild(badge);
-    if(typeof example.image==='string'&&/^data:image\\/(png|jpeg|webp);base64,/.test(example.image)){
-      const pic=document.createElement('img');pic.src=example.image;pic.alt='Образец: '+example.label;
-      pic.style.cssText='max-width:180px;width:100%;max-height:160px;object-fit:contain;border:1px solid #cad7e5;border-radius:8px;background:#fff';
-      item.appendChild(pic);
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='tmh-reference-example-btn';
+    button.style.cssText='display:inline-flex;flex-direction:column;align-items:center;gap:6px;min-width:76px;max-width:142px;min-height:37px;box-sizing:border-box;border:1px dashed '+tone[1]+';border-radius:9px;padding:7px 9px;color:'+tone[1]+';background:'+tone[0]+';font:600 13px/1.2 system-ui,sans-serif;text-align:center;overflow-wrap:anywhere';
+    const label=document.createElement('span');
+    label.textContent=(example.color==='green'?'✅ ':example.color==='red'?'❌ ':'')+example.label;
+    button.appendChild(label);
+    if(typeof example.image==='string'&&example.image.startsWith('data:image/')){
+      const pic=document.createElement('img');
+      pic.src=example.image;
+      pic.alt='Образец: '+example.label;
+      pic.style.cssText='display:block;width:100%;max-width:120px;height:auto;max-height:100px;aspect-ratio:4/3;object-fit:cover;border-radius:6px;pointer-events:none';
+      button.appendChild(pic);
+      button.title='Открыть фотографию-образец';
+      button.addEventListener('click',function(){if(typeof window.openPhotoModal==='function')window.openPhotoModal(pic.src);});
+    }else{
+      button.title='Фотография-образец не добавлена';
+      button.disabled=true;
+      button.style.cursor='default';
     }
-    gallery.appendChild(item);
+    gallery.appendChild(button);
   });
   cw.insertBefore(gallery,control);
 }
