@@ -508,7 +508,8 @@ async function main() {
   source = risk.applyRegistry(source, mode) || source;
   // Retain the already assembled native checklist template for an isolated developer preview.
   // It contains the same operation renderer and registry as the worker form.
-  window.__TMH_NATIVE_PREVIEW_SOURCE__ = source;
+  const nativePreviewSource = source;
+  window.__TMH_NATIVE_PREVIEW_SOURCE__ = nativePreviewSource;
   source = __tmhAttachCloudBackup(source, mode);
   source = __tmhAttachFooterLayout(source);
   source = injectUnifiedChrome(source, mode);
@@ -542,6 +543,9 @@ async function main() {
   document.open();
   document.write(source);
   document.close();
+  // document.open/write may reset the document realm and its globals; restore
+  // the exact native template for the constructor's isolated preview.
+  window.__TMH_NATIVE_PREVIEW_SOURCE__ = nativePreviewSource;
 }
 main().catch(function(error) {
   console.error("Unified checklist runtime failed", error);
