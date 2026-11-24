@@ -831,7 +831,7 @@ function __ceHint(fl){
   return h;
 }
 function __ceField(fl){
-  var extra={photo:fl.photo!=='never',answerColors:fl.answerColors||{},answerPhotos:fl.answerPhotos||{},exampleButtons:fl.exampleButtons||[]};
+  var extra={photo:fl.photo!=='never',answerColors:fl.answerColors||{},answerPhotos:fl.answerPhotos||{},exampleButtons:fl.exampleButtons||[],notification:fl.notification||null};
   if(fl.photo==='always')extra.photoAlways=true;
   if(fl.calc===false)extra.calc=false;
   if(fl.type==='select')return f(fl.key,fl.label,'select',fl.options.slice(),Array.isArray(fl.ok)?fl.ok.slice():[],__ceHint(fl),extra);
