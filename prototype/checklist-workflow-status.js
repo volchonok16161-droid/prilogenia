@@ -11,6 +11,10 @@ export function buildChecklistWorkflowView(row) {
   const selected = Number(workflow.selection?.selectedEquipment);
   const available = Number(workflow.selection?.availableEquipment);
   const validSelection = Number.isSafeInteger(selected) && selected >= 0 && Number.isSafeInteger(available) && available >= selected && available > 0;
+  const selectedOps = Number(workflow.selection?.selectedOperations);
+  const availableOps = Number(workflow.selection?.availableOperations);
+  const validOperations = Number.isSafeInteger(selectedOps) && selectedOps >= 0 &&
+    Number.isSafeInteger(availableOps) && availableOps >= selectedOps && availableOps > 0;
   const sections = Number(workflow.selection?.selectedSections);
   const totalSections = Number(workflow.selection?.availableSections);
   const validSections = Number.isSafeInteger(sections) && sections >= 0 && Number.isSafeInteger(totalSections) && totalSections >= sections && totalSections > 0;
@@ -29,6 +33,7 @@ export function buildChecklistWorkflowView(row) {
   return Object.freeze({
     percentage, counted, total: counted ? total : null, filled: counted ? filled : null,
     equipment: validSelection ? {selected,available} : null,
+    operations: validOperations ? {selected:selectedOps,available:availableOps} : null,
     sections: validSections ? {selected:sections,available:totalSections} : null,
     excelRequestedAt:excel, actPreparedAt:actPrepared, actUploadedAt:actUploaded,
     notifications:validNotices ? {required,sent,notSent,pending,missingEvidence:invalid} : null
