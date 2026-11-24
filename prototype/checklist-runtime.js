@@ -44,6 +44,8 @@ var bridge=`<script>
         state:STATE,stats:(typeof computeStats==='function'?computeStats():null),workflow:(function(){
           var selected=Array.isArray(STATE.selected)?STATE.selected:[];
           var available=(typeof EQUIPMENT!=='undefined'&&Array.isArray(EQUIPMENT))?EQUIPMENT:[];
+          // Empty selection means all equipment in the native checklist renderer.
+          var effectiveSelection=selected.length?selected:available.map(function(eq){return eq.id;});
           var selectedSections=Array.isArray(STATE.selectedSections)?STATE.selectedSections:[];
           var allSections=(typeof getSections==='function'&&STATE.general&&STATE.general.type)?getSections(STATE.general.type):[];
           var triggered=(typeof __tmhNoticeItems==='function')?__tmhNoticeItems():[];
@@ -51,8 +53,8 @@ var bridge=`<script>
           var notDelivered=triggered.filter(function(x){return x.status==='Нет';}).length;
           var missingEvidence=triggered.filter(function(x){return x.status==='Да'&&x.rule.requirePhoto!==false&&!x.photo;}).length;
           return {
-            selection:{selectedEquipment:selected.length,availableEquipment:available.length,
-              selectedOperations:available.filter(function(eq){return selected.indexOf(eq.id)!==-1;}).reduce(function(sum,eq){return sum+(Array.isArray(eq.fields)?eq.fields.length:0);},0),
+            selection:{selectedEquipment:effectiveSelection.length,availableEquipment:available.length,
+              selectedOperations:available.filter(function(eq){return effectiveSelection.indexOf(eq.id)!==-1;}).reduce(function(sum,eq){return sum+(Array.isArray(eq.fields)?eq.fields.length:0);},0),
               availableOperations:available.reduce(function(sum,eq){return sum+(Array.isArray(eq.fields)?eq.fields.length:0);},0),
               selectedSections:selectedSections.length,availableSections:allSections.length},
             notifications:{required:triggered.length,delivered:delivered,notDelivered:notDelivered,
