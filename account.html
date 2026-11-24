@@ -9,7 +9,17 @@
 <style>
 :root{color-scheme:light;--bg:#f4f6fa;--card:#fff;--ink:#172033;--muted:#718096;--line:#e6eaf0;--blue:#315efb;--green:#16845b;--red:#b42318}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.brand{display:flex;align-items:center;gap:12px;font-weight:750}.logo{width:42px;height:42px;border-radius:13px;background:#172b57;color:#fff;display:grid;place-items:center}.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;padding:10px 14px;background:var(--blue);color:white;text-decoration:none;font-weight:650;cursor:pointer}.btn.secondary{background:#e9edf5;color:#344054}.btn:disabled{opacity:.55;cursor:wait}.welcome,.panel,.stat{background:var(--card);border:1px solid var(--line);border-radius:17px}.welcome{padding:23px 25px;margin-bottom:16px}.welcome h1{margin:0 0 5px;font-size:25px}.muted{color:var(--muted)}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:16px}.stat{padding:17px 19px}.stat-filter{cursor:pointer;transition:border-color .15s,box-shadow .15s}.stat-filter:hover,.stat-filter:focus-visible{border-color:var(--blue);outline:none}.stat-filter[aria-pressed="true"]{border-color:var(--blue);box-shadow:0 0 0 2px #315efb20}.stat-label{font-size:13px;color:var(--muted)}.stat-value{font-size:28px;font-weight:780;margin-top:4px}.panel{padding:20px 21px;margin-bottom:16px}.panel h2{font-size:17px;margin:0 0 14px}.profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.field{border:1px solid var(--line);border-radius:11px;padding:12px 13px;min-width:0}.field span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.field strong{overflow-wrap:anywhere}.item{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}.item-icon{width:37px;height:37px;border-radius:10px;background:#f0f3f8;display:grid;place-items:center;flex:none}.item-info{flex:1;min-width:0}.item-info strong{display:block;overflow-wrap:anywhere}.item-info small{color:var(--muted)}.progress-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:13px}.progress-track{height:6px;background:#edf0f5;border-radius:99px;overflow:hidden;margin-top:5px;max-width:240px}.progress-fill{height:100%;background:var(--green);border-radius:99px}.deviation-count{color:var(--red);font-weight:650}.status-pill{display:inline-flex;align-items:center;margin:5px 0 0 8px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;vertical-align:middle}.status-pill.done{background:#e8f7ef;color:#14744e}.status-pill.progress{background:#fff4df;color:#8a5a00}.revision{font-size:12px;color:var(--muted);white-space:nowrap}.notice{padding:12px 14px;background:#fff8e7;border:1px solid #f4e5b8;border-radius:11px;color:#795b16;font-size:13px}.error{color:var(--red)}.empty{padding:20px 0;color:var(--muted);text-align:center}.loading{color:var(--muted)}.hidden{display:none!important}
+button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.brand{display:flex;align-items:center;gap:12px;font-weight:750}.logo{width:42px;height:42px;border-radius:13px;background:#172b57;color:#fff;display:grid;place-items:center}.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;padding:10px 14px;background:var(--blue);color:white;text-decoration:none;font-weight:650;cursor:pointer}.btn.secondary{background:#e9edf5;color:#344054}.btn:disabled{opacity:.55;cursor:wait}.welcome,.panel,.stat{background:var(--card);border:1px solid var(--line);border-radius:17px}.welcome{padding:23px 25px;margin-bottom:16px}.welcome h1{margin:0 0 5px;font-size:25px}.muted{color:var(--muted)}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:16px}.stat{padding:17px 19px}.stat-filter{cursor:pointer;transition:border-color .15s,box-shadow .15s}.stat-filter:hover,.stat-filter:focus-visible{border-color:var(--blue);outline:none}.stat-filter[aria-pressed="true"]{border-color:var(--blue);box-shadow:0 0 0 2px #315efb20}.stat-label{font-size:13px;color:var(--muted)}.stat-value{font-size:28px;font-weight:780;margin-top:4px}.panel{padding:20px 21px;margin-bottom:16px}.panel h2{font-size:17px;margin:0 0 14px}.profile{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.field{border:1px solid var(--line);border-radius:11px;padding:12px 13px;min-width:0}.field span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.field strong{overflow-wrap:anywhere}.item{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}.item-icon{width:37px;height:37px;border-radius:10px;background:#f0f3f8;display:grid;place-items:center;flex:none}.item-info{flex:1;min-width:0}.item-info strong{display:block;overflow-wrap:anywhere}.item-info small{color:var(--muted)}.progress-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:13px}.progress-track{height:6px;background:#edf0f5;border-radius:99px;overflow:hidden;margin-top:5px;max-width:240px}.progress-fill{height:100%;background:var(--green);border-radius:99px}.deviation-count{color:var(--red);font-weight:650}.status-pill{display:inline-flex;align-items:center;margin:5px 0 0 8px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700;vertical-align:middle}.status-pill.done{background:#e8f7ef;color:#14744e}.status-pill.progress{background:#fff4df;color:#8a5a00}.workflow-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px;width:100%}
+.workflow-cell{border:1px solid var(--line);border-radius:9px;background:#f8fafd;padding:8px 9px;min-width:0}
+.workflow-cell b{display:block;font-size:11px;font-weight:650;color:#60748a;line-height:1.3;margin-bottom:3px}
+.workflow-cell span{display:block;font-size:12px;line-height:1.35;font-weight:650;overflow-wrap:anywhere}
+.workflow-cell[data-tone="done"]{border-color:#b6dec8;background:#eff9f3}.workflow-cell[data-tone="done"] span{color:#18764b}
+.workflow-cell[data-tone="warn"]{border-color:#efdaa3;background:#fff9e8}.workflow-cell[data-tone="warn"] span{color:#936105}
+.workflow-cell[data-tone="bad"]{border-color:#e7c0b9;background:#fff2f0}.workflow-cell[data-tone="bad"] span{color:#a52e1f}
+.workflow-cell[data-tone="unknown"] span{color:#60748a;font-weight:500}
+.workflow-explainer{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.35}
+@media(max-width:760px){.item{flex-wrap:wrap;align-items:flex-start}.item-info{flex:1 1 calc(100% - 54px)}.item .revision{margin-left:48px}.item .actions{margin-left:auto}.workflow-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.workflow-cell{padding:7px 8px}}
+.revision{font-size:12px;color:var(--muted);white-space:nowrap}.notice{padding:12px 14px;background:#fff8e7;border:1px solid #f4e5b8;border-radius:11px;color:#795b16;font-size:13px}.error{color:var(--red)}.empty{padding:20px 0;color:var(--muted);text-align:center}.loading{color:var(--muted)}.hidden{display:none!important}
 .admin-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.admin-row:first-child{border-top:0}.admin-info{flex:1;min-width:0}.admin-info strong{display:block;overflow-wrap:anywhere}.admin-meta{font-size:12px;color:var(--muted);overflow-wrap:anywhere}.admin-pill{display:inline-block;margin-top:4px;padding:3px 8px;border-radius:20px;background:#e8f7ef;color:#14744e;font-size:12px}.admin-pill.off{background:#fff0ee;color:#a33b30}.admin-row button{flex:none}@media(max-width:620px){
 .app{padding:16px 12px 34px}
 .top{align-items:flex-start;flex-wrap:wrap}
@@ -117,6 +127,7 @@ html[data-theme="dark"] .connection-pill.online{background:#193a2a;color:#83d6a6
 <script type="module" src="./prototype/supabase-auth.js"></script>
 <script type="module">
 import { isChecklistComplete, summarizeChecklistStatuses } from "./prototype/checklist-status.js";
+import { buildChecklistWorkflowView } from "./prototype/checklist-workflow-status.js";
 import { deleteCloudChecklist } from "./prototype/supabase-cloud-delete.js";
 const $ = (id) => document.getElementById(id);
 const roleLabels = { employee: "Сотрудник", assistant: "Помощник", admin: "Администратор", developer: "Разработчик" };
@@ -495,7 +506,7 @@ async function loadCabinet() {
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await api.client
       .from("checklists")
-      .select("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode,checklist_type:payload->>checklistType,stats:payload->stats,archive:payload->__tmhArchive")
+      .select("id,title,equipment_type,revision,created_at,updated_at,mode:payload->>mode,checklist_type:payload->>checklistType,stats:payload->stats,workflow:payload->workflow,archive:payload->__tmhArchive")
       .eq("owner_id", user.id)
       .order("updated_at", { ascending: false })
       .order("id", { ascending: true })
@@ -599,6 +610,51 @@ async function loadCabinet() {
         track.append(fill);
         info.append(track);
       }
+      // Lifecycle indicators show only data saved with this specific cloud checklist.
+      const workflow = buildChecklistWorkflowView(row);
+      const workflowGrid = document.createElement("div");
+      workflowGrid.className = "workflow-grid";
+      function indicator(label, value, tone = "unknown") {
+        const cell = document.createElement("div");
+        cell.className = "workflow-cell";
+        cell.dataset.tone = tone;
+        const heading = document.createElement("b");
+        heading.textContent = label;
+        const text = document.createElement("span");
+        text.textContent = value;
+        cell.append(heading, text);
+        workflowGrid.append(cell);
+      }
+      indicator("Заполнение",
+        workflow.percentage === null ? "Нет данных" :
+          workflow.percentage + "%" + (workflow.counted ? " · " + workflow.filled + "/" + workflow.total : ""),
+        workflow.percentage === 100 && completed ? "done" : workflow.percentage === null ? "unknown" : "warn");
+      indicator("Выбор оборудования",
+        workflow.equipment ? workflow.equipment.selected + " из " + workflow.equipment.available + " доступных" : "Нет данных",
+        workflow.equipment ? (workflow.equipment.selected < workflow.equipment.available ? "warn" : "done") : "unknown");
+      indicator("Excel",
+        workflow.excelRequestedAt ? "Экспорт запрошен · " + formatDate(workflow.excelRequestedAt) : "Нет подтверждения",
+        workflow.excelRequestedAt ? "done" : "unknown");
+      indicator("Акт",
+        workflow.actPreparedAt ? "Подготовлен к печати" : "Нет подтверждения",
+        workflow.actPreparedAt ? "done" : "unknown");
+      indicator("Загрузка акта",
+        workflow.actUploadedAt ? "Файл загружен" : "Не подтверждена",
+        workflow.actUploadedAt ? "done" : "unknown");
+      const notices = workflow.notifications;
+      indicator("Уведомления",
+        !notices ? "Нет данных" : !notices.required ? "Не требовались" :
+          notices.sent + "/" + notices.required + " передано" +
+          (notices.notSent ? " · " + notices.notSent + " не передано" : "") +
+          (notices.pending ? " · " + notices.pending + " ожидают" : "") +
+          (notices.missingEvidence ? " · " + notices.missingEvidence + " без фото" : ""),
+        !notices ? "unknown" : notices.notSent || notices.missingEvidence ? "bad" : notices.pending ? "warn" : "done");
+      info.append(workflowGrid);
+      const workflowNote = document.createElement("div");
+      workflowNote.className = "workflow-explainer";
+      workflowNote.textContent = (workflow.sections ? "Секций выбрано: " + workflow.sections.selected + " из " + workflow.sections.available + ". " : "") +
+        "Число доступных узлов не означает, что все они обязательны. Нет подтверждения ≠ действие не выполнялось.";
+      info.append(workflowNote);
       const revision = document.createElement("span");
       revision.className = "revision";
       revision.textContent = "Версия " + String(row.revision ?? "—");
