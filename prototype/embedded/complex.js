@@ -1244,22 +1244,23 @@ const cw=document.createElement('div');cw.style.display='grid';cw.style.gridTemp
 if(Array.isArray(field.exampleButtons)&&field.exampleButtons.length){
   const gallery=document.createElement('div');
   gallery.className='tmh-reference-examples';
-  gallery.style.cssText='display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;margin:8px 0 12px';
+  gallery.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:6px 0 9px';
   field.exampleButtons.forEach(function(example){
     if(!example||!example.label)return;
     const tone=example.color==='red'?['#fff0f0','#bd3131']:example.color==='green'?['#ecf9ed','#21814a']:['#f1f3f5','#475569'];
     const button=document.createElement('button');
     button.type='button';
     button.className='tmh-reference-example-btn';
-    button.style.cssText='display:inline-flex;flex-direction:column;align-items:center;gap:6px;min-width:76px;max-width:142px;min-height:37px;box-sizing:border-box;border:1px dashed '+tone[1]+';border-radius:9px;padding:7px 9px;color:'+tone[1]+';background:'+tone[0]+';font:600 13px/1.2 system-ui,sans-serif;text-align:center;overflow-wrap:anywhere';
+    button.style.cssText='display:inline-flex;flex-direction:row;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;min-width:84px;max-width:126px;min-height:36px;box-sizing:border-box;border:1px dashed '+tone[1]+';border-radius:9px;padding:6px 8px;color:'+tone[1]+';background:'+tone[0]+';font:600 12px/1.25 system-ui,sans-serif;text-align:center;overflow-wrap:anywhere';
     const label=document.createElement('span');
+    label.style.cssText='min-width:0;overflow-wrap:anywhere;flex:1 1 60px';
     label.textContent=(example.color==='green'?'✅ ':example.color==='red'?'❌ ':'')+example.label;
     button.appendChild(label);
     if(typeof example.image==='string'&&example.image.startsWith('data:image/')){
       const pic=document.createElement('img');
       pic.src=example.image;
       pic.alt='Образец: '+example.label;
-      pic.style.cssText='display:block;width:100%;max-width:120px;height:auto;max-height:100px;aspect-ratio:4/3;object-fit:cover;border-radius:6px;pointer-events:none';
+      pic.style.cssText='display:block;flex:0 0 48px;width:48px;height:38px;object-fit:cover;border-radius:5px;pointer-events:none';
       button.appendChild(pic);
       button.title='Открыть фотографию-образец';
       button.addEventListener('click',function(){if(typeof window.openPhotoModal==='function')window.openPhotoModal(pic.src);});
