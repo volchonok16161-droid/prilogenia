@@ -52,6 +52,8 @@ var bridge=`<script>
           var missingEvidence=triggered.filter(function(x){return x.status==='Да'&&x.rule.requirePhoto!==false&&!x.photo;}).length;
           return {
             selection:{selectedEquipment:selected.length,availableEquipment:available.length,
+              selectedOperations:available.filter(function(eq){return selected.indexOf(eq.id)!==-1;}).reduce(function(sum,eq){return sum+(Array.isArray(eq.fields)?eq.fields.length:0);},0),
+              availableOperations:available.reduce(function(sum,eq){return sum+(Array.isArray(eq.fields)?eq.fields.length:0);},0),
               selectedSections:selectedSections.length,availableSections:allSections.length},
             notifications:{required:triggered.length,delivered:delivered,notDelivered:notDelivered,
               pending:triggered.length-delivered-notDelivered,missingEvidence:missingEvidence},
