@@ -460,6 +460,14 @@
   var CUSTOM_FILE='/oborudovanie.json';
   // Built-in definitions stay as a compatibility fallback; the constructor owns
   // field order, additions and per-field configuration without changing stable keys.
+  // Shared notification rules for custom and built-in operations.
+  function cleanNotification(raw){
+    if(!raw||raw.enabled!==true)return null;
+    var trigger=['deviation','always','answers'].indexOf(raw.trigger)>=0?raw.trigger:'deviation';
+    var answers=(Array.isArray(raw.answers)?raw.answers:[]).map(cleanStr).filter(Boolean).slice(0,40);
+    return {enabled:true,trigger:trigger,answers:answers,
+      requirePhoto:raw.requirePhoto!==false,requireReason:raw.requireReason!==false};
+  }
   function cleanBuiltinOverrides(raw){
     var out={},allowed={};BUILTIN_EQ.forEach(function(e){allowed[e.id]=true;});
     Object.keys(raw&&typeof raw==='object'?raw:{}).forEach(function(id){
@@ -481,6 +489,7 @@
         if(typeof v.calc==='boolean')o.calc=v.calc;
         if(typeof v.hint==='string')o.hint=cleanText(v.hint).slice(0,3000);
         if(typeof v.explain==='string')o.explain=cleanText(v.explain).slice(0,3000);
+        if(v.notification&&v.notification.enabled===true)o.notification=cleanNotification(v.notification);
         if(v.hidden===true)o.hidden=true;
         if(Object.keys(o).length)fields[key]=o;
       });
@@ -501,11 +510,11 @@
         if(!v||!v.label||v.hidden)return;
         fields.push({key:key,label:v.label,type:v.type==='select'?'select':'text',
           options:Array.isArray(v.options)?v.options:[],ok:Array.isArray(v.ok)?v.ok:[],
-          photo:v.photo||'deviation',calc:v.calc!==false,hint:v.hint||'',explain:v.explain||'',exampleButtons:v.exampleButtons||[]});
+          photo:v.photo||'deviation',calc:v.calc!==false,hint:v.hint||'',explain:v.explain||'',exampleButtons:v.exampleButtons||[],notification:cleanNotification(v.notification)});
       });
       fields.forEach(function(f){
         var v=o.fields&&o.fields[f.key];if(!v)return;
-        ['label','type','photo','calc','hint','explain','answerColors','answerPhotos','exampleButtons'].forEach(function(k){
+        ['label','type','photo','calc','hint','explain','answerColors','answerPhotos','exampleButtons','notification'].forEach(function(k){
           if(Object.prototype.hasOwnProperty.call(v,k))f[k]=v[k];
         });
         if(Array.isArray(v.options)&&v.options.length)f.options=v.options.slice();
@@ -547,7 +556,7 @@
           ok=(Array.isArray(f.ok)?f.ok:[]).map(cleanStr).filter(function(x){return options.indexOf(x)>=0;});
         }
         var photo=(f.photo==='always'||f.photo==='never')?f.photo:'deviation';
-        fields.push({key:key,label:label,type:type,options:options,ok:ok,photo:photo,calc:f.calc!==false,hint:cleanText(f.hint),explain:cleanText(f.explain),answerColors:f.answerColors||{},answerPhotos:f.answerPhotos||{},exampleButtons:f.exampleButtons||[]});
+        fields.push({key:key,label:label,type:type,options:options,ok:ok,photo:photo,calc:f.calc!==false,hint:cleanText(f.hint),explain:cleanText(f.explain),answerColors:f.answerColors||{},answerPhotos:f.answerPhotos||{},exampleButtons:f.exampleButtons||[],notification:cleanNotification(f.notification)});
       });
       if(!fields.length){issues.push('Оборудование «'+title+'»: нет ни одного поля — пропущено');return;}
       if(fields.length>30)issues.push('Оборудование «'+title+'»: полей '+fields.length+', а в выгрузку Excel попадают только первые 30 операций — разделите узел на два');
