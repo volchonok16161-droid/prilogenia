@@ -546,6 +546,9 @@ async function main() {
   // document.open/write may reset the document realm and its globals; restore
   // the exact native template for the constructor's isolated preview.
   window.__TMH_NATIVE_PREVIEW_SOURCE__ = nativePreviewSource;
+  // Share the native OK/NOK example renderer with the draft preview.
+  const examplePatch = STANDALONE_PATCHES.find((p) => p.id === "__OKNOK_EXAMPLES_V1__");
+  window.__TMH_NATIVE_PREVIEW_EXAMPLE_PATCH__ = examplePatch ? examplePatch.code.replaceAll("window.parent", "window") : "";
 }
 main().catch(function(error) {
   console.error("Unified checklist runtime failed", error);
