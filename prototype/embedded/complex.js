@@ -1897,6 +1897,15 @@ async function exportWithPhotos(){ try{await __psReady();}catch(e){}
         const bn=date+'_'+tv+'_'+nv+'_Чек-лист_'+__modeLabel();
         const sb=bn.replace(/[\\/\\\\:*?"<>|]/g,'_');
         a.download=sb+'.xlsx';
+        // Browser downloads cannot be verified as completed. Record only the actual export request.
+        a.href=url;
+        a.click();
+        URL.revokeObjectURL(url);
+        if(!window.__TMH_DEVELOPER_PREVIEW__){
+          STATE.__tmhWorkflow=STATE.__tmhWorkflow||{};
+          STATE.__tmhWorkflow.excel={requestedAt:new Date().toISOString(),fileName:a.download};
+          saveState(true);
+        }
         let __tmhExcelCloudSaved = false;
         try {
           const __saveCloud = window.parent && window.parent.__TMH_SAVE_CLOUD_BACKUP_CONTEXT;
@@ -1909,10 +1918,7 @@ async function exportWithPhotos(){ try{await __psReady();}catch(e){}
         } catch (__cloudError) {
           console.error('Excel export cloud backup failed', __cloudError);
         }
-        a.href=url;
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast(__tmhExcelCloudSaved ? '☁️ Резервная копия чек-листа и фото сохранена в облако; Excel скачан' : '⚠️ Excel скачан, но облачная копия чек-листа не обновлена. Проверьте вход и подключение.');
+        showToast(__tmhExcelCloudSaved ? '☁️ Запрос выгрузки Excel записан в облачную копию' : '⚠️ Запрос выгрузки Excel отправлен, но облачная копия не обновлена');
     }catch(e){
         console.error(e);
         showToast('⚠️ Ошибка при экспорте: '+e.message);
