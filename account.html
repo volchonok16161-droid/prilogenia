@@ -636,6 +636,9 @@ async function loadCabinet() {
       indicator("Выбор оборудования",
         workflow.equipment ? workflow.equipment.selected + " из " + workflow.equipment.available + " доступных" : "Нет данных",
         workflow.equipment ? (workflow.equipment.selected < workflow.equipment.available ? "warn" : "done") : "unknown");
+      indicator("Операции",
+        workflow.operations ? workflow.operations.selected + " из " + workflow.operations.available + " доступны в выбранных узлах" : "Нет данных",
+        workflow.operations ? (workflow.operations.selected < workflow.operations.available ? "warn" : "done") : "unknown");
       indicator("Excel",
         workflow.excelRequestedAt ? "Экспорт запрошен · " + formatDate(workflow.excelRequestedAt) : "Нет подтверждения",
         workflow.excelRequestedAt ? "done" : "unknown");
@@ -657,7 +660,7 @@ async function loadCabinet() {
       const workflowNote = document.createElement("div");
       workflowNote.className = "workflow-explainer";
       workflowNote.textContent = (workflow.sections ? "Секций выбрано: " + workflow.sections.selected + " из " + workflow.sections.available + ". " : "") +
-        "Число доступных узлов не означает, что все они обязательны. Нет подтверждения ≠ действие не выполнялось.";
+        "Не все доступные узлы и операции обязательно входят в осмотр. Нет подтверждения ≠ действие не выполнялось.";
       info.append(workflowNote);
       const revision = document.createElement("span");
       revision.className = "revision";
