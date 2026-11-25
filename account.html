@@ -19,6 +19,13 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
 .workflow-cell[data-tone="unknown"] span{color:#60748a;font-weight:500}
 .checklist-state-line{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
 .checklist-category{display:block;line-height:1.4;margin-top:2px}
+.workflow-details{margin-top:11px;border:1px solid var(--line);border-radius:11px;background:#fafcfe;padding:0 10px 10px;min-width:0}
+.workflow-details>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;list-style:none;cursor:pointer;padding:11px 2px;font-size:13px;font-weight:700;color:#2c587f;user-select:none}
+.workflow-details>summary::-webkit-details-marker{display:none}
+.workflow-details>summary:after{content:'⌄';font-size:19px;line-height:1;color:#477ca5;transition:transform .15s}
+.workflow-details[open]>summary:after{transform:rotate(180deg)}
+.workflow-details>summary:focus-visible{outline:2px solid #315efb;outline-offset:3px;border-radius:5px}
+.workflow-details .workflow-grid{margin-top:6px}
 .workflow-explainer{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.35}.workflow-section-heading{font-size:11px;font-weight:750;letter-spacing:.04em;text-transform:uppercase;color:#687e96;margin-top:10px}
 @media(max-width:760px){.item{flex-wrap:wrap;align-items:flex-start;gap:9px}.item-info{flex:1 1 calc(100% - 54px)}.item .revision{margin-left:48px}.item .actions{margin-left:48px;width:calc(100% - 48px);flex:1 1 auto;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px!important}.item .actions>.btn{min-width:0;white-space:normal;padding:9px 5px!important}.workflow-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.workflow-cell{padding:7px 8px}.workflow-cell span{font-size:12px}.progress-meta{margin-top:7px}}
 .revision{font-size:12px;color:var(--muted);white-space:nowrap}.notice{padding:12px 14px;background:#fff8e7;border:1px solid #f4e5b8;border-radius:11px;color:#795b16;font-size:13px}.error{color:var(--red)}.empty{padding:20px 0;color:var(--muted);text-align:center}.loading{color:var(--muted)}.hidden{display:none!important}
@@ -634,10 +641,16 @@ async function loadCabinet() {
         cell.append(heading, text);
         workflowGrid.append(cell);
       }
+      const details = document.createElement("details");
+      details.className = "workflow-details";
+      const detailsSummary = document.createElement("summary");
+      detailsSummary.textContent = "Подробности осмотра и документов";
+      details.append(detailsSummary);
+      info.append(details);
       const progressHeading = document.createElement("div");
       progressHeading.className = "workflow-section-heading";
       progressHeading.textContent = "Осмотр и охват";
-      info.append(progressHeading);
+      details.append(progressHeading);
       indicator("Заполнено полей",
         workflow.counted ? workflow.filled + " из " + workflow.total : "Нет данных",
         workflow.percentage === 100 && completed ? "done" : workflow.percentage === null ? "unknown" : "warn");
@@ -650,8 +663,8 @@ async function loadCabinet() {
       const documentHeading = document.createElement("div");
       documentHeading.className = "workflow-section-heading";
       documentHeading.textContent = "Документы и подтверждения";
-      info.append(workflowGrid);
-      info.append(documentHeading);
+      details.append(workflowGrid);
+      details.append(documentHeading);
       const documentsGrid = document.createElement("div");
       documentsGrid.className = "workflow-grid";
       indicator = function(label, value, tone = "unknown") {
@@ -679,12 +692,12 @@ async function loadCabinet() {
           (notices.pending ? " · " + notices.pending + " ожидают" : "") +
           (notices.missingEvidence ? " · " + notices.missingEvidence + " без фото" : ""),
         !notices ? "unknown" : notices.notSent || notices.missingEvidence ? "bad" : notices.pending ? "warn" : "done");
-      info.append(documentsGrid);
+      details.append(documentsGrid);
       const workflowNote = document.createElement("div");
       workflowNote.className = "workflow-explainer";
       workflowNote.textContent = (workflow.sections ? "Секций выбрано: " + workflow.sections.selected + " из " + workflow.sections.available + ". " : "") +
         "Процент считается по выбранному осмотру, а не по всем доступным узлам. Отсутствие подтверждения не означает, что действие не выполнялось.";
-      info.append(workflowNote);
+      details.append(workflowNote);
       const revision = document.createElement("span");
       revision.className = "revision";
       revision.textContent = "Версия " + String(row.revision ?? "—");
