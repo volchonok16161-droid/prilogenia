@@ -665,8 +665,8 @@ async function loadCabinet() {
       indicator("Excel",
         workflow.excelRequestedAt ? "Экспорт запрошен · " + formatDate(workflow.excelRequestedAt) : "Нет подтверждения",
         workflow.excelRequestedAt ? "done" : "unknown");
-      indicator("Акт",
-        workflow.actPreparedAt ? "Подготовлен к печати" : "Нет подтверждения",
+      indicator("Подготовка акта",
+        workflow.actPreparedAt ? "Подготовлен к печати" : verifiedAct ? "Не отмечена · файл есть" : "Нет подтверждения",
         workflow.actPreparedAt ? "done" : "unknown");
       indicator("Загрузка акта",
         verifiedAct ? "Загружен · " + formatDate(verifiedAct.uploaded_at) : "Не подтверждена",
