@@ -17,8 +17,8 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
 .workflow-cell[data-tone="warn"]{border-color:#efdaa3;background:#fff9e8}.workflow-cell[data-tone="warn"] span{color:#936105}
 .workflow-cell[data-tone="bad"]{border-color:#e7c0b9;background:#fff2f0}.workflow-cell[data-tone="bad"] span{color:#a52e1f}
 .workflow-cell[data-tone="unknown"] span{color:#60748a;font-weight:500}
-.workflow-explainer{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.35}
-@media(max-width:760px){.item{flex-wrap:wrap;align-items:flex-start}.item-info{flex:1 1 calc(100% - 54px)}.item .revision{margin-left:48px}.item .actions{margin-left:auto}.workflow-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.workflow-cell{padding:7px 8px}}
+.workflow-explainer{font-size:11px;color:var(--muted);margin-top:7px;line-height:1.35}.workflow-section-heading{font-size:11px;font-weight:750;letter-spacing:.04em;text-transform:uppercase;color:#687e96;margin-top:10px}
+@media(max-width:760px){.item{flex-wrap:wrap;align-items:flex-start;gap:9px}.item-info{flex:1 1 calc(100% - 54px)}.item .revision{margin-left:48px}.item .actions{margin-left:48px;width:calc(100% - 48px);flex:1 1 auto;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px!important}.item .actions>.btn{min-width:0;white-space:normal;padding:9px 5px!important}.workflow-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.workflow-cell{padding:7px 8px}.workflow-cell span{font-size:12px}.progress-meta{margin-top:7px}}
 .revision{font-size:12px;color:var(--muted);white-space:nowrap}.notice{padding:12px 14px;background:#fff8e7;border:1px solid #f4e5b8;border-radius:11px;color:#795b16;font-size:13px}.error{color:var(--red)}.empty{padding:20px 0;color:var(--muted);text-align:center}.loading{color:var(--muted)}.hidden{display:none!important}
 .admin-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.admin-row:first-child{border-top:0}.admin-info{flex:1;min-width:0}.admin-info strong{display:block;overflow-wrap:anywhere}.admin-meta{font-size:12px;color:var(--muted);overflow-wrap:anywhere}.admin-pill{display:inline-block;margin-top:4px;padding:3px 8px;border-radius:20px;background:#e8f7ef;color:#14744e;font-size:12px}.admin-pill.off{background:#fff0ee;color:#a33b30}.admin-row button{flex:none}@media(max-width:620px){
 .app{padding:16px 12px 34px}
@@ -629,16 +629,35 @@ async function loadCabinet() {
         cell.append(heading, text);
         workflowGrid.append(cell);
       }
+      const progressHeading = document.createElement("div");
+      progressHeading.className = "workflow-section-heading";
+      progressHeading.textContent = "Осмотр и охват";
+      info.append(progressHeading);
       indicator("Заполнение",
         workflow.percentage === null ? "Нет данных" :
           workflow.percentage + "%" + (workflow.counted ? " · " + workflow.filled + "/" + workflow.total : ""),
         workflow.percentage === 100 && completed ? "done" : workflow.percentage === null ? "unknown" : "warn");
-      indicator("Выбор оборудования",
+      indicator("Охват оборудования",
         workflow.equipment ? workflow.equipment.selected + " из " + workflow.equipment.available + " доступных" : "Нет данных",
-        workflow.equipment ? (workflow.equipment.selected < workflow.equipment.available ? "warn" : "done") : "unknown");
-      indicator("Операции",
-        workflow.operations ? workflow.operations.selected + " из " + workflow.operations.available + " доступны в выбранных узлах" : "Нет данных",
-        workflow.operations ? (workflow.operations.selected < workflow.operations.available ? "warn" : "done") : "unknown");
+        workflow.equipment ? "neutral" : "unknown");
+      indicator("Охват операций",
+        workflow.operations ? workflow.operations.selected + " в выбранных узлах · " + workflow.operations.available + " во всём списке" : "Нет данных",
+        workflow.operations ? "neutral" : "unknown");
+      const documentHeading = document.createElement("div");
+      documentHeading.className = "workflow-section-heading";
+      documentHeading.textContent = "Документы и подтверждения";
+      info.append(workflowGrid);
+      info.append(documentHeading);
+      const documentsGrid = document.createElement("div");
+      documentsGrid.className = "workflow-grid";
+      indicator = function(label, value, tone = "unknown") {
+        const cell = document.createElement("div");
+        cell.className = "workflow-cell";
+        cell.dataset.tone = tone;
+        const heading = document.createElement("b");heading.textContent = label;
+        const text = document.createElement("span");text.textContent = value;
+        cell.append(heading, text);documentsGrid.append(cell);
+      };
       indicator("Excel",
         workflow.excelRequestedAt ? "Экспорт запрошен · " + formatDate(workflow.excelRequestedAt) : "Нет подтверждения",
         workflow.excelRequestedAt ? "done" : "unknown");
@@ -656,11 +675,11 @@ async function loadCabinet() {
           (notices.pending ? " · " + notices.pending + " ожидают" : "") +
           (notices.missingEvidence ? " · " + notices.missingEvidence + " без фото" : ""),
         !notices ? "unknown" : notices.notSent || notices.missingEvidence ? "bad" : notices.pending ? "warn" : "done");
-      info.append(workflowGrid);
+      info.append(documentsGrid);
       const workflowNote = document.createElement("div");
       workflowNote.className = "workflow-explainer";
       workflowNote.textContent = (workflow.sections ? "Секций выбрано: " + workflow.sections.selected + " из " + workflow.sections.available + ". " : "") +
-        "Не все доступные узлы и операции обязательно входят в осмотр. Нет подтверждения ≠ действие не выполнялось.";
+        "Процент считается по выбранному осмотру, а не по всем доступным узлам. Отсутствие подтверждения не означает, что действие не выполнялось.";
       info.append(workflowNote);
       const revision = document.createElement("span");
       revision.className = "revision";
