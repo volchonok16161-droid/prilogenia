@@ -41,12 +41,27 @@ test("personal cabinet renders lifecycle indicators from owner-scoped cloud reco
   const html=await readFile(new URL("../account.html",import.meta.url),"utf8");
   assert.match(html,/workflow:payload->workflow/);
   assert.match(html,/checklist-details\.html\?id=/);
-  assert.match(html,/Сведения об осмотре и документах/);
+  assert.match(html,/Сведения об электровозе · статистика и документы/);
   const page=await readFile(new URL("../checklist-details.html",import.meta.url),"utf8");
-  assert.match(page,/buildChecklistWorkflowView\(row\)/);
+  assert.match(page,/buildChecklistWorkflowView\(\{stats,workflow\}\)/);
   assert.match(page,/eq\("owner_id",ownerId\)/);
   assert.match(page,/Уведомления/);
   assert.match(page,/Документы и подтверждения/);
   assert.match(html,/Не подтверждена/);
   assert.match(html,/Нет подтверждения/);
+});
+
+
+test("locomotive details read progress and workflow from the saved checklist payload", async () => {
+  const page=await readFile(new URL("../checklist-details.html",import.meta.url),"utf8");
+  assert.match(page,/const stats=payload\.stats/);
+  assert.match(page,/const workflow=payload\.workflow/);
+  assert.match(page,/buildChecklistWorkflowView\(\{stats,workflow\}\)/);
+  assert.match(page,/isChecklistComplete\(stats\)/);
+  assert.match(page,/stats\.deviations===null/);
+  assert.match(page,/eq\("owner_id",ownerId\)/);
+  assert.match(page,/Точные количества заполненных/);
+  assert.match(page,/Выбрана только часть доступного объёма/);
+  const cabinet=await readFile(new URL("../account.html",import.meta.url),"utf8");
+  assert.match(cabinet,/open\.textContent = "Продолжить заполнение"/);
 });
