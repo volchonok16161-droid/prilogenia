@@ -19,6 +19,10 @@ button,a{font:inherit}.app{max-width:1040px;margin:auto;padding:26px 18px 48px}.
 .workflow-cell[data-tone="unknown"] span{color:#60748a;font-weight:500}
 .checklist-state-line{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
 .checklist-category{display:block;line-height:1.4;margin-top:2px}
+.checklist-title-linked{cursor:pointer}.checklist-title-linked:focus-visible{outline:2px solid #0a5eb0;border-radius:4px}
+.checklist-detail-link{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:12px 14px;border:1px solid #bfd7e8;border-radius:9px;color:#245a82;background:#f1f8fe;text-decoration:none;font-size:13px;font-weight:700}
+.checklist-detail-link::after{content:"→";font-size:17px}
+.checklist-detail-link:focus-visible{outline:2px solid #0a5eb0;outline-offset:2px}
 .workflow-details{margin-top:11px;border:1px solid var(--line);border-radius:11px;background:#fafcfe;padding:0 10px 10px;min-width:0}
 .workflow-details>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;list-style:none;cursor:pointer;padding:11px 2px;font-size:13px;font-weight:700;color:#2c587f;user-select:none}
 .workflow-details>summary::-webkit-details-marker{display:none}
@@ -136,8 +140,6 @@ html[data-theme="dark"] .connection-pill.online{background:#193a2a;color:#83d6a6
 <script type="module" src="./prototype/supabase-auth.js"></script>
 <script type="module">
 import { isChecklistComplete, summarizeChecklistStatuses } from "./prototype/checklist-status.js";
-import { buildChecklistWorkflowView } from "./prototype/checklist-workflow-status.js";
-import { listChecklistActs, uploadChecklistAct, getChecklistActLink } from "./prototype/checklist-acts.js";
 import { deleteCloudChecklist } from "./prototype/supabase-cloud-delete.js";
 const $ = (id) => document.getElementById(id);
 const roleLabels = { employee: "Сотрудник", assistant: "Помощник", admin: "Администратор", developer: "Разработчик" };
@@ -527,8 +529,6 @@ async function loadCabinet() {
     rows.push(...page);
     if (page.length < pageSize) break;
   }
-  const actMap = await listChecklistActs(api, user.id);
-  if (requestId !== cabinetLoadSequence) return;
   const latestIdentity = await api.getCurrentIdentity();
   if (requestId !== cabinetLoadSequence) return;
   if (latestIdentity?.error) throw latestIdentity.error;
@@ -625,79 +625,20 @@ async function loadCabinet() {
         track.append(fill);
         info.append(track);
       }
-      // Lifecycle indicators show only data saved with this specific cloud checklist.
-      const workflow = buildChecklistWorkflowView(row);
-      const verifiedAct = actMap.get(row.id) || null;
-      const workflowGrid = document.createElement("div");
-      workflowGrid.className = "workflow-grid";
-      function indicator(label, value, tone = "unknown") {
-        const cell = document.createElement("div");
-        cell.className = "workflow-cell";
-        cell.dataset.tone = tone;
-        const heading = document.createElement("b");
-        heading.textContent = label;
-        const text = document.createElement("span");
-        text.textContent = value;
-        cell.append(heading, text);
-        workflowGrid.append(cell);
-      }
-      const details = document.createElement("details");
-      details.className = "workflow-details";
-      const detailsSummary = document.createElement("summary");
-      detailsSummary.textContent = "Подробности осмотра и документов";
-      details.append(detailsSummary);
-      info.append(details);
-      const progressHeading = document.createElement("div");
-      progressHeading.className = "workflow-section-heading";
-      progressHeading.textContent = "Осмотр и охват";
-      details.append(progressHeading);
-      indicator("Заполнено полей",
-        workflow.counted ? workflow.filled + " из " + workflow.total : "Нет данных",
-        workflow.percentage === 100 && completed ? "done" : workflow.percentage === null ? "unknown" : "warn");
-      indicator("Охват оборудования",
-        workflow.equipment ? workflow.equipment.selected + " из " + workflow.equipment.available + " доступных" : "Нет данных",
-        workflow.equipment ? "neutral" : "unknown");
-      indicator("Охват операций",
-        workflow.operations ? workflow.operations.selected + " в выбранных узлах · " + workflow.operations.available + " во всём списке" : "Нет данных",
-        workflow.operations ? "neutral" : "unknown");
-      const documentHeading = document.createElement("div");
-      documentHeading.className = "workflow-section-heading";
-      documentHeading.textContent = "Документы и подтверждения";
-      details.append(workflowGrid);
-      details.append(documentHeading);
-      const documentsGrid = document.createElement("div");
-      documentsGrid.className = "workflow-grid";
-      indicator = function(label, value, tone = "unknown") {
-        const cell = document.createElement("div");
-        cell.className = "workflow-cell";
-        cell.dataset.tone = tone;
-        const heading = document.createElement("b");heading.textContent = label;
-        const text = document.createElement("span");text.textContent = value;
-        cell.append(heading, text);documentsGrid.append(cell);
-      };
-      indicator("Excel",
-        workflow.excelRequestedAt ? "Экспорт запрошен · " + formatDate(workflow.excelRequestedAt) : "Нет подтверждения",
-        workflow.excelRequestedAt ? "done" : "unknown");
-      indicator("Подготовка акта",
-        workflow.actPreparedAt ? "Подготовлен к печати" : verifiedAct ? "Не отмечена · файл есть" : "Нет подтверждения",
-        workflow.actPreparedAt ? "done" : "unknown");
-      indicator("Загрузка акта",
-        verifiedAct ? "Загружен · " + formatDate(verifiedAct.uploaded_at) : "Не подтверждена",
-        verifiedAct ? "done" : "unknown");
-      const notices = workflow.notifications;
-      indicator("Уведомления",
-        !notices ? "Нет данных" : !notices.required ? "Не требовались" :
-          notices.sent + "/" + notices.required + " передано" +
-          (notices.notSent ? " · " + notices.notSent + " не передано" : "") +
-          (notices.pending ? " · " + notices.pending + " ожидают" : "") +
-          (notices.missingEvidence ? " · " + notices.missingEvidence + " без фото" : ""),
-        !notices ? "unknown" : notices.notSent || notices.missingEvidence ? "bad" : notices.pending ? "warn" : "done");
-      details.append(documentsGrid);
-      const workflowNote = document.createElement("div");
-      workflowNote.className = "workflow-explainer";
-      workflowNote.textContent = (workflow.sections ? "Секций выбрано: " + workflow.sections.selected + " из " + workflow.sections.available + ". " : "") +
-        "Процент считается по выбранному осмотру, а не по всем доступным узлам. Отсутствие подтверждения не означает, что действие не выполнялось.";
-      details.append(workflowNote);
+      // Dedicated overview page contains the full statistics for this specific locomotive.
+      const detailHref="./checklist-details.html?id="+encodeURIComponent(row.id);
+      const detailLink=document.createElement("a");
+      detailLink.href=detailHref;
+      detailLink.className="checklist-detail-link";
+      detailLink.textContent="Сведения об осмотре и документах";
+      detailLink.setAttribute("aria-label","Открыть сведения по "+(row.title||"чек-листу"));
+      info.append(detailLink);
+      title.classList.add("checklist-title-linked");
+      title.setAttribute("title","Открыть сведения об осмотре");
+      title.tabIndex=0;
+      title.setAttribute("role","link");
+      title.addEventListener("click",()=>{window.location.href=detailHref;});
+      title.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();window.location.href=detailHref;}});
       const revision = document.createElement("span");
       revision.className = "revision";
       revision.textContent = "Версия " + String(row.revision ?? "—");
@@ -746,53 +687,14 @@ async function loadCabinet() {
           window.alert(error?.message || "Не удалось удалить облачный чек-лист.");
         }
       });
-      const actUpload = document.createElement("button");
-      actUpload.type = "button";
-      actUpload.className = "btn secondary";
-      actUpload.textContent = "Загрузить акт";
-      actUpload.style.padding = "8px 12px";
-      actUpload.style.fontSize = "13px";
-      const actInput = document.createElement("input");
-      actInput.type = "file";
-      actInput.accept = ".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png";
-      actInput.className = "hidden";
-      actUpload.addEventListener("click", () => actInput.click());
-      actInput.addEventListener("change", async () => {
-        const file = actInput.files?.[0];
-        if (!file) return;
-        actUpload.disabled = true;
-        actUpload.textContent = "Загрузка…";
-        try {
-          await uploadChecklistAct(api, { ownerId: user.id, checklistId: row.id, file });
-          await loadCabinet();
-        } catch (error) {
-          window.alert("Не удалось загрузить акт: " + (error?.message || error));
-        } finally {
-          actUpload.disabled = false;
-          actUpload.textContent = "Загрузить акт";
-          actInput.value = "";
-        }
-      });
-      actions.append(actUpload, actInput);
-      if (verifiedAct) {
-        const viewAct = document.createElement("button");
-        viewAct.type = "button";
-        viewAct.className = "btn secondary";
-        viewAct.textContent = "Открыть акт";
-        viewAct.style.padding = "8px 12px";
-        viewAct.style.fontSize = "13px";
-        viewAct.addEventListener("click", async () => {
-          viewAct.disabled = true;
-          try {
-            const link = await getChecklistActLink(api, verifiedAct);
-            window.open(link, "_blank", "noopener,noreferrer");
-          } catch (error) {
-            window.alert("Не удалось открыть акт: " + (error?.message || error));
-          } finally { viewAct.disabled = false; }
-        });
-        actions.append(viewAct);
-      }
-      actions.append(open, remove);
+      const showDetails=document.createElement("a");
+      showDetails.className="btn";
+      showDetails.href=detailHref;
+      showDetails.textContent="Сведения";
+      showDetails.setAttribute("aria-label","Статистика осмотра: "+(row.title||"чек-лист"));
+      open.textContent="Заполнить";
+      open.className="btn secondary";
+      actions.append(showDetails,open,remove);
       item.append(icon, info, revision, actions);
       list.append(item);
     }
