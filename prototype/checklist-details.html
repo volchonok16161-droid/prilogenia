@@ -248,8 +248,10 @@ function render(row,act){
    setText("notificationStatus","Нет данных");
    setText("notificationDetail","");
  }else if(notifications.required===0){
-   setText("notificationStatus","Не требуются");
-   setText("notificationDetail","");
+   // Legacy saved counts do not prove that the current checklist had no triggers.
+   setText("notificationStatus",notifications.verified?"Не требуются по копии":"Требуется проверка");
+   setText("notificationDetail",notifications.verified?
+     "По последней облачной копии уведомления не требовались.":"В облачной копии нет подтверждённого расчёта уведомлений. Проверьте их в чек-листе и обновите облачную копию.");
  }else{
    const outstanding=notifications.pending+notifications.notSent;
    setText("notificationStatus",outstanding||notifications.missingEvidence?"Требуют внимания":"Переданы: "+notifications.sent+" из "+notifications.required);
@@ -261,8 +263,8 @@ function render(row,act){
    ].filter(Boolean);
    setText("notificationDetail",detail.join(" · "));
  }
- $("notificationDetail").classList.toggle("hidden",!notifications||notifications.required===0);
- $("notificationStatus").dataset.alert=notifications&&(notifications.pending+notifications.notSent+notifications.missingEvidence)>0?"true":"false";
+ $("notificationDetail").classList.toggle("hidden",!notifications);
+ $("notificationStatus").dataset.alert=notifications&&(notifications.pending+notifications.notSent+notifications.missingEvidence)>0||notifications?.required===0&&!notifications.verified?"true":"false";
  setText("excel",w.excelRequestedAt?"Запрос "+fmt(w.excelRequestedAt):"Запрос не зафиксирован");
  setText("actUpload",act?"Загружен "+fmt(act.uploaded_at):actsAvailable?"Не загружен":"Проверяем…");
  setText("actPrepared",w.actPreparedAt?fmt(w.actPreparedAt):"Нет подтверждения");
