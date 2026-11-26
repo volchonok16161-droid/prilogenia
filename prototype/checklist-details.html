@@ -156,6 +156,7 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
       <div><span>Секции</span><strong id="sections">—</strong></div>
     </div>
     <p class="note">Здесь показаны только операции, сохранённые в облачной копии. Для старых чек-листов могут отсутствовать названия или полный перечень проверок.</p>
+    <div id="documentRegisterSummary" class="note"></div>
     <div id="equipmentDetailSummary" class="note"></div>
     <div id="equipmentDetailList" class="equipment-list"></div>
     <div class="document-line"><span>Подготовка акта</span><strong id="actPrepared">—</strong></div>
@@ -276,6 +277,12 @@ function render(row,act){
  setText("operations",w.operations?w.operations.selected+" из "+w.operations.available:"Нет данных");
  setText("sections",w.sections?w.sections.selected+" из "+w.sections.available:"Нет данных");
  setText("coverageNotice",w.equipment&&w.equipment.selected<w.equipment.available?"Часть оборудования не входит в этот осмотр. Это не означает незавершённое заполнение.":"");
+ const docRecords=Array.isArray(payload.documents?.notices)?payload.documents.notices:[];
+ const housings=docRecords.filter(x=>x?.templateId==="housings_notice");
+ setText("documentRegisterSummary",housings.length?
+   "Кожуха: оснований для уведомления — "+housings.length+". Утверждённый шаблон документа ещё не добавлен.":
+   payload.documents?.schemaVersion===1?"По сохранённому реестру оснований для уведомлений по кожухам нет.":
+   "Реестр документов появится после нового сохранения чек-листа в облако.");
  // Optional detailed answers are rendered only after the user expands this section.
  const mode=typeof row.mode==="string"?row.mode:payload.mode||"";
  $("openChecklist").href="./prototype/checklist/?openChecklist="+encodeURIComponent(row.id)+(mode?"&mode="+encodeURIComponent(mode):"");
