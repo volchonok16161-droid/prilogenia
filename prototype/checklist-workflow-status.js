@@ -36,6 +36,6 @@ export function buildChecklistWorkflowView(row) {
     operations: validOperations ? {selected:selectedOps,available:availableOps} : null,
     sections: validSections ? {selected:sections,available:totalSections} : null,
     excelRequestedAt:excel, actPreparedAt:actPrepared, actUploadedAt:actUploaded,
-    notifications:validNotices ? {required,sent,notSent,pending,missingEvidence:invalid} : null
+    notifications:validNotices ? {required,sent,notSent,pending,missingEvidence:invalid,verified:notice.verified===true,calculatedAt:date(notice.calculatedAt)} : null
   });
 }
