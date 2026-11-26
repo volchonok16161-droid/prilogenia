@@ -31,10 +31,30 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 .timeline p{margin:2px 0 0;font-size:12px;color:var(--muted)}
 @media(max-width:550px){.overview{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-card .value{font-size:19px}}
 @media(max-width:550px){.top{padding:14px 12px}.top strong{font-size:15px}.page{padding:13px 10px 35px}.panel{padding:15px;border-radius:13px}.statgrid{gap:7px}.stat{padding:10px}.stat .value{font-size:15px}.actions .btn{flex:1 1 43%}h1{font-size:21px}}
+@media(max-width:550px){
+ .top{gap:9px;justify-content:flex-start;align-items:center;padding:11px 12px}
+ .top a{padding:7px 10px;font-size:13px;border-radius:8px}
+ .top strong{font-size:14px;line-height:1.2}
+ .page{padding:11px 10px 28px}
+ .panel{padding:13px;margin-bottom:11px}
+ h1{font-size:21px;line-height:1.25}
+ .meta{font-size:12px}
+ #dates{line-height:1.4}
+ #locomotiveInfo{gap:7px;margin-top:10px!important}
+ .statgrid{gap:7px}
+ .stat{padding:9px}
+ .stat .value{font-size:14px}
+ .actions{gap:7px;margin-top:12px}
+ .actions .btn{font-size:13px;padding:8px 10px;min-height:42px}
+ .overview{gap:7px;margin-bottom:11px}
+ .overview-card{padding:10px}
+ .overview-card .value{font-size:19px}
+ .overview-card .sub{font-size:11px}
+}
 </style>
 </head>
 <body>
-<header class="top"><a href="./account.html" id="back">← Кабинет</a><strong>Сведения об осмотре электровоза</strong></header>
+<header class="top"><a href="./account.html" id="back">← Кабинет</a><strong>Сведения об осмотре</strong></header>
 <main class="page">
 <div id="loading" class="panel">Загружаем сведения по выбранному чек-листу…</div>
 <div id="error" class="panel error hidden" role="alert"></div>
@@ -51,7 +71,7 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 <div class="stat"><div class="label">Место осмотра</div><div class="value" id="place">—</div></div>
 <div class="stat"><div class="label">Пробег</div><div class="value" id="mileage">—</div></div>
 </div>
-<div class="actions"><a id="openChecklist" class="btn primary">Открыть чек-лист для заполнения</a><a href="./account.html" class="btn">Все чек-листы</a></div>
+<div class="actions"><a id="openChecklist" class="btn primary">Продолжить заполнение</a><a href="./account.html" class="btn">К списку чек-листов</a></div>
 </section>
 <div class="overview" aria-label="Краткая сводка осмотра">
 <div class="overview-card" id="overviewProgressCard"><div class="label">Заполнение</div><div class="value" id="overviewProgress">—</div><div class="sub">От выбранного объёма</div></div>
