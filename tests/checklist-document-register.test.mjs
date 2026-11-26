@@ -12,6 +12,7 @@ test("first document template is housings only, awaiting approved user sample",(
   {equipmentId:"nvmontazh",instanceId:"nvmontazh|Секция 1",fieldKey:"f1",answer:"Устранено"}
  ]});
  assert.equal(reg.schemaVersion,1);
+ assert.equal(reg.noticeCalculationVerified,false);
  assert.equal(reg.notices[0].templateId,"housings_notice");
  assert.equal(reg.notices[0].noticeGeneratedAt,null);
  assert.equal(reg.notices[0].noticeCopyUploaded,null);
@@ -46,4 +47,11 @@ test("Excel has a distinct structured document register without claiming signed 
  assert.match(DOCUMENT_EXPORT_RUNTIME,/Нет подтверждения/);
  assert.match(DOCUMENT_EXPORT_RUNTIME,/Копия документа/);
  assert.match(DOCUMENT_EXPORT_RUNTIME,/kind:'Акт'/);
+});
+
+test("empty document register is only confirmed when the notice calculator was verified",()=>{
+ const legacy=createDocumentRegister({notices:[]});
+ const current=createDocumentRegister({notices:[],noticesVerified:true});
+ assert.equal(legacy.noticeCalculationVerified,false);
+ assert.equal(current.noticeCalculationVerified,true);
 });
