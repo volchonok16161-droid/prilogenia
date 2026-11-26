@@ -627,12 +627,6 @@ async function loadCabinet() {
       }
       // Dedicated overview page contains the full statistics for this specific locomotive.
       const detailHref="./prototype/checklist-details.html?id="+encodeURIComponent(row.id);
-      const detailLink=document.createElement("a");
-      detailLink.href=detailHref;
-      detailLink.className="checklist-detail-link";
-      detailLink.textContent="Сведения об электровозе · статистика и документы";
-      detailLink.setAttribute("aria-label","Открыть сведения по "+(row.title||"чек-листу"));
-      info.append(detailLink);
       title.classList.add("checklist-title-linked");
       title.setAttribute("title","Открыть сведения об осмотре");
       title.tabIndex=0;
