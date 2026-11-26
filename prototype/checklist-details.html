@@ -86,7 +86,7 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 .result-cell strong[data-alert="true"]{color:#b42318}
 .attention{margin-top:12px;padding:11px 12px;border-radius:10px;background:#fff3e8;border:1px solid #edce9d;color:#845315;font-size:13px}
 .document-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #e6edf4}
-.document-line strong{font-size:13px;text-align:right;overflow-wrap:anywhere}
+.document-line strong{font-size:13px;text-align:right;overflow-wrap:anywhere}.document-line strong[data-alert="true"]{color:#b42318}
 .main-actions{margin-top:0;margin-bottom:12px}.main-actions .btn{width:100%}
 .more-details{padding:0!important}.more-details>summary{cursor:pointer;padding:15px 19px;font-weight:700;list-style:none;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px}
 .more-details>summary::-webkit-details-marker{display:none}.more-details>summary:after{content:"⌄";color:var(--blue)}
@@ -133,9 +133,11 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
   <div id="attention" class="attention hidden" role="status"></div>
 </section>
 <section class="panel">
-  <h2>Документы</h2>
+  <h2>Документы и уведомления</h2>
   <div class="document-line"><span>Excel</span><strong id="excel">Нет сведений</strong></div>
   <div class="document-line"><span>Акт осмотра</span><strong id="actUpload">Нет сведений</strong></div>
+  <div class="document-line"><span>Уведомления</span><strong id="notificationStatus">Нет данных</strong></div>
+  <p id="notificationDetail" class="note hidden"></p>
   <div class="actions">
     <button id="uploadAct" type="button" class="btn">Загрузить акт</button>
     <button id="viewAct" type="button" class="btn hidden">Открыть акт</button>
@@ -241,6 +243,26 @@ function render(row,act){
  }
  setText("attention",alerts.join(" · "));
  $("attention").classList.toggle("hidden",alerts.length===0);
+ const notifications=w.notifications;
+ if(!notifications){
+   setText("notificationStatus","Нет данных");
+   setText("notificationDetail","");
+ }else if(notifications.required===0){
+   setText("notificationStatus","Не требуются");
+   setText("notificationDetail","");
+ }else{
+   const outstanding=notifications.pending+notifications.notSent;
+   setText("notificationStatus",outstanding||notifications.missingEvidence?"Требуют внимания":"Переданы: "+notifications.sent+" из "+notifications.required);
+   const detail=[
+     "Требовалось: "+notifications.required,
+     "Передано: "+notifications.sent,
+     outstanding?"Не передано или без решения: "+outstanding:"",
+     notifications.missingEvidence?"Без обязательного фото: "+notifications.missingEvidence:""
+   ].filter(Boolean);
+   setText("notificationDetail",detail.join(" · "));
+ }
+ $("notificationDetail").classList.toggle("hidden",!notifications||notifications.required===0);
+ $("notificationStatus").dataset.alert=notifications&&(notifications.pending+notifications.notSent+notifications.missingEvidence)>0?"true":"false";
  setText("excel",w.excelRequestedAt?"Запрос "+fmt(w.excelRequestedAt):"Запрос не зафиксирован");
  setText("actUpload",act?"Загружен "+fmt(act.uploaded_at):actsAvailable?"Не загружен":"Проверяем…");
  setText("actPrepared",w.actPreparedAt?fmt(w.actPreparedAt):"Нет подтверждения");
