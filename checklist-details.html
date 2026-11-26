@@ -37,6 +37,7 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 <main class="page">
 <div id="loading" class="panel">Загружаем сведения по выбранному чек-листу…</div>
 <div id="error" class="panel error hidden" role="alert"></div>
+<div id="warning" class="panel hidden" role="status" style="border-color:#e8c67d;background:#fff9e9;color:#80570c"></div>
 <div id="content" class="hidden">
 <section class="panel">
 <div class="meta" id="kind"></div>
@@ -110,7 +111,7 @@ import { listChecklistActs, uploadChecklistAct, getChecklistActLink } from "./pr
 const $=id=>document.getElementById(id);
 const fmt=v=>{if(!v)return "—";const d=new Date(v);return Number.isNaN(d.getTime())?"—":new Intl.DateTimeFormat("ru-RU",{dateStyle:"medium",timeStyle:"short"}).format(d)};
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-let current=null,verifiedAct=null,ownerId=null,api=null;
+let current=null,verifiedAct=null,ownerId=null,api=null,actsAvailable=false;
 function setText(id,val){$(id).textContent=val}
 function addNotice(label,value,tone){const box=document.createElement("div");box.className="stat";if(tone)box.dataset.tone=tone;const l=document.createElement("div");l.className="label";l.textContent=label;const v=document.createElement("div");v.className="value";v.textContent=value;box.append(l,v);$("notificationStats").append(box)}
 function render(row,act){
@@ -142,8 +143,8 @@ function render(row,act){
  $("overviewProgressCard").dataset.tone=w.percentage===100&&done?"green":"orange";
  setText("overviewDeviations",Number.isSafeInteger(dev)&&dev>=0?String(dev):"Нет данных");
  $("overviewDeviationCard").dataset.tone=Number.isSafeInteger(dev)&&dev>0?"red":"";
- setText("overviewAct",act?"Загружен":"Не загружен");
- $("overviewDocumentCard").dataset.tone=act?"green":"orange";
+ setText("overviewAct",act?"Загружен":actsAvailable?"Не загружен":"Нет данных");
+ $("overviewDocumentCard").dataset.tone=act?"green":actsAvailable?"orange":"";
  setText("fillSummary",w.counted?(w.total===w.filled?"Все учтённые поля заполнены.":"Требуют заполнения: "+(w.total-w.filled)+"."):"Точные количества заполненных и обязательных полей не сохранены.");
  setText("equipment",w.equipment?w.equipment.selected+" из "+w.equipment.available:"Нет данных");
  setText("operations",w.operations?w.operations.selected+" в выбранных узлах из "+w.operations.available+" в каталоге":"Нет данных");
@@ -162,9 +163,10 @@ function render(row,act){
  }
  setText("excel",w.excelRequestedAt?"Запрос экспорта · "+fmt(w.excelRequestedAt):"Нет подтверждения");
  setText("actPrepared",w.actPreparedAt?"Подготовлен к печати · "+fmt(w.actPreparedAt):act?"Не отмечена · файл загружен":"Нет подтверждения");
- setText("actUpload",act?"Файл загружен · "+fmt(act.uploaded_at):"Не подтверждена");
+ setText("actUpload",act?"Файл загружен · "+fmt(act.uploaded_at):actsAvailable?"Не подтверждена":"Нет данных — сервис актов недоступен");
  setText("revision",String(row.revision??"—"));
- setText("actDetails",act?"Файл: "+act.file_name+" · "+Math.round(act.file_size/1024)+" КБ. Наличие файла не означает, что он подписан.":"Подготовка, подпись и загрузка акта — отдельные действия.");
+ setText("actDetails",act?"Файл: "+act.file_name+" · "+Math.round(act.file_size/1024)+" КБ. Наличие файла не означает, что он подписан.":actsAvailable?"Подготовка, подпись и загрузка акта — отдельные действия.":"Сведения об актах временно недоступны. Остальные показатели осмотра доступны.");
+ $("uploadAct").disabled=!actsAvailable;
  $("viewAct").classList.toggle("hidden",!act);
  const events=buildChecklistDetailTimeline(row,w,act);
  const timeline=$("timeline");timeline.replaceChildren();
@@ -193,10 +195,23 @@ async function load(){
  const latestIdentity=await api.getCurrentIdentity();
  if(latestIdentity?.error||latestIdentity?.user?.id!==ownerId)throw new Error("Сеанс пользователя изменился");
  current=result.data;
- const acts=await listChecklistActs(api,ownerId);
- verifiedAct=acts.get(id)||null;
- render(current,verifiedAct);
+ // Show the saved checklist first; attachment storage must not block statistics.
+ actsAvailable=false;
+ render(current,null);
  $("loading").classList.add("hidden");$("content").classList.remove("hidden");
+ try {
+   const acts=await listChecklistActs(api,ownerId);
+   const stillCurrent=await api.getCurrentIdentity();
+   if(stillCurrent?.error||stillCurrent?.user?.id!==ownerId) throw new Error("Сеанс пользователя изменился");
+   actsAvailable=true;
+   verifiedAct=acts.get(id)||null;
+   render(current,verifiedAct);
+   $("warning").classList.add("hidden");
+ } catch (attachmentError) {
+   console.warn("Checklist act metadata could not be loaded",attachmentError);
+   setText("warning","Сведения об осмотре загружены. Данные об актах сейчас недоступны; остальные показатели отображаются без изменений.");
+   $("warning").classList.remove("hidden");
+ }
 }
 $("uploadAct").addEventListener("click",()=>$("actFile").click());
 $("actFile").addEventListener("change",async()=>{
