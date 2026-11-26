@@ -9,7 +9,7 @@ export const DOCUMENT_TEMPLATE_REGISTRY = Object.freeze({
 });
 const text=value=>String(value??"").trim();
 const safeId=value=>text(value).slice(0,200);
-export function createDocumentRegister({notices=[],general={},act=null}={}){
+export function createDocumentRegister({notices=[],general={},act=null,noticesVerified=false}={}){
   const entries=[];
   for(const item of Array.isArray(notices)?notices:[]){
     if(!item||!item.equipmentId||!item.instanceId||!item.fieldKey)continue;
@@ -37,6 +37,7 @@ export function createDocumentRegister({notices=[],general={},act=null}={}){
   }
   return Object.freeze({
     schemaVersion:1,
+    noticeCalculationVerified:noticesVerified===true,
     locomotive:{type:text(general.type),number:text(general.number),date:text(general.date)},
     notices:Object.freeze(entries),
     act:Object.freeze({
