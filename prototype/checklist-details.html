@@ -66,7 +66,7 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 .equipment-op .op-key{min-width:0;overflow-wrap:anywhere;color:var(--muted)}
 .equipment-op .op-answer{font-weight:650;text-align:right;max-width:48%;overflow-wrap:anywhere}
 .equipment-op .op-answer[data-state="ok"]{color:#147846}
-.equipment-op .op-answer[data-state="nok"]{color:#b42318}
+.equipment-op .op-answer[data-state="deviation"],.equipment-op .op-answer[data-state="nok"]{color:#b42318}
 .equipment-op .op-answer[data-state="empty"]{color:#9a6518}
 @media(max-width:550px){.equipment-list summary{padding:11px}.equipment-op{font-size:12px}}
 </style>
@@ -119,7 +119,7 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 </section>
 <section class="panel" aria-labelledby="equipmentDetailTitle">
 <h2 id="equipmentDetailTitle">Оборудование и сохранённые операции</h2>
-<p class="note">Здесь показаны только ответы, присутствующие в облачной копии. Если старый чек-лист не сохранял каталог операций, отсутствующие в копии проверки нельзя посчитать, а ключ операции может отображаться вместо названия.</p>
+<p class="note">Здесь показаны только ответы, присутствующие в облачной копии. Для некоторых старых чек-листов каталог операций не сохранён: названия и отклонения определяются только там, где известны нормативные значения; остальные ответы отображаются без оценки.</p>
 <div id="equipmentDetailSummary" class="muted" role="status"></div>
 <div id="equipmentDetailList" class="equipment-list"></div>
 </section>
@@ -166,20 +166,20 @@ function renderEquipmentDetails(payload){
  const empty=groups.reduce((n,g)=>n+g.empty,0);
  const nok=groups.reduce((n,g)=>n+g.nok,0);
  setText("equipmentDetailSummary",groups.length?
-   "Узлов с сохранёнными ответами: "+groups.length+" · Ответов: "+answered+" · Пустых сохранённых полей: "+empty+" · Явных NOK: "+nok:
+   "Узлов с сохранёнными ответами: "+groups.length+" · Ответов: "+answered+" · Пустых сохранённых полей: "+empty+" · Выявленных отклонений: "+nok:
    "В этой облачной копии нет ответов с привязкой к оборудованию.");
  for(const group of groups){
    const details=document.createElement("details"),summary=document.createElement("summary");
    const label=document.createElement("div"),name=document.createElement("div"),count=document.createElement("span");
    name.className="eq-name";name.textContent=group.label;
-   count.className="eq-count";count.textContent="Ответов: "+group.answered+" · Пустых: "+group.empty+" · NOK: "+group.nok;
+   count.className="eq-count";count.textContent="Ответов: "+group.answered+" · Пустых: "+group.empty+" · Отклонений: "+group.nok;
    label.append(name,count);summary.append(label);details.append(summary);
    for(const instance of group.instances){
      const body=document.createElement("div"),heading=document.createElement("h3");
      body.className="equipment-instance";heading.textContent=instance.label;body.append(heading);
      for(const op of instance.operations){
        const line=document.createElement("div"),key=document.createElement("span"),value=document.createElement("span");
-       line.className="equipment-op";key.className="op-key";key.textContent=op.key;
+       line.className="equipment-op";key.className="op-key";key.textContent=op.label;
        value.className="op-answer";value.dataset.state=op.kind;
        value.textContent=op.answer||"Без ответа";line.append(key,value);body.append(line);
      }
