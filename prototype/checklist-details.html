@@ -174,7 +174,6 @@ const fmt=v=>{if(!v)return "—";const d=new Date(v);return Number.isNaN(d.getTi
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let current=null,verifiedAct=null,ownerId=null,api=null,actsAvailable=false;
 function setText(id,val){$(id).textContent=val}
-function addNotice(label,value,tone){const box=document.createElement("div");box.className="stat";if(tone)box.dataset.tone=tone;const l=document.createElement("div");l.className="label";l.textContent=label;const v=document.createElement("div");v.className="value";v.textContent=value;box.append(l,v);$("notificationStats").append(box)}
 function renderEquipmentDetails(payload){
  const groups=buildChecklistEquipmentDetails(payload),host=$("equipmentDetailList");host.replaceChildren();
  const answered=groups.reduce((n,g)=>n+g.answered,0);
