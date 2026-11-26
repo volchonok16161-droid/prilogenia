@@ -48,7 +48,8 @@ var bridge=`<script>
           var effectiveSelection=selected.length?selected:available.map(function(eq){return eq.id;});
           var selectedSections=Array.isArray(STATE.selectedSections)?STATE.selectedSections:[];
           var allSections=(typeof getSections==='function'&&STATE.general&&STATE.general.type)?getSections(STATE.general.type):[];
-          var triggered=(typeof __tmhNoticeItems==='function')?__tmhNoticeItems():[];
+          var noticeVerified=typeof __tmhNoticeItems==='function';
+          var triggered=noticeVerified?__tmhNoticeItems():[];
           var delivered=triggered.filter(function(x){return x.status==='Да';}).length;
           var notDelivered=triggered.filter(function(x){return x.status==='Нет';}).length;
           var missingEvidence=triggered.filter(function(x){return x.status==='Да'&&x.rule.requirePhoto!==false&&!x.photo;}).length;
@@ -58,7 +59,8 @@ var bridge=`<script>
               availableOperations:available.reduce(function(sum,eq){return sum+(Array.isArray(eq.fields)?eq.fields.length:0);},0),
               selectedSections:selectedSections.length,availableSections:allSections.length},
             notifications:{required:triggered.length,delivered:delivered,notDelivered:notDelivered,
-              pending:triggered.length-delivered-notDelivered,missingEvidence:missingEvidence},
+              pending:triggered.length-delivered-notDelivered,missingEvidence:missingEvidence,
+              verified:noticeVerified,calculatedAt:noticeVerified?new Date().toISOString():null},
             excel:(STATE.__tmhWorkflow&&STATE.__tmhWorkflow.excel)||null,
             act:(STATE.__tmhWorkflow&&STATE.__tmhWorkflow.act)||null
           };
