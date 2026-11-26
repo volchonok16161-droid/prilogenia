@@ -65,3 +65,14 @@ test("locomotive details read progress and workflow from the saved checklist pay
   const cabinet=await readFile(new URL("../account.html",import.meta.url),"utf8");
   assert.match(cabinet,/open\.textContent = "Продолжить заполнение"/);
 });
+
+test("details render the checklist even when attachment metadata is unavailable",async()=>{
+ const html=await readFile(new URL("../checklist-details.html",import.meta.url),"utf8");
+ const renderAt=html.indexOf("render(current,null)");
+ const attachmentsAt=html.indexOf("const acts=await listChecklistActs(api,ownerId)");
+ assert.ok(renderAt>0&&attachmentsAt>renderAt,"checklist renders before optional act request");
+ assert.match(html,/catch \(attachmentError\)/);
+ assert.match(html,/Сведения об осмотре загружены/);
+ assert.match(html,/actsAvailable\?"Не подтверждена":"Нет данных/);
+ assert.match(html,/\$\("uploadAct"\)\.disabled=!actsAvailable/);
+});
