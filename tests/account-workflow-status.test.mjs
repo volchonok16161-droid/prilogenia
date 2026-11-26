@@ -76,3 +76,13 @@ test("details render the checklist even when attachment metadata is unavailable"
  assert.match(html,/actsAvailable\?"Не подтверждена":"Нет данных/);
  assert.match(html,/\$\("uploadAct"\)\.disabled=!actsAvailable/);
 });
+
+test("preview uses the route actually published by Render",async()=>{
+ const cabinet=await readFile(new URL("../account.html",import.meta.url),"utf8");
+ const page=await readFile(new URL("../prototype/checklist-details.html",import.meta.url),"utf8");
+ const worker=await readFile(new URL("../sw.js",import.meta.url),"utf8");
+ assert.match(cabinet,/const detailHref="\.\/prototype\/checklist-details\.html\?id="/);
+ assert.match(page,/<base href="\.\.\/">/);
+ assert.match(page,/buildChecklistWorkflowView\(\{stats,workflow\}\)/);
+ assert.match(worker,/\.\/prototype\/checklist-details\.html/);
+});
