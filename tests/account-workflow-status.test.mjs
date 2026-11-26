@@ -40,8 +40,13 @@ test("invalid or unverifiable uploaded-act signals stay unconfirmed", () => {
 test("personal cabinet renders lifecycle indicators from owner-scoped cloud records", async () => {
   const html=await readFile(new URL("../account.html",import.meta.url),"utf8");
   assert.match(html,/workflow:payload->workflow/);
-  assert.match(html,/buildChecklistWorkflowView\(row\)/);
-  assert.match(html,/workflow-grid/);
+  assert.match(html,/checklist-details\.html\?id=/);
+  assert.match(html,/Сведения об осмотре и документах/);
+  const page=await readFile(new URL("../checklist-details.html",import.meta.url),"utf8");
+  assert.match(page,/buildChecklistWorkflowView\(row\)/);
+  assert.match(page,/eq\("owner_id",ownerId\)/);
+  assert.match(page,/Уведомления/);
+  assert.match(page,/Документы и подтверждения/);
   assert.match(html,/Не подтверждена/);
   assert.match(html,/Нет подтверждения/);
 });
