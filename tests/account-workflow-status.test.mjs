@@ -41,7 +41,8 @@ test("personal cabinet renders lifecycle indicators from owner-scoped cloud reco
   const html=await readFile(new URL("../account.html",import.meta.url),"utf8");
   assert.match(html,/workflow:payload->workflow/);
   assert.match(html,/checklist-details\.html\?id=/);
-  assert.match(html,/Сведения об электровозе · статистика и документы/);
+  assert.match(html,/showDetails.textContent="Сведения"/);
+  assert.doesNotMatch(html,/info.append\(detailLink\)/);
   const page=await readFile(new URL("../checklist-details.html",import.meta.url),"utf8");
   assert.match(page,/buildChecklistWorkflowView\(\{stats,workflow\}\)/);
   assert.match(page,/eq\("owner_id",ownerId\)/);
