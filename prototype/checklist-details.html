@@ -69,6 +69,39 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 .equipment-op .op-answer[data-state="deviation"],.equipment-op .op-answer[data-state="nok"]{color:#b42318}
 .equipment-op .op-answer[data-state="empty"]{color:#9a6518}
 @media(max-width:550px){.equipment-list summary{padding:11px}.equipment-op{font-size:12px}}
+
+/* Summary-first mobile layout */
+.main-summary .hero-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:5px 0 11px}
+.hero-title h1{margin:0}
+.inspect-info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.inspect-info div{min-width:0}.inspect-info span,.scope-grid span{display:block;color:var(--muted);font-size:12px}
+.inspect-info strong,.scope-grid strong{display:block;font-size:14px;overflow-wrap:anywhere}
+.big-percent{color:var(--blue);font-size:27px}
+.main-progress .progress{margin-top:5px}
+.progress-caption{font-size:13px;color:var(--muted);margin:7px 0 12px}
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.result-cell{border:1px solid var(--line);border-radius:11px;padding:12px;background:#f8fafc}
+.result-cell span,.document-line span{font-size:13px;color:var(--muted)}
+.result-cell strong{display:block;font-size:23px;margin-top:3px}
+.result-cell strong[data-alert="true"]{color:#b42318}
+.attention{margin-top:12px;padding:11px 12px;border-radius:10px;background:#fff3e8;border:1px solid #edce9d;color:#845315;font-size:13px}
+.document-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #e6edf4}
+.document-line strong{font-size:13px;text-align:right;overflow-wrap:anywhere}
+.main-actions{margin-top:0;margin-bottom:12px}.main-actions .btn{width:100%}
+.more-details{padding:0!important}.more-details>summary{cursor:pointer;padding:15px 19px;font-weight:700;list-style:none;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px}
+.more-details>summary::-webkit-details-marker{display:none}.more-details>summary:after{content:"⌄";color:var(--blue)}
+.more-details[open]>summary:after{content:"⌃"}
+.more-details .more-content{padding:0 19px 19px;border-top:1px solid var(--line)}
+.scope-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+.scope-grid div{background:#f8fafc;padding:9px;border-radius:9px}
+@media(max-width:550px){
+ .inspect-info{gap:7px}
+ .main-summary .hero-title{align-items:flex-start}
+ .result-cell{padding:10px}
+ .more-details>summary{padding:13px}
+ .more-details .more-content{padding:0 13px 13px}
+ .scope-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 </style>
 </head>
 <body>
@@ -78,80 +111,62 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 <div id="error" class="panel error hidden" role="alert"></div>
 <div id="warning" class="panel hidden" role="status" style="border-color:#e8c67d;background:#fff9e9;color:#80570c"></div>
 <div id="content" class="hidden">
-<section class="panel">
-<div class="meta" id="kind"></div>
-<h1 id="title">Осмотр</h1>
-<div id="status" class="badge"></div>
-<div class="meta" id="dates" style="margin-top:10px"></div>
-<div id="locomotiveInfo" class="statgrid" style="margin-top:12px">
-<div class="stat"><div class="label">Дата осмотра</div><div class="value" id="inspectionDate">—</div></div>
-<div class="stat"><div class="label">Депо</div><div class="value" id="depot">—</div></div>
-<div class="stat"><div class="label">Место осмотра</div><div class="value" id="place">—</div></div>
-<div class="stat"><div class="label">Пробег</div><div class="value" id="mileage">—</div></div>
-</div>
-<div class="actions"><a id="openChecklist" class="btn primary">Продолжить заполнение</a><a href="./account.html" class="btn">К списку чек-листов</a></div>
+<section class="panel main-summary">
+  <div class="meta" id="kind"></div>
+  <div class="hero-title"><h1 id="title">Осмотр</h1><span id="status" class="badge"></span></div>
+  <div class="inspect-info">
+    <div><span>Дата осмотра</span><strong id="inspectionDate">—</strong></div>
+    <div><span>Депо</span><strong id="depot">—</strong></div>
+    <div><span>Место</span><strong id="place">—</strong></div>
+  </div>
+  <div class="meta" id="dates"></div>
 </section>
-<div class="overview" aria-label="Краткая сводка осмотра">
-<div class="overview-card" id="overviewProgressCard"><div class="label">Заполнение</div><div class="value" id="overviewProgress">—</div><div class="sub">От выбранного объёма</div></div>
-<div class="overview-card" id="overviewDeviationCard"><div class="label">Несоответствия</div><div class="value" id="overviewDeviations">—</div><div class="sub">По сохранённым данным</div></div>
-<div class="overview-card" id="overviewDocumentCard"><div class="label">Загруженный акт</div><div class="value" id="overviewAct">—</div><div class="sub">Проверенный облачный файл</div></div>
-</div>
-<section class="panel">
-<h2>Выполнение осмотра</h2>
-<div class="statgrid">
-<div class="stat"><div class="label">Заполнение</div><div class="value" id="percent">—</div></div>
-<div class="stat"><div class="label">Заполнено полей</div><div class="value" id="fields">—</div></div>
-<div class="stat"><div class="label">Осталось незаполненным</div><div class="value" id="missing">—</div></div>
-<div class="stat"><div class="label">Несоответствия</div><div class="value" id="deviations">—</div></div>
-</div>
-<div class="progress"><div id="fill"></div></div>
-<div id="fillSummary" class="note" role="status" aria-live="polite"></div><div class="note">Процент рассчитывается по выбранному для осмотра объёму работ, а не по всем доступным узлам электровоза.</div>
+<section class="panel main-progress">
+  <div class="section-heading"><h2>Результаты осмотра</h2><strong id="percent" class="big-percent">—</strong></div>
+  <div class="progress" role="progressbar" id="progressBar" aria-label="Заполнение чек-листа" aria-valuemin="0" aria-valuemax="100"><div id="fill"></div></div>
+  <div class="progress-caption" id="fields">Нет данных о заполнении</div>
+  <div class="result-grid">
+    <div class="result-cell"><span>Не заполнено</span><strong id="missing">—</strong></div>
+    <div class="result-cell"><span>Несоответствия</span><strong id="deviations">—</strong></div>
+  </div>
+  <p id="scopeLine" class="note"></p>
+  <div id="attention" class="attention hidden" role="status"></div>
 </section>
 <section class="panel">
-<h2>Охват оборудования и операций</h2>
-<div class="statgrid">
-<div class="stat"><div class="label">Оборудование</div><div class="value" id="equipment">—</div></div>
-<div class="stat"><div class="label">Операции</div><div class="value" id="operations">—</div></div>
-<div class="stat"><div class="label">Секции</div><div class="value" id="sections">—</div></div>
-<div class="stat"><div class="label">Состояние осмотра</div><div class="value" id="scopeStatus">—</div></div>
-</div>
-<div id="coverageNotice" class="note" role="status" style="margin-top:10px"></div><div class="note" style="margin-top:10px">Доступное оборудование и операции не обязательно все входят в конкретный осмотр. Незавершённое заполнение и неполный охват — разные показатели.</div>
+  <h2>Документы</h2>
+  <div class="document-line"><span>Excel</span><strong id="excel">Нет сведений</strong></div>
+  <div class="document-line"><span>Акт осмотра</span><strong id="actUpload">Нет сведений</strong></div>
+  <div class="actions">
+    <button id="uploadAct" type="button" class="btn">Загрузить акт</button>
+    <button id="viewAct" type="button" class="btn hidden">Открыть акт</button>
+    <input id="actFile" class="hidden" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png">
+  </div>
+  <p class="note" id="actDetails"></p>
 </section>
-<section class="panel" aria-labelledby="equipmentDetailTitle">
-<h2 id="equipmentDetailTitle">Оборудование и сохранённые операции</h2>
-<p class="note">Здесь показаны только ответы, присутствующие в облачной копии. Для некоторых старых чек-листов каталог операций не сохранён: названия и отклонения определяются только там, где известны нормативные значения; остальные ответы отображаются без оценки.</p>
-<div id="equipmentDetailSummary" class="muted" role="status"></div>
-<div id="equipmentDetailList" class="equipment-list"></div>
-</section>
-<section class="panel">
-<h2>Уведомления</h2>
-<div id="noticeSummary" class="muted"></div>
-<div id="notificationStats" class="statgrid" style="margin-top:10px"></div>
-</section>
-<section class="panel">
-<h2>Документы и подтверждения</h2>
-<div class="statgrid">
-<div class="stat"><div class="label">Excel</div><div class="value" id="excel">Нет подтверждения</div><div class="note">Фиксируется запрос экспорта, а не гарантированное скачивание</div></div>
-<div class="stat"><div class="label">Подготовка акта</div><div class="value" id="actPrepared">Нет подтверждения</div></div>
-<div class="stat"><div class="label">Загрузка акта</div><div class="value" id="actUpload">Не подтверждена</div></div>
-<div class="stat"><div class="label">Версия облачной копии</div><div class="value" id="revision">—</div></div>
-</div>
-<div class="actions"><button id="uploadAct" type="button" class="btn">Загрузить акт</button><button id="viewAct" type="button" class="btn hidden">Открыть загруженный акт</button><input id="actFile" class="hidden" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"></div>
-<div class="note" id="actDetails" style="margin-top:8px">Подготовка, подпись и загрузка акта — разные действия. Загрузка файла сама по себе не подтверждает подпись.</div>
-</section>
-<section class="panel" aria-labelledby="historyTitle">
-<div class="section-heading"><h2 id="historyTitle">История осмотра</h2><span class="meta">По сохранённым событиям</span></div>
-<p class="note">Здесь показаны только даты из облачной записи и подтверждённых действий. История каждого изменения полей пока не ведётся.</p>
-<ol id="timeline" class="timeline" aria-label="События осмотра"></ol>
-<div id="timelineEmpty" class="muted hidden">Событий с сохранённой датой пока нет.</div>
-</section>
+<div class="actions main-actions"><a id="openChecklist" class="btn primary">Продолжить заполнение</a></div>
+<details class="more-details panel">
+  <summary>Дополнительные сведения <span class="muted">Оборудование и ответы</span></summary>
+  <div class="more-content">
+    <div id="coverageNotice" class="note"></div>
+    <div class="scope-grid">
+      <div><span>Оборудование</span><strong id="equipment">—</strong></div>
+      <div><span>Операции</span><strong id="operations">—</strong></div>
+      <div><span>Секции</span><strong id="sections">—</strong></div>
+    </div>
+    <p class="note">Здесь показаны только операции, сохранённые в облачной копии. Для старых чек-листов могут отсутствовать названия или полный перечень проверок.</p>
+    <div id="equipmentDetailSummary" class="note"></div>
+    <div id="equipmentDetailList" class="equipment-list"></div>
+    <div class="document-line"><span>Подготовка акта</span><strong id="actPrepared">—</strong></div>
+    <div class="document-line"><span>Версия копии</span><strong id="revision">—</strong></div>
+    <div class="document-line"><span>Пробег</span><strong id="mileage">—</strong></div>
+  </div>
+</details>
 </div>
 </main>
 <script type="module" src="./prototype/supabase-auth.js"></script>
 <script type="module">
 import { isChecklistComplete } from "./prototype/checklist-status.js";
 import { buildChecklistWorkflowView } from "./prototype/checklist-workflow-status.js";
-import { buildChecklistDetailTimeline } from "./prototype/checklist-detail-timeline.js";
 import { buildChecklistEquipmentDetails } from "./prototype/checklist-equipment-details.js";
 import { listChecklistActs, uploadChecklistAct, getChecklistActLink } from "./prototype/checklist-acts.js";
 const $=id=>document.getElementById(id);
@@ -192,65 +207,53 @@ function render(row,act){
  const payload=row.payload && typeof row.payload==="object" ? row.payload : {};
  const stats=payload.stats && typeof payload.stats==="object" ? payload.stats : {};
  const workflow=payload.workflow && typeof payload.workflow==="object" ? payload.workflow : {};
- const w=buildChecklistWorkflowView({stats,workflow}),state=payload.state||{},g=state.general||{};
- renderEquipmentDetails(payload);
+ const w=buildChecklistWorkflowView({stats,workflow}),g=payload.state?.general||{};
  const done=isChecklistComplete(stats);
- const title=[g.type||row.equipment_type||"",g.number||""].filter(Boolean).join(" №");
- setText("title",title?"Электровоз "+title:row.title||"Чек-лист");
- setText("kind",row.checklist_type||row.payload?.checklistType||"Чек-лист");
- setText("status",done?"✓ Осмотр заполнен":"В работе");$("status").classList.toggle("done",done);
- setText("dates","Создан: "+fmt(row.created_at)+" · Обновлён: "+fmt(row.updated_at));
+ const name=[g.type||row.equipment_type||"",g.number||""].filter(Boolean).join(" №");
+ setText("title",name?"Электровоз "+name:row.title||"Чек-лист");
+ setText("kind",payload.checklistType||"Чек-лист");
+ setText("status",done?"✓ Заполнен":"В работе");$("status").classList.toggle("done",done);
+ setText("dates","Последнее обновление: "+fmt(row.updated_at));
  const dateText=typeof g.date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(g.date)?g.date.split("-").reverse().join("."):"—";
  setText("inspectionDate",dateText);
  setText("depot",String(g.depot||"—"));
  setText("place",String(g.place||"—"));
  setText("mileage",String(g.mileage||"—"));
- setText("percent",w.percentage===null?"Нет данных":w.percentage+"%");
- setText("fields",w.counted?w.filled+" из "+w.total:"Нет данных");
- setText("missing",w.counted?String(w.total-w.filled):"Нет данных");
- const dev=stats.deviations===null||stats.deviations===undefined||stats.deviations===""?NaN:Number(stats.deviations);setText("deviations",Number.isSafeInteger(dev)&&dev>=0?String(dev):"Нет данных");
+ setText("percent",w.percentage===null?"—":w.percentage+"%");
  $("fill").style.width=(w.percentage??0)+"%";
- $("fill").setAttribute("role","progressbar");
- $("fill").setAttribute("aria-label","Заполнение чек-листа");
- $("fill").setAttribute("aria-valuemin","0");$("fill").setAttribute("aria-valuemax","100");
- if(w.percentage===null){$("fill").removeAttribute("aria-valuenow")}else{$("fill").setAttribute("aria-valuenow",String(w.percentage))}
- setText("overviewProgress",w.percentage===null?"Нет данных":w.percentage+"%");
- $("overviewProgressCard").dataset.tone=w.percentage===100&&done?"green":"orange";
- setText("overviewDeviations",Number.isSafeInteger(dev)&&dev>=0?String(dev):"Нет данных");
- $("overviewDeviationCard").dataset.tone=Number.isSafeInteger(dev)&&dev>0?"red":"";
- setText("overviewAct",act?"Загружен":actsAvailable?"Не загружен":"Нет данных");
- $("overviewDocumentCard").dataset.tone=act?"green":actsAvailable?"orange":"";
- setText("fillSummary",w.counted?(w.total===w.filled?"Все учтённые поля заполнены.":"Требуют заполнения: "+(w.total-w.filled)+"."):"Точные количества заполненных и обязательных полей не сохранены.");
- setText("equipment",w.equipment?w.equipment.selected+" из "+w.equipment.available:"Нет данных");
- setText("operations",w.operations?w.operations.selected+" в выбранных узлах из "+w.operations.available+" в каталоге":"Нет данных");
- setText("sections",w.sections?w.sections.selected+" из "+w.sections.available:"Нет данных");
- setText("scopeStatus",w.counted?(done?"Заполнен":"Есть незавершённые поля"):"Нет данных о завершённости");
- const partialScope=[w.equipment,w.operations,w.sections].filter(x=>x&&x.selected<x.available);
- setText("coverageNotice",partialScope.length?"Выбрана только часть доступного объёма осмотра. Это не означает, что выбранные операции не заполнены.":"Данные об охвате показываются только при наличии сохранённой информации о выборе.");
- const n=w.notifications;$("notificationStats").replaceChildren();
- if(!n){setText("noticeSummary","Нет сохранённых сведений о необходимости уведомлений для этого осмотра.");}
- else if(!n.required){setText("noticeSummary","По сохранённым условиям уведомления не требовались.");}
- else{
- setText("noticeSummary","Требовалось уведомлений: "+n.required);
- addNotice("Передано",String(n.sent),"green");addNotice("Не передано",String(n.notSent),n.notSent?"red":"");
- addNotice("Без решения",String(n.pending),n.pending?"orange":"");
- addNotice("Без обязательного фото",String(n.missingEvidence),n.missingEvidence?"red":"");
+ if(w.percentage===null)$("progressBar").removeAttribute("aria-valuenow");
+ else $("progressBar").setAttribute("aria-valuenow",String(w.percentage));
+ setText("fields",w.counted?"Заполнено "+w.filled+" из "+w.total+" полей":"Количество заполненных полей не сохранено");
+ setText("missing",w.counted?String(w.total-w.filled):"—");
+ const rawDev=stats.deviations;
+ const dev=rawDev===null||rawDev===undefined||rawDev===""?NaN:Number(rawDev);
+ setText("deviations",Number.isSafeInteger(dev)&&dev>=0?String(dev):"—");
+ $("deviations").dataset.alert=Number.isSafeInteger(dev)&&dev>0?"true":"false";
+ const scope=w.equipment? "Выбрано оборудования: "+w.equipment.selected+" из "+w.equipment.available+".":"";
+ setText("scopeLine",scope);
+ const alerts=[];
+ if(w.counted&&w.total>w.filled)alerts.push("Осталось заполнить "+(w.total-w.filled)+" полей");
+ if(Number.isSafeInteger(dev)&&dev>0)alerts.push("Зафиксировано несоответствий: "+dev);
+ if(w.notifications?.required){
+   const n=w.notifications;
+   if(n.pending||n.notSent||n.missingEvidence){
+     alerts.push("Уведомления требуют внимания: "+(n.notSent+n.pending)+(n.missingEvidence?" · без обязательного фото: "+n.missingEvidence:""));
+   }
  }
- setText("excel",w.excelRequestedAt?"Запрос экспорта · "+fmt(w.excelRequestedAt):"Нет подтверждения");
- setText("actPrepared",w.actPreparedAt?"Подготовлен к печати · "+fmt(w.actPreparedAt):act?"Не отмечена · файл загружен":"Нет подтверждения");
- setText("actUpload",act?"Файл загружен · "+fmt(act.uploaded_at):actsAvailable?"Не подтверждена":"Нет данных — сервис актов недоступен");
+ setText("attention",alerts.join(" · "));
+ $("attention").classList.toggle("hidden",alerts.length===0);
+ setText("excel",w.excelRequestedAt?"Запрос "+fmt(w.excelRequestedAt):"Запрос не зафиксирован");
+ setText("actUpload",act?"Загружен "+fmt(act.uploaded_at):actsAvailable?"Не загружен":"Проверяем…");
+ setText("actPrepared",w.actPreparedAt?fmt(w.actPreparedAt):"Нет подтверждения");
  setText("revision",String(row.revision??"—"));
- setText("actDetails",act?"Файл: "+act.file_name+" · "+Math.round(act.file_size/1024)+" КБ. Наличие файла не означает, что он подписан.":actsAvailable?"Подготовка, подпись и загрузка акта — отдельные действия.":"Сведения об актах временно недоступны. Остальные показатели осмотра доступны.");
+ setText("actDetails",act?"Загруженный файл: "+act.file_name+". Загрузка не подтверждает подпись.":actsAvailable?"Загрузить можно PDF, JPG или PNG до 20 МБ.":"Сведения об актах сейчас недоступны.");
  $("uploadAct").disabled=!actsAvailable;
  $("viewAct").classList.toggle("hidden",!act);
- const events=buildChecklistDetailTimeline(row,w,act);
- const timeline=$("timeline");timeline.replaceChildren();
- for(const event of events){
-   const item=document.createElement("li"),title=document.createElement("strong"),date=document.createElement("time"),desc=document.createElement("p");
-   title.textContent=event.title;date.dateTime=event.date;date.textContent=fmt(event.date);desc.textContent=event.description;
-   item.append(title,date,desc);timeline.append(item);
- }
- $("timelineEmpty").classList.toggle("hidden",events.length!==0);
+ setText("equipment",w.equipment?w.equipment.selected+" из "+w.equipment.available:"Нет данных");
+ setText("operations",w.operations?w.operations.selected+" из "+w.operations.available:"Нет данных");
+ setText("sections",w.sections?w.sections.selected+" из "+w.sections.available:"Нет данных");
+ setText("coverageNotice",w.equipment&&w.equipment.selected<w.equipment.available?"Часть оборудования не входит в этот осмотр. Это не означает незавершённое заполнение.":"");
+ // Optional detailed answers are rendered only after the user expands this section.
  const mode=typeof row.mode==="string"?row.mode:payload.mode||"";
  $("openChecklist").href="./prototype/checklist/?openChecklist="+encodeURIComponent(row.id)+(mode?"&mode="+encodeURIComponent(mode):"");
 }
@@ -304,6 +307,9 @@ $("viewAct").addEventListener("click",async()=>{
  try{const signed=await getChecklistActLink(api,verifiedAct);window.open(signed,"_blank","noopener,noreferrer")}
  catch(e){window.alert("Не удалось открыть акт: "+(e?.message||e))}
  finally{$("viewAct").disabled=false}
+});
+document.querySelector(".more-details").addEventListener("toggle",event=>{
+ if(event.target.open&&current)renderEquipmentDetails(current.payload||{});
 });
 load().catch(e=>{$("loading").classList.add("hidden");setText("error",e?.message||"Не удалось загрузить сведения");$("error").classList.remove("hidden")});
 </script>
