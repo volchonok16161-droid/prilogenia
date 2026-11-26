@@ -31,7 +31,7 @@ export function createDocumentRegister({notices=[],general={},act=null}={}){
       notificationStatus,
       notificationMarkedAt:text(item.notificationMarkedAt)||null,
       noticeGeneratedAt:null,
-      noticeCopyUploaded:false,
+      noticeCopyUploaded:null,
       requiresNotification:true
     }));
   }
@@ -41,7 +41,7 @@ export function createDocumentRegister({notices=[],general={},act=null}={}){
     notices:Object.freeze(entries),
     act:Object.freeze({
       preparedAt:typeof act?.preparedAt==="string"?act.preparedAt:null,
-      signedCopyUploaded:false,
+      signedCopyUploaded:null,
       signatureVerified:false
     })
   });
@@ -55,8 +55,8 @@ export function documentDashboardRows(register,checklistId=""){
     equipment:n.equipmentName||n.equipmentId,section:n.instanceId,
     operation:n.operationName||n.fieldKey,answer:n.answer,
     notificationRequired:"Да",deliveryStatus:n.notificationStatus,
-    generated:n.noticeGeneratedAt?"Да":"Нет",
-    copyUploaded:n.noticeCopyUploaded?"Да":"Нет",
+    generated:n.noticeGeneratedAt?"Да":"Не сформирован",
+    copyUploaded:n.noticeCopyUploaded===true?"Да":n.noticeCopyUploaded===false?"Нет":"Нет подтверждения",
     templateStatus:n.templateState
   }));
 }
