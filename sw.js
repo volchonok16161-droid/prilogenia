@@ -1,6 +1,6 @@
 // Версия кэша — увеличивайте при каждом обновлении файлов приложения,
 // чтобы пользователи получили свежую версию.
-const CACHE_VERSION = 'checklist-cache-v163';
+const CACHE_VERSION = 'checklist-cache-v164';
 
 // Основные файлы приложения ("оболочка"), которые должны быть доступны
 // сразу после установки — без них приложение не откроется офлайн.
@@ -9,7 +9,7 @@ const APP_SHELL = [
   './index.html',
   './prototype/checklist/index.html',
   './account.html',
-  './checklist-details.html',
+  './prototype/checklist-details.html',
   './employee-login.html',
   './examples.json',
   './oborudovanie.json',
