@@ -26,3 +26,13 @@ test("long equipment details are collapsed by default",()=>{
  assert.match(page,/if\(event\.target\.open&&current\)renderEquipmentDetails/);
  assert.match(page,/Сведения об актах сейчас недоступны/);
 });
+
+test("notifications are included with documents without creating a verbose section",()=>{
+ assert.match(page,/Документы и уведомления/);
+ assert.equal((page.match(/id="notificationStatus"/g)||[]).length,1);
+ assert.match(page,/id="notificationDetail"/);
+ assert.match(page,/notifications\.required===0/);
+ assert.match(page,/notifications\.pending\+notifications\.notSent/);
+ assert.match(page,/notifications\.missingEvidence/);
+ assert.doesNotMatch(page,/<h2>Уведомления<\/h2>/);
+});
