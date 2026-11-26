@@ -48,9 +48,9 @@ test("account act archive respects owner and checklist scoping", async () => {
 });
 
 test("cabinet only claims uploaded act when verified metadata exists",async()=>{
-  const html=await readFile(new URL("../account.html",import.meta.url),"utf8");
-  assert.match(html,/listChecklistActs\(api, user\.id\)/);
-  assert.match(html,/verifiedAct \? "Загружен/);
+  const html=await readFile(new URL("../checklist-details.html",import.meta.url),"utf8");
+  assert.match(html,/listChecklistActs\(api,ownerId\)/);
+  assert.match(html,/act\?"Файл загружен/);
   assert.match(html,/uploadChecklistAct\(api,/);
   assert.match(html,/getChecklistActLink\(api,/);
 });
