@@ -35,3 +35,17 @@ test("page exposes accordion and worker precaches detail helper",async()=>{
  assert.match(page,/document\.createElement\("details"\)/);
  assert.match(worker,/\.\/prototype\/checklist-equipment-details\.js/);
 });
+
+test("verified complex-mode wiring labels and resolved deviation answers",()=>{
+ const groups=buildChecklistEquipmentDetails({mode:"complex",state:{
+   selected:["nvmontazh"],
+   values:{"nvmontazh|Секция №1":{f1:"Устранено",f2:"Да",f3:"Да"},
+           "nvmontazh|Секция №2":{f1:"Устранено",f2:"Да",f3:"Да"}}
+ }});
+ assert.equal(groups.length,1);
+ assert.equal(groups[0].label,"Низковольтный электрический монтаж");
+ assert.equal(groups[0].answered,6);
+ assert.equal(groups[0].nok,2);
+ assert.equal(groups[0].instances[0].operations[0].kind,"deviation");
+ assert.match(groups[0].instances[0].operations[0].label,/пультом машиниста/);
+});
