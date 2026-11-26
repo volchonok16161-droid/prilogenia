@@ -44,7 +44,7 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 <div class="stat"><div class="label">Несоответствия</div><div class="value" id="deviations">—</div></div>
 </div>
 <div class="progress"><div id="fill"></div></div>
-<div class="note">Процент рассчитывается по выбранному для осмотра объёму работ, а не по всем доступным узлам электровоза.</div>
+<div id="fillSummary" class="note" role="status" aria-live="polite"></div><div class="note">Процент рассчитывается по выбранному для осмотра объёму работ, а не по всем доступным узлам электровоза.</div>
 </section>
 <section class="panel">
 <h2>Охват оборудования и операций</h2>
@@ -54,7 +54,7 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 <div class="stat"><div class="label">Секции</div><div class="value" id="sections">—</div></div>
 <div class="stat"><div class="label">Состояние осмотра</div><div class="value" id="scopeStatus">—</div></div>
 </div>
-<div class="note" style="margin-top:10px">Доступное оборудование и операции не обязательно все входят в конкретный осмотр. Незавершённое заполнение и неполный охват — разные показатели.</div>
+<div id="coverageNotice" class="note" role="status" style="margin-top:10px"></div><div class="note" style="margin-top:10px">Доступное оборудование и операции не обязательно все входят в конкретный осмотр. Незавершённое заполнение и неполный охват — разные показатели.</div>
 </section>
 <section class="panel">
 <h2>Уведомления</h2>
@@ -86,7 +86,10 @@ let current=null,verifiedAct=null,ownerId=null,api=null;
 function setText(id,val){$(id).textContent=val}
 function addNotice(label,value,tone){const box=document.createElement("div");box.className="stat";if(tone)box.dataset.tone=tone;const l=document.createElement("div");l.className="label";l.textContent=label;const v=document.createElement("div");v.className="value";v.textContent=value;box.append(l,v);$("notificationStats").append(box)}
 function render(row,act){
- const w=buildChecklistWorkflowView(row),stats=row.stats||{},state=row.payload?.state||{},g=state.general||{};
+ const payload=row.payload && typeof row.payload==="object" ? row.payload : {};
+ const stats=payload.stats && typeof payload.stats==="object" ? payload.stats : {};
+ const workflow=payload.workflow && typeof payload.workflow==="object" ? payload.workflow : {};
+ const w=buildChecklistWorkflowView({stats,workflow}),state=payload.state||{},g=state.general||{};
  const done=isChecklistComplete(stats);
  const title=[g.type||row.equipment_type||"",g.number||""].filter(Boolean).join(" №");
  setText("title",title?"Электровоз "+title:row.title||"Чек-лист");
@@ -101,12 +104,15 @@ function render(row,act){
  setText("percent",w.percentage===null?"Нет данных":w.percentage+"%");
  setText("fields",w.counted?w.filled+" из "+w.total:"Нет данных");
  setText("missing",w.counted?String(w.total-w.filled):"Нет данных");
- const dev=Number(stats.deviations);setText("deviations",Number.isFinite(dev)?String(dev):"Нет данных");
- $("fill").style.width=(w.percentage||0)+"%";
+ const dev=stats.deviations===null||stats.deviations===undefined||stats.deviations===""?NaN:Number(stats.deviations);setText("deviations",Number.isSafeInteger(dev)&&dev>=0?String(dev):"Нет данных");
+ $("fill").style.width=(w.percentage??0)+"%";
+ setText("fillSummary",w.counted?(w.total===w.filled?"Все учтённые поля заполнены.":"Требуют заполнения: "+(w.total-w.filled)+"."):"Точные количества заполненных и обязательных полей не сохранены.");
  setText("equipment",w.equipment?w.equipment.selected+" из "+w.equipment.available:"Нет данных");
  setText("operations",w.operations?w.operations.selected+" в выбранных узлах из "+w.operations.available+" в каталоге":"Нет данных");
  setText("sections",w.sections?w.sections.selected+" из "+w.sections.available:"Нет данных");
- setText("scopeStatus",done?"Заполнен":"Есть незавершённые поля");
+ setText("scopeStatus",w.counted?(done?"Заполнен":"Есть незавершённые поля"):"Нет данных о завершённости");
+ const partialScope=[w.equipment,w.operations,w.sections].filter(x=>x&&x.selected<x.available);
+ setText("coverageNotice",partialScope.length?"Выбрана только часть доступного объёма осмотра. Это не означает, что выбранные операции не заполнены.":"Данные об охвате показываются только при наличии сохранённой информации о выборе.");
  const n=w.notifications;$("notificationStats").replaceChildren();
  if(!n){setText("noticeSummary","Нет сохранённых сведений о необходимости уведомлений для этого осмотра.");}
  else if(!n.required){setText("noticeSummary","По сохранённым условиям уведомления не требовались.");}
@@ -122,7 +128,7 @@ function render(row,act){
  setText("revision",String(row.revision??"—"));
  setText("actDetails",act?"Файл: "+act.file_name+" · "+Math.round(act.file_size/1024)+" КБ. Наличие файла не означает, что он подписан.":"Подготовка, подпись и загрузка акта — отдельные действия.");
  $("viewAct").classList.toggle("hidden",!act);
- const mode=typeof row.mode==="string"?row.mode:row.payload?.mode||"";
+ const mode=typeof row.mode==="string"?row.mode:payload.mode||"";
  $("openChecklist").href="./prototype/checklist/?openChecklist="+encodeURIComponent(row.id)+(mode?"&mode="+encodeURIComponent(mode):"");
 }
 async function load(){
