@@ -6,13 +6,29 @@
 <meta name="theme-color" content="#0a5eb0">
 <title>ТМХ — Сведения об осмотре</title>
 <style>
-:root{color-scheme:light;--ink:#19364e;--muted:#60778c;--line:#c8ddeb;--blue:#0a5eb0;--bg:#edf5fc}
+:root{color-scheme:light;--ink:#19364e;--muted:#60778c;--line:#c8ddeb;--blue:#0a5eb0;--bg:#edf5fc;--accent:#16845b}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
 button,a{font:inherit}a{color:inherit}.top{background:var(--blue);color:white;padding:18px max(16px,calc((100vw - 880px)/2));display:flex;align-items:center;gap:14px}.top a{text-decoration:none;border:1px solid #ffffff80;border-radius:9px;padding:8px 12px;white-space:nowrap}.top strong{font-size:18px}.page{max-width:880px;margin:auto;padding:20px 14px 48px}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:19px;margin-bottom:15px;box-shadow:0 2px 6px #0f375a0a}
 h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{color:var(--muted)}.meta{font-size:13px;color:var(--muted)}.badge{display:inline-flex;padding:4px 11px;background:#fff2db;color:#865c0c;border-radius:50px;font-weight:700;font-size:13px}.badge.done{background:#e8f7ed;color:#147846}
-.progress{height:9px;background:#e5edf5;border-radius:99px;overflow:hidden;margin:12px 0 8px}.progress>div{height:100%;width:0;background:#229b65;border-radius:99px}
+.progress{height:12px;background:#e5edf5;border-radius:99px;overflow:hidden;margin:12px 0 8px}.progress>div{height:100%;width:0;background:#229b65;border-radius:99px}
 .statgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{padding:12px;background:#f7fafc;border:1px solid var(--line);border-radius:11px;min-width:0}.stat .label{font-size:12px;color:var(--muted);font-weight:600}.stat .value{font-size:17px;font-weight:750;overflow-wrap:anywhere;margin-top:3px}.stat .note{font-size:12px;color:var(--muted);margin-top:4px}.stat[data-tone="green"]{background:#eff9f3;border-color:#b4d9c2}.stat[data-tone="green"] .value{color:#197b50}.stat[data-tone="orange"]{background:#fff9e9;border-color:#ead69b}.stat[data-tone="orange"] .value{color:#92600f}.stat[data-tone="red"]{background:#fff1ef;border-color:#e5b7ad}.stat[data-tone="red"] .value{color:#ad3528}
 .actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:15px}.btn{display:inline-flex;align-items:center;justify-content:center;text-align:center;padding:11px 15px;border-radius:9px;border:1px solid #b8d5e8;background:#eaf3fb;color:#225171;text-decoration:none;cursor:pointer;font-weight:650;min-height:44px}.btn.primary{background:var(--blue);color:white;border-color:var(--blue)}.btn:disabled{opacity:.55;cursor:not-allowed}.note{font-size:12px;color:var(--muted);line-height:1.55}.error{color:#a72924}.hidden{display:none!important}.small-list{margin:10px 0 0;padding-left:22px;font-size:13px}.small-list li{margin:3px 0}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:15px}
+.overview-card{background:white;border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.overview-card .label{font-size:12px;color:var(--muted);font-weight:650}
+.overview-card .value{font-size:22px;font-weight:780;line-height:1.35;margin-top:5px;overflow-wrap:anywhere}
+.overview-card .sub{font-size:12px;color:var(--muted);margin-top:5px}
+.overview-card[data-tone="green"]{border-color:#b4d9c2;background:#eff9f3}
+.overview-card[data-tone="orange"]{border-color:#ead69b;background:#fff9e9}
+.overview-card[data-tone="red"]{border-color:#e5b7ad;background:#fff1ef}
+.timeline{list-style:none;padding:0;margin:0}
+.timeline li{position:relative;padding:0 0 17px 25px;border-left:2px solid #d3e2ef;margin-left:7px}
+.timeline li:last-child{padding-bottom:0;border-left-color:transparent}
+.timeline li:before{content:"";position:absolute;left:-7px;top:3px;width:11px;height:11px;border-radius:50%;background:#1671b9;border:2px solid white;box-shadow:0 0 0 1px #bad2e5}
+.timeline strong{display:block;font-size:14px}.timeline time{display:block;font-size:12px;color:var(--muted);margin:2px 0}
+.timeline p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+@media(max-width:550px){.overview{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-card .value{font-size:19px}}
 @media(max-width:550px){.top{padding:14px 12px}.top strong{font-size:15px}.page{padding:13px 10px 35px}.panel{padding:15px;border-radius:13px}.statgrid{gap:7px}.stat{padding:10px}.stat .value{font-size:15px}.actions .btn{flex:1 1 43%}h1{font-size:21px}}
 </style>
 </head>
@@ -35,6 +51,11 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 </div>
 <div class="actions"><a id="openChecklist" class="btn primary">Открыть чек-лист для заполнения</a><a href="./account.html" class="btn">Все чек-листы</a></div>
 </section>
+<div class="overview" aria-label="Краткая сводка осмотра">
+<div class="overview-card" id="overviewProgressCard"><div class="label">Заполнение</div><div class="value" id="overviewProgress">—</div><div class="sub">От выбранного объёма</div></div>
+<div class="overview-card" id="overviewDeviationCard"><div class="label">Несоответствия</div><div class="value" id="overviewDeviations">—</div><div class="sub">По сохранённым данным</div></div>
+<div class="overview-card" id="overviewDocumentCard"><div class="label">Загруженный акт</div><div class="value" id="overviewAct">—</div><div class="sub">Проверенный облачный файл</div></div>
+</div>
 <section class="panel">
 <h2>Выполнение осмотра</h2>
 <div class="statgrid">
@@ -72,12 +93,19 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 <div class="actions"><button id="uploadAct" type="button" class="btn">Загрузить акт</button><button id="viewAct" type="button" class="btn hidden">Открыть загруженный акт</button><input id="actFile" class="hidden" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"></div>
 <div class="note" id="actDetails" style="margin-top:8px">Подготовка, подпись и загрузка акта — разные действия. Загрузка файла сама по себе не подтверждает подпись.</div>
 </section>
+<section class="panel" aria-labelledby="historyTitle">
+<div class="section-heading"><h2 id="historyTitle">История осмотра</h2><span class="meta">По сохранённым событиям</span></div>
+<p class="note">Здесь показаны только даты из облачной записи и подтверждённых действий. История каждого изменения полей пока не ведётся.</p>
+<ol id="timeline" class="timeline" aria-label="События осмотра"></ol>
+<div id="timelineEmpty" class="muted hidden">Событий с сохранённой датой пока нет.</div>
+</section>
 </div>
 </main>
 <script type="module" src="./prototype/supabase-auth.js"></script>
 <script type="module">
 import { isChecklistComplete } from "./prototype/checklist-status.js";
 import { buildChecklistWorkflowView } from "./prototype/checklist-workflow-status.js";
+import { buildChecklistDetailTimeline } from "./prototype/checklist-detail-timeline.js";
 import { listChecklistActs, uploadChecklistAct, getChecklistActLink } from "./prototype/checklist-acts.js";
 const $=id=>document.getElementById(id);
 const fmt=v=>{if(!v)return "—";const d=new Date(v);return Number.isNaN(d.getTime())?"—":new Intl.DateTimeFormat("ru-RU",{dateStyle:"medium",timeStyle:"short"}).format(d)};
@@ -106,6 +134,16 @@ function render(row,act){
  setText("missing",w.counted?String(w.total-w.filled):"Нет данных");
  const dev=stats.deviations===null||stats.deviations===undefined||stats.deviations===""?NaN:Number(stats.deviations);setText("deviations",Number.isSafeInteger(dev)&&dev>=0?String(dev):"Нет данных");
  $("fill").style.width=(w.percentage??0)+"%";
+ $("fill").setAttribute("role","progressbar");
+ $("fill").setAttribute("aria-label","Заполнение чек-листа");
+ $("fill").setAttribute("aria-valuemin","0");$("fill").setAttribute("aria-valuemax","100");
+ if(w.percentage===null){$("fill").removeAttribute("aria-valuenow")}else{$("fill").setAttribute("aria-valuenow",String(w.percentage))}
+ setText("overviewProgress",w.percentage===null?"Нет данных":w.percentage+"%");
+ $("overviewProgressCard").dataset.tone=w.percentage===100&&done?"green":"orange";
+ setText("overviewDeviations",Number.isSafeInteger(dev)&&dev>=0?String(dev):"Нет данных");
+ $("overviewDeviationCard").dataset.tone=Number.isSafeInteger(dev)&&dev>0?"red":"";
+ setText("overviewAct",act?"Загружен":"Не загружен");
+ $("overviewDocumentCard").dataset.tone=act?"green":"orange";
  setText("fillSummary",w.counted?(w.total===w.filled?"Все учтённые поля заполнены.":"Требуют заполнения: "+(w.total-w.filled)+"."):"Точные количества заполненных и обязательных полей не сохранены.");
  setText("equipment",w.equipment?w.equipment.selected+" из "+w.equipment.available:"Нет данных");
  setText("operations",w.operations?w.operations.selected+" в выбранных узлах из "+w.operations.available+" в каталоге":"Нет данных");
@@ -128,6 +166,14 @@ function render(row,act){
  setText("revision",String(row.revision??"—"));
  setText("actDetails",act?"Файл: "+act.file_name+" · "+Math.round(act.file_size/1024)+" КБ. Наличие файла не означает, что он подписан.":"Подготовка, подпись и загрузка акта — отдельные действия.");
  $("viewAct").classList.toggle("hidden",!act);
+ const events=buildChecklistDetailTimeline(row,w,act);
+ const timeline=$("timeline");timeline.replaceChildren();
+ for(const event of events){
+   const item=document.createElement("li"),title=document.createElement("strong"),date=document.createElement("time"),desc=document.createElement("p");
+   title.textContent=event.title;date.dateTime=event.date;date.textContent=fmt(event.date);desc.textContent=event.description;
+   item.append(title,date,desc);timeline.append(item);
+ }
+ $("timelineEmpty").classList.toggle("hidden",events.length!==0);
  const mode=typeof row.mode==="string"?row.mode:payload.mode||"";
  $("openChecklist").href="./prototype/checklist/?openChecklist="+encodeURIComponent(row.id)+(mode?"&mode="+encodeURIComponent(mode):"");
 }
