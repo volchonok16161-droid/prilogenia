@@ -61,6 +61,11 @@ var bridge=`<script>
             notifications:{required:triggered.length,delivered:delivered,notDelivered:notDelivered,
               pending:triggered.length-delivered-notDelivered,missingEvidence:missingEvidence,
               verified:noticeVerified,calculatedAt:noticeVerified?new Date().toISOString():null},
+            documentItems:triggered.map(function(x){return {
+              equipmentId:x.eq.id,equipmentName:x.eq.title,instanceId:x.iid,
+              fieldKey:x.field.key,operationName:x.field.label,answer:x.answer,
+              notificationStatus:x.status,notificationMarkedAt:x.time||null
+            };}),
             excel:(STATE.__tmhWorkflow&&STATE.__tmhWorkflow.excel)||null,
             act:(STATE.__tmhWorkflow&&STATE.__tmhWorkflow.act)||null
           };
