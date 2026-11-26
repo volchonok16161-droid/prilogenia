@@ -51,6 +51,24 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
  .overview-card .value{font-size:19px}
  .overview-card .sub{font-size:11px}
 }
+
+.equipment-list{display:grid;gap:9px;margin-top:12px}
+.equipment-list details{background:#f8fbff;border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.equipment-list summary{cursor:pointer;list-style:none;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.equipment-list summary::-webkit-details-marker{display:none}
+.equipment-list summary:after{content:"⌄";font-size:20px;color:var(--blue)}
+.equipment-list details[open] summary:after{content:"⌃"}
+.equipment-list .eq-name{font-weight:700;overflow-wrap:anywhere}
+.equipment-list .eq-count{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+.equipment-instance{padding:10px 13px 14px;border-top:1px solid var(--line)}
+.equipment-instance h3{margin:0 0 7px;font-size:13px;color:var(--ink)}
+.equipment-op{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;padding:8px 0;border-top:1px solid #e6edf4;font-size:13px}
+.equipment-op .op-key{min-width:0;overflow-wrap:anywhere;color:var(--muted)}
+.equipment-op .op-answer{font-weight:650;text-align:right;max-width:48%;overflow-wrap:anywhere}
+.equipment-op .op-answer[data-state="ok"]{color:#147846}
+.equipment-op .op-answer[data-state="nok"]{color:#b42318}
+.equipment-op .op-answer[data-state="empty"]{color:#9a6518}
+@media(max-width:550px){.equipment-list summary{padding:11px}.equipment-op{font-size:12px}}
 </style>
 </head>
 <body>
@@ -99,6 +117,12 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 </div>
 <div id="coverageNotice" class="note" role="status" style="margin-top:10px"></div><div class="note" style="margin-top:10px">Доступное оборудование и операции не обязательно все входят в конкретный осмотр. Незавершённое заполнение и неполный охват — разные показатели.</div>
 </section>
+<section class="panel" aria-labelledby="equipmentDetailTitle">
+<h2 id="equipmentDetailTitle">Оборудование и сохранённые операции</h2>
+<p class="note">Здесь показаны только ответы, присутствующие в облачной копии. Если старый чек-лист не сохранял каталог операций, отсутствующие в копии проверки нельзя посчитать, а ключ операции может отображаться вместо названия.</p>
+<div id="equipmentDetailSummary" class="muted" role="status"></div>
+<div id="equipmentDetailList" class="equipment-list"></div>
+</section>
 <section class="panel">
 <h2>Уведомления</h2>
 <div id="noticeSummary" class="muted"></div>
@@ -128,6 +152,7 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 import { isChecklistComplete } from "./prototype/checklist-status.js";
 import { buildChecklistWorkflowView } from "./prototype/checklist-workflow-status.js";
 import { buildChecklistDetailTimeline } from "./prototype/checklist-detail-timeline.js";
+import { buildChecklistEquipmentDetails } from "./prototype/checklist-equipment-details.js";
 import { listChecklistActs, uploadChecklistAct, getChecklistActLink } from "./prototype/checklist-acts.js";
 const $=id=>document.getElementById(id);
 const fmt=v=>{if(!v)return "—";const d=new Date(v);return Number.isNaN(d.getTime())?"—":new Intl.DateTimeFormat("ru-RU",{dateStyle:"medium",timeStyle:"short"}).format(d)};
@@ -135,11 +160,40 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 let current=null,verifiedAct=null,ownerId=null,api=null,actsAvailable=false;
 function setText(id,val){$(id).textContent=val}
 function addNotice(label,value,tone){const box=document.createElement("div");box.className="stat";if(tone)box.dataset.tone=tone;const l=document.createElement("div");l.className="label";l.textContent=label;const v=document.createElement("div");v.className="value";v.textContent=value;box.append(l,v);$("notificationStats").append(box)}
+function renderEquipmentDetails(payload){
+ const groups=buildChecklistEquipmentDetails(payload),host=$("equipmentDetailList");host.replaceChildren();
+ const answered=groups.reduce((n,g)=>n+g.answered,0);
+ const empty=groups.reduce((n,g)=>n+g.empty,0);
+ const nok=groups.reduce((n,g)=>n+g.nok,0);
+ setText("equipmentDetailSummary",groups.length?
+   "Узлов с сохранёнными ответами: "+groups.length+" · Ответов: "+answered+" · Пустых сохранённых полей: "+empty+" · Явных NOK: "+nok:
+   "В этой облачной копии нет ответов с привязкой к оборудованию.");
+ for(const group of groups){
+   const details=document.createElement("details"),summary=document.createElement("summary");
+   const label=document.createElement("div"),name=document.createElement("div"),count=document.createElement("span");
+   name.className="eq-name";name.textContent=group.label;
+   count.className="eq-count";count.textContent="Ответов: "+group.answered+" · Пустых: "+group.empty+" · NOK: "+group.nok;
+   label.append(name,count);summary.append(label);details.append(summary);
+   for(const instance of group.instances){
+     const body=document.createElement("div"),heading=document.createElement("h3");
+     body.className="equipment-instance";heading.textContent=instance.label;body.append(heading);
+     for(const op of instance.operations){
+       const line=document.createElement("div"),key=document.createElement("span"),value=document.createElement("span");
+       line.className="equipment-op";key.className="op-key";key.textContent=op.key;
+       value.className="op-answer";value.dataset.state=op.kind;
+       value.textContent=op.answer||"Без ответа";line.append(key,value);body.append(line);
+     }
+     details.append(body);
+   }
+   host.append(details);
+ }
+}
 function render(row,act){
  const payload=row.payload && typeof row.payload==="object" ? row.payload : {};
  const stats=payload.stats && typeof payload.stats==="object" ? payload.stats : {};
  const workflow=payload.workflow && typeof payload.workflow==="object" ? payload.workflow : {};
  const w=buildChecklistWorkflowView({stats,workflow}),state=payload.state||{},g=state.general||{};
+ renderEquipmentDetails(payload);
  const done=isChecklistComplete(stats);
  const title=[g.type||row.equipment_type||"",g.number||""].filter(Boolean).join(" №");
  setText("title",title?"Электровоз "+title:row.title||"Чек-лист");
