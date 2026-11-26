@@ -1,0 +1,99 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { buildChecklistWorkflowView } from "../prototype/checklist-workflow-status.js";
+
+test("legacy checklists never receive invented workflow confirmations", () => {
+  const view = buildChecklistWorkflowView({stats:{completionPercent:100,totalFields:10,filledTotal:10}});
+  assert.equal(view.percentage,100);
+  assert.equal(view.equipment,null);
+  assert.equal(view.notifications,null);
+  assert.equal(view.excelRequestedAt,null);
+  assert.equal(view.actPreparedAt,null);
+  assert.equal(view.actUploadedAt,null);
+});
+
+test("workflow tracks selected scope, notification outcomes and document requests", () => {
+  const timestamp="2026-11-24T08:30:00Z";
+  const view=buildChecklistWorkflowView({
+    stats:{completionPercent:80,totalFields:10,filledTotal:8},
+    workflow:{
+      selection:{selectedEquipment:2,availableEquipment:3,selectedSections:1,availableSections:2},
+      notifications:{required:3,delivered:1,notDelivered:1,pending:1,missingEvidence:0},
+      excel:{requestedAt:timestamp},
+      act:{preparedAt:timestamp,uploadedAt:timestamp,verifiedUpload:false}
+    }
+  });
+  assert.deepEqual(view.equipment,{selected:2,available:3});
+  assert.deepEqual(view.sections,{selected:1,available:2});
+  assert.equal(view.notifications.required,3);
+  assert.equal(view.notifications.notSent,1);
+  assert.equal(view.excelRequestedAt,timestamp);
+  assert.equal(view.actPreparedAt,timestamp);
+  assert.equal(view.actUploadedAt,null);
+});
+
+test("invalid or unverifiable uploaded-act signals stay unconfirmed", () => {
+  assert.equal(buildChecklistWorkflowView({workflow:{act:{uploadedAt:"2026-11-24T08:30:00Z"}}}).actUploadedAt,null);
+});
+
+test("personal cabinet renders lifecycle indicators from owner-scoped cloud records", async () => {
+  const html=await readFile(new URL("../account.html",import.meta.url),"utf8");
+  assert.match(html,/workflow:payload->workflow/);
+  assert.match(html,/checklist-details\.html\?id=/);
+  assert.match(html,/showDetails.textContent="Сведения"/);
+  assert.doesNotMatch(html,/info.append\(detailLink\)/);
+  const page=await readFile(new URL("../checklist-details.html",import.meta.url),"utf8");
+  assert.match(page,/buildChecklistWorkflowView\(\{stats,workflow\}\)/);
+  assert.match(page,/eq\("owner_id",ownerId\)/);
+  assert.match(page,/Уведомления/);
+  assert.match(page,/Документы и подтверждения/);
+  assert.match(html,/Не подтверждена/);
+  assert.match(html,/Нет подтверждения/);
+});
+
+
+test("locomotive details read progress and workflow from the saved checklist payload", async () => {
+  const page=await readFile(new URL("../checklist-details.html",import.meta.url),"utf8");
+  assert.match(page,/const stats=payload\.stats/);
+  assert.match(page,/const workflow=payload\.workflow/);
+  assert.match(page,/buildChecklistWorkflowView\(\{stats,workflow\}\)/);
+  assert.match(page,/isChecklistComplete\(stats\)/);
+  assert.match(page,/stats\.deviations===null/);
+  assert.match(page,/eq\("owner_id",ownerId\)/);
+  assert.match(page,/Точные количества заполненных/);
+  assert.match(page,/Выбрана только часть доступного объёма/);
+  const cabinet=await readFile(new URL("../account.html",import.meta.url),"utf8");
+  assert.match(cabinet,/open\.textContent = "Продолжить заполнение"/);
+});
+
+test("details render the checklist even when attachment metadata is unavailable",async()=>{
+ const html=await readFile(new URL("../checklist-details.html",import.meta.url),"utf8");
+ const renderAt=html.indexOf("render(current,null)");
+ const attachmentsAt=html.indexOf("const acts=await listChecklistActs(api,ownerId)");
+ assert.ok(renderAt>0&&attachmentsAt>renderAt,"checklist renders before optional act request");
+ assert.match(html,/catch \(attachmentError\)/);
+ assert.match(html,/Сведения об осмотре загружены/);
+ assert.match(html,/actsAvailable\?"Не подтверждена":"Нет данных/);
+ assert.match(html,/\$\("uploadAct"\)\.disabled=!actsAvailable/);
+});
+
+test("preview uses the route actually published by Render",async()=>{
+ const cabinet=await readFile(new URL("../account.html",import.meta.url),"utf8");
+ const page=await readFile(new URL("../prototype/checklist-details.html",import.meta.url),"utf8");
+ const worker=await readFile(new URL("../sw.js",import.meta.url),"utf8");
+ assert.match(cabinet,/const detailHref="\.\/prototype\/checklist-details\.html\?id="/);
+ assert.match(page,/<base href="\.\.\/">/);
+ assert.match(page,/buildChecklistWorkflowView\(\{stats,workflow\}\)/);
+ assert.match(worker,/\.\/prototype\/checklist-details\.html/);
+});
+
+test("legacy zero notification counters are not treated as verified absence",()=>{
+ const view=buildChecklistWorkflowView({workflow:{notifications:{required:0,delivered:0,notDelivered:0,pending:0,missingEvidence:0}}});
+ assert.equal(view.notifications.required,0);
+ assert.equal(view.notifications.verified,false);
+ const trusted=buildChecklistWorkflowView({workflow:{notifications:{required:1,delivered:0,notDelivered:0,pending:1,missingEvidence:0,verified:true,calculatedAt:"2026-11-26T15:00:00Z"}}});
+ assert.equal(trusted.notifications.required,1);
+ assert.equal(trusted.notifications.verified,true);
+ assert.equal(trusted.notifications.pending,1);
+});

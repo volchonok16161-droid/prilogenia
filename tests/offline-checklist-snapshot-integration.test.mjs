@@ -1,0 +1,49 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+
+const html = (await readFile(new URL("../index.html", import.meta.url), "utf8")) + (await Promise.all([
+  "../prototype/embedded/tt.js",
+  "../prototype/embedded/bi.js",
+  "../prototype/embedded/hydro.js",
+  "../prototype/embedded/complex.js",
+].map((path) => readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
+
+test("complex checklist marks local-only sessions separately from Supabase sessions", () => {
+  assert.equal((html.match(/window\.__TMH_OFFLINE_MODE = identity\.mode === 'offline-local-unlock'/g) || []).length, 5);
+});
+
+test("all five checklist runtimes save full snapshots through the encrypted vault during offline use", () => {
+  assert.equal((html.match(/var __tmhOriginalSaveState = saveState/g) || []).length, 5);
+  assert.equal((html.match(/api\.saveOfflineChecklist\(LS_KEY, snapshot\)/g) || []).length, 10);
+  assert.match(html, /Сохранено в зашифрованном офлайн-хранилище/);
+  assert.equal((html.match(/typeof __tmhOfflineSaveChain !== 'undefined'/g) || []).length, 5);
+  assert.equal((html.match(/var __tmhOfflinePendingWrites = 0;/g) || []).length, 5);
+  assert.equal((html.match(/window\.addEventListener\('beforeunload'/g) || []).length, 10);
+  assert.equal((html.match(/__tmhOfflinePendingWrites\+\+/g) || []).length, 10);
+  assert.equal((html.match(/__tmhOfflinePendingWrites = Math\.max\(0, __tmhOfflinePendingWrites - 1\)/g) || []).length, 10);
+  assert.match(html, /event\.preventDefault\(\);\s*event\.returnValue = ''/);
+  assert.match(html, /await __tmhOfflineSaveChain/);
+});
+
+test("complex checklist restores encrypted snapshots before falling back to legacy local state", () => {
+  assert.equal((html.match(/await api\.hasOfflineChecklist\(LS_KEY\)/g) || []).length, 10);
+  assert.equal((html.match(/await api\.loadOfflineChecklist\(LS_KEY\)/g) || []).length, 5);
+  assert.match(html, /let restoredEncrypted = false/);
+  assert.match(html, /if \(!restoredEncrypted\)[\s\S]*?loadState\(\)/);
+});
+
+test("offline snapshot persistence is scoped to the authenticated storage owner", () => {
+  assert.match(html, /if \(!window\.__TMH_STORAGE_UID \|\| window\.__TMH_STORAGE_LOCKED \|\| !STATE \|\| !STATE\.general\) return false/);
+  assert.match(html, /window\.__TMH_OFFLINE_MODE/);
+});
+
+
+test("local cabinet deep links activate the selected owner-scoped instance in all five modes", () => {
+  assert.match(html, /openLocalChecklist/);
+  assert.match(html, /__tmhStorageIdForMode\(MODE\)/);
+  assert.match(html, /__tmhStorageIdForMode\(mode\)/);
+  assert.match(html, /await api\.activateOfflineChecklistInstance/);
+  assert.match(html, /await startApp\(false\)/);
+  assert.match(html, /async function __tmhRestoreActiveOfflineState\(\)/);
+});

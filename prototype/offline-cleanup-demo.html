@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Тест офлайн-синхронизации фотографий</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#172033;background:#f3f5f9}
+*{box-sizing:border-box}body{margin:0;padding:24px}.wrap{max-width:760px;margin:auto}
+header,.panel{background:#fff;border:1px solid #e2e7ef;border-radius:16px;padding:20px;margin-bottom:14px}
+h1{font-size:22px;margin:0 0 8px}.muted{color:#64748b;font-size:14px;line-height:1.5}
+button{border:0;border-radius:10px;background:#315efb;color:white;padding:12px 16px;font:inherit;font-weight:650;cursor:pointer}
+button:disabled{opacity:.55;cursor:wait}.status{padding:12px;border-radius:10px;background:#f1f5f9;margin:10px 0;white-space:pre-wrap}
+.status.ok{background:#eaf8f0;color:#146c43}.status.warn{background:#fff5df;color:#805600}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.tile{border:1px solid #e2e7ef;border-radius:12px;padding:12px}.tile b{display:block;font-size:22px;margin-top:4px}
+.log{font:13px/1.5 ui-monospace,monospace;background:#101827;color:#dce7f5;padding:14px;border-radius:12px;min-height:100px;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:560px){body{padding:12px}.grid{grid-template-columns:1fr}.tile{display:flex;justify-content:space-between;align-items:center}.tile b{margin:0}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header>
+<h1>Тестовый стенд: очередь очистки фотографий</h1>
+<div class="muted">Здесь используется отдельная IndexedDB-база тестового стенда. Supabase, реальные аккаунты, чек-листы и Storage не вызываются. Облачное сохранение и Storage имитируются, а очередь, блокировки и повторные попытки выполняет настоящий offline-sync-runner.</div>
+</header>
+<section class="panel">
+<div class="grid">
+<div class="tile"><span class="muted">Очередь чек-листов</span><b id="queue">—</b></div>
+<div class="tile"><span class="muted">Очистка ожидает</span><b id="cleanup">—</b></div>
+<div class="tile"><span class="muted">Ревизия тестовой записи</span><b id="revision">—</b></div>
+</div>
+<div id="status" class="status">Проверяем локальную тестовую базу…</div>
+<button id="run">Запустить тест обновления</button>
+</section>
+<section class="panel">
+<h2 style="font-size:16px;margin:0 0 10px">Журнал проверки</h2>
+<div id="log" class="log">Ожидание запуска…</div>
+</section>
+</main>
+<script type="module">
+import { createOfflineVaultDatabase } from "./offline-vault-db.js";
+import { createOfflineSyncRunner } from "./offline-sync-runner.js";
+
+const USER = "11111111-1111-4111-8111-111111111111";
+const ENTITY = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const DB_NAME = "tmh-offline-cleanup-demo-v1";
+const encrypted = { version: 1, iv: "demo-iv", ciphertext: "demo-ciphertext" };
+const database = createOfflineVaultDatabase({ dbName: DB_NAME });
+const $ = (id) => document.getElementById(id);
+const logLines = [];
+function log(message) {
+  logLines.push(new Date().toLocaleTimeString("ru-RU") + "  " + message);
+  $("log").textContent = logLines.slice(-16).join("\n");
+}
+const authApi = {
+  async getCurrentIdentity() {
+    return { user: { id: USER }, profile: { id: USER, role: "employee" }, error: null };
+  },
+};
+const vault = { async decrypt() { return { title: "Тестовый чек-лист" }; }, async encrypt(value) {
+  return { version: 1, iv: "demo-iv", ciphertext: JSON.stringify(value) };
+} };
+const cloudSync = {
+  async create(input) { return { id: input.id, revision: 1 }; },
+  async update(input) { log("Имитированное облако подтвердило ревизию " + (input.expectedRevision + 1)); return { id: input.id, revision: input.expectedRevision + 1 }; },
+  async remove() { return true; },
+  async get() { return { id: ENTITY, revision: 1 }; },
+};
+const mapper = async (_operation, _value, previousCloudState) => {
+  const previous = previousCloudState?.photoManifest || [];
+  const nextRevision = (previousCloudState?.revision || 0) + 1;
+  const nextManifest = [{
+    itemId: "demo-item", field: "photo_photo",
+    path: USER + "/" + ENTITY + "/" + nextRevision + "/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    contentType: "image/jpeg",
+  }];
+  return {
+    method: "update",
+    id: ENTITY,
+    input: { id: ENTITY, expectedRevision: previousCloudState?.revision || 1, title: "Тестовый чек-лист", equipmentType: "DEMO", payload: { photoManifest: nextManifest } },
+    cleanupManifest: previous.filter((entry) => !nextManifest.some((next) => next.path === entry.path)),
+  };
+};
+mapper.removePhotoManifest = async (manifest) => {
+  log("Попытка удалить устаревших фото: " + manifest.length);
+  const failedOnce = await database.getMeta("demo:cleanup-failed-once");
+  if (!failedOnce) {
+    await database.setMeta("demo:cleanup-failed-once", true);
+    throw new Error("Демонстрационный временный сбой Storage");
+  }
+  log("Имитация Storage: устаревшие файлы удалены");
+};
+const runner = createOfflineSyncRunner({
+  authApi, database, vault, cloudSync, mapOperation: mapper,
+  isOnline: () => true,
+  claimIdFactory: () => crypto.randomUUID(),
+});
+async function refresh() {
+  const [pending, cleanups, cloudState] = await Promise.all([
+    database.listPending(USER),
+    database.listPhotoCleanups(USER),
+    database.getCloudState(USER, ENTITY),
+  ]);
+  $("queue").textContent = String(pending.length);
+  $("cleanup").textContent = String(cleanups.length);
+  $("revision").textContent = String(cloudState?.revision || 0);
+  $("status").className = "status " + (cleanups.length ? "warn" : "ok");
+  $("status").textContent = cleanups.length
+    ? "Есть сохранённое задание очистки. Оно пережило перезапуск страницы и ждёт повторной попытки."
+    : "Нет незавершённых заданий очистки.";
+}
+async function seedCloudState() {
+  if (await database.getCloudState(USER, ENTITY)) return;
+  const seedId = "demo-seed-" + crypto.randomUUID();
+  await database.enqueue({ opId: seedId, userId: USER, entityId: ENTITY, operation: "update", encrypted });
+  const claim = "seed-claim-" + crypto.randomUUID();
+  const now = new Date().toISOString();
+  await database.claimQueueOperation(seedId, USER, claim, now, new Date(Date.now() + 60000).toISOString());
+  await database.markSynced(seedId, USER, 1, claim, {
+    revision: 1,
+    photoManifest: [{
+      itemId: "demo-item", field: "photo_photo",
+      path: USER + "/" + ENTITY + "/1/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      contentType: "image/jpeg",
+    }],
+  });
+  log("Создана тестовая запись с одной старой фотографией (ревизия 1)");
+}
+$("run").addEventListener("click", async () => {
+  $("run").disabled = true;
+  try {
+    await seedCloudState();
+    const pending = await database.listPending(USER);
+    const cleanups = await database.listPhotoCleanups(USER);
+    if (!pending.length && !cleanups.length) {
+      await database.enqueue({
+        opId: "demo-update-" + crypto.randomUUID(),
+        userId: USER, entityId: ENTITY, operation: "update", encrypted,
+      });
+      log("В очередь добавлено тестовое обновление чек-листа");
+    }
+    const result = await runner.syncPending({ userId: USER });
+    log("Результат: синхронизировано " + result.synced + ", ошибок очистки " + (result.cleanupFailed || 0) + ", ожидает очистки " + (result.cleanupRemaining || 0));
+    if (result.cleanupFailed) {
+      $("status").className = "status warn";
+      $("status").textContent = "Чек-лист уже синхронизирован. Очистка фото не удалась, но задание осталось в IndexedDB. Нажмите кнопку ещё раз или перезагрузите страницу и повторите.";
+      log("Проверьте сохранность задания: перезагрузите страницу, затем нажмите кнопку повторно.");
+    } else if (result.cleanupProcessed) {
+      $("status").className = "status ok";
+      $("status").textContent = "Повторная попытка успешна. Устаревшие фотографии очищены, чек-лист повторно не отправлялся.";
+    }
+    await refresh();
+  } catch (error) {
+    $("status").className = "status warn";
+    $("status").textContent = "Ошибка теста: " + (error?.message || error);
+    log("Ошибка: " + (error?.stack || error));
+  } finally {
+    $("run").disabled = false;
+  }
+});
+await refresh();
+log("Тестовая IndexedDB готова. Нажмите кнопку для первого прохода.");
+</script>
+</body>
+</html>

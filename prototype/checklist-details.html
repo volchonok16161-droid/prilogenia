@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<base href="../">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a5eb0">
+<title>ТМХ — Сведения об осмотре</title>
+<style>
+:root{color-scheme:light;--ink:#19364e;--muted:#60778c;--line:#c8ddeb;--blue:#0a5eb0;--bg:#edf5fc;--accent:#16845b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,a{font:inherit}a{color:inherit}.top{background:var(--blue);color:white;padding:18px max(16px,calc((100vw - 880px)/2));display:flex;align-items:center;gap:14px}.top a{text-decoration:none;border:1px solid #ffffff80;border-radius:9px;padding:8px 12px;white-space:nowrap}.top strong{font-size:18px}.page{max-width:880px;margin:auto;padding:20px 14px 48px}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:19px;margin-bottom:15px;box-shadow:0 2px 6px #0f375a0a}
+h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{color:var(--muted)}.meta{font-size:13px;color:var(--muted)}.badge{display:inline-flex;padding:4px 11px;background:#fff2db;color:#865c0c;border-radius:50px;font-weight:700;font-size:13px}.badge.done{background:#e8f7ed;color:#147846}
+.progress{height:12px;background:#e5edf5;border-radius:99px;overflow:hidden;margin:12px 0 8px}.progress>div{height:100%;width:0;background:#229b65;border-radius:99px}
+.statgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{padding:12px;background:#f7fafc;border:1px solid var(--line);border-radius:11px;min-width:0}.stat .label{font-size:12px;color:var(--muted);font-weight:600}.stat .value{font-size:17px;font-weight:750;overflow-wrap:anywhere;margin-top:3px}.stat .note{font-size:12px;color:var(--muted);margin-top:4px}.stat[data-tone="green"]{background:#eff9f3;border-color:#b4d9c2}.stat[data-tone="green"] .value{color:#197b50}.stat[data-tone="orange"]{background:#fff9e9;border-color:#ead69b}.stat[data-tone="orange"] .value{color:#92600f}.stat[data-tone="red"]{background:#fff1ef;border-color:#e5b7ad}.stat[data-tone="red"] .value{color:#ad3528}
+.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:15px}.btn{display:inline-flex;align-items:center;justify-content:center;text-align:center;padding:11px 15px;border-radius:9px;border:1px solid #b8d5e8;background:#eaf3fb;color:#225171;text-decoration:none;cursor:pointer;font-weight:650;min-height:44px}.btn.primary{background:var(--blue);color:white;border-color:var(--blue)}.btn:disabled{opacity:.55;cursor:not-allowed}.note{font-size:12px;color:var(--muted);line-height:1.55}.error{color:#a72924}.hidden{display:none!important}.small-list{margin:10px 0 0;padding-left:22px;font-size:13px}.small-list li{margin:3px 0}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:15px}
+.overview-card{background:white;border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
+.overview-card .label{font-size:12px;color:var(--muted);font-weight:650}
+.overview-card .value{font-size:22px;font-weight:780;line-height:1.35;margin-top:5px;overflow-wrap:anywhere}
+.overview-card .sub{font-size:12px;color:var(--muted);margin-top:5px}
+.overview-card[data-tone="green"]{border-color:#b4d9c2;background:#eff9f3}
+.overview-card[data-tone="orange"]{border-color:#ead69b;background:#fff9e9}
+.overview-card[data-tone="red"]{border-color:#e5b7ad;background:#fff1ef}
+.timeline{list-style:none;padding:0;margin:0}
+.timeline li{position:relative;padding:0 0 17px 25px;border-left:2px solid #d3e2ef;margin-left:7px}
+.timeline li:last-child{padding-bottom:0;border-left-color:transparent}
+.timeline li:before{content:"";position:absolute;left:-7px;top:3px;width:11px;height:11px;border-radius:50%;background:#1671b9;border:2px solid white;box-shadow:0 0 0 1px #bad2e5}
+.timeline strong{display:block;font-size:14px}.timeline time{display:block;font-size:12px;color:var(--muted);margin:2px 0}
+.timeline p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+@media(max-width:550px){.overview{grid-template-columns:repeat(2,minmax(0,1fr))}.overview-card .value{font-size:19px}}
+@media(max-width:550px){.top{padding:14px 12px}.top strong{font-size:15px}.page{padding:13px 10px 35px}.panel{padding:15px;border-radius:13px}.statgrid{gap:7px}.stat{padding:10px}.stat .value{font-size:15px}.actions .btn{flex:1 1 43%}h1{font-size:21px}}
+@media(max-width:550px){
+ .top{gap:9px;justify-content:flex-start;align-items:center;padding:11px 12px}
+ .top a{padding:7px 10px;font-size:13px;border-radius:8px}
+ .top strong{font-size:14px;line-height:1.2}
+ .page{padding:11px 10px 28px}
+ .panel{padding:13px;margin-bottom:11px}
+ h1{font-size:21px;line-height:1.25}
+ .meta{font-size:12px}
+ #dates{line-height:1.4}
+ #locomotiveInfo{gap:7px;margin-top:10px!important}
+ .statgrid{gap:7px}
+ .stat{padding:9px}
+ .stat .value{font-size:14px}
+ .actions{gap:7px;margin-top:12px}
+ .actions .btn{font-size:13px;padding:8px 10px;min-height:42px}
+ .overview{gap:7px;margin-bottom:11px}
+ .overview-card{padding:10px}
+ .overview-card .value{font-size:19px}
+ .overview-card .sub{font-size:11px}
+}
+
+.equipment-list{display:grid;gap:9px;margin-top:12px}
+.equipment-list details{background:#f8fbff;border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.equipment-list summary{cursor:pointer;list-style:none;padding:13px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.equipment-list summary::-webkit-details-marker{display:none}
+.equipment-list summary:after{content:"⌄";font-size:20px;color:var(--blue)}
+.equipment-list details[open] summary:after{content:"⌃"}
+.equipment-list .eq-name{font-weight:700;overflow-wrap:anywhere}
+.equipment-list .eq-count{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+.equipment-instance{padding:10px 13px 14px;border-top:1px solid var(--line)}
+.equipment-instance h3{margin:0 0 7px;font-size:13px;color:var(--ink)}
+.equipment-op{display:flex;align-items:flex-start;justify-content:space-between;gap:9px;padding:8px 0;border-top:1px solid #e6edf4;font-size:13px}
+.equipment-op .op-key{min-width:0;overflow-wrap:anywhere;color:var(--muted)}
+.equipment-op .op-answer{font-weight:650;text-align:right;max-width:48%;overflow-wrap:anywhere}
+.equipment-op .op-answer[data-state="ok"]{color:#147846}
+.equipment-op .op-answer[data-state="deviation"],.equipment-op .op-answer[data-state="nok"]{color:#b42318}
+.equipment-op .op-answer[data-state="empty"]{color:#9a6518}
+@media(max-width:550px){.equipment-list summary{padding:11px}.equipment-op{font-size:12px}}
+
+/* Summary-first mobile layout */
+.main-summary .hero-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:5px 0 11px}
+.hero-title h1{margin:0}
+.inspect-info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.inspect-info div{min-width:0}.inspect-info span,.scope-grid span{display:block;color:var(--muted);font-size:12px}
+.inspect-info strong,.scope-grid strong{display:block;font-size:14px;overflow-wrap:anywhere}
+.big-percent{color:var(--blue);font-size:27px}
+.main-progress .progress{margin-top:5px}
+.progress-caption{font-size:13px;color:var(--muted);margin:7px 0 12px}
+.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.result-cell{border:1px solid var(--line);border-radius:11px;padding:12px;background:#f8fafc}
+.result-cell span,.document-line span{font-size:13px;color:var(--muted)}
+.result-cell strong{display:block;font-size:23px;margin-top:3px}
+.result-cell strong[data-alert="true"]{color:#b42318}
+.attention{margin-top:12px;padding:11px 12px;border-radius:10px;background:#fff3e8;border:1px solid #edce9d;color:#845315;font-size:13px}
+.document-line{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #e6edf4}
+.document-line strong{font-size:13px;text-align:right;overflow-wrap:anywhere}.document-line strong[data-alert="true"]{color:#b42318}
+.main-actions{margin-top:0;margin-bottom:12px}.main-actions .btn{width:100%}
+.more-details{padding:0!important}.more-details>summary{cursor:pointer;padding:15px 19px;font-weight:700;list-style:none;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px}
+.more-details>summary::-webkit-details-marker{display:none}.more-details>summary:after{content:"⌄";color:var(--blue)}
+.more-details[open]>summary:after{content:"⌃"}
+.more-details .more-content{padding:0 19px 19px;border-top:1px solid var(--line)}
+.scope-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:12px 0}
+.scope-grid div{background:#f8fafc;padding:9px;border-radius:9px}
+@media(max-width:550px){
+ .inspect-info{gap:7px}
+ .main-summary .hero-title{align-items:flex-start}
+ .result-cell{padding:10px}
+ .more-details>summary{padding:13px}
+ .more-details .more-content{padding:0 13px 13px}
+ .scope-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+</style>
+</head>
+<body>
+<header class="top"><a href="./account.html" id="back">← Кабинет</a><strong>Сведения об осмотре</strong></header>
+<main class="page">
+<div id="loading" class="panel">Загружаем сведения по выбранному чек-листу…</div>
+<div id="error" class="panel error hidden" role="alert"></div>
+<div id="warning" class="panel hidden" role="status" style="border-color:#e8c67d;background:#fff9e9;color:#80570c"></div>
+<div id="content" class="hidden">
+<section class="panel main-summary">
+  <div class="meta" id="kind"></div>
+  <div class="hero-title"><h1 id="title">Осмотр</h1><span id="status" class="badge"></span></div>
+  <div class="inspect-info">
+    <div><span>Дата осмотра</span><strong id="inspectionDate">—</strong></div>
+    <div><span>Депо</span><strong id="depot">—</strong></div>
+    <div><span>Место</span><strong id="place">—</strong></div>
+  </div>
+  <div class="meta" id="dates"></div>
+</section>
+<section class="panel main-progress">
+  <div class="section-heading"><h2>Результаты осмотра</h2><strong id="percent" class="big-percent">—</strong></div>
+  <div class="progress" role="progressbar" id="progressBar" aria-label="Заполнение чек-листа" aria-valuemin="0" aria-valuemax="100"><div id="fill"></div></div>
+  <div class="progress-caption" id="fields">Нет данных о заполнении</div>
+  <div class="result-grid">
+    <div class="result-cell"><span>Не заполнено</span><strong id="missing">—</strong></div>
+    <div class="result-cell"><span>Несоответствия</span><strong id="deviations">—</strong></div>
+  </div>
+  <p id="scopeLine" class="note"></p>
+  <div id="attention" class="attention hidden" role="status"></div>
+</section>
+<section class="panel">
+  <h2>Документы и уведомления</h2>
+  <div class="document-line"><span>Excel</span><strong id="excel">Нет сведений</strong></div>
+  <div class="document-line"><span>Акт осмотра</span><strong id="actUpload">Нет сведений</strong></div>
+  <div class="document-line"><span>Уведомления</span><strong id="notificationStatus">Нет данных</strong></div>
+  <p id="notificationDetail" class="note hidden"></p>
+  <div class="actions">
+    <button id="uploadAct" type="button" class="btn">Загрузить акт</button>
+    <button id="viewAct" type="button" class="btn hidden">Открыть акт</button>
+    <input id="actFile" class="hidden" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png">
+  </div>
+  <p class="note" id="actDetails"></p>
+</section>
+<div class="actions main-actions"><a id="openChecklist" class="btn primary">Продолжить заполнение</a></div>
+<details class="more-details panel">
+  <summary>Дополнительные сведения <span class="muted">Оборудование и ответы</span></summary>
+  <div class="more-content">
+    <div id="coverageNotice" class="note"></div>
+    <div class="scope-grid">
+      <div><span>Оборудование</span><strong id="equipment">—</strong></div>
+      <div><span>Операции</span><strong id="operations">—</strong></div>
+      <div><span>Секции</span><strong id="sections">—</strong></div>
+    </div>
+    <p class="note">Здесь показаны только операции, сохранённые в облачной копии. Для старых чек-листов могут отсутствовать названия или полный перечень проверок.</p>
+    <div id="documentRegisterSummary" class="note"></div>
+    <div id="equipmentDetailSummary" class="note"></div>
+    <div id="equipmentDetailList" class="equipment-list"></div>
+    <div class="document-line"><span>Подготовка акта</span><strong id="actPrepared">—</strong></div>
+    <div class="document-line"><span>Версия копии</span><strong id="revision">—</strong></div>
+    <div class="document-line"><span>Пробег</span><strong id="mileage">—</strong></div>
+  </div>
+</details>
+</div>
+</main>
+<script type="module" src="./prototype/supabase-auth.js"></script>
+<script type="module">
+import { isChecklistComplete } from "./prototype/checklist-status.js";
+import { buildChecklistWorkflowView } from "./prototype/checklist-workflow-status.js";
+import { buildChecklistEquipmentDetails } from "./prototype/checklist-equipment-details.js";
+import { listChecklistActs, uploadChecklistAct, getChecklistActLink } from "./prototype/checklist-acts.js";
+const $=id=>document.getElementById(id);
+const fmt=v=>{if(!v)return "—";const d=new Date(v);return Number.isNaN(d.getTime())?"—":new Intl.DateTimeFormat("ru-RU",{dateStyle:"medium",timeStyle:"short"}).format(d)};
+const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+let current=null,verifiedAct=null,ownerId=null,api=null,actsAvailable=false;
+function setText(id,val){$(id).textContent=val}
+function renderEquipmentDetails(payload){
+ const groups=buildChecklistEquipmentDetails(payload),host=$("equipmentDetailList");host.replaceChildren();
+ const answered=groups.reduce((n,g)=>n+g.answered,0);
+ const empty=groups.reduce((n,g)=>n+g.empty,0);
+ const nok=groups.reduce((n,g)=>n+g.nok,0);
+ setText("equipmentDetailSummary",groups.length?
+   "Узлов с сохранёнными ответами: "+groups.length+" · Ответов: "+answered+" · Пустых сохранённых полей: "+empty+" · Выявленных отклонений: "+nok:
+   "В этой облачной копии нет ответов с привязкой к оборудованию.");
+ for(const group of groups){
+   const details=document.createElement("details"),summary=document.createElement("summary");
+   const label=document.createElement("div"),name=document.createElement("div"),count=document.createElement("span");
+   name.className="eq-name";name.textContent=group.label;
+   count.className="eq-count";count.textContent="Ответов: "+group.answered+" · Пустых: "+group.empty+" · Отклонений: "+group.nok;
+   label.append(name,count);summary.append(label);details.append(summary);
+   for(const instance of group.instances){
+     const body=document.createElement("div"),heading=document.createElement("h3");
+     body.className="equipment-instance";heading.textContent=instance.label;body.append(heading);
+     for(const op of instance.operations){
+       const line=document.createElement("div"),key=document.createElement("span"),value=document.createElement("span");
+       line.className="equipment-op";key.className="op-key";key.textContent=op.label;
+       value.className="op-answer";value.dataset.state=op.kind;
+       value.textContent=op.answer||"Без ответа";line.append(key,value);body.append(line);
+     }
+     details.append(body);
+   }
+   host.append(details);
+ }
+}
+function render(row,act){
+ const payload=row.payload && typeof row.payload==="object" ? row.payload : {};
+ const stats=payload.stats && typeof payload.stats==="object" ? payload.stats : {};
+ const workflow=payload.workflow && typeof payload.workflow==="object" ? payload.workflow : {};
+ const w=buildChecklistWorkflowView({stats,workflow}),g=payload.state?.general||{};
+ const done=isChecklistComplete(stats);
+ const name=[g.type||row.equipment_type||"",g.number||""].filter(Boolean).join(" №");
+ setText("title",name?"Электровоз "+name:row.title||"Чек-лист");
+ setText("kind",payload.checklistType||"Чек-лист");
+ setText("status",done?"✓ Заполнен":"В работе");$("status").classList.toggle("done",done);
+ setText("dates","Последнее обновление: "+fmt(row.updated_at));
+ const dateText=typeof g.date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(g.date)?g.date.split("-").reverse().join("."):"—";
+ setText("inspectionDate",dateText);
+ setText("depot",String(g.depot||"—"));
+ setText("place",String(g.place||"—"));
+ setText("mileage",String(g.mileage||"—"));
+ setText("percent",w.percentage===null?"—":w.percentage+"%");
+ $("fill").style.width=(w.percentage??0)+"%";
+ if(w.percentage===null)$("progressBar").removeAttribute("aria-valuenow");
+ else $("progressBar").setAttribute("aria-valuenow",String(w.percentage));
+ setText("fields",w.counted?"Заполнено "+w.filled+" из "+w.total+" полей":"Количество заполненных полей не сохранено");
+ setText("missing",w.counted?String(w.total-w.filled):"—");
+ const rawDev=stats.deviations;
+ const dev=rawDev===null||rawDev===undefined||rawDev===""?NaN:Number(rawDev);
+ setText("deviations",Number.isSafeInteger(dev)&&dev>=0?String(dev):"—");
+ $("deviations").dataset.alert=Number.isSafeInteger(dev)&&dev>0?"true":"false";
+ const scope=w.equipment? "Выбрано оборудования: "+w.equipment.selected+" из "+w.equipment.available+".":"";
+ setText("scopeLine",scope);
+ const alerts=[];
+ if(w.counted&&w.total>w.filled)alerts.push("Осталось заполнить "+(w.total-w.filled)+" полей");
+ if(Number.isSafeInteger(dev)&&dev>0)alerts.push("Зафиксировано несоответствий: "+dev);
+ if(w.notifications?.required){
+   const n=w.notifications;
+   if(n.pending||n.notSent||n.missingEvidence){
+     alerts.push("Уведомления требуют внимания: "+(n.notSent+n.pending)+(n.missingEvidence?" · без обязательного фото: "+n.missingEvidence:""));
+   }
+ }
+ setText("attention",alerts.join(" · "));
+ $("attention").classList.toggle("hidden",alerts.length===0);
+ const notifications=w.notifications;
+ if(!notifications){
+   setText("notificationStatus","Нет данных");
+   setText("notificationDetail","");
+ }else if(notifications.required===0){
+   // Legacy saved counts do not prove that the current checklist had no triggers.
+   setText("notificationStatus",notifications.verified?"Не требуются по копии":"Требуется проверка");
+   setText("notificationDetail",notifications.verified?
+     "По последней облачной копии уведомления не требовались.":"В облачной копии нет подтверждённого расчёта уведомлений. Проверьте их в чек-листе и обновите облачную копию.");
+ }else{
+   const outstanding=notifications.pending+notifications.notSent;
+   setText("notificationStatus",outstanding||notifications.missingEvidence?"Требуют внимания":"Переданы: "+notifications.sent+" из "+notifications.required);
+   const detail=[
+     "Требовалось: "+notifications.required,
+     "Передано: "+notifications.sent,
+     outstanding?"Не передано или без решения: "+outstanding:"",
+     notifications.missingEvidence?"Без обязательного фото: "+notifications.missingEvidence:""
+   ].filter(Boolean);
+   setText("notificationDetail",detail.join(" · "));
+ }
+ $("notificationDetail").classList.toggle("hidden",!notifications);
+ $("notificationStatus").dataset.alert=notifications&&(notifications.pending+notifications.notSent+notifications.missingEvidence)>0||notifications?.required===0&&!notifications.verified?"true":"false";
+ setText("excel",w.excelRequestedAt?"Запрос "+fmt(w.excelRequestedAt):"Запрос не зафиксирован");
+ setText("actUpload",act?"Загружен "+fmt(act.uploaded_at):actsAvailable?"Не загружен":"Проверяем…");
+ setText("actPrepared",w.actPreparedAt?fmt(w.actPreparedAt):"Нет подтверждения");
+ setText("revision",String(row.revision??"—"));
+ setText("actDetails",act?"Загруженный файл: "+act.file_name+". Загрузка не подтверждает подпись.":actsAvailable?"Загрузить можно PDF, JPG или PNG до 20 МБ.":"Сведения об актах сейчас недоступны.");
+ $("uploadAct").disabled=!actsAvailable;
+ $("viewAct").classList.toggle("hidden",!act);
+ setText("equipment",w.equipment?w.equipment.selected+" из "+w.equipment.available:"Нет данных");
+ setText("operations",w.operations?w.operations.selected+" из "+w.operations.available:"Нет данных");
+ setText("sections",w.sections?w.sections.selected+" из "+w.sections.available:"Нет данных");
+ setText("coverageNotice",w.equipment&&w.equipment.selected<w.equipment.available?"Часть оборудования не входит в этот осмотр. Это не означает незавершённое заполнение.":"");
+ const docRecords=Array.isArray(payload.documents?.notices)?payload.documents.notices:[];
+ const housings=docRecords.filter(x=>x?.templateId==="housings_notice");
+ setText("documentRegisterSummary",housings.length?
+   "Кожуха: оснований для уведомления — "+housings.length+". Утверждённый шаблон документа ещё не добавлен.":
+   payload.documents?.noticeCalculationVerified===true?"По последней облачной копии оснований для уведомлений по кожухам не выявлено.":
+   "Необходима повторная проверка уведомлений в чек-листе и сохранение в облако.");
+ // Optional detailed answers are rendered only after the user expands this section.
+ const mode=typeof row.mode==="string"?row.mode:payload.mode||"";
+ $("openChecklist").href="./prototype/checklist/?openChecklist="+encodeURIComponent(row.id)+(mode?"&mode="+encodeURIComponent(mode):"");
+}
+async function load(){
+ const id=new URLSearchParams(location.search).get("id");
+ if(!uuid.test(id||""))throw new Error("Ссылка на сведения об осмотре некорректна");
+ await window.TMHAuthReady;
+ api=window.TMHAuth;
+ if(!api)throw new Error("Модуль авторизации не загрузился");
+ const identity=await api.getCurrentIdentity();
+ if(identity?.error||!identity?.user?.id)throw new Error("Необходимо войти в личный кабинет");
+ ownerId=identity.user.id;
+ const result=await api.client.from("checklists")
+   .select("id,owner_id,title,equipment_type,revision,created_at,updated_at,payload")
+   .eq("id",id).eq("owner_id",ownerId).single();
+ if(result.error||!result.data)throw new Error("Осмотр не найден в вашем личном кабинете");
+ const latestIdentity=await api.getCurrentIdentity();
+ if(latestIdentity?.error||latestIdentity?.user?.id!==ownerId)throw new Error("Сеанс пользователя изменился");
+ current=result.data;
+ // Show the saved checklist first; attachment storage must not block statistics.
+ actsAvailable=false;
+ render(current,null);
+ $("loading").classList.add("hidden");$("content").classList.remove("hidden");
+ try {
+   const acts=await listChecklistActs(api,ownerId);
+   const stillCurrent=await api.getCurrentIdentity();
+   if(stillCurrent?.error||stillCurrent?.user?.id!==ownerId) throw new Error("Сеанс пользователя изменился");
+   actsAvailable=true;
+   verifiedAct=acts.get(id)||null;
+   render(current,verifiedAct);
+   $("warning").classList.add("hidden");
+ } catch (attachmentError) {
+   console.warn("Checklist act metadata could not be loaded",attachmentError);
+   setText("warning","Сведения об осмотре загружены. Данные об актах сейчас недоступны; остальные показатели отображаются без изменений.");
+   $("warning").classList.remove("hidden");
+ }
+}
+$("uploadAct").addEventListener("click",()=>$("actFile").click());
+$("actFile").addEventListener("change",async()=>{
+ const file=$("actFile").files?.[0];if(!file||!current)return;
+ $("uploadAct").disabled=true;$("uploadAct").textContent="Загрузка…";
+ try{
+   verifiedAct=await uploadChecklistAct(api,{ownerId,checklistId:current.id,file});
+   render(current,verifiedAct);
+ }catch(e){window.alert("Акт не загружен: "+(e?.message||e));}
+ finally{$("actFile").value="";$("uploadAct").disabled=false;$("uploadAct").textContent="Загрузить акт"}
+});
+$("viewAct").addEventListener("click",async()=>{
+ if(!verifiedAct)return;
+ $("viewAct").disabled=true;
+ try{const signed=await getChecklistActLink(api,verifiedAct);window.open(signed,"_blank","noopener,noreferrer")}
+ catch(e){window.alert("Не удалось открыть акт: "+(e?.message||e))}
+ finally{$("viewAct").disabled=false}
+});
+document.querySelector(".more-details").addEventListener("toggle",event=>{
+ if(event.target.open&&current)renderEquipmentDetails(current.payload||{});
+});
+load().catch(e=>{$("loading").classList.add("hidden");setText("error",e?.message||"Не удалось загрузить сведения");$("error").classList.remove("hidden")});
+</script>
+</body>
+</html>
