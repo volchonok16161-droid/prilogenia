@@ -1,4 +1,5 @@
 import { createCloudSync } from "./supabase-cloud-sync.js";
+import { createDocumentRegister } from "./checklist-document-register.js";
 
 function cloneWithoutPhotos(value, stats = { removed: 0 }) {
   if (Array.isArray(value)) {
@@ -180,13 +181,20 @@ export function createChecklistCloudBackup({
           filledTotal: Number(authoritativeStats.filledTotal) || 0,
         })
       : calculateChecklistStats(state, getChecklistDefinitions());
+    const workflowSource = getChecklistWorkflow() || null;
+    const { documentItems = [], ...workflow } = workflowSource && typeof workflowSource === "object"
+      ? workflowSource : {};
+    const documents = createDocumentRegister({
+      notices: documentItems, general: state.general, act: workflow.act
+    });
     const payload = {
       mode,
       checklistType,
       state: cloneWithoutPhotos(state, stats),
       photos: manifest,
       stats: checklistStats,
-      workflow: getChecklistWorkflow() || null,
+      workflow: workflowSource ? workflow : null,
+      documents,
     };
     const title = [
       "Чек-лист",
