@@ -281,8 +281,8 @@ function render(row,act){
  const housings=docRecords.filter(x=>x?.templateId==="housings_notice");
  setText("documentRegisterSummary",housings.length?
    "Кожуха: оснований для уведомления — "+housings.length+". Утверждённый шаблон документа ещё не добавлен.":
-   payload.documents?.schemaVersion===1?"По сохранённому реестру оснований для уведомлений по кожухам нет.":
-   "Реестр документов появится после нового сохранения чек-листа в облако.");
+   payload.documents?.noticeCalculationVerified===true?"По последней облачной копии оснований для уведомлений по кожухам не выявлено.":
+   "Необходима повторная проверка уведомлений в чек-листе и сохранение в облако.");
  // Optional detailed answers are rendered only after the user expands this section.
  const mode=typeof row.mode==="string"?row.mode:payload.mode||"";
  $("openChecklist").href="./prototype/checklist/?openChecklist="+encodeURIComponent(row.id)+(mode?"&mode="+encodeURIComponent(mode):"");
