@@ -185,7 +185,8 @@ export function createChecklistCloudBackup({
     const { documentItems = [], ...workflow } = workflowSource && typeof workflowSource === "object"
       ? workflowSource : {};
     const documents = createDocumentRegister({
-      notices: documentItems, general: state.general, act: workflow.act
+      notices: documentItems, general: state.general, act: workflow.act,
+      noticesVerified: workflow.notifications?.verified===true
     });
     const payload = {
       mode,
