@@ -36,3 +36,9 @@ test("notifications are included with documents without creating a verbose secti
  assert.match(page,/notifications\.missingEvidence/);
  assert.doesNotMatch(page,/<h2>Уведомления<\/h2>/);
 });
+
+test("compact notification row distinguishes unverified legacy zeros from confirmed none",()=>{
+ assert.match(page,/notifications\.verified\?"Не требуются по копии":"Требуется проверка"/);
+ assert.match(page,/облачной копии нет подтверждённого расчёта уведомлений/);
+ assert.match(page,/notifications\.required===0/);
+});
