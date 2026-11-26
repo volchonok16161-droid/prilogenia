@@ -14,15 +14,15 @@ test("first document template is housings only, awaiting approved user sample",(
  assert.equal(reg.schemaVersion,1);
  assert.equal(reg.notices[0].templateId,"housings_notice");
  assert.equal(reg.notices[0].noticeGeneratedAt,null);
- assert.equal(reg.notices[0].noticeCopyUploaded,false);
+ assert.equal(reg.notices[0].noticeCopyUploaded,null);
  assert.equal(reg.notices[0].notificationStatus,"marked_delivered");
  assert.equal(reg.notices[1].templateId,null);
  assert.equal(reg.notices[1].templateState,"not_configured");
  assert.equal(reg.act.signatureVerified,false);
  const rows=documentDashboardRows(reg,"checklist-123");
  assert.equal(rows[0].checklistId,"checklist-123");
- assert.equal(rows[0].generated,"Нет");
- assert.equal(rows[0].copyUploaded,"Нет");
+ assert.equal(rows[0].generated,"Не сформирован");
+ assert.equal(rows[0].copyUploaded,"Нет подтверждения");
  assert.equal(rows[1].templateStatus,"not_configured");
 });
 test("no automatic documents are fabricated for a normal checklist",()=>{
