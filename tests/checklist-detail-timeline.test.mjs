@@ -34,3 +34,9 @@ test("details display overview cards and actual recorded history",async()=>{
   assert.match(html,/aria-valuenow/);
   assert.match(html,/История каждого изменения полей пока не ведётся/);
 });
+
+test("offline application caches the inspection timeline dependency",async()=>{
+ const sw=await readFile(new URL("../sw.js",import.meta.url),"utf8");
+ assert.match(sw,/\.\/prototype\/checklist-detail-timeline\.js/);
+ assert.match(sw,/checklist-cache-v163/);
+});
