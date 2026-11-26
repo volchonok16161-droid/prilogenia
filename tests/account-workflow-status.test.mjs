@@ -87,3 +87,13 @@ test("preview uses the route actually published by Render",async()=>{
  assert.match(page,/buildChecklistWorkflowView\(\{stats,workflow\}\)/);
  assert.match(worker,/\.\/prototype\/checklist-details\.html/);
 });
+
+test("legacy zero notification counters are not treated as verified absence",()=>{
+ const view=buildChecklistWorkflowView({workflow:{notifications:{required:0,delivered:0,notDelivered:0,pending:0,missingEvidence:0}}});
+ assert.equal(view.notifications.required,0);
+ assert.equal(view.notifications.verified,false);
+ const trusted=buildChecklistWorkflowView({workflow:{notifications:{required:1,delivered:0,notDelivered:0,pending:1,missingEvidence:0,verified:true,calculatedAt:"2026-11-26T15:00:00Z"}}});
+ assert.equal(trusted.notifications.required,1);
+ assert.equal(trusted.notifications.verified,true);
+ assert.equal(trusted.notifications.pending,1);
+});
