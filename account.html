@@ -379,7 +379,7 @@ async function renderLocalOfflineChecklists(api, requestId) {
       actions.style.gap = "8px";
       const open = document.createElement("a");
       open.className = "btn secondary";
-      open.textContent = "Открыть";
+      open.textContent = "Продолжить заполнение";
       open.href = "./prototype/checklist/?mode=" + encodeURIComponent(entry.mode) + "&openLocalChecklist=" + encodeURIComponent(entry.instanceId);
       open.setAttribute("aria-label", "Открыть " + (entry.title || "локальный чек-лист"));
       actions.append(open);
@@ -630,7 +630,7 @@ async function loadCabinet() {
       const detailLink=document.createElement("a");
       detailLink.href=detailHref;
       detailLink.className="checklist-detail-link";
-      detailLink.textContent="Сведения об осмотре и документах";
+      detailLink.textContent="Сведения об электровозе · статистика и документы";
       detailLink.setAttribute("aria-label","Открыть сведения по "+(row.title||"чек-листу"));
       info.append(detailLink);
       title.classList.add("checklist-title-linked");
