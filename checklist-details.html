@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a5eb0">
+<title>ТМХ — Сведения об осмотре</title>
+<style>
+:root{color-scheme:light;--ink:#19364e;--muted:#60778c;--line:#c8ddeb;--blue:#0a5eb0;--bg:#edf5fc}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,a{font:inherit}a{color:inherit}.top{background:var(--blue);color:white;padding:18px max(16px,calc((100vw - 880px)/2));display:flex;align-items:center;gap:14px}.top a{text-decoration:none;border:1px solid #ffffff80;border-radius:9px;padding:8px 12px;white-space:nowrap}.top strong{font-size:18px}.page{max-width:880px;margin:auto;padding:20px 14px 48px}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:19px;margin-bottom:15px;box-shadow:0 2px 6px #0f375a0a}
+h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{color:var(--muted)}.meta{font-size:13px;color:var(--muted)}.badge{display:inline-flex;padding:4px 11px;background:#fff2db;color:#865c0c;border-radius:50px;font-weight:700;font-size:13px}.badge.done{background:#e8f7ed;color:#147846}
+.progress{height:9px;background:#e5edf5;border-radius:99px;overflow:hidden;margin:12px 0 8px}.progress>div{height:100%;width:0;background:#229b65;border-radius:99px}
+.statgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{padding:12px;background:#f7fafc;border:1px solid var(--line);border-radius:11px;min-width:0}.stat .label{font-size:12px;color:var(--muted);font-weight:600}.stat .value{font-size:17px;font-weight:750;overflow-wrap:anywhere;margin-top:3px}.stat .note{font-size:12px;color:var(--muted);margin-top:4px}.stat[data-tone="green"]{background:#eff9f3;border-color:#b4d9c2}.stat[data-tone="green"] .value{color:#197b50}.stat[data-tone="orange"]{background:#fff9e9;border-color:#ead69b}.stat[data-tone="orange"] .value{color:#92600f}.stat[data-tone="red"]{background:#fff1ef;border-color:#e5b7ad}.stat[data-tone="red"] .value{color:#ad3528}
+.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:15px}.btn{display:inline-flex;align-items:center;justify-content:center;text-align:center;padding:11px 15px;border-radius:9px;border:1px solid #b8d5e8;background:#eaf3fb;color:#225171;text-decoration:none;cursor:pointer;font-weight:650;min-height:44px}.btn.primary{background:var(--blue);color:white;border-color:var(--blue)}.btn:disabled{opacity:.55;cursor:not-allowed}.note{font-size:12px;color:var(--muted);line-height:1.55}.error{color:#a72924}.hidden{display:none!important}.small-list{margin:10px 0 0;padding-left:22px;font-size:13px}.small-list li{margin:3px 0}
+@media(max-width:550px){.top{padding:14px 12px}.top strong{font-size:15px}.page{padding:13px 10px 35px}.panel{padding:15px;border-radius:13px}.statgrid{gap:7px}.stat{padding:10px}.stat .value{font-size:15px}.actions .btn{flex:1 1 43%}h1{font-size:21px}}
+</style>
+</head>
+<body>
+<header class="top"><a href="./account.html" id="back">← Кабинет</a><strong>Сведения об осмотре электровоза</strong></header>
+<main class="page">
+<div id="loading" class="panel">Загружаем сведения по выбранному чек-листу…</div>
+<div id="error" class="panel error hidden" role="alert"></div>
+<div id="content" class="hidden">
+<section class="panel">
+<div class="meta" id="kind"></div>
+<h1 id="title">Осмотр</h1>
+<div id="status" class="badge"></div>
+<div class="meta" id="dates" style="margin-top:10px"></div>
+<div class="actions"><a id="openChecklist" class="btn primary">Открыть чек-лист для заполнения</a><a href="./account.html" class="btn">Все чек-листы</a></div>
+</section>
+<section class="panel">
+<h2>Выполнение осмотра</h2>
+<div class="statgrid">
+<div class="stat"><div class="label">Заполнение</div><div class="value" id="percent">—</div></div>
+<div class="stat"><div class="label">Заполнено полей</div><div class="value" id="fields">—</div></div>
+<div class="stat"><div class="label">Осталось незаполненным</div><div class="value" id="missing">—</div></div>
+<div class="stat"><div class="label">Несоответствия</div><div class="value" id="deviations">—</div></div>
+</div>
+<div class="progress"><div id="fill"></div></div>
+<div class="note">Процент рассчитывается по выбранному для осмотра объёму работ, а не по всем доступным узлам электровоза.</div>
+</section>
+<section class="panel">
+<h2>Охват оборудования и операций</h2>
+<div class="statgrid">
+<div class="stat"><div class="label">Оборудование</div><div class="value" id="equipment">—</div></div>
+<div class="stat"><div class="label">Операции</div><div class="value" id="operations">—</div></div>
+<div class="stat"><div class="label">Секции</div><div class="value" id="sections">—</div></div>
+<div class="stat"><div class="label">Состояние осмотра</div><div class="value" id="scopeStatus">—</div></div>
+</div>
+<div class="note" style="margin-top:10px">Доступное оборудование и операции не обязательно все входят в конкретный осмотр. Незавершённое заполнение и неполный охват — разные показатели.</div>
+</section>
+<section class="panel">
+<h2>Уведомления</h2>
+<div id="noticeSummary" class="muted"></div>
+<div id="notificationStats" class="statgrid" style="margin-top:10px"></div>
+</section>
+<section class="panel">
+<h2>Документы и подтверждения</h2>
+<div class="statgrid">
+<div class="stat"><div class="label">Excel</div><div class="value" id="excel">Нет подтверждения</div><div class="note">Фиксируется запрос экспорта, а не гарантированное скачивание</div></div>
+<div class="stat"><div class="label">Подготовка акта</div><div class="value" id="actPrepared">Нет подтверждения</div></div>
+<div class="stat"><div class="label">Загрузка акта</div><div class="value" id="actUpload">Не подтверждена</div></div>
+<div class="stat"><div class="label">Версия облачной копии</div><div class="value" id="revision">—</div></div>
+</div>
+<div class="actions"><button id="uploadAct" type="button" class="btn">Загрузить акт</button><button id="viewAct" type="button" class="btn hidden">Открыть загруженный акт</button><input id="actFile" class="hidden" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"></div>
+<div class="note" id="actDetails" style="margin-top:8px">Подготовка, подпись и загрузка акта — разные действия. Загрузка файла сама по себе не подтверждает подпись.</div>
+</section>
+</div>
+</main>
+<script type="module" src="./prototype/supabase-auth.js"></script>
+<script type="module">
+import { isChecklistComplete } from "./prototype/checklist-status.js";
+import { buildChecklistWorkflowView } from "./prototype/checklist-workflow-status.js";
+import { listChecklistActs, uploadChecklistAct, getChecklistActLink } from "./prototype/checklist-acts.js";
+const $=id=>document.getElementById(id);
+const fmt=v=>{if(!v)return "—";const d=new Date(v);return Number.isNaN(d.getTime())?"—":new Intl.DateTimeFormat("ru-RU",{dateStyle:"medium",timeStyle:"short"}).format(d)};
+const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+let current=null,verifiedAct=null,ownerId=null,api=null;
+function setText(id,val){$(id).textContent=val}
+function addNotice(label,value,tone){const box=document.createElement("div");box.className="stat";if(tone)box.dataset.tone=tone;const l=document.createElement("div");l.className="label";l.textContent=label;const v=document.createElement("div");v.className="value";v.textContent=value;box.append(l,v);$("notificationStats").append(box)}
+function render(row,act){
+ const w=buildChecklistWorkflowView(row),stats=row.stats||{},state=row.payload?.state||{},g=state.general||{};
+ const done=isChecklistComplete(stats);
+ const title=[g.type||row.equipment_type||"",g.number||""].filter(Boolean).join(" №");
+ setText("title",title?"Электровоз "+title:row.title||"Чек-лист");
+ setText("kind",row.checklist_type||row.payload?.checklistType||"Чек-лист");
+ setText("status",done?"✓ Осмотр заполнен":"В работе");$("status").classList.toggle("done",done);
+ setText("dates","Создан: "+fmt(row.created_at)+" · Обновлён: "+fmt(row.updated_at));
+ setText("percent",w.percentage===null?"Нет данных":w.percentage+"%");
+ setText("fields",w.counted?w.filled+" из "+w.total:"Нет данных");
+ setText("missing",w.counted?String(w.total-w.filled):"Нет данных");
+ const dev=Number(stats.deviations);setText("deviations",Number.isFinite(dev)?String(dev):"Нет данных");
+ $("fill").style.width=(w.percentage||0)+"%";
+ setText("equipment",w.equipment?w.equipment.selected+" из "+w.equipment.available:"Нет данных");
+ setText("operations",w.operations?w.operations.selected+" в выбранных узлах из "+w.operations.available+" в каталоге":"Нет данных");
+ setText("sections",w.sections?w.sections.selected+" из "+w.sections.available:"Нет данных");
+ setText("scopeStatus",done?"Заполнен":"Есть незавершённые поля");
+ const n=w.notifications;$("notificationStats").replaceChildren();
+ if(!n){setText("noticeSummary","Нет сохранённых сведений о необходимости уведомлений для этого осмотра.");}
+ else if(!n.required){setText("noticeSummary","По сохранённым условиям уведомления не требовались.");}
+ else{
+ setText("noticeSummary","Требовалось уведомлений: "+n.required);
+ addNotice("Передано",String(n.sent),"green");addNotice("Не передано",String(n.notSent),n.notSent?"red":"");
+ addNotice("Без решения",String(n.pending),n.pending?"orange":"");
+ addNotice("Без обязательного фото",String(n.missingEvidence),n.missingEvidence?"red":"");
+ }
+ setText("excel",w.excelRequestedAt?"Запрос экспорта · "+fmt(w.excelRequestedAt):"Нет подтверждения");
+ setText("actPrepared",w.actPreparedAt?"Подготовлен к печати · "+fmt(w.actPreparedAt):act?"Не отмечена · файл загружен":"Нет подтверждения");
+ setText("actUpload",act?"Файл загружен · "+fmt(act.uploaded_at):"Не подтверждена");
+ setText("revision",String(row.revision??"—"));
+ setText("actDetails",act?"Файл: "+act.file_name+" · "+Math.round(act.file_size/1024)+" КБ. Наличие файла не означает, что он подписан.":"Подготовка, подпись и загрузка акта — отдельные действия.");
+ $("viewAct").classList.toggle("hidden",!act);
+ const mode=typeof row.mode==="string"?row.mode:row.payload?.mode||"";
+ $("openChecklist").href="./prototype/checklist/?openChecklist="+encodeURIComponent(row.id)+(mode?"&mode="+encodeURIComponent(mode):"");
+}
+async function load(){
+ const id=new URLSearchParams(location.search).get("id");
+ if(!uuid.test(id||""))throw new Error("Ссылка на сведения об осмотре некорректна");
+ await window.TMHAuthReady;
+ api=window.TMHAuth;
+ if(!api)throw new Error("Модуль авторизации не загрузился");
+ const identity=await api.getCurrentIdentity();
+ if(identity?.error||!identity?.user?.id)throw new Error("Необходимо войти в личный кабинет");
+ ownerId=identity.user.id;
+ const result=await api.client.from("checklists")
+   .select("id,owner_id,title,equipment_type,revision,created_at,updated_at,payload")
+   .eq("id",id).eq("owner_id",ownerId).single();
+ if(result.error||!result.data)throw new Error("Осмотр не найден в вашем личном кабинете");
+ const latestIdentity=await api.getCurrentIdentity();
+ if(latestIdentity?.error||latestIdentity?.user?.id!==ownerId)throw new Error("Сеанс пользователя изменился");
+ current=result.data;
+ const acts=await listChecklistActs(api,ownerId);
+ verifiedAct=acts.get(id)||null;
+ render(current,verifiedAct);
+ $("loading").classList.add("hidden");$("content").classList.remove("hidden");
+}
+$("uploadAct").addEventListener("click",()=>$("actFile").click());
+$("actFile").addEventListener("change",async()=>{
+ const file=$("actFile").files?.[0];if(!file||!current)return;
+ $("uploadAct").disabled=true;$("uploadAct").textContent="Загрузка…";
+ try{
+   verifiedAct=await uploadChecklistAct(api,{ownerId,checklistId:current.id,file});
+   render(current,verifiedAct);
+ }catch(e){window.alert("Акт не загружен: "+(e?.message||e));}
+ finally{$("actFile").value="";$("uploadAct").disabled=false;$("uploadAct").textContent="Загрузить акт"}
+});
+$("viewAct").addEventListener("click",async()=>{
+ if(!verifiedAct)return;
+ $("viewAct").disabled=true;
+ try{const signed=await getChecklistActLink(api,verifiedAct);window.open(signed,"_blank","noopener,noreferrer")}
+ catch(e){window.alert("Не удалось открыть акт: "+(e?.message||e))}
+ finally{$("viewAct").disabled=false}
+});
+load().catch(e=>{$("loading").classList.add("hidden");setText("error",e?.message||"Не удалось загрузить сведения");$("error").classList.remove("hidden")});
+</script>
+</body>
+</html>
