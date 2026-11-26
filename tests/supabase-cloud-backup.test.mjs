@@ -662,3 +662,25 @@ test("old revision cleanup falls back to the legacy photos property", async () =
   assert.deepEqual(calls, [legacyManifest]);
   assert.deepEqual(result.photosCleanup, { removed: 1, warning: false });
 });
+
+test("cloud backup stores housing notice document references without claiming generated copies",async()=>{
+ const h=makeHarness();
+ const api=createChecklistCloudBackup({
+  authApi:{async getCurrentIdentity(){return{user:{id:USER},error:null};}},
+  storage:{getItem:k=>h.values.get(k)??null,setItem:(k,v)=>h.values.set(k,v)},
+  getState:()=>h.state,getMode:()=> "complex",getStorageKey:()=> "checklist_complex::user:"+USER,
+  cloudApi:{async create(input){h.calls.push({action:"create",input});return{id:ROW,revision:1};}},
+  getChecklistWorkflow:()=>({notifications:{required:1,delivered:1},documentItems:[{
+   equipmentId:"housings",equipmentName:"Кожуха",instanceId:"housings|Секция 1",
+   fieldKey:"f1",operationName:"Осмотр кожуха",answer:"Нет",notificationStatus:"Да"
+  }]})
+ });
+ await api.saveCurrent();
+ const payload=h.calls[0].input.payload;
+ assert.equal(payload.documents.schemaVersion,1);
+ assert.equal(payload.documents.notices.length,1);
+ assert.equal(payload.documents.notices[0].templateId,"housings_notice");
+ assert.equal(payload.documents.notices[0].noticeGeneratedAt,null);
+ assert.equal(payload.documents.notices[0].noticeCopyUploaded,null);
+ assert.equal("documentItems" in payload.workflow,false);
+});
