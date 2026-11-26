@@ -40,7 +40,7 @@ function __tmhDocumentRegisterExcel(workbook){
   ws.addRow(Object.assign({},base,{
     kind:'Акт',template:'Акт осмотра',required:'',
     generated:act.preparedAt?'Подготовлен к печати':'Нет подтверждения',
-    copy:'Нет подтверждения',version:'Ожидает утверждённый шаблон'
+    copy:'Не проверено при экспорте',version:'Ожидает утверждённый шаблон'
   }));
   ws.getRow(1).font={bold:true,color:{argb:'FFFFFFFF'}};
   ws.getRow(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0A5EB0'}};
