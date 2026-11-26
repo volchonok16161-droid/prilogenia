@@ -3,6 +3,7 @@ import { attachDeveloperTools } from "./developer-tools-runtime.js";
 import "./checklist-risk-core.js";
 import { STANDALONE_PATCHES } from "./standalone-patches.js";
 import { NOTIFICATION_RUNTIME } from "./notification-runtime.js";
+import { DOCUMENT_EXPORT_RUNTIME } from "./checklist-document-export.js";
 import { createChecklistCloudBackup } from "./supabase-cloud-backup.js";
 import { createChecklistPhotoSync } from "./supabase-cloud-photos.js";
 
@@ -549,7 +550,7 @@ async function main() {
   if (mode === "complex" || mode === "housings" || /^k_/.test(String(mode))) {
     const anchor = "init().catch(function(error)";
     if (source.split(anchor).length !== 2) throw new Error("Notification runtime injection target unavailable");
-    source = source.replace(anchor, NOTIFICATION_RUNTIME + "\n" + anchor);
+    source = source.replace(anchor, NOTIFICATION_RUNTIME + "\n" + DOCUMENT_EXPORT_RUNTIME + "\n" + anchor);
     const statsAnchor = "const tf=gf.length+afc;";
     if (source.split(statsAnchor).length !== 2) throw new Error("Notification completion rule insertion failed");
     source = source.replace(statsAnchor,
@@ -560,7 +561,7 @@ async function main() {
       "const noticeIssues=__tmhNoticeValidation();if(noticeIssues.length){showToast('⚠ Уведомления не завершены: '+noticeIssues[0]);return;}\n" + exportAnchor);
     const sheetAnchor = "const wsS=wb.addWorksheet('Сводная');";
     if (source.split(sheetAnchor).length !== 2) throw new Error("Notification report anchor unavailable");
-    source = source.replace(sheetAnchor, sheetAnchor + "\n__tmhNoticeExcel(wb);");
+    source = source.replace(sheetAnchor, sheetAnchor + "\n__tmhNoticeExcel(wb);\n__tmhDocumentRegisterExcel(wb);");
   }
   // Retain the already assembled native checklist template for an isolated developer preview.
   // It contains the same operation renderer and registry as the worker form.
