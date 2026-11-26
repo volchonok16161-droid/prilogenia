@@ -27,6 +27,12 @@ h1{font-size:23px;margin:2px 0 5px}h2{font-size:17px;margin:0 0 12px}.muted{colo
 <h1 id="title">Осмотр</h1>
 <div id="status" class="badge"></div>
 <div class="meta" id="dates" style="margin-top:10px"></div>
+<div id="locomotiveInfo" class="statgrid" style="margin-top:12px">
+<div class="stat"><div class="label">Дата осмотра</div><div class="value" id="inspectionDate">—</div></div>
+<div class="stat"><div class="label">Депо</div><div class="value" id="depot">—</div></div>
+<div class="stat"><div class="label">Место осмотра</div><div class="value" id="place">—</div></div>
+<div class="stat"><div class="label">Пробег</div><div class="value" id="mileage">—</div></div>
+</div>
 <div class="actions"><a id="openChecklist" class="btn primary">Открыть чек-лист для заполнения</a><a href="./account.html" class="btn">Все чек-листы</a></div>
 </section>
 <section class="panel">
@@ -87,6 +93,11 @@ function render(row,act){
  setText("kind",row.checklist_type||row.payload?.checklistType||"Чек-лист");
  setText("status",done?"✓ Осмотр заполнен":"В работе");$("status").classList.toggle("done",done);
  setText("dates","Создан: "+fmt(row.created_at)+" · Обновлён: "+fmt(row.updated_at));
+ const dateText=typeof g.date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(g.date)?g.date.split("-").reverse().join("."):"—";
+ setText("inspectionDate",dateText);
+ setText("depot",String(g.depot||"—"));
+ setText("place",String(g.place||"—"));
+ setText("mileage",String(g.mileage||"—"));
  setText("percent",w.percentage===null?"Нет данных":w.percentage+"%");
  setText("fields",w.counted?w.filled+" из "+w.total:"Нет данных");
  setText("missing",w.counted?String(w.total-w.filled):"Нет данных");
